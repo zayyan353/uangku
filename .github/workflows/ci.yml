@@ -1,0 +1,32 @@
+name: Periksa Uangku
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-and-build:
+    name: Tes dan build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v6
+      - name: Siapkan Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Pasang dependency dari lockfile
+        run: npm ci
+      - name: Jalankan tes
+        run: npm test
+      - name: Buat build produksi
+        run: npm run build

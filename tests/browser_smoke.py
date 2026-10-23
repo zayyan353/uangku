@@ -1,0 +1,390 @@
+"""Synthetic end-to-end checks. Requires Python Playwright + Chromium.
+
+Run the app first with npm run dev, then python tests/browser_smoke.py.
+No uploaded or real financial data is used, copied, logged, or committed.
+"""
+from __future__ import annotations
+
+import json
+import os
+import re
+import tempfile
+from datetime import date, timedelta
+from pathlib import Path
+from xml.sax.saxutils import escape
+from zipfile import ZipFile, ZIP_DEFLATED
+
+from playwright.sync_api import sync_playwright, expect
+
+
+BASE_URL = os.environ.get("UANGKU_TEST_URL", "http://127.0.0.1:5173")
+KEY = "uangku:v1"
+
+
+def stored(page):
+    return page.evaluate("key => JSON.parse(localStorage.getItem(key))", KEY)
+
+
+def state(page):
+    return stored(page)["state"]
+
+
+def balance(data, wallet_id):
+    total = next(w["openingBalance"] for w in data["wallets"] if w["id"] == wallet_id)
+    for entry in data["entries"]:
+        if entry["walletId"] == wallet_id:
+            if entry["type"] in ("income", "adjustment", "unreviewed"):
+                total += entry["amount"]
+            else:
+                total -= entry["amount"] + entry.get("fee", 0)
+        if entry["type"] == "transfer" and entry.get("toWalletId") == wallet_id:
+            total += entry["toAmount"]
+    return total
+
+
+def nav(page, label):
+    page.locator(".sidebar").get_by_role("button", name=re.compile(r"^" + re.escape(label) + r"(?:\s+\d+)?$")).click()
+
+
+def dialog(page):
+    return page.get_by_role("dialog")
+
+
+def own_data(page):
+    page.get_by_role("button", name="Mulai pakai data sendiri").click()
+    dialog(page).get_by_role("button", name="Mulai dari kosong", exact=True).click()
+    expect(page.locator(".demo-banner")).to_have_count(0)
+    assert not stored(page)["demo"]
+
+
+def write_fixture(path):
+    # A tiny synthetic XLSX with the same documented column structure.
+    newest = date.today()
+    rows = [
+        ["Rekening contoh; bukan data pribadi"], ["Mata uang", "TL"],
+        *[[] for _ in range(9)],
+        ["Tarih", "Fiş No", "Açıklama", "İşlem Tutarı", "Bakiye"],
+        [newest.strftime("%d.%m.%Y"), "REF-REPEAT", "POS toko contoh", -25.5, 174.5],
+        [(newest - timedelta(days=1)).strftime("%d.%m.%Y"), "REF-REPEAT", "HAVALE contoh", 100, 200],
+        [(newest - timedelta(days=2)).strftime("%d.%m.%Y"), "OTHER", "POS belanja contoh", -20, 100],
+        [], ["Catatan akhir laporan"],
+    ]
+    xml_rows = []
+    for row in rows:
+        cells = []
+        for value in row:
+            numeric = isinstance(value, (int, float))
+            cells.append(f'<c t="{"n" if numeric else "str"}"><v>{escape(str(value))}</v></c>')
+        xml_rows.append("<row>" + "".join(cells) + "</row>")
+    ns = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+    with ZipFile(path, "w", ZIP_DEFLATED) as archive:
+        archive.writestr("xl/workbook.xml", f'<workbook {ns}><workbookPr date1904="0"/></workbook>')
+        archive.writestr("xl/worksheets/sheet1.xml", f'<worksheet {ns}><sheetData>{"".join(xml_rows)}</sheetData></worksheet>')
+
+
+def check_desktop(browser, tmp):
+    context = browser.new_context(viewport={"width": 1440, "height": 1000}, accept_downloads=True)
+    page = context.new_page()
+    page.set_default_timeout(8000)
+    errors = []
+    page.on("pageerror", lambda err: errors.append(str(err)))
+    page.goto(BASE_URL)
+    expect(page.locator(".balance-card")).to_be_visible()
+    assert stored(page)["demo"]
+    assert len(state(page)["wallets"]) == 7
+    assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
+    page.screenshot(path="/tmp/uangku-desktop.png", full_page=True)
+    own_data(page)
+    assert len(state(page)["wallets"]) == 13
+    assert state(page)["entries"] == []
+
+    # Set opening balance for an existing account.
+    nav(page, "Dompet")
+    page.get_by_role("button", name="Atur dompet BCA", exact=True).click()
+    dialog(page).get_by_label(re.compile("Saldo awal")).fill("500000")
+    dialog(page).get_by_role("button", name="Simpan dompet", exact=True).click()
+    assert balance(state(page), "bca-idr") == 50_000_000
+
+    # Create an additional wallet without disturbing the existing accounts.
+    page.get_by_role("button", name="Tambah dompet", exact=True).first.click()
+    dialog(page).get_by_label("Nama dompet", exact=True).fill("Cash Uji")
+    dialog(page).get_by_label(re.compile("^Jenis dompet")).select_option("cash")
+    dialog(page).get_by_label(re.compile("Saldo awal")).fill("100")
+    dialog(page).get_by_role("button", name="Simpan dompet", exact=True).click()
+    assert len(state(page)["wallets"]) == 14
+
+    # Expense with the category left at its optional default.
+    nav(page, "Ringkasan")
+    page.get_by_role("button", name="Catat transaksi", exact=True).click()
+    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Nominal", exact=True).fill("25000")
+    dialog(page).get_by_label(re.compile("Keterangan")).fill("Tes makan")
+    dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
+    entry = state(page)["entries"][-1]
+    assert entry["category"] == "Belum dikategorikan"
+    assert entry["amount"] == 2_500_000
+    assert balance(state(page), "bca-idr") == 47_500_000
+
+    # Same-currency transfer: both balances change; only its fee is spending.
+    page.get_by_role("button", name="Pindah uang", exact=True).click()
+    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Dompet tujuan", exact=True).select_option("cash-idr")
+    dialog(page).get_by_label("Nominal", exact=True).fill("100000")
+    dialog(page).get_by_label(re.compile("Biaya tambahan")).fill("2500")
+    dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
+    assert balance(state(page), "bca-idr") == 37_250_000
+    assert balance(state(page), "cash-idr") == 10_000_000
+    expect(page.locator(".stat-card").filter(has_text="Pengeluaran bulan ini").locator(".stat-value")).to_contain_text("27.500")
+
+    # Cross-currency transfer cannot save before explicit rate confirmation.
+    page.get_by_role("button", name="Pindah uang", exact=True).click()
+    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Dompet tujuan", exact=True).select_option("ziraat-try")
+    dialog(page).get_by_label("Nominal", exact=True).fill("100000")
+    dialog(page).get_by_label("Kurs transaksi", exact=True).fill("0,0025")
+    dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
+    expect(dialog(page).get_by_role("alert")).to_contain_text("Konfirmasi kurs")
+    assert len(state(page)["entries"]) == 2
+    dialog(page).get_by_label("Kurs ini sesuai transaksi saya", exact=True).check()
+    dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
+    assert balance(state(page), "bca-idr") == 27_250_000
+    assert balance(state(page), "ziraat-try") == 25_000
+    assert state(page)["entries"][-1]["rate"] == 0.0025
+
+    # Verify persistence with a real reload.
+    before = stored(page)
+    page.reload()
+    expect(page.locator(".balance-card")).to_be_visible()
+    assert stored(page) == before
+
+    # Download the actual backup, mutate, then restore it through the UI.
+    with page.expect_download() as download_info:
+        page.locator(".sidebar").get_by_role("button", name="Cadangkan data", exact=True).click()
+    backup_path = tmp / "synthetic-backup.json"
+    download_info.value.save_as(backup_path)
+    assert json.loads(backup_path.read_text()) == before
+    invalid_path = tmp / "invalid-backup.json"
+    invalid_path.write_text('{"app":"foreign-app"}')
+    page.get_by_label("File cadangan Uangku", exact=True).set_input_files(invalid_path)
+    expect(page.get_by_role("status")).to_be_visible()
+    assert stored(page) == before
+    page.get_by_label("File cadangan Uangku", exact=True).set_input_files(backup_path)
+    dialog(page).get_by_role("button", name="Pulihkan data", exact=True).click()
+    assert stored(page) == before
+
+    # Fresh synthetic-only context for import/reimport and signed pending flow.
+    import_context = browser.new_context(viewport={"width": 1440, "height": 1000})
+    ip = import_context.new_page()
+    ip.set_default_timeout(8000)
+    ip.on("pageerror", lambda err: errors.append(str(err)))
+    ip.goto(BASE_URL)
+    expect(ip.locator(".balance-card")).to_be_visible()
+    own_data(ip)
+    nav(ip, "Impor mutasi")
+    fixture = tmp / "synthetic-ziraat.xlsx"
+    write_fixture(fixture)
+    ip.get_by_label("File mutasi Ziraat", exact=True).set_input_files(fixture)
+    expect(ip.get_by_role("button", name="Simpan 3 transaksi", exact=True)).to_be_visible()
+    ip.get_by_role("button", name="Simpan 3 transaksi", exact=True).click()
+    assert len(state(ip)["entries"]) == 3
+    assert balance(state(ip), "ziraat-try") == 17_450
+    assert any(e["type"] == "unreviewed" and e["amount"] == 10_000 for e in state(ip)["entries"])
+    imported = stored(ip)
+    ip.get_by_label("File mutasi Ziraat", exact=True).set_input_files(fixture)
+    expect(ip.get_by_role("button", name="Simpan 0 transaksi", exact=True)).to_be_disabled()
+    assert ip.locator(".duplicate-row").count() == 3
+    assert stored(ip) == imported
+
+    # Reviewing an imported credit must retain its fingerprint for future imports.
+    credit_before = next(e for e in state(ip)["entries"] if e["type"] == "unreviewed")
+    nav(ip, "Transaksi")
+    ip.get_by_role("button", name="Cek HAVALE contoh", exact=True).click()
+    dialog(ip).get_by_role("button", name="Simpan hasil cek", exact=True).click()
+    credit_after = next(e for e in state(ip)["entries"] if e["id"] == credit_before["id"])
+    assert credit_after["type"] == "income"
+    assert credit_after.get("sourceKey") == credit_before["sourceKey"], "Review must retain imported credit sourceKey"
+    nav(ip, "Impor mutasi")
+    ip.get_by_label("File mutasi Ziraat", exact=True).set_input_files(fixture)
+    expect(ip.get_by_role("button", name="Simpan 0 transaksi", exact=True)).to_be_disabled()
+    assert ip.locator(".duplicate-row").count() == 3
+
+    # Restore a malformed local storage payload must not silently overwrite it.
+    bad_context = browser.new_context()
+    bp = bad_context.new_page()
+    bp.goto(BASE_URL)
+    bp.evaluate("key => localStorage.setItem(key, '{broken')", KEY)
+    bp.reload()
+    expect(bp.get_by_role("alert")).to_be_visible()
+    assert bp.evaluate("key => localStorage.getItem(key)", KEY) == "{broken"
+
+    assert errors == [], errors
+    bad_context.close(); import_context.close(); context.close()
+    return ["demo and own-data setup", "wallet creation/opening balance", "cash expense/category optional", "same-currency transfer and fees", "manual FX confirmation", "reload persistence", "backup download/valid+invalid restore", "synthetic XLSX import/reimport", "reviewed imported credit deduplication", "signed pending balances", "corrupt storage preservation", "zero browser page errors"]
+
+
+def check_mobile(browser):
+    context = browser.new_context(viewport={"width": 390, "height": 844}, is_mobile=True, has_touch=True)
+    page = context.new_page()
+    page.goto(BASE_URL)
+    expect(page.locator(".balance-card")).to_be_visible()
+    assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
+    page.screenshot(path="/tmp/uangku-mobile.png", full_page=True)
+    page.get_by_role("button", name="Catat transaksi", exact=True).click()
+    expect(dialog(page)).to_be_visible()
+    assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
+    expect(dialog(page).get_by_role("button", name="Simpan transaksi", exact=True)).to_be_visible()
+    dialog(page).get_by_role("button", name="Tutup", exact=True).click()
+    mobile_nav = page.locator(".mobile-nav")
+    mobile_nav.get_by_role("button", name="Dompet", exact=True).click()
+    expect(page.locator(".wallet-grid")).to_be_visible()
+    assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
+    mobile_nav.get_by_role("button", name="Impor mutasi", exact=True).click()
+    expect(page.locator(".import-dropzone")).to_be_visible()
+    assert not page.evaluate("document.documentElement.scrollWidth > innerWidth")
+    context.close()
+    return ["mobile390 overview/wallet/import layout", "mobile transaction modal", "mobile bottom navigation"]
+
+
+def check_regressions(browser, tmp):
+    """Exercise fixes around imported pairs, failed persistence, and safe totals."""
+    all_errors = []
+
+    def fresh():
+        context = browser.new_context(viewport={"width": 1440, "height": 1000}, accept_downloads=True)
+        page = context.new_page()
+        page.set_default_timeout(8000)
+        page.on("pageerror", lambda err: all_errors.append(str(err)))
+        page.goto(BASE_URL)
+        expect(page.locator(".balance-card")).to_be_visible()
+        own_data(page)
+        return context, page
+
+    def seed(page, *, paired):
+        data = stored(page)
+        for wallet in data["state"]["wallets"]:
+            if wallet["id"] == "papara-try":
+                wallet["openingBalance"] = 20_000
+            if wallet["id"] == "ziraat-try":
+                wallet["openingBalance"] = 10_000
+        current_date = date.today().isoformat()
+        incoming = {"id": "synthetic-arrival", "date": current_date,
+                    "type": "unreviewed", "walletId": "ziraat-try", "amount": 10_000,
+                    "category": "Belum dikategorikan", "note": "Kredit transfer contoh",
+                    "sourceKey": "synthetic-incoming-fingerprint", "importBatch": "synthetic-import"}
+        outgoing = {"id": "synthetic-departure", "date": current_date,
+                    "type": "unreviewed", "walletId": "papara-try", "amount": -10_000,
+                    "category": "Belum dikategorikan", "note": "Debit transfer contoh",
+                    "sourceKey": "synthetic-outgoing-fingerprint", "importBatch": "synthetic-import"}
+        data["state"]["entries"] = [outgoing, incoming] if paired else [incoming]
+        page.evaluate("([key, data]) => localStorage.setItem(key, JSON.stringify(data))", [KEY, data])
+        page.reload()
+        expect(page.locator(".balance-card")).to_be_visible()
+        page.locator(".currency-tab").filter(has_text="Lira Turki").click()
+        nav(page, "Transaksi")
+        return data
+
+    # A received import always keeps its arrival wallet and amount fixed.
+    context, page = fresh()
+    seed(page, paired=False)
+    original_arrival_balance = balance(state(page), "ziraat-try")
+    page.get_by_role("button", name="Cek Kredit transfer contoh", exact=True).click()
+    dialog(page).get_by_role("button", name="Transfer", exact=True).click()
+    source = dialog(page).get_by_label("Dompet asal", exact=True)
+    assert source.locator('option[value="ziraat-try"]').count() == 0
+    expect(dialog(page).get_by_label("Dompet tujuan", exact=True)).to_be_disabled()
+    source.select_option("papara-try")
+    dialog(page).get_by_label("Nominal", exact=True).fill("100")
+    dialog(page).get_by_role("button", name="Simpan hasil cek", exact=True).click()
+    saved = state(page)
+    assert len(saved["entries"]) == 1
+    transfer = saved["entries"][0]
+    assert transfer["type"] == "transfer"
+    assert transfer["walletId"] == "papara-try" and transfer["toWalletId"] == "ziraat-try"
+    assert transfer["toAmount"] == 10_000
+    assert transfer["toSourceKey"] == "synthetic-incoming-fingerprint"
+    assert balance(saved, "ziraat-try") == original_arrival_balance
+    assert balance(saved, "papara-try") == 10_000
+    context.close()
+
+    # Pair two imported sides: adding a fee would double count bank cashflow.
+    context, page = fresh()
+    original = seed(page, paired=True)["state"]
+    page.get_by_role("button", name="Cek Kredit transfer contoh", exact=True).click()
+    dialog(page).get_by_role("button", name="Transfer", exact=True).click()
+    dialog(page).get_by_label("Dompet asal", exact=True).select_option("papara-try")
+    dialog(page).get_by_label(re.compile("^Catatan pasangan")).select_option("synthetic-departure")
+    dialog(page).get_by_label(re.compile("Biaya tambahan")).fill("5")
+    dialog(page).get_by_role("button", name="Simpan hasil cek", exact=True).click()
+    expect(dialog(page).get_by_role("alert")).to_contain_text("Catat biaya bank")
+    assert state(page) == original
+    dialog(page).get_by_label(re.compile("Biaya tambahan")).fill("0")
+    dialog(page).get_by_role("button", name="Simpan hasil cek", exact=True).click()
+    combined = state(page)
+    assert len(combined["entries"]) == 1
+    combined_transfer = combined["entries"][0]
+    assert combined_transfer["sourceKey"] == "synthetic-outgoing-fingerprint"
+    assert combined_transfer["toSourceKey"] == "synthetic-incoming-fingerprint"
+    assert balance(combined, "papara-try") == balance(original, "papara-try")
+    assert balance(combined, "ziraat-try") == balance(original, "ziraat-try")
+    context.close()
+
+    # Storage writes fail after a real mutation: download must contain RAM's newest data.
+    context, page = fresh()
+    stale = stored(page)
+    page.evaluate("""() => {
+      Storage.prototype.setItem = function () {
+        throw new DOMException('Synthetic storage quota failure', 'QuotaExceededError');
+      };
+    }""")
+    page.get_by_role("button", name="Catat transaksi", exact=True).click()
+    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Nominal", exact=True).fill("25")
+    dialog(page).get_by_label(re.compile("Keterangan")).fill("Catatan terbaru belum tersimpan")
+    dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
+    expect(page.get_by_role("alert")).to_contain_text("Penyimpanan browser")
+    assert stored(page) == stale
+    with page.expect_download() as download_info:
+        page.get_by_role("button", name="Unduh data yang ada", exact=True).click()
+    recovery_path = tmp / "quota-recovery-backup.json"
+    download_info.value.save_as(recovery_path)
+    recovery = json.loads(recovery_path.read_text())
+    assert len(recovery["state"]["entries"]) == 1
+    assert recovery["state"]["entries"][0]["note"] == "Catatan terbaru belum tersimpan"
+    assert recovery["state"]["entries"][0]["amount"] == 2500
+    context.close()
+
+    # Each wallet can be safe while their currency aggregate would overflow.
+    context, page = fresh()
+    data = stored(page)
+    for wallet in data["state"]["wallets"]:
+        if wallet["id"] == "bca-idr":
+            wallet["openingBalance"] = 9_007_199_254_740_891  # MAX_SAFE_INTEGER - 100
+        elif wallet["id"] == "bca-digital-idr":
+            wallet["openingBalance"] = 50
+    page.evaluate("([key, data]) => localStorage.setItem(key, JSON.stringify(data))", [KEY, data])
+    page.reload()
+    expect(page.locator(".balance-card")).to_be_visible()
+    before = stored(page)
+    nav(page, "Dompet")
+    page.get_by_role("button", name="Atur dompet BCA Digital", exact=True).click()
+    dialog(page).get_by_label(re.compile("Saldo awal")).fill("2")
+    dialog(page).get_by_role("button", name="Simpan dompet", exact=True).click()
+    expect(dialog(page)).to_be_visible()
+    expect(page.get_by_role("status")).to_contain_text("terlalu besar")
+    assert stored(page) == before
+    context.close()
+    assert all_errors == [], all_errors
+    return ["incoming transfer destination/amount preservation", "paired imports preserve both fingerprints/balances", "paired imports reject duplicate extra fee", "quota recovery downloads newest in-memory data", "currency aggregate overflow rejected"]
+
+
+if __name__ == "__main__":
+    with tempfile.TemporaryDirectory(prefix="uangku-browser-") as temp:
+        with sync_playwright() as playwright:
+            browser = playwright.chromium.launch(executable_path=os.environ.get("CHROMIUM_PATH", "/usr/bin/chromium"), args=["--no-sandbox"])
+            try:
+                checks = check_desktop(browser, Path(temp)) + check_mobile(browser) + check_regressions(browser, Path(temp))
+            finally:
+                browser.close()
+    print(f"PASS: {len(checks)} browser scenarios")
+    for check in checks:
+        print(f"  - {check}")

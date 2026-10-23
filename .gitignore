@@ -1,0 +1,17 @@
+node_modules/
+dist/
+.vite/
+.env
+.env.*
+!.env.example
+*.local
+*.xlsx
+*.xls
+*.csv
+*.pdf
+*backup*.json
+*cadangan*.json
+test-results/
+playwright-report/
+screenshots/
+*.tsbuildinfo
