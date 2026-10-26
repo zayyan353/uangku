@@ -2,15 +2,20 @@
 
 Pencatat uang pribadi untuk cash, rekening, dan e-wallet dalam rupiah, lira Turki, dan dolar AS. Mulai dari saldo hari ini, catat secukupnya, lalu rapikan kategorinya belakangan.
 
+**[Buka Uangku](https://zayyan353.github.io/uangku/)**
+
 ## Yang bisa dipakai
 
 - **Dompet terpisah:** saldo cash dan rekening tetap jelas; setiap dompet punya satu mata uang.
 - **Ringkasan per mata uang:** saldo, pemasukan, dan pengeluaran IDR, TRY/TL, serta USD ditampilkan terpisah.
 - **Catat cepat:** pemasukan, pengeluaran, dan kategori “Belum dikategorikan”.
+- **Lebih sedikit pilih ulang:** mata uang dan dompet terakhir diingat di browser. Dompet cash tampil di ringkasan dengan tombol catat langsung.
+- **Simpan & catat lagi:** catat beberapa pengeluaran atau pemasukan berurutan; dompet, tanggal, dan kategori tetap dipilih, sementara nominal dan keterangan dikosongkan untuk catatan berikutnya.
 - **Pindah uang:** transfer antar dompet, termasuk tarik tunai. Transfer tidak dihitung sebagai belanja; biaya transfer dicatat sebagai pengeluaran.
 - **Kurs per transaksi:** isi kurs manual atau nominal yang benar-benar diterima, lalu konfirmasi kursnya. Kurs historis disimpan bersama transaksi.
 - **Impor mutasi Ziraat XLSX:** pratinjau transaksi, pemeriksaan saldo antarbaris, dan pemeriksaan impor berulang.
 - **Perlu dicek:** transaksi yang jenisnya belum jelas tetap memengaruhi saldo, tetapi belum dihitung sebagai pemasukan atau pengeluaran. Hasil cek dapat disimpan setelah jenis atau tujuan transfer dipastikan.
+- **Antrean perapihan:** filter “Perlu dirapikan” menampilkan transaksi dari seluruh bulan dan mata uang, termasuk kategori yang ditunda. Ringkasan bulanan tetap mengikuti bulan dan mata uang yang dipilih.
 - **Cek saldo:** catat penyesuaian yang terlihat jika uang fisik atau saldo sebenarnya berbeda dari catatan.
 - **Cadangkan dan pulihkan:** unduh catatan sebagai JSON dan pulihkan lewat aplikasi.
 

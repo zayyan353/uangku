@@ -377,12 +377,197 @@ def check_regressions(browser, tmp):
     return ["incoming transfer destination/amount preservation", "paired imports preserve both fingerprints/balances", "paired imports reject duplicate extra fee", "quota recovery downloads newest in-memory data", "currency aggregate overflow rejected"]
 
 
+def check_daily_use(browser, tmp):
+    """Daily-entry shortcuts and global review scope, using synthetic records."""
+    errors = []
+
+    def fresh():
+        context = browser.new_context(viewport={"width": 1440, "height": 1000})
+        page = context.new_page()
+        page.set_default_timeout(8000)
+        page.on("pageerror", lambda err: errors.append(str(err)))
+        page.goto(BASE_URL)
+        expect(page.locator(".balance-card")).to_be_visible()
+        own_data(page)
+        return context, page
+
+    # Last manually used wallet and active currency survive a genuine reload.
+    context, page = fresh()
+    page.locator(".currency-tab").filter(has_text="Lira Turki").click()
+    page.get_by_role("button", name="Catat transaksi", exact=True).click()
+    amount = dialog(page).get_by_label("Nominal", exact=True)
+    expect(amount).to_be_focused()
+    dialog(page).get_by_label("Dompet asal", exact=True).select_option("cash-try")
+    amount.fill("10")
+    dialog(page).get_by_label(re.compile("Keterangan")).fill("Cash lira uji preferensi")
+    dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
+    page.get_by_role("button", name="Catat transaksi", exact=True).click()
+    expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value("cash-try")
+    dialog(page).get_by_role("button", name="Tutup", exact=True).click()
+    page.reload()
+    expect(page.locator(".currency-tab").filter(has_text="Lira Turki")).to_have_attribute("aria-pressed", "true")
+    page.get_by_role("button", name="Catat transaksi", exact=True).click()
+    expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value("cash-try")
+    expect(dialog(page).get_by_label("Nominal", exact=True)).to_be_focused()
+    dialog(page).get_by_role("button", name="Tutup", exact=True).click()
+
+    # A same-currency destination should be the default instead of a surprise FX form.
+    page.get_by_role("button", name="Pindah uang", exact=True).click()
+    source_id = dialog(page).get_by_label("Dompet asal", exact=True).input_value()
+    destination_id = dialog(page).get_by_label("Dompet tujuan", exact=True).input_value()
+    currencies = {wallet["id"]: wallet["currency"] for wallet in state(page)["wallets"]}
+    assert source_id != destination_id
+    assert currencies[source_id] == currencies[destination_id] == "TRY"
+    expect(dialog(page).get_by_label("Kurs transaksi", exact=True)).to_have_count(0)
+    dialog(page).get_by_role("button", name="Tutup", exact=True).click()
+
+    # Save-and-repeat keeps useful context, clears the previous purchase, and cannot resave blanks.
+    page.get_by_role("button", name="Catat transaksi", exact=True).click()
+    repeated_date = (date.today() - timedelta(days=1)).isoformat()
+    dialog(page).get_by_label("Tanggal", exact=True).fill(repeated_date)
+    dialog(page).get_by_label("Nominal", exact=True).fill("15")
+    dialog(page).get_by_label(re.compile("Keterangan")).fill("Catatan berulang pertama")
+    count_before = len(state(page)["entries"])
+    dialog(page).get_by_role("button", name="Simpan & catat lagi", exact=True).click()
+    expect(dialog(page)).to_be_visible()
+    expect(dialog(page).get_by_label("Nominal", exact=True)).to_have_value("")
+    expect(dialog(page).get_by_label(re.compile("Keterangan"))).to_have_value("")
+    expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value("cash-try")
+    expect(dialog(page).get_by_label("Tanggal", exact=True)).to_have_value(repeated_date)
+    expect(dialog(page).get_by_label("Nominal", exact=True)).to_be_focused()
+    assert len(state(page)["entries"]) == count_before + 1
+    dialog(page).get_by_role("button", name="Simpan & catat lagi", exact=True).click()
+    assert len(state(page)["entries"]) == count_before + 1
+    dialog(page).get_by_label("Nominal", exact=True).fill("20")
+    dialog(page).get_by_label(re.compile("Keterangan")).fill("Catatan berulang kedua")
+    dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
+    assert len(state(page)["entries"]) == count_before + 2
+    assert len([entry for entry in state(page)["entries"] if entry["note"] == "Catatan berulang pertama"]) == 1
+    assert len([entry for entry in state(page)["entries"] if entry["note"] == "Catatan berulang kedua"]) == 1
+    context.close()
+
+    # Queue membership must reach older records in currencies other than the active view.
+    context, page = fresh()
+    data = stored(page)
+    this_month = date.today().replace(day=1)
+    old_day = (this_month - timedelta(days=1)).replace(day=5).isoformat()
+    older_day = ((this_month - timedelta(days=1)).replace(day=1) - timedelta(days=1)).replace(day=5).isoformat()
+    data["state"]["entries"] = [
+        {"id": "older-try-pending", "date": old_day, "type": "unreviewed", "walletId": "ziraat-try", "amount": 10_000,
+         "category": "Belum dikategorikan", "note": "Kredit TL periode lama", "sourceKey": "synthetic-older-try-source"},
+        {"id": "older-usd-pending", "date": older_day, "type": "unreviewed", "walletId": "cash-usd", "amount": -5000,
+         "category": "Belum dikategorikan", "note": "Debit USD periode lama", "sourceKey": "synthetic-older-usd-source"},
+    ]
+    page.evaluate("([key, value]) => localStorage.setItem(key, JSON.stringify(value))", [KEY, data])
+    page.reload()
+    expect(page.locator(".balance-card")).to_be_visible()
+    expect(page.locator(".currency-tab").filter(has_text="Rupiah")).to_have_attribute("aria-pressed", "true")
+    expect(page.locator(".pending-banner")).to_contain_text("2")
+    expect(page.locator(".sidebar .nav-count")).to_have_text("2")
+    original_balance = balance(state(page), "ziraat-try")
+    page.locator(".pending-banner").click()
+    expect(page.locator(".currency-toolbar")).to_have_count(0)
+    expect(page.get_by_text(re.compile(r"Semua mata uang.*(?:semua|seluruh) (?:bulan|periode)", re.IGNORECASE))).to_be_visible()
+    expect(page.locator(".transactions-table tbody tr")).to_have_count(2)
+    page.get_by_role("button", name="Cek Kredit TL periode lama", exact=True).click()
+    dialog(page).get_by_label(re.compile("^Kategori")).select_option("Pemasukan")
+    dialog(page).get_by_role("button", name="Simpan hasil cek", exact=True).click()
+    reviewed = next(entry for entry in state(page)["entries"] if entry["id"] == "older-try-pending")
+    assert reviewed["type"] == "income"
+    assert reviewed["sourceKey"] == "synthetic-older-try-source"
+    assert balance(state(page), "ziraat-try") == original_balance
+    expect(page.locator(".transactions-table tbody tr")).to_have_count(1)
+    expect(page.locator(".sidebar .nav-count")).to_have_text("1")
+    context.close()
+
+    # A pending file read cannot switch targets or leak a result into a new import view.
+    context, page = fresh()
+    fixture = tmp / "synthetic-delayed-ziraat.xlsx"
+    write_fixture(fixture)
+    page.evaluate("""() => {
+      const original = File.prototype.arrayBuffer;
+      window.__uangkuPendingReads = [];
+      File.prototype.arrayBuffer = function () {
+        const file = this;
+        return new Promise((resolve, reject) => {
+          window.__uangkuPendingReads.push(() => original.call(file).then(resolve, reject));
+        });
+      };
+    }""")
+    nav(page, "Impor mutasi")
+    page.get_by_label("File mutasi Ziraat", exact=True).set_input_files(fixture)
+    expect(page.get_by_label("Dompet impor", exact=True)).to_be_disabled()
+    expect(page.get_by_text("Membaca mutasi…", exact=True)).to_be_visible()
+    assert page.evaluate("window.__uangkuPendingReads.length") == 1
+    nav(page, "Dompet")
+    nav(page, "Impor mutasi")
+    page.get_by_label("Dompet impor", exact=True).select_option("papara-try")
+    page.evaluate("async () => { await Promise.all(window.__uangkuPendingReads.splice(0).map(release => release())); }")
+    expect(page.get_by_label("Dompet impor", exact=True)).to_have_value("papara-try")
+    expect(page.locator(".import-preview")).to_have_count(0)
+    assert state(page)["entries"] == []
+    page.get_by_label("File mutasi Ziraat", exact=True).set_input_files(fixture)
+    expect(page.get_by_label("Dompet impor", exact=True)).to_be_disabled()
+    page.evaluate("async () => { await Promise.all(window.__uangkuPendingReads.splice(0).map(release => release())); }")
+    expect(page.get_by_role("button", name="Simpan 3 transaksi", exact=True)).to_be_visible()
+    expect(page.get_by_label("Dompet impor", exact=True)).to_have_value("papara-try")
+    page.get_by_role("button", name="Simpan 3 transaksi", exact=True).click()
+    assert len(state(page)["entries"]) == 3
+    assert all(entry["walletId"] == "papara-try" for entry in state(page)["entries"])
+    assert balance(state(page), "papara-try") == 17_450
+    context.close()
+
+    # Switching an expense's source before selecting Transfer must recalculate its destination.
+    context, page = fresh()
+    for currency_label, bank_id, cash_id, expected_currency in [
+        ("Rupiah", "bca-idr", "cash-idr", "IDR"),
+        ("Lira Turki", "ziraat-try", "cash-try", "TRY"),
+    ]:
+        page.locator(".currency-tab").filter(has_text=currency_label).click()
+        page.get_by_role("button", name="Catat transaksi", exact=True).click()
+        expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value(bank_id)
+        dialog(page).get_by_label("Dompet asal", exact=True).select_option(cash_id)
+        dialog(page).get_by_role("button", name="Transfer", exact=True).click()
+        source_id = dialog(page).get_by_label("Dompet asal", exact=True).input_value()
+        destination_id = dialog(page).get_by_label("Dompet tujuan", exact=True).input_value()
+        wallet_map = {wallet["id"]: wallet for wallet in state(page)["wallets"]}
+        assert source_id == cash_id and destination_id != source_id
+        assert wallet_map[destination_id]["currency"] == expected_currency
+        assert wallet_map[destination_id]["kind"] == "bank"
+        expect(dialog(page).get_by_label("Kurs transaksi", exact=True)).to_have_count(0)
+        dialog(page).get_by_role("button", name="Tutup", exact=True).click()
+    assert state(page)["entries"] == []
+    context.close()
+
+    # Recheck the ledger boundary at commit, not only when the preview was loaded.
+    context, page = fresh()
+    fixture = tmp / "synthetic-preview-boundary-ziraat.xlsx"
+    write_fixture(fixture)
+    nav(page, "Impor mutasi")
+    page.get_by_label("File mutasi Ziraat", exact=True).set_input_files(fixture)
+    expect(page.get_by_role("button", name="Simpan 3 transaksi", exact=True)).to_be_visible()
+    page.get_by_role("button", name="Catat transaksi", exact=True).click()
+    dialog(page).get_by_label("Dompet asal", exact=True).select_option("ziraat-try")
+    dialog(page).get_by_label("Nominal", exact=True).fill("10")
+    dialog(page).get_by_label(re.compile("Keterangan")).fill("Manual setelah pratinjau")
+    dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
+    manual_only = stored(page)
+    assert len(manual_only["state"]["entries"]) == 1
+    page.get_by_role("button", name="Simpan 3 transaksi", exact=True).click()
+    expect(page.get_by_role("alert")).to_contain_text("sebelum batas awal")
+    assert stored(page) == manual_only
+    assert state(page)["entries"][0]["note"] == "Manual setelah pratinjau"
+    context.close()
+    assert errors == [], errors
+    return ["last manual cash wallet reused and persisted", "active TL currency retained after reload", "TL transfer defaults to another TRY wallet", "save-and-repeat clears purchase but preserves context without duplicates", "global pending queue reaches older other-currency entries", "pending review preserves balance and import fingerprint", "delayed import locks target and invalidates stale view results", "expense-to-transfer source switch recalculates same-currency bank destination", "import commit rechecks ledger boundary after intervening manual entry"]
+
+
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory(prefix="uangku-browser-") as temp:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(executable_path=os.environ.get("CHROMIUM_PATH", "/usr/bin/chromium"), args=["--no-sandbox"])
             try:
-                checks = check_desktop(browser, Path(temp)) + check_mobile(browser) + check_regressions(browser, Path(temp))
+                checks = check_desktop(browser, Path(temp)) + check_mobile(browser) + check_regressions(browser, Path(temp)) + check_daily_use(browser, Path(temp))
             finally:
                 browser.close()
     print(f"PASS: {len(checks)} browser scenarios")

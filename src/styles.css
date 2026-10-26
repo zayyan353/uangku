@@ -189,6 +189,21 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .wallet-card-balance small { display: block; color: #a0aa93; font-size: 10px; font-weight: 400; letter-spacing: 0; margin-bottom: 8px; }
 .wallet-card-footer { border-top: 1px solid #f0f2e9; padding-top: 13px; display: flex; justify-content: space-between; align-items: center; color: #9aa58b; font-size: 9px; gap: 10px; }
 .filter-bar { display: flex; align-items: center; gap: 11px; margin: 0 0 19px; flex-wrap: wrap; }
+.review-scope { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 18px; padding: 13px 15px; border: 1px solid #dfe8d5; border-radius: 12px; background: #f1f6e9; color: #7a9165; font-size: 11px; line-height: 1.7; }
+.review-scope > svg { color: #8ca675; width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
+.review-scope > div { min-width: 0; flex: 1; }
+.review-scope strong { color: #5e7b47; font-size: 12px; font-weight: 600; }
+.review-scope p { margin: 3px 0 0; }
+.review-scope .text-link { font-size: 10px; white-space: normal; }
+.quick-wallet-action { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #dce7cf; background: #f3f7ed; color: #7a9560; border-radius: 8px; padding: 6px 8px; min-height: 29px; font-size: 10px; font-weight: 550; white-space: nowrap; }
+.quick-wallet-action svg { width: 12px; height: 12px; }
+.wallet-row-wrap { display: flex; align-items: center; gap: 9px; border-bottom: 1px solid #f0f2eb; }
+.wallet-row-wrap:last-child { border-bottom: 0; }
+.wallet-row-wrap > .wallet-row { flex: 1; min-width: 0; border-bottom: 0; padding-top: 14px; padding-bottom: 14px; }
+.wallet-row-wrap:first-child > .wallet-row { padding-top: 0; }
+.wallet-row-wrap:last-child > .wallet-row { padding-bottom: 0; }
+.wallet-row-wrap .quick-wallet-action { width: 29px; height: 29px; padding: 0; flex-shrink: 0; }
+.wallet-card-actions { display: flex; align-items: center; gap: 12px; }
 .search-input { position: relative; flex: 1; min-width: 180px; }
 .search-input svg { position: absolute; left: 12px; top: 12px; width: 15px; height: 15px; color: #9eaa91; }
 .search-input input { width: 100%; padding-left: 35px; }
@@ -231,6 +246,10 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .modal-body { padding: 22px 27px; overflow-y: auto; min-height: 0; }
 .modal-footer { padding: 17px 27px 24px; display: flex; align-items: center; justify-content: flex-end; gap: 9px; border-top: 1px solid #eef1e7; }
 .modal-footer .button { min-width: 95px; }
+.modal-footer.repeat-entry-footer { gap: 8px; }
+.repeat-entry-footer .button { font-size: 11px; padding-left: 13px; padding-right: 13px; }
+.repeat-entry-footer .button:first-child { margin-right: auto; }
+.repeat-entry-footer .button.primary { order: 2; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 17px 14px; }
 .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; margin-bottom: 16px; }
 .form-grid .field { margin-bottom: 0; }
@@ -508,6 +527,10 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
   .modal-header h2 { font-size: 18px; }
   .modal-body { padding: 20px 21px; }
   .modal-footer { padding: 16px 21px 21px; }
+  .modal-footer.repeat-entry-footer { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .repeat-entry-footer .button { width: 100%; min-width: 0; white-space: normal; min-height: 40px; padding: 9px 10px; line-height: 1.45; text-align: center; }
+  .repeat-entry-footer .button:first-child { margin-right: 0; }
+  .repeat-entry-footer .button.primary { grid-column: 1 / -1; }
   .form-grid { gap: 15px 11px; }
   .segmented-control button { font-size: 10px; padding: 9px 5px; }
   .bottom-note { font-size: 8px; line-height: 1.8; }
@@ -572,6 +595,10 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
   .pending-banner > span:nth-child(2) { flex-basis: calc(100% - 45px); }
   .pending-cta { margin-left: 40px; }
   .pending-banner > span:nth-child(2) strong { font-size: 11px; }
+  .review-scope { font-size: 10px; padding: 12px; }
+  .review-scope strong { font-size: 11px; }
+  .quick-wallet-action { padding: 6px 7px; font-size: 9px; }
+  .wallet-row-wrap .quick-wallet-action { width: 40px; height: 40px; border-radius: 10px; }
   .transaction-title { font-size: 11px; }
   .transaction-note { font-size: 9px; }
   .transactions-table:not(.import-table) { min-width: 0; table-layout: fixed; width: 100%; }
