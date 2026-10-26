@@ -15,6 +15,8 @@ import { createEmptyState, makeDemoData, readStored, STORAGE_KEY, validateBackup
 import { entriesFromImport, parseZiraatWorkbook, type ImportRow } from './lib/importer';
 import { validateImportRange } from './lib/importRange';
 import { preferredDestination, preferredWallet, readPreferences, writePreferences } from './lib/preferences';
+import { canCategorize, categorizeEntries, transferCandidates } from './lib/review';
+import BulkReviewPanel from './components/BulkReviewPanel';
 
 type Page = 'overview' | 'wallets' | 'transactions' | 'import';
 type TxMode = 'expense' | 'income' | 'transfer' | 'adjustment';
@@ -128,6 +130,19 @@ function TransactionModal({ state, initialMode, initialWallet, existing, onSave,
     && (incomingPending ? e.amount < 0 : e.amount > 0)
     && Math.abs(new Date(e.date).getTime() - new Date(date).getTime()) <= 3 * 86400000,
   ) : [];
+  const suggestedPairs = importedPending && existing ? transferCandidates(state, existing.id).slice(0, 4) : [];
+  function useSuggestedPair(id: string) {
+    const pair = state.entries.find(e => e.id === id);
+    if (!pair || !existing || !suggestedPairs.some(candidate => candidate.id === id)) return;
+    setType('transfer'); setPairId(pair.id); setConfirmed(false); setError(''); setFee(''); setFxMode('received');
+    if (incomingPending) {
+      setWallet(pair.walletId); setToWallet(existing.walletId);
+      setAmount(moneyInput(Math.abs(pair.amount))); setReceived(moneyInput(existing.amount));
+    } else {
+      setWallet(existing.walletId); setToWallet(pair.walletId);
+      setAmount(moneyInput(Math.abs(existing.amount))); setReceived(moneyInput(pair.amount));
+    }
+  }
   function changeType(next: TxMode) {
     setType(next); setError(''); setPairId(''); setConfirmed(false);
     if (next === 'transfer' && importedPending && incomingPending) {
@@ -198,6 +213,11 @@ function TransactionModal({ state, initialMode, initialWallet, existing, onSave,
   return <Modal title={importedPending ? 'Cek transaksi ini' : type === 'adjustment' ? 'Cocokkan saldo' : existing ? 'Ubah transaksi' : type === 'transfer' ? 'Pindah uang' : 'Catat transaksi'} subtitle={type === 'transfer' ? 'Uangnya berpindah. Total belanja tetap sama.' : 'Catat secukupnya. Kategori bisa dibereskan nanti.'} onClose={onClose}>
     <form onSubmit={submit}><div className="modal-body">
       <div className="segmented-control" aria-label="Jenis transaksi">{options.map(t => <button key={t} type="button" className={type === t ? 'active' : ''} onClick={() => changeType(t)}>{t === 'adjustment' ? 'Cek saldo' : typeLabels[t]}</button>)}</div>
+      {suggestedPairs.length > 0 && <div className="transfer-suggestion"><strong>Mungkin pasangan transfer</strong><p>Nominal sama, arah berlawanan, di dompet lain. Pilih pasangan yang benar lalu simpan hasil cek.</p>{suggestedPairs.map(candidate => {
+        const pair = state.entries.find(e => e.id === candidate.id)!;
+        const pairWallet = state.wallets.find(w => w.id === pair.walletId)!;
+        return <button key={pair.id} className="button secondary small" type="button" aria-label={`Cocokkan transfer ${pairWallet.name} pada ${formatDate(pair.date)}`} onClick={() => useSuggestedPair(pair.id)}><ArrowLeftRight size={15} />{pairWallet.name} · {formatDate(pair.date)} · {formatMoney(Math.abs(pair.amount), pairWallet.currency)}{pairId === pair.id && <Check size={15} />}</button>;
+      })}</div>}
       <div className="form-grid">
         <label className="field"><span className="field-label">{type === 'transfer' ? 'Dari dompet' : 'Dompet'}</span><select required aria-label="Dompet asal" className="select-input" value={walletId} disabled={importedPending && (!incomingPending || type !== 'transfer')} onChange={e => { setWallet(e.target.value); if (type === 'transfer' && !incomingPending) setToWallet(preferredDestination(state.wallets, e.target.value)); setPairId(''); setConfirmed(false); }}>{state.wallets.filter(w => !(incomingPending && type === 'transfer' && w.id === existing.walletId)).map(w => <option key={w.id} value={w.id}>{w.name} · {w.currency}</option>)}</select></label>
         {type === 'transfer' ? <label className="field"><span className="field-label">Ke dompet</span><select required aria-label="Dompet tujuan" className="select-input" value={toWalletId} disabled={!!incomingPending} onChange={e => { setToWallet(e.target.value); setPairId(''); setConfirmed(false); }}>{state.wallets.filter(w => w.id !== walletId).map(w => <option key={w.id} value={w.id}>{w.name} · {w.currency}</option>)}</select></label> : <label className="field"><span className="field-label">Tanggal</span><input required type="date" className="field-input" value={date} disabled={!!importedPending} onChange={e => setDate(e.target.value)} /></label>}
@@ -222,14 +242,29 @@ function TransactionModal({ state, initialMode, initialWallet, existing, onSave,
   </Modal>;
 }
 
-function TransactionTable({ entries, state, onEdit, onDelete }: { entries: Entry[]; state: State; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void }) {
+function TransactionTable({ entries, state, onEdit, onDelete, selection }: {
+  entries: Entry[]; state: State; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void;
+  selection?: { ids: Set<string>; toggle: (id: string) => void; toggleAll: () => void };
+}) {
   if (!entries.length) return <div className="empty-state"><History size={30} /><h3>Belum ada transaksi di sini</h3><p>Mulai dari satu catatan kecil, atau impor mutasi rekeningmu.</p></div>;
-  return <div className="table-wrap"><table className="transactions-table"><thead><tr><th>Transaksi</th><th>Dompet</th><th>Tanggal</th><th>Nominal</th><th><span className="screen-reader-only">Aksi</span></th></tr></thead><tbody>{entries.map(entry => {
+  const eligible = entries.filter(canCategorize);
+  const selectedCount = eligible.filter(e => selection?.ids.has(e.id)).length;
+  return <div className="table-wrap"><table className="transactions-table"><thead><tr>
+    <th>{selection && <input className="selection-checkbox" type="checkbox" aria-label="Pilih semua transaksi yang terlihat" disabled={!eligible.length} checked={eligible.length > 0 && selectedCount === eligible.length} ref={input => { if (input) input.indeterminate = selectedCount > 0 && selectedCount < eligible.length; }} onChange={selection.toggleAll} />}Transaksi</th><th>Dompet</th><th>Tanggal</th><th>Nominal</th><th><span className="screen-reader-only">Aksi</span></th>
+  </tr></thead><tbody>{entries.map(entry => {
     const wallet = state.wallets.find(w => w.id === entry.walletId)!;
     const destination = state.wallets.find(w => w.id === entry.toWalletId);
     const positive = entry.type === 'income' || ((entry.type === 'adjustment' || entry.type === 'unreviewed') && entry.amount > 0);
     const Icon = entry.type === 'transfer' ? ArrowLeftRight : entry.type === 'adjustment' ? SlidersHorizontal : positive ? ArrowDownLeft : entry.category === 'Makan & minum' ? Coffee : ArrowUpRight;
-    return <tr key={entry.id}><td><div className="transaction-cell"><span className={`transaction-icon ${entry.type}`}><Icon size={18} /></span><div><span className="transaction-title">{entry.note || typeLabels[entry.type]}</span><span className="transaction-note">{entry.type === 'transfer' ? `${wallet.name} → ${destination?.name}` : entry.type === 'unreviewed' ? 'Jenis transaksi belum dikonfirmasi' : entry.category || typeLabels[entry.type]}</span><span className="transaction-mobile-meta">{wallet.name} · {formatDate(entry.date)}</span></div></div></td><td><span className="wallet-table-name">{wallet.name}</span><span className="transaction-note">{wallet.currency}</span></td><td className="date-cell">{formatDate(entry.date)}</td><td className="amount-cell"><strong className={entry.type === 'transfer' ? '' : positive ? 'amount-positive' : 'amount-negative'}>{entry.type === 'transfer' ? '' : positive ? '+' : '−'}{formatMoney(Math.abs(entry.amount), wallet.currency)}</strong>{entry.type === 'transfer' && destination && <span className="transaction-note">→ {formatMoney(entry.toAmount ?? 0, destination.currency)}</span>}{entry.fee ? <span className="transaction-note">Biaya {formatMoney(entry.fee, wallet.currency)}</span> : null}{entry.type === 'unreviewed' && <span className="badge unreviewed">Perlu dicek</span>}</td><td><div className="row-actions"><button className={entry.type === 'unreviewed' ? 'button secondary small' : 'icon-button'} aria-label={`${entry.type === 'unreviewed' ? 'Cek' : 'Ubah'} ${entry.note || 'transaksi'}`} onClick={() => onEdit(entry)}>{entry.type === 'unreviewed' ? 'Cek' : <MoreHorizontal size={18} />}</button><button className="icon-button delete-action" aria-label={`Hapus ${entry.note || 'transaksi'}`} onClick={() => onDelete(entry)}><Trash2 size={15} /></button></div></td></tr>;
+    return <tr key={entry.id}>
+      <td><div className={`transaction-cell ${selection ? 'selectable' : ''}`}>
+        {selection && <input className="selection-checkbox" type="checkbox" aria-label={`Pilih ${entry.note || typeLabels[entry.type]} untuk kategori`} title={canCategorize(entry) ? 'Pilih untuk kategori massal' : 'Transfer dan penyesuaian tidak memakai kategori belanja'} disabled={!canCategorize(entry)} checked={canCategorize(entry) && selection.ids.has(entry.id)} onChange={() => selection.toggle(entry.id)} />}
+        <span className={`transaction-icon ${entry.type}`}><Icon size={18} /></span><div><span className="transaction-title">{entry.note || typeLabels[entry.type]}</span><span className="transaction-note">{entry.type === 'transfer' ? `${wallet.name} → ${destination?.name}` : entry.type === 'unreviewed' ? `${entry.category && entry.category !== 'Belum dikategorikan' ? entry.category + ' · ' : ''}Jenis belum dikonfirmasi` : entry.category || typeLabels[entry.type]}</span><span className="transaction-mobile-meta">{wallet.name} · {formatDate(entry.date)}</span></div>
+      </div></td>
+      <td><span className="wallet-table-name">{wallet.name}</span><span className="transaction-note">{wallet.currency}</span></td><td className="date-cell">{formatDate(entry.date)}</td>
+      <td className="amount-cell"><strong className={entry.type === 'transfer' ? '' : positive ? 'amount-positive' : 'amount-negative'}>{entry.type === 'transfer' ? '' : positive ? '+' : '−'}{formatMoney(Math.abs(entry.amount), wallet.currency)}</strong>{entry.type === 'transfer' && destination && <span className="transaction-note">→ {formatMoney(entry.toAmount ?? 0, destination.currency)}</span>}{entry.fee ? <span className="transaction-note">Biaya {formatMoney(entry.fee, wallet.currency)}</span> : null}{entry.type === 'unreviewed' && <span className="badge unreviewed">Perlu dicek</span>}</td>
+      <td><div className="row-actions"><button className={entry.type === 'unreviewed' ? 'button secondary small' : 'icon-button'} aria-label={`${entry.type === 'unreviewed' ? 'Cek' : 'Ubah'} ${entry.note || 'transaksi'}`} onClick={() => onEdit(entry)}>{entry.type === 'unreviewed' ? 'Cek' : <MoreHorizontal size={18} />}</button><button className="icon-button delete-action" aria-label={`Hapus ${entry.note || 'transaksi'}`} onClick={() => onDelete(entry)}><Trash2 size={15} /></button></div></td>
+    </tr>;
   })}</tbody></table></div>;
 }
 
@@ -241,6 +276,9 @@ function ImportView({ state, demo, onStart, onImport, notify }: { state: State; 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [useOpening, setUseOpening] = useState(true);
+  const [previewQuery, setPreviewQuery] = useState('');
+  const [previewFilter, setPreviewFilter] = useState('all');
+  const [previewCategory, setPreviewCategory] = useState('Belum dikategorikan');
   const inputRef = useRef<HTMLInputElement>(null);
   const readGeneration = useRef(0);
   const reading = useRef(false);
@@ -249,6 +287,22 @@ function ImportView({ state, demo, onStart, onImport, notify }: { state: State; 
   const wallet = state.wallets.find(w => w.id === walletId);
   const existingActivity = state.entries.some(e => e.walletId === walletId || e.toWalletId === walletId);
   const selected = rows.filter(r => r.selected && !r.duplicate);
+  const search = previewQuery.trim().toLocaleLowerCase('tr-TR');
+  const visibleRows = rows.filter(row => {
+    const matchesSearch = `${row.description} ${row.date} ${row.reference} ${row.category}`.toLocaleLowerCase('tr-TR').includes(search);
+    const matchesView = previewFilter === 'all' || previewFilter === 'new' && !row.duplicate
+      || previewFilter === 'pending' && !row.duplicate && (row.classification === 'unreviewed' || row.classification === 'transfer')
+      || previewFilter === 'duplicate' && row.duplicate || previewFilter === 'selected' && row.selected && !row.duplicate;
+    return matchesSearch && matchesView;
+  });
+  const visibleNewRows = visibleRows.filter(row => !row.duplicate);
+  const visibleSelected = visibleNewRows.filter(row => row.selected);
+  function applyPreviewCategory() {
+    const ids = new Set(visibleSelected.map(row => row.id));
+    if (!ids.size) return;
+    setRows(current => current.map(row => ids.has(row.id) ? { ...row, category: previewCategory } : row));
+    notify(`Kategori ${ids.size} mutasi yang terlihat diperbarui. Jenis transaksi tetap.`);
+  }
   async function readFile(file?: File) {
     if (!file || reading.current) return;
     if (demo) { setError('Mulai dengan data sendiri dulu agar mutasi asli tidak tercampur dengan contoh.'); return; }
@@ -259,6 +313,7 @@ function ImportView({ state, demo, onStart, onImport, notify }: { state: State; 
     reading.current = true;
     previewWalletId.current = '';
     setBusy(true); setError(''); setResult(null); setRows([]);
+    setPreviewQuery(''); setPreviewFilter('all'); setPreviewCategory('Belum dikategorikan');
     try {
       const bytes = await file.arrayBuffer();
       if (generation !== readGeneration.current) return;
@@ -313,7 +368,23 @@ function ImportView({ state, demo, onStart, onImport, notify }: { state: State; 
       <div className="import-summary"><span><strong>{selected.length}</strong> dipilih</span><span><strong>{rows.filter(r => r.duplicate).length}</strong> sudah pernah diimpor</span><span><strong>{selected.filter(r => r.classification === 'unreviewed').length}</strong> perlu dicek nanti</span></div>
       {result.warnings.map((w, i) => <div key={i} className="notice warning">{w}</div>)}
       {!existingActivity && <label className="checkbox-row opening-checkbox"><input type="checkbox" checked={useOpening} onChange={e => setUseOpening(e.target.checked)} /><span>Gunakan saldo sebelum transaksi pertama: <strong>{formatMoney(result.openingBalance, wallet.currency)}</strong><small className="field-help">Menggantikan saldo awal dompet ini. Saldo akhir pada file: {formatMoney(result.closingBalance, wallet.currency)}.</small></span></label>}
-      <div className="table-wrap"><table className="transactions-table import-table"><thead><tr><th><input type="checkbox" aria-label="Pilih semua transaksi baru" checked={rows.some(r => !r.duplicate) && rows.filter(r => !r.duplicate).every(r => r.selected)} onChange={e => setRows(rows.map(r => ({ ...r, selected: !r.duplicate && e.target.checked })))} /></th><th>Transaksi</th><th>Nominal</th><th>Jenis</th></tr></thead><tbody>{rows.map(row => <tr key={row.id} className={row.duplicate ? 'duplicate-row' : ''}><td><input type="checkbox" aria-label={`Pilih transaksi ${formatDate(row.date)} ${row.id}`} checked={row.selected} disabled={row.duplicate} onChange={e => setRows(rows.map(r => r.id === row.id ? { ...r, selected: e.target.checked } : r))} /></td><td><span className="transaction-title">{row.description}</span><span className="transaction-note">{formatDate(row.date)}{row.duplicate ? ' · Sudah diimpor' : ''}</span>{row.warning && <span className="import-row-warning">{row.warning}</span>}</td><td className={row.amount > 0 ? 'amount-positive' : 'amount-negative'}>{row.amount > 0 ? '+' : '−'}{formatMoney(Math.abs(row.amount), wallet.currency)}</td><td><select className="select-input compact" aria-label={`Jenis transaksi ${row.id}`} disabled={row.duplicate} value={row.classification} onChange={e => setRows(rows.map(r => r.id === row.id ? { ...r, classification: e.target.value as ImportRow['classification'] } : r))}><option value="unreviewed">Perlu dicek</option>{row.amount > 0 ? <option value="income">Pemasukan</option> : <option value="expense">Pengeluaran</option>}</select></td></tr>)}</tbody></table></div>
+      <div className="import-filter-bar">
+        <label className="search-input"><Search size={17} /><input aria-label="Cari mutasi" placeholder="Cari keterangan, tanggal, atau kategori…" value={previewQuery} onChange={e => setPreviewQuery(e.target.value)} /></label>
+        <select className="select-input" aria-label="Tampilkan mutasi" value={previewFilter} onChange={e => setPreviewFilter(e.target.value)}><option value="all">Semua mutasi</option><option value="new">Mutasi baru</option><option value="pending">Perlu dicek</option><option value="duplicate">Sudah diimpor</option><option value="selected">Yang dipilih</option></select>
+        <span className="import-filter-count">{visibleRows.length} terlihat · {selected.length} dipilih total</span>
+      </div>
+      <div className="import-bulk-category"><label className="field"><span className="field-label">Kategori untuk pilihan yang terlihat</span><select className="select-input" aria-label="Kategori mutasi terpilih" value={previewCategory} onChange={e => setPreviewCategory(e.target.value)}>{CATEGORY_NAMES.map(name => <option key={name}>{name}</option>)}</select></label><button className="button secondary" disabled={!visibleSelected.length} onClick={applyPreviewCategory}><Tags size={16} /> Terapkan kategori ke {visibleSelected.length} mutasi</button></div>
+      <div className="table-wrap"><table className="transactions-table import-table"><thead><tr>
+        <th><input type="checkbox" aria-label="Pilih semua transaksi baru" title="Pilih atau batalkan hanya mutasi baru yang terlihat" disabled={!visibleNewRows.length} checked={visibleNewRows.length > 0 && visibleNewRows.every(row => row.selected)} ref={input => { if (input) input.indeterminate = visibleSelected.length > 0 && visibleSelected.length < visibleNewRows.length; }} onChange={e => { const ids = new Set(visibleNewRows.map(row => row.id)); const checked = e.target.checked; setRows(current => current.map(row => ids.has(row.id) ? { ...row, selected: checked } : row)); }} /></th><th>Transaksi</th><th>Nominal</th><th>Jenis</th><th>Kategori</th>
+      </tr></thead><tbody>{visibleRows.map(row => <tr key={row.id} className={row.duplicate ? 'duplicate-row' : ''}>
+        <td><input type="checkbox" aria-label={`Pilih transaksi ${formatDate(row.date)} ${row.id}`} checked={row.selected} disabled={row.duplicate} onChange={e => setRows(current => current.map(r => r.id === row.id ? { ...r, selected: e.target.checked } : r))} /></td>
+        <td><span className="transaction-title">{row.description}</span><span className="transaction-note">{formatDate(row.date)}{row.duplicate ? ' · Sudah diimpor' : ''}</span>{row.warning && <span className="import-row-warning">{row.warning}</span>}</td>
+        <td className={row.amount > 0 ? 'amount-positive' : 'amount-negative'}>{row.amount > 0 ? '+' : '−'}{formatMoney(Math.abs(row.amount), wallet.currency)}</td>
+        <td><select className="select-input compact" aria-label={`Jenis transaksi ${row.id}`} disabled={row.duplicate} value={row.classification} onChange={e => setRows(current => current.map(r => r.id === row.id ? { ...r, classification: e.target.value as ImportRow['classification'] } : r))}><option value="unreviewed">Perlu dicek</option>{row.amount > 0 ? <option value="income">Pemasukan</option> : <option value="expense">Pengeluaran</option>}</select></td>
+        <td><select className="select-input compact import-row-category" aria-label={`Kategori mutasi ${row.id}`} disabled={row.duplicate} value={row.category} onChange={e => setRows(current => current.map(r => r.id === row.id ? { ...r, category: e.target.value } : r))}>{CATEGORY_NAMES.map(name => <option key={name}>{name}</option>)}</select></td>
+      </tr>)}</tbody></table></div>
+      {!visibleRows.length && <div className="empty-state compact"><Search size={24} /><p>Tidak ada mutasi yang cocok dengan pencarian atau filter ini.</p></div>}
+      <p className="field-help">Pilih semua dan kategori massal berlaku untuk baris yang terlihat. Tombol Simpan menyertakan semua {selected.length} mutasi yang dipilih, termasuk yang tersembunyi oleh filter.</p>
       <div className="import-actions"><p>Transfer antar dompet bisa disambungkan dari menu Transaksi setelah impor.</p><button className="button primary" disabled={!selected.length} onClick={confirmImport}><CheckCheck size={18} /> Simpan {selected.length} transaksi</button></div>
     </section>}
   </>;
@@ -330,6 +401,7 @@ export default function App() {
   const [month, setMonth] = useState(today().slice(0, 7));
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
+  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [walletModal, setWalletModal] = useState<Wallet | 'new' | null>(null);
   const [txModal, setTxModal] = useState<{ type: TxMode; walletId?: string; existing?: Entry } | null>(null);
   const [confirm, setConfirm] = useState<{ title: string; text: string; label: string; action: () => void } | null>(null);
@@ -344,6 +416,7 @@ export default function App() {
   }, [data, blocked]);
   useEffect(() => { if (toast) { const id = setTimeout(() => setToast(''), 5500); return () => clearTimeout(id); } }, [toast]);
   useEffect(() => { writePreferences({ ...preferences, currency }); }, [preferences, currency]);
+  useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter]);
   const update = (next: State): boolean => {
     try { const checked = validateBackup({ ...data, state: next }); setData(checked); return true; }
     catch (err) { notify(err instanceof Error ? err.message : 'Perubahan belum bisa disimpan.'); return false; }
@@ -361,6 +434,23 @@ export default function App() {
     const matchesFilter = filter === 'all' || filter === 'pending' && needsReview(e) || e.type === filter;
     return (isReviewQueue || (inCurrency && inMonth)) && matchesQuery && matchesFilter;
   }).sort((a, b) => b.date.localeCompare(a.date) || state.entries.indexOf(b) - state.entries.indexOf(a)), [state, currency, month, query, filter, isReviewQueue]);
+  const selectedEntries = allTransactions.filter(e => selectedEntryIds.includes(e.id) && canCategorize(e));
+  const selection = {
+    ids: new Set(selectedEntryIds),
+    toggle: (id: string) => setSelectedEntryIds(ids => ids.includes(id) ? ids.filter(value => value !== id) : [...ids, id]),
+    toggleAll: () => {
+      const eligible = allTransactions.filter(canCategorize).map(e => e.id);
+      setSelectedEntryIds(eligible.every(id => selectedEntryIds.includes(id)) ? [] : eligible);
+    },
+  };
+  function applyBulkCategory(category: string, confirmUnreviewed: boolean) {
+    try {
+      const next = categorizeEntries(state, selectedEntries.map(e => e.id), category, confirmUnreviewed);
+      if (!update(next)) return;
+      notify(`${selectedEntries.length} transaksi dirapikan.${confirmUnreviewed ? ' Jenis yang dipilih sudah dikonfirmasi.' : ' Jenis yang belum dicek tetap ditandai.'}`);
+      setSelectedEntryIds([]);
+    } catch (err) { notify(err instanceof Error ? err.message : 'Transaksi belum bisa dirapikan.'); }
+  }
   const categoryTotals = useMemo(() => {
     const totals = new Map<string, number>();
     state.entries.filter(e => e.type === 'expense' && e.date.startsWith(month) && currencyWallets.some(w => w.id === e.walletId)).forEach(e => totals.set(e.category || 'Belum dikategorikan', (totals.get(e.category || 'Belum dikategorikan') ?? 0) + e.amount));
@@ -449,7 +539,7 @@ export default function App() {
         <section className="panel transactions-panel"><div className="panel-header"><div><h2>Transaksi terbaru</h2><p>Langkah kecil yang sudah kamu catat.</p></div><button className="text-link" onClick={() => navigate('transactions')}>Semua transaksi <ArrowRight size={15} /></button></div><TransactionTable entries={allTransactions.slice(0, 5)} state={state} onEdit={editEntry} onDelete={deleteEntry} /></section>
       </>}
       {page === 'wallets' && <><div className="section-heading"><div><h2 className="section-title">Dompet {currencyLabel(currency)}</h2><p className="section-description">{currencyWallets.length} dompet · total {formatMoney(summary.balance, currency)}</p></div><span className="badge neutral">{currency === 'TRY' ? 'TL / TRY' : currency}</span></div><div className="wallet-grid">{currencyWallets.map(w => <section key={w.id} className="wallet-card"><div className="wallet-card-top"><WalletSymbol wallet={w} /><span className="wallet-info"><strong>{w.name}</strong><span>{kindLabel(w.kind)}</span></span><button className="icon-button" aria-label={`Atur dompet ${w.name}`} onClick={() => setWalletModal(w)}><MoreHorizontal size={20} /></button></div><span className="wallet-card-label">Saldo saat ini</span><strong className="wallet-card-balance">{formatMoney(walletBalance(state, w.id), w.currency)}</strong><div className="wallet-card-footer"><span className="badge neutral">{w.currency}</span><div className="wallet-card-actions"><button className="text-link" onClick={() => openTx('expense', w.id)}><Plus size={14} /> Catat</button><button className="text-link" onClick={() => openTx('adjustment', w.id)}>Cek saldo <ArrowRight size={14} /></button></div></div></section>)}<button className="wallet-card add-wallet-card" onClick={() => setWalletModal('new')}><span className="add-wallet-icon"><Plus size={24} /></span><strong>Tambah dompet</strong><span>Tempat uangmu yang lain.</span></button></div><div className="notice"><CircleHelp size={18} /><span>Satu dompet untuk satu mata uang. Punya TL dan USD di bank yang sama? Buat dua dompet terpisah.</span></div></>}
-      {page === 'transactions' && <section className="panel transactions-panel">{isReviewQueue && <div className="review-scope"><CircleHelp size={19} /><div><strong>Perlu dirapikan · {pendingCount} catatan</strong><p>Semua mata uang dan semua periode. Saldo mutasi sudah tercatat; cek jenis atau kategori yang belum jelas.</p></div></div>}<div className="filter-bar"><label className="search-input"><Search size={18} /><input placeholder="Cari keterangan atau dompet…" aria-label="Cari transaksi" value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="Filter jenis transaksi" className="select-input" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Semua jenis</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option><option value="pending">Perlu dirapikan</option><option value="adjustment">Penyesuaian</option></select><span className="transaction-count">{allTransactions.length} transaksi</span>{!isReviewQueue && pendingCount > 0 && <button className="button secondary small" onClick={() => setFilter('pending')}>Rapikan {pendingCount} catatan</button>}</div><TransactionTable entries={allTransactions} state={state} onEdit={editEntry} onDelete={deleteEntry} /></section>}
+      {page === 'transactions' && <section className="panel transactions-panel">{isReviewQueue && <div className="review-scope"><CircleHelp size={19} /><div><strong>Perlu dirapikan · {pendingCount} catatan</strong><p>Semua mata uang dan semua periode. Saldo mutasi sudah tercatat; cek jenis atau kategori yang belum jelas.</p></div></div>}<div className="filter-bar"><label className="search-input"><Search size={18} /><input placeholder="Cari keterangan atau dompet…" aria-label="Cari transaksi" value={query} onChange={e => setQuery(e.target.value)} /></label><select aria-label="Filter jenis transaksi" className="select-input" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Semua jenis</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option><option value="pending">Perlu dirapikan</option><option value="adjustment">Penyesuaian</option></select><span className="transaction-count">{allTransactions.length} transaksi</span>{!isReviewQueue && pendingCount > 0 && <button className="button secondary small" onClick={() => setFilter('pending')}>Rapikan {pendingCount} catatan</button>}</div>{selectedEntries.length > 0 && <BulkReviewPanel entries={selectedEntries} onApply={applyBulkCategory} onClear={() => setSelectedEntryIds([])} />}<p className="field-help">Pilih beberapa catatan untuk mengisi kategori sekaligus. Transfer dan penyesuaian diperiksa terpisah.</p><TransactionTable entries={allTransactions} state={state} onEdit={editEntry} onDelete={deleteEntry} selection={selection} /></section>}
       {page === 'import' && <ImportView key={data.demo ? 'demo' : 'own'} state={state} demo={data.demo} onStart={startOwn} onImport={importEntries} notify={notify} />}
       <footer className="bottom-note"><span><Leaf size={14} /> Nggak harus rapi sekaligus. Yang penting mulai.</span><span>Data tersimpan di browser ini · cadangkan secara berkala</span><div className="mobile-backup"><button className="text-link" onClick={() => downloadText(JSON.stringify(data, null, 2), `uangku-cadangan-${today()}.json`)}><Download size={14} /> Cadangkan</button><button className="text-link" onClick={() => restoreRef.current?.click()}><History size={14} /> Pulihkan</button></div></footer>
       </div>

@@ -14,8 +14,11 @@ Pencatat uang pribadi untuk cash, rekening, dan e-wallet dalam rupiah, lira Turk
 - **Pindah uang:** transfer antar dompet, termasuk tarik tunai. Transfer tidak dihitung sebagai belanja; biaya transfer dicatat sebagai pengeluaran.
 - **Kurs per transaksi:** isi kurs manual atau nominal yang benar-benar diterima, lalu konfirmasi kursnya. Kurs historis disimpan bersama transaksi.
 - **Impor mutasi Ziraat XLSX:** pratinjau transaksi, pemeriksaan saldo antarbaris, dan pemeriksaan impor berulang.
+- **Cari dan kategorikan saat impor:** saring mutasi baru, yang perlu dicek, yang sudah diimpor, atau yang dipilih; terapkan kategori ke pilihan yang terlihat sekaligus.
 - **Perlu dicek:** transaksi yang jenisnya belum jelas tetap memengaruhi saldo, tetapi belum dihitung sebagai pemasukan atau pengeluaran. Hasil cek dapat disimpan setelah jenis atau tujuan transfer dipastikan.
 - **Antrean perapihan:** filter “Perlu dirapikan” menampilkan transaksi dari seluruh bulan dan mata uang, termasuk kategori yang ditunda. Ringkasan bulanan tetap mengikuti bulan dan mata uang yang dipilih.
+- **Kategori massal:** pilih beberapa pemasukan, pengeluaran, atau catatan yang belum dicek lalu terapkan satu kategori. Catatan yang belum dicek tetap berstatus demikian kecuali jenisnya dikonfirmasi secara eksplisit.
+- **Saran pasangan transfer:** nominal berlawanan yang sama dalam satu mata uang, di dompet berbeda dan selang maksimal tiga hari, dapat ditawarkan sebagai pasangan. Pengguna tetap memilih dan menyimpan hasil cek; kurs berbeda mata uang selalu dikonfirmasi manual.
 - **Cek saldo:** catat penyesuaian yang terlihat jika uang fisik atau saldo sebenarnya berbeda dari catatan.
 - **Cadangkan dan pulihkan:** unduh catatan sebagai JSON dan pulihkan lewat aplikasi.
 
@@ -38,6 +41,17 @@ Versi awal belum terhubung ke API bank dan belum melakukan sinkronisasi rekening
 4. Untuk dompet yang belum memiliki aktivitas, tersedia pilihan memakai saldo awal yang dihitung dari file. Ini mengganti saldo awal dompet, bukan menambahkan pemasukan.
 5. Simpan hasil impor. Uang masuk dan kemungkinan transfer disimpan sebagai **Perlu dicek** sampai jenisnya dikonfirmasi.
 6. Buka **Transaksi**, lalu gunakan **Cek** untuk menyelesaikan transaksi yang belum jelas. Cocokkan perpindahan ke dompet sendiri agar dua sisi transfer tidak dihitung dua kali.
+
+Gunakan pencarian dan filter di pratinjau untuk menemukan kelompok mutasi, lalu isi **Kategori mutasi terpilih**. Kategori massal dan kotak pilih-semua hanya memengaruhi baris baru yang terlihat. Filter tidak membatalkan pilihan yang tersembunyi: tombol **Simpan** tetap menyimpan seluruh jumlah pilihan yang ditampilkan pada tombolnya. Mutasi yang sudah diimpor tidak dapat dipilih ulang.
+
+### Merapikan banyak transaksi
+
+1. Buka **Transaksi** dan gunakan filter **Perlu dirapikan** untuk seluruh bulan dan mata uang.
+2. Centang catatan yang ingin diberi kategori sama, pilih **Kategori transaksi terpilih**, lalu **Terapkan**.
+3. Kategori saja tidak mengubah jenis atau saldo. Untuk catatan yang belum dicek, konfirmasi jenis secara massal hanya setelah memastikan uang masuk adalah pemasukan dan uang keluar adalah pengeluaran.
+4. Untuk transfer antar dompet sendiri, gunakan **Cek**. Jika ada saran pasangan, pilih yang benar lalu **Simpan hasil cek**. Saran tidak pernah menggabungkan transaksi secara otomatis.
+
+Pemasukan, pengeluaran, dan transaksi yang belum dicek dapat dikategorikan massal; transfer dan penyesuaian tidak memakai kategori belanja. Pilihan dibatalkan saat pencarian, filter, periode, mata uang, atau isi catatan berubah, supaya kategori tidak diterapkan ke baris yang tidak sedang diperiksa.
 
 Kategori boleh dibereskan belakangan. Pemeriksaan saldo file memastikan konsistensi antarbaris; hasilnya tidak membuktikan bahwa seluruh riwayat rekening sudah tercakup. Untuk saldo akhir yang sesuai mutasi, pastikan periode, saldo awal, dan seluruh transaksi yang relevan ikut dicatat.
 

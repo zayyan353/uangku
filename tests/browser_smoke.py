@@ -57,16 +57,23 @@ def own_data(page):
     assert not stored(page)["demo"]
 
 
-def write_fixture(path):
+def write_fixture(path, *, extra_newest=0):
     # A tiny synthetic XLSX with the same documented column structure.
     newest = date.today()
+    transactions = [
+        [newest.strftime("%d.%m.%Y"), "REF-REPEAT", "POS toko contoh", -25.5, 174.5],
+        [(newest - timedelta(days=1)).strftime("%d.%m.%Y"), "REF-REPEAT", "HAVALE contoh", 100, 200],
+        [(newest - timedelta(days=2)).strftime("%d.%m.%Y"), "OTHER", "POS belanja contoh", -20, 100],
+    ]
+    if extra_newest >= 1:
+        transactions.insert(0, [newest.strftime("%d.%m.%Y"), "NEW-1", "POS tambahan pertama", -10, 164.5])
+    if extra_newest >= 2:
+        transactions.insert(0, [newest.strftime("%d.%m.%Y"), "NEW-2", "POS tambahan kedua", -5, 159.5])
     rows = [
         ["Rekening contoh; bukan data pribadi"], ["Mata uang", "TL"],
         *[[] for _ in range(9)],
         ["Tarih", "Fiş No", "Açıklama", "İşlem Tutarı", "Bakiye"],
-        [newest.strftime("%d.%m.%Y"), "REF-REPEAT", "POS toko contoh", -25.5, 174.5],
-        [(newest - timedelta(days=1)).strftime("%d.%m.%Y"), "REF-REPEAT", "HAVALE contoh", 100, 200],
-        [(newest - timedelta(days=2)).strftime("%d.%m.%Y"), "OTHER", "POS belanja contoh", -20, 100],
+        *transactions,
         [], ["Catatan akhir laporan"],
     ]
     xml_rows = []
@@ -562,12 +569,224 @@ def check_daily_use(browser, tmp):
     return ["last manual cash wallet reused and persisted", "active TL currency retained after reload", "TL transfer defaults to another TRY wallet", "save-and-repeat clears purchase but preserves context without duplicates", "global pending queue reaches older other-currency entries", "pending review preserves balance and import fingerprint", "delayed import locks target and invalidates stale view results", "expense-to-transfer source switch recalculates same-currency bank destination", "import commit rechecks ledger boundary after intervening manual entry"]
 
 
+def check_import_cleanup(browser, tmp):
+    """Bulk cleanup must change labels or confirmed types without changing cashflow."""
+    errors = []
+
+    def fresh():
+        context = browser.new_context(viewport={"width": 1440, "height": 1000})
+        page = context.new_page()
+        page.set_default_timeout(8000)
+        page.on("pageerror", lambda err: errors.append(str(err)))
+        page.goto(BASE_URL)
+        expect(page.locator(".balance-card")).to_be_visible()
+        own_data(page)
+        return context, page
+
+    def seed(page, entries):
+        data = stored(page)
+        for wallet in data["state"]["wallets"]:
+            if wallet["id"] == "bca-idr":
+                wallet["openingBalance"] = 20_000
+            elif wallet["id"] == "cash-idr":
+                wallet["openingBalance"] = 10_000
+        data["state"]["entries"] = entries
+        page.evaluate("([key, value]) => localStorage.setItem(key, JSON.stringify(value))", [KEY, data])
+        page.reload()
+        expect(page.locator(".balance-card")).to_be_visible()
+        nav(page, "Transaksi")
+        return state(page)
+
+    def ledger_select(page, note):
+        return page.get_by_label(f"Pilih {note} untuk kategori", exact=True)
+
+    current_date = date.today().isoformat()
+
+    def entry(entry_id, note, amount, kind="expense", wallet="bca-idr", **extra):
+        return {"id": entry_id, "date": current_date, "type": kind, "walletId": wallet,
+                "amount": amount, "category": "Belum dikategorikan", "note": note,
+                "sourceKey": f"synthetic-cleanup-{entry_id}", **extra}
+
+    # Assign two categories at once; preserve all monetary fields and original fingerprints.
+    context, page = fresh()
+    original = seed(page, [
+        entry("expense-a", "Belanja contoh A", 1000),
+        entry("expense-b", "Belanja contoh B", 2000),
+        entry("pending-out", "Debit belum jelas", -3000, "unreviewed"),
+        entry("pending-in", "Kredit belum jelas", 4000, "unreviewed"),
+        entry("existing-transfer", "Transfer tetap", 500, "transfer", toWalletId="cash-idr", toAmount=500, rate=1),
+        entry("existing-adjustment", "Penyesuaian tetap", 100, "adjustment", wallet="cash-idr"),
+    ])
+    original_balances = {wallet["id"]: balance(original, wallet["id"]) for wallet in original["wallets"]}
+    for note in ["Belanja contoh A", "Belanja contoh B"]:
+        ledger_select(page, note).check()
+    page.get_by_label("Kategori transaksi terpilih", exact=True).select_option("Makan & minum")
+    page.get_by_role("button", name="Terapkan ke 2 transaksi", exact=True).click()
+    changed = state(page)
+    assert {e["id"] for e in changed["entries"]} == {e["id"] for e in original["entries"]}
+    for before in original["entries"]:
+        after = next(e for e in changed["entries"] if e["id"] == before["id"])
+        expected = {**before, "category": "Makan & minum"} if before["id"] in ["expense-a", "expense-b"] else before
+        assert after == expected
+    assert {wallet["id"]: balance(changed, wallet["id"]) for wallet in changed["wallets"]} == original_balances
+
+    # Categorizing pending movements alone must not silently assert expense or income.
+    for note in ["Debit belum jelas", "Kredit belum jelas"]:
+        ledger_select(page, note).check()
+    page.get_by_label("Kategori transaksi terpilih", exact=True).select_option("Transportasi")
+    expect(page.get_by_label("Konfirmasi jenis transaksi yang belum dicek", exact=True)).not_to_be_checked()
+    page.get_by_role("button", name="Terapkan ke 2 transaksi", exact=True).click()
+    pending_only = state(page)
+    for entry_id, signed_amount in [("pending-out", -3000), ("pending-in", 4000)]:
+        pending = next(e for e in pending_only["entries"] if e["id"] == entry_id)
+        assert pending["type"] == "unreviewed" and pending["amount"] == signed_amount
+        assert pending["category"] == "Transportasi"
+
+    # The explicit confirmation changes type/sign representation, never wallet cashflow.
+    for note in ["Debit belum jelas", "Kredit belum jelas"]:
+        ledger_select(page, note).check()
+    page.get_by_label("Kategori transaksi terpilih", exact=True).select_option("Lainnya")
+    page.get_by_label("Konfirmasi jenis transaksi yang belum dicek", exact=True).check()
+    page.get_by_role("button", name="Terapkan ke 2 transaksi", exact=True).click()
+    confirmed = state(page)
+    debit = next(e for e in confirmed["entries"] if e["id"] == "pending-out")
+    credit = next(e for e in confirmed["entries"] if e["id"] == "pending-in")
+    assert debit["type"] == "expense" and debit["amount"] == 3000
+    assert credit["type"] == "income" and credit["amount"] == 4000
+    assert debit["sourceKey"] == "synthetic-cleanup-pending-out"
+    assert credit["sourceKey"] == "synthetic-cleanup-pending-in"
+    assert {wallet["id"]: balance(confirmed, wallet["id"]) for wallet in confirmed["wallets"]} == original_balances
+    for note in ["Transfer tetap", "Penyesuaian tetap"]:
+        row = page.locator(".transactions-table tbody tr").filter(has_text=note)
+        checkbox = row.locator('input[type="checkbox"]')
+        if checkbox.count():
+            expect(checkbox).to_be_disabled()
+
+    # Ledger view changes clear selection so a hidden entry cannot be changed accidentally.
+    ledger_select(page, "Belanja contoh A").check()
+    page.get_by_label("Cari transaksi", exact=True).fill("Belanja contoh B")
+    expect(ledger_select(page, "Belanja contoh B")).not_to_be_checked()
+    apply_buttons = page.get_by_role("button", name=re.compile(r"^Terapkan ke \d+ transaksi$"))
+    if apply_buttons.count():
+        expect(apply_buttons).to_be_disabled()
+    page.get_by_label("Cari transaksi", exact=True).fill("")
+    expect(ledger_select(page, "Belanja contoh A")).not_to_be_checked()
+    assert state(page) == confirmed
+
+    # A financial mutation invalidates an older bulk-selection intent as well.
+    ledger_select(page, "Belanja contoh A").check()
+    expect(page.locator(".bulk-review-panel")).to_be_visible()
+    page.get_by_role("button", name="Catat transaksi", exact=True).click()
+    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Nominal", exact=True).fill("5")
+    dialog(page).get_by_label(re.compile("Keterangan")).fill("Catatan setelah pilihan kategori")
+    dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
+    expect(page.locator(".bulk-review-panel")).to_have_count(0)
+    expect(ledger_select(page, "Belanja contoh A")).not_to_be_checked()
+    after_manual = state(page)
+    assert len(after_manual["entries"]) == len(confirmed["entries"]) + 1
+    for before in confirmed["entries"]:
+        assert next(e for e in after_manual["entries"] if e["id"] == before["id"]) == before
+    assert next(e for e in after_manual["entries"] if e["id"] == "expense-a")["category"] == "Makan & minum"
+    context.close()
+
+    # Preview categorization persists, while filters preserve global selection.
+    context, page = fresh()
+    fixture = tmp / "synthetic-cleanup-base.xlsx"
+    expanded_fixture = tmp / "synthetic-cleanup-expanded.xlsx"
+    write_fixture(fixture)
+    write_fixture(expanded_fixture, extra_newest=2)
+    nav(page, "Impor mutasi")
+    page.get_by_label("File mutasi Ziraat", exact=True).set_input_files(fixture)
+    expect(page.get_by_role("button", name="Simpan 3 transaksi", exact=True)).to_be_visible()
+    page.get_by_label("Kategori mutasi terpilih", exact=True).select_option("Makan & minum")
+    page.get_by_role("button", name="Terapkan kategori ke 3 mutasi", exact=True).click()
+    page.get_by_role("button", name="Simpan 3 transaksi", exact=True).click()
+    imported = state(page)
+    assert len(imported["entries"]) == 3
+    assert all(e["category"] == "Makan & minum" for e in imported["entries"])
+    assert any(e["type"] == "unreviewed" and e["amount"] == 10000 for e in imported["entries"])
+    assert balance(imported, "ziraat-try") == 17450
+    page.get_by_label("File mutasi Ziraat", exact=True).set_input_files(expanded_fixture)
+    expect(page.get_by_role("button", name="Simpan 2 transaksi", exact=True)).to_be_visible()
+    assert page.locator(".duplicate-row").count() == 3
+    page.get_by_label("Tampilkan mutasi", exact=True).select_option("new")
+    expect(page.locator(".import-table tbody tr")).to_have_count(2)
+    page.get_by_label("Cari mutasi", exact=True).fill("tambahan pertama")
+    expect(page.locator(".import-table tbody tr")).to_have_count(1)
+    page.get_by_label("Pilih semua transaksi baru", exact=True).uncheck()
+    expect(page.get_by_role("button", name="Simpan 1 transaksi", exact=True)).to_be_visible()
+    page.get_by_label("Kategori mutasi terpilih", exact=True).select_option("Transportasi")
+    zero_apply = page.get_by_role("button", name="Terapkan kategori ke 0 mutasi", exact=True)
+    expect(zero_apply).to_be_disabled()
+    page.get_by_label("Cari mutasi", exact=True).fill("tambahan kedua")
+    expect(page.get_by_role("button", name="Simpan 1 transaksi", exact=True)).to_be_visible()
+    page.get_by_role("button", name="Terapkan kategori ke 1 mutasi", exact=True).click()
+    second_row = page.locator(".import-table tbody tr").filter(has_text="POS tambahan kedua")
+    expect(second_row.get_by_label(re.compile(r"^Kategori mutasi "))).to_have_value("Transportasi")
+    page.get_by_label("Cari mutasi", exact=True).fill("tambahan pertama")
+    first_row = page.locator(".import-table tbody tr").filter(has_text="POS tambahan pertama")
+    expect(first_row.get_by_label(re.compile(r"^Kategori mutasi "))).to_have_value("Belum dikategorikan")
+    page.get_by_label("Cari mutasi", exact=True).fill("")
+    page.get_by_label("Pilih semua transaksi baru", exact=True).check()
+    expect(page.get_by_role("button", name="Simpan 2 transaksi", exact=True)).to_be_visible()
+    page.get_by_label("Tampilkan mutasi", exact=True).select_option("duplicate")
+    expect(page.locator(".import-table tbody tr")).to_have_count(3)
+    for checkbox in page.locator('.import-table tbody input[type="checkbox"]').all():
+        expect(checkbox).to_be_disabled()
+        expect(checkbox).not_to_be_checked()
+    page.get_by_label("Tampilkan mutasi", exact=True).select_option("selected")
+    expect(page.locator(".import-table tbody tr")).to_have_count(2)
+    page.get_by_role("button", name="Simpan 2 transaksi", exact=True).click()
+    assert len(state(page)["entries"]) == 5
+    second_saved = next(e for e in state(page)["entries"] if e["note"] == "POS tambahan kedua")
+    assert second_saved["category"] == "Transportasi"
+    page.get_by_label("File mutasi Ziraat", exact=True).set_input_files(expanded_fixture)
+    expect(page.get_by_role("button", name="Simpan 0 transaksi", exact=True)).to_be_disabled()
+    assert page.locator(".duplicate-row").count() == 5
+    context.close()
+
+    # Suggestions are conservative hints; clicking one does not commit a transfer.
+    context, page = fresh()
+    original = seed(page, [
+        entry("pair-source", "Sisi keluar cocok", -5000, "unreviewed"),
+        entry("pair-destination", "Sisi masuk cocok", 5000, "unreviewed", wallet="cash-idr"),
+        entry("foreign-currency", "Beda mata uang", 5000, "unreviewed", wallet="ziraat-try"),
+        entry("wrong-amount", "Nominal berbeda", 6000, "unreviewed", wallet="jago-idr"),
+        entry("same-wallet", "Dompet sama", 5000, "unreviewed"),
+    ])
+    original_balances = {wallet["id"]: balance(original, wallet["id"]) for wallet in original["wallets"]}
+    page.get_by_role("button", name="Cek Sisi keluar cocok", exact=True).click()
+    suggested = dialog(page).get_by_role("button", name=re.compile(r"^Cocokkan transfer Cash Rupiah pada "))
+    expect(suggested).to_be_visible()
+    expect(dialog(page).get_by_role("button", name=re.compile(r"^Cocokkan transfer Ziraat pada "))).to_have_count(0)
+    expect(dialog(page).get_by_role("button", name=re.compile(r"^Cocokkan transfer Bank Jago pada "))).to_have_count(0)
+    expect(dialog(page).get_by_role("button", name=re.compile(r"^Cocokkan transfer BCA pada "))).to_have_count(0)
+    assert state(page) == original
+    suggested.click()
+    expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value("bca-idr")
+    expect(dialog(page).get_by_label("Dompet tujuan", exact=True)).to_have_value("cash-idr")
+    expect(dialog(page).get_by_label(re.compile(r"^Catatan pasangan"))).to_have_value("pair-destination")
+    assert state(page) == original
+    dialog(page).get_by_role("button", name="Simpan hasil cek", exact=True).click()
+    combined = state(page)
+    assert len(combined["entries"]) == 4
+    transfer = next(e for e in combined["entries"] if e["id"] == "pair-source")
+    assert transfer["type"] == "transfer"
+    assert transfer["sourceKey"] == "synthetic-cleanup-pair-source"
+    assert transfer["toSourceKey"] == "synthetic-cleanup-pair-destination"
+    assert {wallet["id"]: balance(combined, wallet["id"]) for wallet in combined["wallets"]} == original_balances
+    context.close()
+    assert errors == [], errors
+    return ["bulk expense categories preserve IDs/fingerprints/balances", "category-only cleanup leaves pending cashflow unreviewed", "explicit bulk type confirmation preserves signed cashflow", "transfers/adjustments excluded from bulk category selection", "ledger filter changes clear hidden selection", "financial mutations clear stale bulk selection", "preview categories persist through import and duplicate checks", "preview filters preserve global selection but bulk edits only visible rows", "preview select-all excludes duplicates and respects visible rows", "same-currency exact transfer suggestions require explicit save"]
+
+
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory(prefix="uangku-browser-") as temp:
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(executable_path=os.environ.get("CHROMIUM_PATH", "/usr/bin/chromium"), args=["--no-sandbox"])
             try:
-                checks = check_desktop(browser, Path(temp)) + check_mobile(browser) + check_regressions(browser, Path(temp)) + check_daily_use(browser, Path(temp))
+                checks = check_desktop(browser, Path(temp)) + check_mobile(browser) + check_regressions(browser, Path(temp)) + check_daily_use(browser, Path(temp)) + check_import_cleanup(browser, Path(temp))
             finally:
                 browser.close()
     print(f"PASS: {len(checks)} browser scenarios")
