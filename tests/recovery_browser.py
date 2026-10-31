@@ -229,6 +229,9 @@ def test_pending_writer_modal_guard(browser, output):
         dlg = open_expense(page, note='Pending original draft')
         dlg.get_by_role('button', name='Simpan transaksi', exact=True).click()
         expect(page.get_by_test_id('save-status')).to_contain_text('Sedang menyimpan')
+        # Saving can be queued before the native lock callback installs this
+        # fixture's release promise. Exercise the guards with the lock held.
+        page.wait_for_function("() => typeof window.__releaseSyntheticWriter === 'function'")
         # Inspect durable bytes while intentionally withholding the lock. The
         # usual helper waits for a completed save and would deadlock this case.
         assert page.evaluate('(key) => JSON.parse(localStorage.getItem(key))', KEY)['state']['entries'] == []
