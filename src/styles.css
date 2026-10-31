@@ -40,7 +40,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .brand-copy { font-size: 25px; font-weight: 740; letter-spacing: -1px; }
 .brand-copy small { display: block; font-size: 10px; color: #a0b2a6; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 500; margin-top: 3px; }
 .sidebar nav { display: flex; flex-direction: column; gap: 7px; }
-.nav-item { border: 0; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: transparent; color: #b6c6bc; font-size: 13px; font-weight: 560; text-align: left; width: 100%; text-decoration: none; }
+.nav-item { border: 0; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: transparent; color: #b6c6bc; font-size: 13px; font-weight: 560; text-align: left; width: 100%; text-decoration: none; transition: transform .16s; }
 .nav-item:hover { background: #ffffff0a; color: white; }
 .nav-item.active { background: #d5ee96; color: #173b31; font-weight: 670; box-shadow: 0 3px 12px #10291f0a; }
 .nav-item svg, .nav-icon { width: 19px; height: 19px; stroke-width: 1.8; }
@@ -560,7 +560,7 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .pending-banner { flex-wrap: wrap; font-size: 10px; padding: 12px; }
   .pending-banner .text-link, .pending-banner .button { margin-left: 29px; }
   .mobile-nav { position: fixed; z-index: 40; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, 1fr); background: #fcfff8f5; border-top: 1px solid #e1e8d6; backdrop-filter: blur(15px); padding: 9px 8px calc(10px + env(safe-area-inset-bottom)); box-shadow: 0 -4px 30px #34502705; }
-  .mobile-nav button { display: flex; align-items: center; flex-direction: column; justify-content: center; gap: 5px; border: none; background: transparent; padding: 5px; color: #52634f; font-size: 9px; border-radius: 10px; }
+  .mobile-nav button { display: flex; align-items: center; flex-direction: column; justify-content: center; gap: 5px; border: none; background: transparent; padding: 5px; color: #52634f; font-size: 9px; border-radius: 10px; transition: transform .16s; }
   .mobile-nav button svg { width: 20px; height: 20px; stroke-width: 1.7; }
   .mobile-nav button.active { color: #496c34; background: #edf4e1; font-weight: 600; }
   .toast { bottom: 90px; left: 50%; width: max-content; max-width: calc(100vw - 35px); font-size: 11px; padding: 13px 16px; }
