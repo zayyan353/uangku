@@ -1,17 +1,22 @@
 import { unzipSync, strFromU8 } from 'fflate';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import type { Currency, Entry, Wallet } from './finance';
+import { confirmedBankEntryType, interpretBankDescription, normalizeBankDescription } from './bankDescription';
 
 export interface ImportRow {
   id: string;
   date: string;
   description: string;
+  /** Immutable text from the workbook, independent of preview annotations. */
+  originalDescription?: string;
   /** Signed amount in minor units. */
   amount: number;
   balance: number;
   reference: string;
+  originalReference?: string;
   sourceKey: string;
-  classification: 'expense' | 'income' | 'transfer' | 'unreviewed';
+  fingerprintVersion?: 'ziraat-v1' | 'generic-v1';
+  classification: 'expense' | 'income' | 'transfer' | 'unreviewed' | 'movement';
   category: string;
   selected: boolean;
   duplicate: boolean;
@@ -20,6 +25,7 @@ export interface ImportRow {
 
 export interface ImportPreview {
   rows: ImportRow[];
+  sourceOrder?: 'oldest' | 'newest';
   currency: Currency;
   openingBalance: number;
   closingBalance: number;
@@ -59,7 +65,8 @@ function xml(source: Uint8Array): XmlNode {
     processEntities: true, ignoreDeclaration: true }).parse(input) as XmlNode;
 }
 
-function readWorksheets(data: ArrayBuffer): { sheets: { values: unknown[][]; formulas: Set<number> }[]; date1904: boolean } {
+export interface StatementSheet { name: string; values: unknown[][]; formulas: Set<number>; numericCells: Set<string> }
+export function readStatementWorkbook(data: ArrayBuffer, preserveNumericText = false): { sheets: StatementSheet[]; date1904: boolean } {
   let files: Record<string, Uint8Array>;
   let size = 0;
   let count = 0;
@@ -68,7 +75,7 @@ function readWorksheets(data: ArrayBuffer): { sheets: { values: unknown[][]; for
       filter: file => {
         count += 1;
         if (count > 1000) throw new Error('Terlalu banyak bagian file.');
-        const needed = /^xl\/(?:sharedStrings\.xml|workbook\.xml|worksheets\/[^/]+\.xml)$/.test(file.name);
+        const needed = /^xl\/(?:sharedStrings\.xml|workbook\.xml|_rels\/workbook\.xml\.rels|worksheets\/[^/]+\.xml)$/.test(file.name);
         if (!needed) return false;
         size += file.originalSize;
         if (size > MAX_XML_BYTES || file.originalSize < 0) throw new Error('Isi file terlalu besar.');
@@ -86,42 +93,84 @@ function readWorksheets(data: ArrayBuffer): { sheets: { values: unknown[][]; for
   const workbook = files['xl/workbook.xml'] ? xml(files['xl/workbook.xml']).workbook as XmlNode : undefined;
   const properties = workbook?.workbookPr as XmlNode | undefined;
   const date1904 = ['1', 'true'].includes(String(properties?.['@_date1904'] ?? ''));
-  const sheets = Object.entries(files).filter(([name]) => /^xl\/worksheets\/[^/]+\.xml$/.test(name)).map(([, bytes]) => {
+  const worksheetFiles = Object.entries(files).filter(([name]) => /^xl\/worksheets\/[^/]+\.xml$/.test(name));
+  const sheetNames = new Map<string, { name: string; ordinal: number }>();
+  const relRoot = files['xl/_rels/workbook.xml.rels'] ? xml(files['xl/_rels/workbook.xml.rels']).Relationships as XmlNode : undefined;
+  const relations = new Map(list(relRoot?.Relationship as XmlNode | XmlNode[] | undefined).filter(row => row['@_TargetMode'] !== 'External').map(row => [String(row['@_Id'] ?? ''), String(row['@_Target'] ?? '')]));
+  const workbookSheets = (workbook?.sheets as XmlNode | undefined)?.sheet;
+  for (const [ordinal, sheet] of list(workbookSheets as XmlNode | XmlNode[] | undefined).entries()) {
+    const target = relations.get(String(sheet['@_id'] ?? ''));
+    if (!target) continue;
+    const parts: string[] = target.startsWith('/') ? [] : ['xl'];
+    for (const piece of target.replace(/\\/g, '/').split('/')) {
+      if (!piece || piece === '.') continue;
+      if (piece === '..') { if (!parts.length) return error('Referensi worksheet tidak valid.'); parts.pop(); }
+      else parts.push(piece);
+    }
+    const path = parts.join('/');
+    if (!/^xl\/worksheets\/[^/]+\.xml$/.test(path) || !files[path]) return error('Referensi worksheet tidak ditemukan.');
+    if (sheetNames.has(path)) return error('Referensi worksheet berulang.');
+    sheetNames.set(path, { name: String(sheet['@_name'] ?? `Sheet ${ordinal + 1}`), ordinal });
+  }
+  worksheetFiles.sort(([a], [b]) => (sheetNames.get(a)?.ordinal ?? Number.MAX_SAFE_INTEGER) - (sheetNames.get(b)?.ordinal ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b));
+  const sheets = worksheetFiles.map(([path, bytes], index) => {
     const worksheet = xml(bytes).worksheet as XmlNode | undefined;
     const sheetData = worksheet?.sheetData as XmlNode | undefined;
     const formulas = new Set<number>();
-    const values = list(sheetData?.row as XmlNode | XmlNode[] | undefined).map((row, rowIndex) => {
+    const numericCells = new Set<string>();
+    const values: unknown[][] = [];
+    let previousRow = -1;
+    for (const [logicalIndex, row] of list(sheetData?.row as XmlNode | XmlNode[] | undefined).entries()) {
+      const rowAttribute = row['@_r'];
+      const rowIndex = preserveNumericText ? rowAttribute === undefined ? previousRow + 1 : Number(rowAttribute) - 1 : logicalIndex;
+      if (preserveNumericText && (rowAttribute !== undefined && !/^[1-9]\d*$/.test(String(rowAttribute)) || !Number.isSafeInteger(rowIndex) || rowIndex <= previousRow || rowIndex > 50_100)) return error('Koordinat baris XLSX berulang, tidak berurutan, atau di luar batas 50.101.');
+      previousRow = rowIndex;
+      while (values.length < rowIndex) values.push([]);
+      const seenColumns = new Set<number>();
       const result: unknown[] = [];
       let nextColumn = 0;
-      for (const cell of list(row.c as XmlNode | XmlNode[] | undefined)) {
+      for (const value of list(row.c as unknown)) {
+        // Empty <c/> is parsed as a primitive by fast-xml-parser. It still
+        // occupies a column; never apply object operators to that primitive.
+        if (value === '' || value === null || value === undefined) {
+          if (nextColumn > (preserveNumericText ? 511 : 16383)) return error('Koordinat kolom XLSX tidak valid.');
+          seenColumns.add(nextColumn); result[nextColumn++] = ''; continue;
+        }
+        if (typeof value !== 'object' || Array.isArray(value)) return error('Struktur sel XLSX tidak valid. Gunakan nilai sel asli dari ekspor bank.');
+        const cell = value as XmlNode;
         const reference = String(cell['@_r'] ?? '');
-        const letters = /^([A-Z]+)\d+$/i.exec(reference)?.[1].toUpperCase();
+        const coordinate = /^([A-Z]+)(\d+)$/i.exec(reference);
+        if (preserveNumericText && reference && (!coordinate || Number(coordinate[2]) !== rowIndex + 1)) return error('Koordinat sel dan baris XLSX tidak cocok.');
+        const letters = coordinate?.[1].toUpperCase();
         let column = nextColumn;
         if (letters) {
           column = 0;
           for (const char of letters) column = column * 26 + char.charCodeAt(0) - 64;
           column -= 1;
         }
-        if (column > 16383) return error('Koordinat kolom XLSX tidak valid.');
+        if (column > (preserveNumericText ? 511 : 16383) || preserveNumericText && seenColumns.has(column)) return error('Koordinat kolom XLSX tidak valid atau berulang. Impor umum maksimal 512 kolom.');
+        seenColumns.add(column);
         nextColumn = column + 1;
         const type = cell['@_t'];
         if ('f' in cell) formulas.add(rowIndex);
         const raw = text(cell.v);
         if (type === 's') {
+          if (!raw.trim()) { result[column] = ''; continue; }
           const index = Number(raw);
           if (!Number.isInteger(index) || index < 0 || index >= shared.length) return error('Teks XLSX tidak lengkap. Unduh ulang file.');
           result[column] = shared[index];
         } else if (type === 'inlineStr') {
           result[column] = text(cell.is);
         } else if ((type === 'n' || type === undefined) && raw.trim()) {
-          result[column] = Number(raw);
+          if (preserveNumericText) numericCells.add(`${rowIndex}:${column}`);
+          result[column] = preserveNumericText ? raw : Number(raw);
         } else {
           result[column] = raw;
         }
       }
-      return result;
-    });
-    return { values, formulas };
+      values[rowIndex] = result;
+    }
+    return { name: sheetNames.get(path)?.name ?? `Worksheet ${index + 1}`, values, formulas, numericCells };
   });
   return { sheets, date1904 };
 }
@@ -198,8 +247,9 @@ export function parseZiraatWorkbook(data: ArrayBuffer, wallet: Wallet, existing:
   if (!data.byteLength) return error('File kosong. Pilih mutasi Excel Ziraat.');
   if (data.byteLength > 8 * 1024 * 1024) return error('File terlalu besar. Gunakan mutasi dengan periode yang lebih singkat.');
   if (wallet.currency !== 'TRY') return error('Mutasi ini memakai TL. Pilih dompet dengan mata uang TL / TRY.');
+  if (wallet.kind === 'cash') return error('Pilih rekening bank atau e-wallet untuk impor mutasi. Pembukuan cash tidak digunakan.');
 
-  const workbook = readWorksheets(data);
+  const workbook = readStatementWorkbook(data);
   const candidates: { values: unknown[][]; header: number; columns: number[]; formulas: Set<number> }[] = [];
   for (const { values, formulas } of workbook.sheets) {
     const header = values.findIndex(row => HEADERS.every(label => row.some(cell => normalized(cell) === label)));
@@ -228,8 +278,10 @@ export function parseZiraatWorkbook(data: ArrayBuffer, wallet: Wallet, existing:
     const date = isoDate(dateValue, date1904);
     const amount = minorUnits(row[amountColumn]);
     const balance = minorUnits(row[balanceColumn]);
-    const description = String(row[descriptionColumn] ?? '').trim();
-    const reference = String(row[referenceColumn] ?? '').trim();
+    const originalDescription = String(row[descriptionColumn] ?? '');
+    const originalReference = String(row[referenceColumn] ?? '');
+    const description = originalDescription.trim();
+    const reference = originalReference.trim();
 
     if (!date) {
       const looksDated = /^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}$/.test(String(dateValue ?? '').trim());
@@ -248,21 +300,31 @@ export function parseZiraatWorkbook(data: ArrayBuffer, wallet: Wallet, existing:
     const duplicate = knownKeys.has(sourceKey) || seen.has(sourceKey);
     seen.add(sourceKey);
     const text = normalized(description);
-    const transferHint = /\b(?:HAVALE|EFT|FAST|TRANSFER|VIRMAN|NAKIT|DOVIZ|KAMBIYO)\b|PARA CEK/.test(text);
-    const uncertain = amount > 0 || transferHint;
+    const operation = interpretBankDescription(originalDescription,{signedAmount:amount});
+    const confirmedType = confirmedBankEntryType(originalDescription,amount);
+    const policyText = ` ${normalizeBankDescription(originalDescription)} `;
+    const posPurchase = policyText.includes(' pos alisveris ') || policyText.includes(' pos harcama ');
+    const legacyTransferHint = /\b(?:HAVALE|EFT|FAST|TRANSFER|VIRMAN|NAKIT|DOVIZ|KAMBIYO)\b|PARA CEK/.test(text);
+    const transferHint = operation.kind !== 'transfer-fee' && (operation.pending && operation.kind !== 'cashback' || !posPurchase && legacyTransferHint);
+    const uncertain = amount > 0 || transferHint || operation.kind === 'cashback';
     rows.push({
       id: `${sourceKey}:${index}`,
       date,
       description,
+      originalDescription,
       amount,
       balance,
       reference,
+      originalReference,
       sourceKey,
-      classification: uncertain ? 'unreviewed' : 'expense',
+      classification: confirmedType ?? (uncertain ? 'unreviewed' : 'expense'),
       category: UNCATEGORIZED,
       selected: !duplicate,
       duplicate,
       warning: duplicate ? 'Sudah ada atau identik dengan baris lain. Tidak dipilih.'
+        : confirmedType === 'movement' ? `${operation.label} dikenali. Hanya perubahan saldo rekening ini dicatat; bukan pemasukan atau pengeluaran.`
+        : confirmedType === 'income' || confirmedType === 'expense' && operation.kind === 'atm-withdrawal' ? operation.warning
+        : operation.pending ? operation.warning
         : transferHint ? 'Kemungkinan perpindahan uang. Saldo dicatat, jenisnya perlu ditinjau.'
         : amount > 0 ? 'Uang masuk belum tentu pemasukan. Saldo dicatat, jenisnya perlu ditinjau.'
         : undefined,
@@ -291,7 +353,7 @@ export function parseZiraatWorkbook(data: ArrayBuffer, wallet: Wallet, existing:
   const pendingCount = rows.filter(row => row.classification === 'unreviewed' && !row.duplicate).length;
   if (duplicateCount) warnings.push(`${duplicateCount} transaksi kemungkinan sudah ada dan tidak dipilih.`);
   if (pendingCount) warnings.push(`${pendingCount} transaksi disimpan sebagai Perlu ditinjau agar saldo tetap benar tanpa menebak pemasukan atau transfer.`);
-  warnings.push('Impor mencatat rekening ini saja. Transfer ke dompet sendiri perlu dicocokkan agar tidak dihitung sebagai belanja atau pemasukan.');
+  warnings.push('Impor mencatat rekening ini saja. Setor tunai dihitung sebagai pemasukan dan tarik tunai sebagai pengeluaran. Pokok transfer bank tetap perpindahan dana; pasangan rekening lain dapat dicocokkan bila tersedia.');
   return { rows, currency: 'TRY', openingBalance, closingBalance: newest.balance, warnings, period: { start: oldest.date, end: newest.date } };
 }
 
@@ -307,7 +369,7 @@ export function entriesFromImport(rows: ImportRow[], walletId: string, batchId: 
       date: row.date,
       type,
       walletId,
-      amount: type === 'unreviewed' ? row.amount : Math.abs(row.amount),
+      amount: type === 'unreviewed' || type === 'movement' ? row.amount : Math.abs(row.amount),
       category: row.category || UNCATEGORIZED,
       note: row.description,
       sourceKey: row.sourceKey,

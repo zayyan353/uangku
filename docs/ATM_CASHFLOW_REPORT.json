@@ -1,0 +1,81 @@
+{
+  "updated_utc": "2026-10-31T03:31:15.717095+00:00",
+  "base_local_checkpoint": "14139db",
+  "status": "local_code_verified_real_browser_apply_not_performed",
+  "production_html_sha256": "2a99a9f0f487323e6a4ae0c4edf8fd58b224dfbc6575b67cf238c4f41f400fba",
+  "policy": [
+    "Correct-direction ATM withdrawal is expense with category Tarik tunai; deposit is income with category Setor tunai.",
+    "Cash is still untracked. This follows the user bank-only cashflow convention.",
+    "Bank transfer principal remains movement; incoming PREPAID remains Cashback income; negative bank transfer fees remain expenses.",
+    "Wrong ATM directions, conflicting/reversal evidence and unknown source wording remain guarded."
+  ],
+  "historical_application": [
+    "New imports apply the approved policy immediately.",
+    "Old unreviewed approved bank flows, plus previously confirmed movement entries specifically recognized as correct-direction ATM, may be converted only through explicit reviewed Apply.",
+    "Existing manual categories and existing income/expense/paired/cash-archive interpretations are not overwritten.",
+    "Confirmation is recomputed source-first; edited notes or blank source descriptions cannot replace known bank facts.",
+    "The reviewed command preserves signed wallet postings, IDs/count, wallet balances, dates, source facts/links and fingerprints; expense/income store positive magnitudes, with direction represented by type."
+  ],
+  "verification": {
+    "unit_passed": 1110,
+    "unit_failed": 0,
+    "unit_files": 37,
+    "browser_scenarios_passed": 77,
+    "typecheck": "passed",
+    "build": "passed",
+    "browser": "156.0.8078.76",
+    "browser_fixtures_synthetic_only": true,
+    "browser_page_errors": 0
+  },
+  "evidence": [
+    {
+      "suite": "original",
+      "passed": 39,
+      "summary": "work/atm-cashflow/original-final-2/summary.json",
+      "sha256": "3704eaafe85f32a80997b6cb04f028adc7d3c394ef1e344343f073b9214fc8bd"
+    },
+    {
+      "suite": "categories",
+      "passed": 15,
+      "summary": "work/atm-cashflow/category-final/summary.json",
+      "sha256": "43a0783babf1c6347cea94dbff66982608e0908aeb2f890c1987360bb8796348"
+    },
+    {
+      "suite": "bank_auto",
+      "passed": 14,
+      "summary": "work/atm-cashflow/bank-auto-final/summary.json",
+      "sha256": "d11d6b6396f88ee0a8f35194b451d02155f30c2ebe6840ab9348aea1824faf55"
+    },
+    {
+      "suite": "bank_description",
+      "passed": 9,
+      "summary": "work/atm-cashflow/bank-description-final/summary.json",
+      "sha256": "3127ad7da76e2d09c126e15441cd483fd7ef993d2280b3a1967fab9230577852"
+    }
+  ],
+  "unit_evidence": {
+    "path": "work/atm-cashflow/final-unit-2.json",
+    "sha256": "600704714725b6cebb4c3f7760e205c7005ad8f31c417f13529e120281579399"
+  },
+  "real_browser_application": {
+    "status": "not_applied",
+    "reason": "Computer Use stopped because it could not determine the current Windows browser URL with enough confidence to enforce policy. No bypass attempted.",
+    "category_or_transaction_save_clicked": false,
+    "original_browser_balances_and_duplicates_verified": false,
+    "note": "All completed financial invariance checks are synthetic tests, not a claim that real browser history was migrated."
+  },
+  "retained_initial_runs": [
+    "work/atm-cashflow/unit-candidate.json: four historical ATM movement expectations updated by their owning test agent.",
+    "work/atm-cashflow/original-final/summary.json: all39 behavior scenarios passed; source_stable false because the final positive source ATM unit regression was added during that run. Final rerun has source_stable true."
+  ],
+  "limits": [
+    "Native Chromium on Windows with mobile emulation only, no physical mobile or manual screen reader coverage.",
+    "This round reran policy-sensitive banking, original39 and category15 gates; older theme/recovery/performance reports remain historical.",
+    "Actual user browser data application and actual before/after balance verification remain pending due the Computer Use URL safeguard."
+  ],
+  "online_website_modified": false,
+  "remote_push_performed": false,
+  "deployment_performed": false,
+  "real_financial_data_migrated": false,
+  "new_source_archive_created": false
+}

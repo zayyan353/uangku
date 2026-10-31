@@ -1,0 +1,141 @@
+{
+  "updated_utc": "2026-10-31T10:43:30.891421+00:00",
+  "base_local_checkpoint": "558dad8",
+  "status": "local_cashflow_overview_verified",
+  "production_html_sha256": "bf9246bef490c46ec68c78effce36a567e2ec93c391a89f690f8a9c816f991d1",
+  "policy": [
+    "Main account inflow/outflow counts all signed known-date credits and debits, including movement and unreviewed entries.",
+    "Opening, closing, category subset and operation breakdown use the same wallet/currency/period/cutoff.",
+    "Explicit paired principal between two scoped wallets is separated from headlines; signed internal net bridges split posting dates; fees remain counted once.",
+    "Per-wallet or cross-currency boundary legs are counted in that scope. No transfer ownership or pairs are inferred.",
+    "Adjustments bridge balances separately and do not pretend to be bank transactions.",
+    "Actual cutoff excludes future posting dates. Unknown dates, unavailable baselines or overflow do not produce confirmed zero discrepancies.",
+    "Source descriptions take precedence over edited notes. Operation groups do not invent the underlying purchase purpose.",
+    "Calculation agreement is not evidence that bank history is complete.",
+    "No transaction, source fact, category, rule, storage schema or backup format is migrated by the reporting feature."
+  ],
+  "verification": {
+    "unit_passed": 1169,
+    "unit_failed": 0,
+    "unit_files": 38,
+    "browser_scenarios_passed": 154,
+    "ux_contexts_passed": 2,
+    "performance_samples_passed": 5,
+    "typecheck": "passed",
+    "build": "passed",
+    "browser": "156.0.8078.76",
+    "browser_fixtures_synthetic_only": true,
+    "browser_page_errors": 0
+  },
+  "evidence": [
+    {
+      "suite": "original-final",
+      "passed": 39,
+      "summary": "work/cashflow/original-final/summary.json",
+      "sha256": "e90e55a4874adbb25920c8035c67e63c498c4ed046c21307b3c74a852106d3fc"
+    },
+    {
+      "suite": "recovery-final",
+      "passed": 12,
+      "summary": "work/cashflow/recovery-final/summary.json",
+      "sha256": "b280c5819b870e3c20bcd1dd76d3820bc3dd1ed0c6bbcda00410427c5053832d"
+    },
+    {
+      "suite": "category-final",
+      "passed": 15,
+      "summary": "work/cashflow/category-final/summary.json",
+      "sha256": "5e7e534a336d242148cf55e0071d44cbbfadb84dc83e9802578927106ccd2606"
+    },
+    {
+      "suite": "bank_auto-final",
+      "passed": 14,
+      "summary": "work/cashflow/bank_auto-final/summary.json",
+      "sha256": "81fa08dad23776437da71efe1721e8ada9dc5b3a3c0c6274f7dd6fca0b8a8347"
+    },
+    {
+      "suite": "bank_description-final",
+      "passed": 9,
+      "summary": "work/cashflow/bank_description-final/summary.json",
+      "sha256": "65b97a9503966c528ad51408df2445baf934439ddc9ad2dbf377c142fce9ab46"
+    },
+    {
+      "suite": "source-final",
+      "passed": 4,
+      "summary": "work/cashflow/source-final/summary.json",
+      "sha256": "7d480c5e0c529ee4573ebceffc0ae3281044610d066408d11c7b1d7032a80ecd"
+    },
+    {
+      "suite": "backfill-final",
+      "passed": 2,
+      "summary": "work/cashflow/backfill-final/summary.json",
+      "sha256": "cc6d6aa63c0cedad089d73ac06e96497d18f855cbe4b62436183a813611f1fb6"
+    },
+    {
+      "suite": "keyword-pack-final",
+      "passed": 13,
+      "summary": "work/cashflow/keyword-pack-final/summary.json",
+      "sha256": "43814222b842bb01850bde75c74e6731e435e5b301e0ee19a85c41ea40b4d61a"
+    },
+    {
+      "suite": "confirmed-mapping-final",
+      "passed": 10,
+      "summary": "work/cashflow/confirmed-mapping-final/summary.json",
+      "sha256": "f3b1e053f020140c68e2979b4e46580093abca16f98d3538012a0cbbdb7d0eb6"
+    },
+    {
+      "suite": "new-final-complete",
+      "passed": 15,
+      "summary": "work/cashflow/new-final-complete/summary.json",
+      "sha256": "d6ad9ccefb4f44e4f918908edcc10a5fba74b2576d69126eae7f702c04d6b6ac"
+    },
+    {
+      "suite": "theme-final",
+      "passed": 21,
+      "summary": "work/cashflow/theme-final/summary.json",
+      "sha256": "a443376cb692c41734272057e5d040ebce466a24bec35cd188ada31f101935a6"
+    }
+  ],
+  "additional_evidence": {
+    "unit": {
+      "path": "work/cashflow/final-unit.json",
+      "sha256": "cf6655df98677274e08eef0989325e5a0ba34c3e98063e62092ed725626e7e2f"
+    },
+    "ux": {
+      "path": "work/cashflow/ux-final/summary.json",
+      "sha256": "d3e1a99e88758adb6546d9631bd5c3a8e421dd4bd87b0c396d448aae27ed177d"
+    },
+    "performance": {
+      "path": "work/cashflow/performance-final/summary.json",
+      "sha256": "2e1248a1eb92a8327c30083d50f525589979ac5673a82a0bd53be41581c81e11",
+      "metrics": {
+        "median_batch_ms": 4484.0,
+        "p95_batch_ms": 4594.0,
+        "maximum_active_frame_gap_ms": 177.39999985694885
+      },
+      "budgets": {
+        "median_batch_ms": 5000,
+        "p95_batch_ms": 8000,
+        "maximum_active_frame_gap_ms": 250
+      }
+    },
+    "read_only_reference": {
+      "path": "work/cashflow/read-only-backup-proof.json",
+      "sha256": "1a57753d846fbac8fbac93292a882bf25565550500389ac8c999eeece0a225c2",
+      "entries": 378,
+      "matches_independently_reviewed_spreadsheet": true,
+      "original_sources_unchanged": true
+    }
+  },
+  "new_gate_invariance": {
+    "exact_financial_byte_comparisons": 91,
+    "source_semantic_checks": 4
+  },
+  "test_harness_note": "Initial new-gate visual cases had no visible control contrast samples after scrolling to headline; harness scroll positioning was corrected and expanded to equation/table; all15 final cases passed. Initial evidence retained.",
+  "limits": [
+    "Browser evidence is Chromium Windows automation with mobile emulation, not physical Safari/iOS/Android or manual screen-reader testing.",
+    "Visible solid contrast samples exclude gradients and disabled controls.",
+    "No personal browser profile was controlled or migrated. The reference backup and spreadsheet were read only outside the app.",
+    "Performance gate is10k plain ledger with10 UI edits, not65k UI or metadata-heavy UI guarantee.",
+    "No online deployment, remote push, external CI run, ZIP package or off-PC backup was requested or performed."
+  ]
+}

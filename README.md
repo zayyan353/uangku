@@ -1,90 +1,144 @@
 # Uangku
 
-Pencatat uang pribadi untuk cash, rekening, dan e-wallet dalam rupiah, lira Turki, dan dolar AS. Mulai dari saldo hari ini, catat secukupnya, lalu rapikan kategorinya belakangan.
+Pencatat keuangan pribadi untuk rekening dan e-wallet, dengan saldo, pemasukan,
+pengeluaran, transfer, impor mutasi, serta kategori yang bisa disesuaikan.
 
-**[Buka Uangku](https://zayyan353.github.io/uangku/)**
+- **Alamat publik:** <https://zayyan353.github.io/uangku/>
+- **Alamat pengembangan lokal:** <http://127.0.0.1:4180>
 
-## Yang bisa dipakai
+Catatan keuangan disimpan di browser masing-masing. Alamat lokal dan alamat
+publik mempunyai penyimpanan terpisah; publikasi kode tidak memindahkan data.
+Gunakan cadangan JSON untuk memindahkan catatan secara sengaja.
 
-- **Dompet terpisah:** saldo cash dan rekening tetap jelas; setiap dompet punya satu mata uang.
-- **Ringkasan per mata uang:** saldo, pemasukan, dan pengeluaran IDR, TRY/TL, serta USD ditampilkan terpisah.
-- **Catat cepat:** pemasukan, pengeluaran, dan kategori “Belum dikategorikan”.
-- **Lebih sedikit pilih ulang:** mata uang dan dompet terakhir diingat di browser. Dompet cash tampil di ringkasan dengan tombol catat langsung.
-- **Simpan & catat lagi:** catat beberapa pengeluaran atau pemasukan berurutan; dompet, tanggal, dan kategori tetap dipilih, sementara nominal dan keterangan dikosongkan untuk catatan berikutnya.
-- **Pindah uang:** transfer antar dompet, termasuk tarik tunai. Transfer tidak dihitung sebagai belanja; biaya transfer dicatat sebagai pengeluaran.
-- **Kurs per transaksi:** isi kurs manual atau nominal yang benar-benar diterima, lalu konfirmasi kursnya. Kurs historis disimpan bersama transaksi.
-- **Impor mutasi Ziraat XLSX:** pratinjau transaksi, pemeriksaan saldo antarbaris, dan pemeriksaan impor berulang.
-- **Cari dan kategorikan saat impor:** saring mutasi baru, yang perlu dicek, yang sudah diimpor, atau yang dipilih; terapkan kategori ke pilihan yang terlihat sekaligus.
-- **Perlu dicek:** transaksi yang jenisnya belum jelas tetap memengaruhi saldo, tetapi belum dihitung sebagai pemasukan atau pengeluaran. Hasil cek dapat disimpan setelah jenis atau tujuan transfer dipastikan.
-- **Antrean perapihan:** filter “Perlu dirapikan” menampilkan transaksi dari seluruh bulan dan mata uang, termasuk kategori yang ditunda. Ringkasan bulanan tetap mengikuti bulan dan mata uang yang dipilih.
-- **Kategori massal:** pilih beberapa pemasukan, pengeluaran, atau catatan yang belum dicek lalu terapkan satu kategori. Catatan yang belum dicek tetap berstatus demikian kecuali jenisnya dikonfirmasi secara eksplisit.
-- **Saran pasangan transfer:** nominal berlawanan yang sama dalam satu mata uang, di dompet berbeda dan selang maksimal tiga hari, dapat ditawarkan sebagai pasangan. Pengguna tetap memilih dan menyimpan hasil cek; kurs berbeda mata uang selalu dikonfirmasi manual.
-- **Cek saldo:** catat penyesuaian yang terlihat jika uang fisik atau saldo sebenarnya berbeda dari catatan.
-- **Cadangkan dan pulihkan:** unduh catatan sebagai JSON dan pulihkan lewat aplikasi.
+## Fitur
 
-Versi awal belum terhubung ke API bank dan belum melakukan sinkronisasi rekening otomatis. Impor saat ini khusus **XLSX Ziraat rekening TL** dengan kolom `Tarih`, `Fiş No`, `Açıklama`, `İşlem Tutarı`, dan `Bakiye`. CSV, PDF, serta format bank lain belum didukung; dompet lainnya bisa dicatat manual.
+- **Tema:** Sistem, Terang, atau Gelap; pilihan diingat per browser.
+- **Dompet:** tambah rekening atau e-wallet dengan satu mata uang. Dompet yang
+  sudah mempunyai histori dapat diarsipkan dan diaktifkan kembali. Penghapusan
+  permanen hanya tersedia bila saldo awal nol dan tidak ada catatan atau fakta sumber.
+  Dompet cash tidak digunakan dalam pembukuan aktif.
+- **Mata uang:** Kelola mata uang menyediakan 165 kode dari katalog ISO 4217
+  yang didukung. Tambah atau sembunyikan pilihan tanpa menghapus histori;
+  laporan mata uang tersembunyi yang sudah dipakai tetap dapat dibuka.
+  Nominal mengikuti jumlah digit pecahan mata uang, termasuk 0, 2, 3, atau 4 digit.
+- **Ringkasan:** saldo aktual memakai batas tanggal hari ini. Transaksi masa
+  depan diizinkan dengan peringatan dan ditampilkan terpisah. Setiap mata uang
+  mempunyai laporan sendiri; nominal berbeda mata uang tidak dijumlahkan langsung.
+- **Transaksi dan transfer:** catat pemasukan, pengeluaran, perpindahan antar
+  dompet, biaya transfer, dan kurs manual. Tanggal debit dan kredit transfer
+  dipertahankan. Pencarian seluruh periode, filter, kategori massal, dan rincian
+  nominal membantu memeriksa histori.
+- **Kategori:** tambah atau kurangi pilihan dan kelola aturan kata kunci sendiri.
+  Kecocokan yang jelas dapat diisi otomatis, sedangkan yang ambigu menjadi saran.
+  Kategori dan aturan pribadi tidak ditimpa oleh pembaruan aturan bawaan.
+- **Impor:** pembaca otomatis XLSX Ziraat TRY/TL dan pemetaan kolom CSV, TSV,
+  atau XLSX umum untuk dompet aktif dalam mata uang yang didukung.
+- **Fakta sumber:** keterangan, tanggal, nominal, dan saldo bank disimpan
+  terpisah dari anotasi pengguna. Pratinjau memeriksa saldo antarbaris, impor
+  berulang, dan kemungkinan tumpang tindih dengan catatan yang sudah ada.
+  Pelengkapan histori dan backfill memerlukan peninjauan bukti serta saldo awal.
+- **Penyimpanan:** tab usang ditolak agar tidak menimpa data terbaru. Kegagalan
+  menyimpan menyediakan pemulihan draft dan percobaan ulang. Cadangkan dan
+  pulihkan catatan melalui JSON.
 
-## Mulai pakai
+Aplikasi belum terhubung ke API bank dan tidak menyinkronkan rekening otomatis.
+PDF dan XLS lama belum didukung. Pembacaan format umum memakai pilihan kolom
+yang dikonfirmasi pengguna, bukan janji mendukung seluruh format ekspor bank.
 
-1. Buka aplikasi. Tampilan awal memakai **data contoh fiktif**, sehingga fiturnya bisa dicoba tanpa memasukkan data keuangan asli.
-2. Pilih **Mulai pakai data sendiri**, lalu konfirmasi **Mulai dari kosong**. Data contoh akan diganti dengan dompet tanpa transaksi.
-3. Buka **Dompet**. Dompet awal mencakup BCA, BCA Digital, BRI, GoPay, DANA, Bank Jago, SeaBank, ShopeePay, Ziraat, Papara, dan cash IDR/TRY/USD. Tambah atau sesuaikan dompet sesuai kebutuhan.
-4. Isi saldo awal sebelum transaksi pertama yang ingin dicatat. Untuk memulai dari hari ini, gunakan saldo hari ini dan catat transaksi berikutnya. Untuk mengimpor riwayat mutasi, gunakan saldo sebelum transaksi pertama dalam file.
-5. Gunakan **Catat transaksi** untuk belanja atau pemasukan, dan **Pindah uang** untuk transfer, top up, tarik tunai, atau penukaran mata uang.
-6. Unduh **Cadangkan data** secara berkala, terutama sebelum mengganti perangkat, browser, alamat aplikasi, atau menghapus data browser.
+## Mulai memakai
 
-### Impor Excel Ziraat
+1. Tampilan awal memakai data contoh fiktif. Pilih **Mulai pakai data sendiri**
+   lalu konfirmasi **Mulai dari kosong** untuk menggunakan catatan pribadi.
+2. Buka **Kelola mata uang** bila mata uang yang dibutuhkan belum terlihat.
+   Buka **Dompet** untuk menambah atau menyesuaikan rekening dan e-wallet.
+3. Isi saldo awal sebelum transaksi pertama yang ingin dicatat. Jika mulai
+   mencatat dari hari ini, gunakan saldo hari ini dan catat transaksi berikutnya.
+4. Gunakan **Catat transaksi**, **Pindah uang**, atau **Impor mutasi**.
+5. Unduh **Cadangkan data** sebelum mengganti browser, perangkat, atau alamat
+   aplikasi, serta sebelum mengganti catatan lewat **Pulihkan cadangan**.
 
-1. Pastikan mode contoh sudah diganti dengan data sendiri.
-2. Buka **Impor mutasi**, pilih dompet Ziraat dengan mata uang TRY/TL, lalu pilih file `.xlsx` dari bank. Ukuran maksimal 8 MB.
-3. Periksa periode, nominal, dan baris yang dipilih. Kemungkinan transaksi yang sudah diimpor tidak dipilih ulang.
-4. Untuk dompet yang belum memiliki aktivitas, tersedia pilihan memakai saldo awal yang dihitung dari file. Ini mengganti saldo awal dompet, bukan menambahkan pemasukan.
-5. Simpan hasil impor. Uang masuk dan kemungkinan transfer disimpan sebagai **Perlu dicek** sampai jenisnya dikonfirmasi.
-6. Buka **Transaksi**, lalu gunakan **Cek** untuk menyelesaikan transaksi yang belum jelas. Cocokkan perpindahan ke dompet sendiri agar dua sisi transfer tidak dihitung dua kali.
+### Impor mutasi
 
-Gunakan pencarian dan filter di pratinjau untuk menemukan kelompok mutasi, lalu isi **Kategori mutasi terpilih**. Kategori massal dan kotak pilih-semua hanya memengaruhi baris baru yang terlihat. Filter tidak membatalkan pilihan yang tersembunyi: tombol **Simpan** tetap menyimpan seluruh jumlah pilihan yang ditampilkan pada tombolnya. Mutasi yang sudah diimpor tidak dapat dipilih ulang.
+Pilih dompet aktif dengan mata uang yang sesuai. File maksimal 8 MiB dan harus
+mewakili satu rekening dalam satu mata uang; impor tidak menukar mata uang.
 
-### Merapikan banyak transaksi
+**Ziraat otomatis:** pilih mode Ziraat untuk XLSX rekening TRY/TL dengan kolom
+`Tarih`, `Fiş No`, `Açıklama`, `İşlem Tutarı`, dan `Bakiye`.
 
-1. Buka **Transaksi** dan gunakan filter **Perlu dirapikan** untuk seluruh bulan dan mata uang.
-2. Centang catatan yang ingin diberi kategori sama, pilih **Kategori transaksi terpilih**, lalu **Terapkan**.
-3. Kategori saja tidak mengubah jenis atau saldo. Untuk catatan yang belum dicek, konfirmasi jenis secara massal hanya setelah memastikan uang masuk adalah pemasukan dan uang keluar adalah pengeluaran.
-4. Untuk transfer antar dompet sendiri, gunakan **Cek**. Jika ada saran pasangan, pilih yang benar lalu **Simpan hasil cek**. Saran tidak pernah menggabungkan transaksi secara otomatis.
+**CSV / Excel umum:**
 
-Pemasukan, pengeluaran, dan transaksi yang belum dicek dapat dikategorikan massal; transfer dan penyesuaian tidak memakai kategori belanja. Pilihan dibatalkan saat pencarian, filter, periode, mata uang, atau isi catatan berubah, supaya kategori tidak diterapkan ke baris yang tidak sedang diperiksa.
+1. Pilih file CSV, TSV, atau XLSX. Sesuaikan pemisah CSV, worksheet, dan baris
+   judul kolom bila diperlukan.
+2. Petakan tanggal, keterangan, nominal bertanda positif/negatif **atau** kolom
+   debit dan kredit terpisah, serta **saldo setelah setiap mutasi**. Saldo bank
+   yang sebenarnya wajib tersedia; aplikasi tidak mengarangnya.
+3. Pilih format tanggal, pemisah desimal, dan urutan transaksi. Referensi dan
+   kolom mata uang dapat dipetakan bila tersedia. Konfirmasi bahwa mata uang
+   file sama dengan dompet tujuan.
+4. Buat pratinjau. Tanggal atau nominal tidak valid, mata uang berbeda,
+   pecahan berlebih, formula, atau rangkaian saldo yang tidak konsisten ditolak.
+5. Tinjau pilihan transaksi, kategori, kemungkinan duplikasi, saldo awal, dan
+   proyeksi saldo sebelum menekan **Simpan**. Mengubah pemetaan membatalkan
+   pratinjau lama. Memilih file saja belum menyimpan transaksi.
 
-Kategori boleh dibereskan belakangan. Pemeriksaan saldo file memastikan konsistensi antarbaris; hasilnya tidak membuktikan bahwa seluruh riwayat rekening sudah tercakup. Untuk saldo akhir yang sesuai mutasi, pastikan periode, saldo awal, dan seluruh transaksi yang relevan ikut dicatat.
+Jenis yang belum mempunyai bukti cukup disimpan sebagai **Perlu dicek**:
+nominalnya tetap memengaruhi saldo, tetapi belum dihitung sebagai pemasukan
+atau pengeluaran. Penanda bank yang sudah dikenali mengikuti pemetaan yang
+ditetapkan: setor ATM menjadi pemasukan, tarik ATM menjadi pengeluaran,
+PREPAID masuk menjadi Cashback, dan pokok transfer tetap perpindahan dana.
+Pembayaran kartu yang tujuannya belum diketahui memakai kategori Belanja
+umum, tanpa menebak barang atau layanan yang dibeli.
 
-Impor berikutnya dapat menambahkan transaksi baru dan melewati transaksi yang sudah ada. Riwayat sebelum batas awal catatan akan ditolak agar saldo awal tidak terhitung dua kali. Untuk memperluas riwayat ke masa yang lebih lama, buat dompet kosong dan impor periode lengkap yang diinginkan. Simpan cadangan sebelum mengganti dompet; hindari menghitung kedua dompet sebagai rekening yang sama.
+Filter dan kategori massal pada pratinjau berlaku untuk baris yang terlihat.
+Tombol **Simpan** menyertakan semua baris yang masih dipilih, termasuk yang
+tersembunyi oleh filter atau halaman lain. Kesamaan saldo akhir saja belum
+membuktikan bahwa seluruh histori rekening sudah lengkap.
+
+### Merapikan kategori
+
+Buka **Transaksi → Isi kategori otomatis** untuk meninjau kategori kosong
+lintas periode dan mata uang. Kecocokan jelas dipilih otomatis; saran ambigu
+menunggu pilihan. Kategori manual, nominal, tanggal, dan fakta bank dipertahankan.
+Konfirmasi jenis transaksi tetap merupakan keputusan tersendiri.
+
+Gunakan **Kelola kategori** untuk mengubah pilihan dan aturan kata kunci.
+Menghapus kategori dari pilihan tidak menghapus nama kategori pada histori.
+Pengaturan kategori mempunyai **Ekspor/Impor pengaturan kategori** tersendiri;
+cadangan transaksi membawa kategori yang digunakan pada catatannya.
 
 ## Penyimpanan dan cadangan
 
-Catatan tersimpan di `localStorage` **browser dan perangkat yang sedang dipakai**. Aplikasi tidak memiliki akun pengguna, penyimpanan server, atau sinkronisasi antarperangkat.
+Catatan tersimpan di `localStorage` browser dan perangkat yang sedang dipakai.
+Aplikasi tidak memiliki akun pengguna, penyimpanan server, atau sinkronisasi
+antarperangkat. File mutasi dibaca di browser, tanpa dikirim ke server aplikasi.
 
-- Browser lain, perangkat lain, mode privat, dan alamat situs yang berbeda mempunyai penyimpanan terpisah. Perubahan protokol atau port juga dapat membuat catatan yang berbeda.
-- Menghapus data situs atau memakai browser yang membatasi penyimpanan bisa menghilangkan catatan. Simpan cadangan JSON di tempat pribadi.
-- **Pulihkan cadangan** menggantikan catatan saat ini setelah konfirmasi. Cadangkan catatan lama terlebih dahulu jika masih diperlukan.
-- Pembaruan kode dan publikasi GitHub Pages tidak memindahkan catatan dari browser lama ke browser baru. Gunakan cadangan untuk memindahkan data.
-- File mutasi dibaca di browser; isinya tidak dikirim ke bank atau server aplikasi. Nominal dan keterangannya menjadi bagian dari catatan lokal setelah impor.
+- Browser, perangkat, mode privat, protokol, domain, dan port yang berbeda
+  mempunyai penyimpanan terpisah.
+- Menghapus data situs dapat menghilangkan catatan. Cadangan JSON menyertakan
+  transaksi, dompet, fakta sumber, dan pengaturan mata uang yang tersimpan.
+- **Pulihkan cadangan** mengganti catatan setelah konfirmasi. Cadangkan catatan
+  yang masih diperlukan sebelum melanjutkan.
+- Batas data logis tetap **8 MiB**; kuota penyimpanan browser merupakan batas
+  terpisah. Penolakan kapasitas tidak mengganti data lama.
+- Pembaruan situs tidak memindahkan catatan dari alamat lokal ke alamat publik.
+  ZIP source aplikasi juga tidak otomatis menyertakan data browser.
 
-**Jangan masukkan mutasi bank asli, cadangan pribadi, nomor rekening, atau data keuangan nyata ke repository publik.** Data contoh dan fixture pengujian di proyek ini bersifat fiktif. Berkas mutasi dan cadangan sudah dicakup `.gitignore`; tetap periksa daftar file sebelum commit.
+Jangan masukkan mutasi bank asli, cadangan pribadi, kredensial, atau data
+keuangan nyata ke repository publik. Pengujian menggunakan fixture sintetis.
 
-## Menjalankan proyek
+## Pengembangan lokal
 
-Prasyarat: **Node.js 22.12 atau lebih baru** dan npm. Workflow GitHub memakai Node.js 24.
+Prasyarat: **Node.js 22.12 atau lebih baru** dan npm. Workflow memakai Node.js 24.
+Jalankan dari direktori proyek:
 
 ```sh
 npm ci
 npm run dev
 ```
 
-Jalankan perintah dari direktori proyek. Di environment cloud `/workspace`, cache npm dapat diarahkan ke direktori yang bisa ditulis:
-
-```sh
-npm ci --cache /workspace/.npm-cache
-```
-
-Perintah lain:
+Buka <http://127.0.0.1:4180>. Pada PC yang menyertakan launcher lokal,
+`Jalankan-Uangku.cmd` menyediakan cara lain untuk menjalankan aplikasi.
+Catatan prosedur lokal ada di [LOCAL_WORKFLOW.md](LOCAL_WORKFLOW.md).
 
 ```sh
 npm test
@@ -92,28 +146,29 @@ npm run build
 npm run preview
 ```
 
-`npm test` menjalankan pengujian pembukuan, penyimpanan, dan impor menggunakan data sintetis. `npm run build` menjalankan pemeriksaan TypeScript dan membuat keluaran produksi di `dist/`. Hasil build disiapkan sebagai halaman mandiri; gunakan server preview atau hosting untuk penyimpanan browser yang konsisten. Salinan HTML yang dibuka sebagai file lokal dapat memiliki perilaku penyimpanan berbeda antarbrowser. Cadangkan data sebelum berpindah alamat atau salinan file.
+`npm test` menjalankan tes unit. Build mencakup pemeriksaan TypeScript dan
+menghasilkan situs statis di `dist/`; preview juga memakai port 4180.
+Gunakan server HTTP untuk perilaku penyimpanan browser yang konsisten.
 
-### Pemeriksaan browser opsional
-
-Tersedia pemeriksaan desktop dan ponsel di `tests/browser_smoke.py`. Pemeriksaan ini memerlukan Python, paket Python Playwright, dan Chromium. Jalankan server pengembangan terlebih dahulu, lalu dari terminal lain:
+Pengujian browser di `tests/` memerlukan Python, Playwright, dan Chromium.
+Setiap skrip menerima direktori bukti, misalnya:
 
 ```sh
-python tests/browser_smoke.py
+python tests/browser_smoke.py --output ../work/browser-smoke
 ```
 
-Gunakan `UANGKU_TEST_URL` untuk menguji alamat server yang berbeda. Skrip membuat transaksi dan file mutasi sintetis; mutasi asli tidak digunakan atau dimasukkan ke repository.
+Gunakan `UANGKU_TEST_URL` untuk server pengujian selain alamat lokal bawaan.
+Fixture pengujian tidak memakai data keuangan pengguna.
 
 ## Publikasi dengan GitHub Pages
 
-Proyek menyediakan workflow untuk publikasi otomatis; keberadaan workflow ini tidak berarti repository remote atau situs sudah dibuat.
+Workflow **Periksa Uangku** menjalankan tes unit, build, regresi browser,
+pemeriksaan sumber/backfill, UX, dan performa. Workflow **Publikasikan Uangku**
+memakai gate tersebut sebelum membangun dan menerbitkan `dist/` ke Pages.
+Publikasi dipicu oleh push ke `main` atau pemicu manual dengan konfirmasi
+rilis. Job deployment hanya berjalan setelah pemeriksaan berhasil.
 
-1. Simpan proyek dalam repository GitHub terpisah dengan branch utama `main`.
-2. Di repository tersebut, buka **Settings → Pages → Build and deployment**, lalu pilih **GitHub Actions** sebagai Source.
-3. Push kode ke `main`, atau jalankan workflow **Publikasikan Uangku** secara manual dari tab **Actions**.
-4. Workflow memasang dependency dari lockfile, menjalankan tes dan build, lalu mengirim folder `dist/` ke GitHub Pages.
-5. Tunggu deployment berhasil. GitHub menampilkan alamat situs pada hasil deployment dan halaman Settings → Pages.
-
-Workflow **Periksa Uangku** juga menjalankan tes dan build pada push ke `main` serta pull request. Izin atau ketersediaan Pages mengikuti pengaturan dan paket repository GitHub.
-
-Kode aplikasi dapat dipublikasikan tanpa menyertakan catatan pribadi. Data keuangan tetap berada di browser masing-masing pengguna, termasuk saat aplikasinya dihosting di GitHub Pages.
+Situs memakai base relatif agar dapat dihosting pada subpath `/uangku/`.
+Lihat hasil workflow pada GitHub Actions untuk status pemeriksaan dan
+deployment yang sebenarnya; hasil lokal saja tidak membuktikan CI eksternal
+atau publikasi sudah berhasil. Data pribadi tetap berada di browser pengguna.

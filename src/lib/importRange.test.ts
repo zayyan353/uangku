@@ -41,7 +41,7 @@ describe('import range protects the existing opening balance', () => {
   it('blocks an earlier date regardless of whether activity was imported or manual', () => {
     const previous = row('previous', '2026-09-30', 100, 900);
     expect(validateImportRange(state(), wallet.id, preview([previous, b()]))).toMatch(/saldo dua kali/);
-    expect(validateImportRange(state([movement({ sourceKey: undefined })]), wallet.id, preview([previous]))).toMatch(/dompet kosong/);
+    expect(validateImportRange(state([movement({ sourceKey: undefined })]), wallet.id, preview([previous]))).toMatch(/batas awal.*Simpan fakta file/);
   });
 
   it('allows a strictly newer period even without an overlapping anchor', () => {

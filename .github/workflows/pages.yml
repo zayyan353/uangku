@@ -4,6 +4,12 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      confirmed_release:
+        description: 'Saya menyetujui publikasi setelah seluruh gate lulus'
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -15,8 +21,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  verify:
+    name: Periksa kandidat sebelum publikasi
+    if: github.event_name == 'push' || inputs.confirmed_release
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
   build:
     name: Tes dan siapkan situs
+    needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -34,6 +48,16 @@ jobs:
         run: npm test
       - name: Buat build produksi
         run: npm run build
+      - name: Catat identitas rilis
+        run: |
+          node --input-type=module <<'JS'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          import { createHash } from 'node:crypto';
+          const commit = process.env.GITHUB_SHA;
+          if (!/^[0-9a-f]{40}$/.test(commit ?? '')) throw new Error('Missing release commit');
+          const htmlSha256 = createHash('sha256').update(readFileSync('dist/index.html')).digest('hex');
+          writeFileSync('dist/BUILD_INFO.json', JSON.stringify({ commit, htmlSha256 }) + '\n');
+          JS
       - name: Siapkan GitHub Pages
         uses: actions/configure-pages@v5
       - name: Unggah situs

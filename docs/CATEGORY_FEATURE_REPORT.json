@@ -1,0 +1,96 @@
+{
+  "updated_utc": "2026-10-31T01:35:02.407589+00:00",
+  "feature": "Custom categories and conservative local category automation",
+  "status": "implemented_and_verified_locally",
+  "base_local_checkpoint": "ea9a1d7",
+  "production_html_sha256": "b688b232f121ba1295bcf03e63092a1aca24d327aac0d7ef81f5340aee4fd2c0",
+  "defaults": {
+    "category_choices_including_uncategorized": 23,
+    "editable_keyword_rules": 30
+  },
+  "behavior": [
+    "Transaksi/Impor: Kelola kategori adds/removes active names and edits/adds/deletes literal keyword rules.",
+    "Removed categories remain on historical entries; their rules become inactive until category reactivation.",
+    "New imports automatically fill fresh uncategorized rows when one clear category matches; manual edits remain authoritative.",
+    "Conflicting categories, payment rails, cash movements, refunds and unresolved types remain suggestions.",
+    "Existing history requires explicit preview and apply; no automation on startup or backup restoration.",
+    "Source descriptions are preferred over edited notes; money, types, dates, source facts and IDs remain unchanged.",
+    "Batch category writes update annotations through the existing revision-guarded writer; failed writes retain recovery drafts.",
+    "Rules compile once per import/history batch; suggestions are deduplicated by category."
+  ],
+  "settings": {
+    "key": "uangku:categories:v1",
+    "lock": "uangku:category-settings",
+    "max_categories": 100,
+    "max_rules": 200,
+    "name_max_characters": 80,
+    "max_export_envelope_bytes": 131072,
+    "concurrency": "Captured raw settings token plus Web Locks CAS; stale saves rejected.",
+    "backup": "Separate validated settings export/import; financial backups retain category strings but do not include the catalog/rules.",
+    "financial_wire_schema_changed": false
+  },
+  "verification": {
+    "unit_passed": 506,
+    "unit_failed": 0,
+    "unit_files": 22,
+    "typecheck_build": "passed",
+    "category_browser_cases": 15,
+    "theme_browser_cases": 21,
+    "original_browser_scenarios": 39,
+    "category_exact_financial_byte_comparisons": 23,
+    "category_financial_semantic_invariance_checks": 11,
+    "category_contrast_samples": 943,
+    "category_minimum_measured_contrast": 5.48099637734324,
+    "browser": "155.0.8059.86",
+    "automated_fixtures_synthetic_only": true
+  },
+  "evidence": [
+    {
+      "suite": "category",
+      "summary": "work/category/final-candidate/summary.json",
+      "sha256": "559f8bc9d5196d5f3f762a744e63a653749e74ab12288f823bf1ef98edb0fffb"
+    },
+    {
+      "suite": "original",
+      "summary": "work/category/original-final/summary.json",
+      "sha256": "8a2cd0f1fcb48b5b60853cd597487ff0b786d57d1c7e953252109d99d5d77ff7"
+    },
+    {
+      "suite": "theme",
+      "summary": "work/category/theme-final/summary.json",
+      "sha256": "68ac62c0263dfd88e60ba3200b7ff65a4a03119cffbac433c08329efbea5b1fd"
+    }
+  ],
+  "covered_failures": [
+    "Invalid and oversized settings imports leave current settings and financial data intact.",
+    "Settings quota errors and concurrent saves retain draft; pending close/edit paths are guarded.",
+    "Financial quota failure preserves old stored bytes; draft export and global retry save category batch exactly once.",
+    "A remote manual category change rejects stale automatic apply and retry; loading latest preserves the remote choice.",
+    "Category batch capacity rejection is atomic at the existing8MiB financial boundary."
+  ],
+  "limits": [
+    "Literal rules are editable merchant heuristics, not an AI guarantee of the purpose of every purchase.",
+    "Unknown merchants and ambiguous descriptions stay uncategorized until a user rule or manual decision.",
+    "Chromium on Windows with mobile emulation; no physical-device or manual screen-reader verification.",
+    "Contrast covers sampled visible steady-state solid text/control/placeholder states; gradients and disabled controls excluded.",
+    "Full performance, recovery, source-lifecycle and backfill suites were not repeated as whole suites for this feature; earlier results remain historical. Targeted category source/recovery/conflict cases passed.",
+    "CI configuration includes the new gate; remote CI was not executed."
+  ],
+  "user_sample": {
+    "inspection": "Provided backup validated and rule matches simulated in memory only.",
+    "original_file_modified": false,
+    "imported_to_browser_test_profile": false,
+    "personal_records_copied_into_repository_or_test_fixtures": false
+  },
+  "review_corrections": [
+    "NFC-equivalent category names now collide during validation.",
+    "Full settings export envelope is budgeted so a valid saved configuration can be exported and restored.",
+    "Explicit batch compilation replaces mutable-object caching after a unit test caught stale rules.",
+    "Duplicate-category suggestions are merged, and failed category save UI explains the global retry path."
+  ],
+  "online_website_modified": false,
+  "remote_push_performed": false,
+  "deployment_performed": false,
+  "new_source_archive_created": false,
+  "packaging": "New combined ZIP and off-PC backup remain deferred by user; old snapshots retained."
+}

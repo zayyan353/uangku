@@ -153,7 +153,8 @@ describe('wallet validation and display', () => {
 
   it('creates a valid fictional demo in the current month with no future entries', () => {
     const s = buildDemoState(new Date('2026-10-05T12:00:00Z'));
-    expect(s.wallets).toHaveLength(7);
+    expect(s.wallets).toHaveLength(5);
+    expect(s.wallets.some(wallet => wallet.kind === 'cash')).toBe(false);
     for (const wallet of s.wallets) expect(validateWallet(wallet)).toBeNull();
     const incremental: State = { ...s, entries: [] };
     for (const transaction of s.entries) {

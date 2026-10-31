@@ -1,7 +1,13 @@
-/** Money is always an integer in the currency's minor unit (1 unit = 100). */
-export type Currency = 'IDR' | 'TRY' | 'USD';
+import { actualBalanceProblem, ActualBalanceUnavailableError, createPostingDateIndex, entryPostings, type PostingContext } from './transferPostings';
+export * from './transferPostings';
+import { formatMinorMoney } from './moneyFormatting';
+import { currencyDigits, currencyScale, isCurrencyCode, isCurrencyConversionConsistent, type Currency } from './currencyCatalog';
+export { CURRENCY_CATALOG, LEGACY_CURRENCY_CODES, currencyInfo, currencyDigits, currencyScale, isCurrencyCode, convertMinorCurrency, deriveCurrencyRate, isCurrencyConversionConsistent } from './currencyCatalog';
+export type { Currency } from './currencyCatalog';
+
+/** Money is an integer in the currency's catalog-defined smallest unit. */
 export type WalletKind = 'bank' | 'cash' | 'ewallet';
-export type EntryType = 'expense' | 'income' | 'transfer' | 'adjustment' | 'unreviewed';
+export type EntryType = 'expense' | 'income' | 'transfer' | 'adjustment' | 'unreviewed' | 'movement';
 
 export interface Wallet {
   id: string;
@@ -16,7 +22,7 @@ export interface Entry {
   date: string;
   type: EntryType;
   walletId: string;
-  /** Positive for ordinary entries; signed for balance adjustments and unreviewed bank flows. */
+  /** Positive for income/expense/transfer; signed for adjustments, movements and unreviewed flows. */
   amount: number;
   category: string;
   note: string;
@@ -64,13 +70,14 @@ export function makeId(): string {
 }
 
 /**
- * Accept common Indonesian, Turkish and English monetary input.
- * 1.234,56 and 1,234.56 both mean 1234.56. A lone separator followed by
- * three digits is a thousands separator: 1.000 means 1000, not 1.
- * Returns null for ambiguous malformed groupings, more than two decimal
- * digits, non-money text, or values outside exact integer representation.
+ * Two-decimal currencies retain the original Indonesian/Turkish/English input
+ * grammar, including 1.234,56 and 1,234.56. For currencies with other precision,
+ * the explicit Indonesian decimal-comma grammar below refuses ambiguous input.
+ * Every branch returns exact minor units or null; no float scaling is used.
  */
-export function parseMoney(input: string): number | null {
+export function parseMoney(input: string, currency: Currency = 'IDR'): number | null {
+  const digits = currencyDigits(currency);
+  if (digits !== 2) return parseScaledMoney(input, currency);
   let text = input.trim().replace(/[\s\u00a0\u202f]/g, '');
   if (!text || !/^-?[\d.,]+$/.test(text)) return null;
   const negative = text.startsWith('-');
@@ -109,6 +116,44 @@ export function parseMoney(input: string): number | null {
   return result === 0 ? 0 : result;
 }
 
+/** New non-two-decimal currencies use explicit Indonesian decimal commas.
+ * A single dotted three-digit suffix is ambiguous for 3/4-digit money and is
+ * refused rather than silently changing a decimal into a thousand separator.
+ */
+function parseScaledMoney(input: string, currency: Currency): number | null {
+  const digits = currencyDigits(currency);
+  let text = input.trim().replace(/[\s\u00a0\u202f]/g, '');
+  if (!text || !/^-?[\d.,]+$/.test(text)) return null;
+  const negative = text.startsWith('-');
+  if (negative) text = text.slice(1);
+  if (!text || !/\d/.test(text)) return null;
+  let whole = text, fraction = '';
+  if (digits === 0) {
+    if (text.includes('.') && text.includes(',')) return null;
+    if (text.includes('.') || text.includes(',')) {
+      const separator = text.includes('.') ? '.' : ',';
+      if (!validGroupedInteger(text, separator)) return null;
+      whole = text.split(separator).join('');
+    }
+  } else if (text.includes(',')) {
+    const parts = text.split(',');
+    if (parts.length !== 2 || !new RegExp(`^\\d{1,${digits}}$`).test(parts[1])) return null;
+    whole = parts[0] || '0'; fraction = parts[1];
+    if (whole.includes('.')) {
+      if (!validGroupedInteger(whole, '.')) return null;
+      whole = whole.split('.').join('');
+    }
+  } else if (text.includes('.')) {
+    if (text.split('.').length < 3 || !validGroupedInteger(text, '.')) return null;
+    whole = text.split('.').join('');
+  }
+  if (!/^\d+$/.test(whole)) return null;
+  const minor = BigInt(whole) * BigInt(currencyScale(currency)) + BigInt(fraction.padEnd(digits, '0') || '0');
+  if (minor > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+  const value = Number(minor) * (negative ? -1 : 1);
+  return value === 0 ? 0 : value;
+}
+
 function validGroupedInteger(text: string, separator: string): boolean {
   const parts = text.split(separator);
   return parts.length > 1
@@ -117,11 +162,7 @@ function validGroupedInteger(text: string, separator: string): boolean {
 }
 
 export function formatMoney(minor: number, currency: Currency): string {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency', currency, currencyDisplay: 'narrowSymbol',
-    minimumFractionDigits: minor % 100 === 0 ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(minor / 100);
+  return formatMinorMoney(minor, currency);
 }
 
 export function formatDate(date: string): string {
@@ -137,8 +178,11 @@ function isValidDate(date: string): boolean {
   return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === date;
 }
 
-function checkedSum(...values: number[]): number {
-  const total = values.reduce((sum, value) => sum + BigInt(value), 0n);
+function checkedSum(values: Iterable<number>): number {
+  // Sum exactly before checking the final result: intermediate positive and
+  // negative amounts may cancel. An iterable also avoids engine argument limits.
+  let total = 0n;
+  for (const value of values) total += BigInt(value);
   if (total > BigInt(Number.MAX_SAFE_INTEGER) || total < BigInt(Number.MIN_SAFE_INTEGER)) {
     throw new RangeError('Jumlah uang melebihi batas angka yang dapat disimpan dengan tepat.');
   }
@@ -149,7 +193,7 @@ export function validateWallet(wallet: Wallet): string | null {
   if (!wallet.id?.trim()) return 'ID dompet belum tersedia.';
   if (!wallet.name?.trim()) return 'Isi nama dompet terlebih dahulu.';
   if (wallet.name.trim().length > 60) return 'Nama dompet maksimal 60 karakter.';
-  if (!CURRENCIES.some((currency) => currency.code === wallet.currency)) return 'Pilih mata uang yang tersedia.';
+  if (!isCurrencyCode(wallet.currency)) return 'Pilih mata uang yang tersedia.';
   if (!['bank', 'cash', 'ewallet'].includes(wallet.kind)) return 'Pilih jenis dompet yang tersedia.';
   if (!Number.isSafeInteger(wallet.openingBalance)) return 'Saldo awal harus berupa nominal yang valid.';
   return null;
@@ -159,11 +203,15 @@ export function validateEntry(state: State, entry: Entry): string | null {
   if (!entry.id?.trim()) return 'ID transaksi belum tersedia.';
   if (state.entries.some((existing) => existing.id === entry.id)) return 'Transaksi dengan ID ini sudah tersimpan.';
   if (!isValidDate(entry.date)) return 'Isi tanggal transaksi yang valid.';
-  if (!['expense', 'income', 'transfer', 'adjustment', 'unreviewed'].includes(entry.type)) return 'Jenis transaksi tidak dikenal.';
+  if (!['expense', 'income', 'transfer', 'adjustment', 'unreviewed', 'movement'].includes(entry.type)) return 'Jenis transaksi tidak dikenal.';
   const source = state.wallets.find((wallet) => wallet.id === entry.walletId);
   if (!source) return 'Pilih dompet asal yang tersedia.';
-  if (!Number.isSafeInteger(entry.amount)) return 'Nominal harus berupa angka yang valid dengan maksimal dua desimal.';
-  if (entry.type === 'adjustment' || entry.type === 'unreviewed') {
+  if (!Number.isSafeInteger(entry.amount)) return `Nominal harus berupa integer satuan terkecil yang valid (${currencyDigits(source.currency)} desimal untuk ${source.currency}).`;
+  if (entry.type === 'movement') {
+    if (source.kind === 'cash') return 'Perpindahan tercatat hanya tersedia untuk rekening bank atau e-wallet.';
+    if (['toWalletId','toAmount','rate','fee'].some(key => Object.hasOwn(entry,key))) return 'Perpindahan tercatat hanya memiliki satu rekening tanpa nominal pasangan, kurs, atau biaya.';
+  }
+  if (entry.type === 'adjustment' || entry.type === 'unreviewed' || entry.type === 'movement') {
     if (entry.amount === 0) return entry.type === 'adjustment'
       ? 'Saldo sudah cocok; tidak perlu penyesuaian.'
       : 'Transaksi tanpa perubahan nominal tidak perlu disimpan.';
@@ -188,45 +236,82 @@ export function validateEntry(state: State, entry: Entry): string | null {
     if (entry.rate === undefined || !Number.isFinite(entry.rate) || entry.rate <= 0) {
       return 'Isi atau konfirmasi kurs untuk transfer beda mata uang.';
     }
-    const expected = Math.round(entry.amount * entry.rate);
-    if (!Number.isSafeInteger(expected) || Math.abs(expected - entry.toAmount!) > 1) {
+    if (!isCurrencyConversionConsistent(entry.amount, source.currency, destination.currency, entry.rate, entry.toAmount!)) {
       return 'Nominal diterima belum cocok dengan kurs. Periksa kembali nominal atau kursnya.';
     }
   }
   return null;
 }
 
-export function walletBalance(state: State, walletId: string): number {
-  const wallet = state.wallets.find((item) => item.id === walletId);
-  if (!wallet) return 0;
-  const amounts = [wallet.openingBalance];
-  for (const entry of state.entries) {
-    if (entry.walletId === walletId) {
-      if (entry.type === 'income' || entry.type === 'adjustment' || entry.type === 'unreviewed') amounts.push(entry.amount);
-      else amounts.push(-entry.amount, -(entry.fee ?? 0));
-    }
-    if (entry.type === 'transfer' && entry.toWalletId === walletId) amounts.push(entry.toAmount ?? 0);
-  }
-  return checkedSum(...amounts);
+/** Signed change to the entry's own wallet; never invent a counterpart wallet. */
+export function entrySignedAmount(entry: Entry): number {
+  return entry.type === 'expense' || entry.type === 'transfer' ? -entry.amount - (entry.fee ?? 0) : entry.amount;
 }
 
-export function summaryForCurrency(state: State, currency: Currency, month: string): {
+export function walletBalance(state: State, walletId: string, context?: PostingContext): number {
+  return walletBalanceThrough(state, walletId, undefined, context);
+}
+
+/** Unknown transfer dates do not enter cutoff balances; approved baseline bounds remain explicit. */
+export function walletBalanceAt(state: State, walletId: string, cutoffISO: string, context?: PostingContext): number {
+  if (!isValidDate(cutoffISO)) throw new RangeError('Batas tanggal saldo belum valid.');
+  const problem = actualBalanceProblem(context, walletId, cutoffISO);
+  if (problem) {
+    const boundary = createPostingDateIndex(context).approvedBaselineDatesByWallet!.get(walletId)!;
+    throw new ActualBalanceUnavailableError(walletId,cutoffISO,boundary);
+  }
+  return walletBalanceThrough(state, walletId, cutoffISO, context);
+}
+export const actualWalletBalance = walletBalanceAt;
+
+function walletBalanceThrough(state: State, walletId: string, cutoffISO?: string, context?: PostingContext): number {
+  const wallet = state.wallets.find(item => item.id === walletId);
+  if (!wallet) return 0;
+  const index = createPostingDateIndex(context);
+  function* amounts(): Generator<number> {
+    yield wallet!.openingBalance;
+    for (const entry of state.entries) for (const posting of entryPostings(entry,index)) {
+      if (posting.walletId === walletId && (cutoffISO === undefined || posting.date !== null && posting.date <= cutoffISO)) yield posting.signedAmount;
+    }
+  }
+  return checkedSum(amounts());
+}
+
+export function summaryForCurrency(state: State, currency: Currency, month: string, cutoffISO?: string, context?: PostingContext): {
   balance: number; income: number; expense: number; uncategorized: number;
 } {
-  const ids = new Set(state.wallets.filter((wallet) => wallet.currency === currency).map((wallet) => wallet.id));
-  const balances = state.wallets.filter((wallet) => ids.has(wallet.id)).map((wallet) => walletBalance(state, wallet.id));
-  const income: number[] = [];
-  const expenses: number[] = [];
+  if (cutoffISO !== undefined && !isValidDate(cutoffISO)) throw new RangeError('Batas tanggal ringkasan belum valid.');
+  const ids = new Set(state.wallets.filter(wallet => wallet.currency === currency).map(wallet => wallet.id));
+  const index = createPostingDateIndex(context);
+  const balances = [...ids].map(id => cutoffISO === undefined ? walletBalance(state,id,index) : walletBalanceAt(state,id,cutoffISO,index));
+  const income: number[] = [], expenses: number[] = [];
   let uncategorized = 0;
   for (const entry of state.entries) {
-    if (!ids.has(entry.walletId) || entry.date.slice(0, 7) !== month) continue;
-    if (entry.type === 'income') income.push(entry.amount);
-    if (entry.type === 'expense') expenses.push(entry.amount);
-    if (entry.type === 'transfer' && entry.fee) expenses.push(entry.fee);
-    if (entry.type === 'unreviewed' || ((entry.type === 'expense' || entry.type === 'income')
-      && (!entry.category?.trim() || entry.category === 'Belum dikategorikan'))) uncategorized += 1;
+    let countedUncategorized = false;
+    for (const posting of entryPostings(entry,index)) {
+      if (!ids.has(posting.walletId) || posting.date === null || posting.date.slice(0,7) !== month || cutoffISO !== undefined && posting.date > cutoffISO) continue;
+      if (entry.type === 'income' && posting.role === 'ordinary') income.push(posting.signedAmount);
+      if (entry.type === 'expense' || posting.role === 'fee') expenses.push(-posting.signedAmount);
+      if (!countedUncategorized && posting.role === 'ordinary' && (entry.type === 'unreviewed' || (entry.type === 'expense' || entry.type === 'income') && (!entry.category?.trim() || entry.category === 'Belum dikategorikan'))) { uncategorized++; countedUncategorized = true; }
+    }
   }
-  return { balance: checkedSum(...balances), income: checkedSum(...income), expense: checkedSum(...expenses), uncategorized };
+  return {balance:checkedSum(balances),income:checkedSum(income),expense:checkedSum(expenses),uncategorized};
+}
+
+/** Final effective posting-month totals, using exact BigInt aggregation. */
+export function assertPostingMonthTotals(state: State, context?: PostingContext): void {
+  const currencyByWallet = new Map(state.wallets.map(wallet => [wallet.id,wallet.currency]));
+  const totals = new Map<string,bigint>();
+  const index = createPostingDateIndex(context);
+  for (const entry of state.entries) for (const posting of entryPostings(entry,index)) {
+    if (posting.date === null) continue;
+    const kind = entry.type === 'income' && posting.role === 'ordinary' ? 'income' : entry.type === 'expense' || posting.role === 'fee' ? 'expense' : null;
+    if (!kind) continue;
+    const key = `${currencyByWallet.get(posting.walletId)}:${posting.date.slice(0,7)}:${kind}`;
+    const amount = kind === 'expense' ? -posting.signedAmount : posting.signedAmount;
+    totals.set(key,(totals.get(key) ?? 0n)+BigInt(amount));
+  }
+  for (const total of totals.values()) if (total > BigInt(Number.MAX_SAFE_INTEGER) || total < BigInt(Number.MIN_SAFE_INTEGER)) throw new RangeError('Total posting bulanan melebihi batas angka tepat.');
 }
 
 /** Deliberately fictional data. No uploaded statement or personal information. */
@@ -240,24 +325,22 @@ export function buildDemoState(today = new Date()): State {
   const wallets: Wallet[] = [
     { id: 'demo-bca', name: 'BCA', currency: 'IDR', kind: 'bank', openingBalance: 240_000_000 },
     { id: 'demo-jago', name: 'Bank Jago', currency: 'IDR', kind: 'bank', openingBalance: 120_000_000 },
-    { id: 'demo-cash-idr', name: 'Cash Rupiah', currency: 'IDR', kind: 'cash', openingBalance: 15_000_000 },
     { id: 'demo-ziraat', name: 'Ziraat', currency: 'TRY', kind: 'bank', openingBalance: 1_100_000 },
     { id: 'demo-papara', name: 'Papara', currency: 'TRY', kind: 'ewallet', openingBalance: 45_000 },
-    { id: 'demo-cash-try', name: 'Cash Lira', currency: 'TRY', kind: 'cash', openingBalance: 30_000 },
     { id: 'demo-usd', name: 'Tabungan USD', currency: 'USD', kind: 'bank', openingBalance: 25_000 },
   ];
   const entries: Entry[] = [
     { id: 'demo-entry-1', date: dateOn(1), type: 'income', walletId: 'demo-bca', amount: 800_000_000, category: 'Pemasukan', note: 'Pemasukan bulanan · contoh' },
     { id: 'demo-entry-2', date: dateOn(3), type: 'expense', walletId: 'demo-bca', amount: 29_500_000, category: 'Belanja', note: 'Belanja kebutuhan rumah' },
     { id: 'demo-entry-3', date: dateOn(5), type: 'transfer', walletId: 'demo-bca', amount: 100_000_000, toWalletId: 'demo-jago', toAmount: 100_000_000, fee: 250_000, category: '', note: 'Pisahkan uang bulanan' },
-    { id: 'demo-entry-4', date: dateOn(7), type: 'expense', walletId: 'demo-cash-idr', amount: 2_800_000, category: 'Makan & minum', note: 'Kopi sore' },
+    { id: 'demo-entry-4', date: dateOn(7), type: 'expense', walletId: 'demo-bca', amount: 2_800_000, category: 'Makan & minum', note: 'Kopi sore' },
     { id: 'demo-entry-5', date: dateOn(9), type: 'income', walletId: 'demo-ziraat', amount: 1_000_000, category: 'Pemasukan', note: 'Pemasukan contoh' },
     { id: 'demo-entry-6', date: dateOn(11), type: 'expense', walletId: 'demo-jago', amount: 15_000_000, category: 'Tagihan', note: 'Internet bulanan' },
-    { id: 'demo-entry-7', date: dateOn(13), type: 'transfer', walletId: 'demo-ziraat', amount: 150_000, toWalletId: 'demo-cash-try', toAmount: 150_000, category: '', note: 'Tarik tunai untuk seminggu' },
+    { id: 'demo-entry-7', date: dateOn(13), type: 'expense', walletId: 'demo-ziraat', amount: 150_000, category: 'Tarik tunai', note: 'Tarik tunai ATM · contoh' },
     { id: 'demo-entry-8', date: dateOn(15), type: 'expense', walletId: 'demo-ziraat', amount: 28_500, category: 'Makan & minum', note: 'Makan siang' },
     { id: 'demo-entry-9', date: dateOn(17), type: 'expense', walletId: 'demo-papara', amount: 9_000, category: 'Transportasi', note: 'Perjalanan dalam kota' },
     { id: 'demo-entry-10', date: dateOn(19), type: 'transfer', walletId: 'demo-usd', amount: 5_000, toWalletId: 'demo-ziraat', toAmount: 220_000, rate: 44, fee: 175, category: '', note: 'Contoh penukaran dengan kurs pilihan' },
-    { id: 'demo-entry-11', date: dateOn(21), type: 'expense', walletId: 'demo-cash-try', amount: 18_500, category: 'Belum dikategorikan', note: 'Belanja kecil, rapikan nanti' },
+    { id: 'demo-entry-11', date: dateOn(21), type: 'expense', walletId: 'demo-ziraat', amount: 18_500, category: 'Belum dikategorikan', note: 'Belanja kecil, rapikan nanti' },
     { id: 'demo-entry-12', date: dateOn(23), type: 'expense', walletId: 'demo-bca', amount: 3_500_000, category: 'Transportasi', note: 'Ongkos perjalanan' },
   ];
   return { version: 1, wallets, entries };

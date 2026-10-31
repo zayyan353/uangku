@@ -1,0 +1,190 @@
+{
+  "updated_utc": "2026-10-31T16:00:29.849146+00:00",
+  "status": "local_currency_management_and_generic_import_verified",
+  "base_local_checkpoint": "172ae4adc4803c7afc0f840f756fcb8615e648a3",
+  "production_html_sha256": "8c39ac46aa79330a857f399a33e7020ad188a7660a4441c74e7cdf682ca75599",
+  "local_url": "http://127.0.0.1:4180",
+  "user_decision": "General CSV/Excel with explicit column mapping; improve currency add/remove controls while preserving financial history.",
+  "features": [
+    "Kelola mata uang adds/hides catalog codes with at least one visible currency; unused changes cancel without a write and hidden used currencies retain report access.",
+    "Wallet creation, transaction input, history/reporting and major-unit FX support currency-specific0/2/3/4minor digits. Existing IDR/TRY/USD storage and valid legacy FX boundary amounts remain unchanged.",
+    "CSV / Excel umum maps date, description, signed amount or debit/credit, running balance and optional reference/currency, worksheet and header row. Existing Ziraat TRY automatic reader and fingerprints are retained.",
+    "Strict checks reject currency mismatch, unsafe precision, invalid dates/order, zero or conflicting direction, broken balance chains, formula cells and overflow before financial writing.",
+    "Preview changes/file replacement/target archive invalidate stale save decisions. Existing source/manual overlap, capacity, Web Locks/CAS and failed-save recovery paths are reused.",
+    "Backup/restore preserves visible currency settings, extended codes, archives and generic source facts in the gated v6 codec. Old feature-free wire serialization remains compatible.",
+    "New28-case production browser gate is wired into the existing local CI workflow with evidence upload; external CI has not been executed."
+  ],
+  "how_to_use": [
+    "Open Kelola mata uang, choose a currency, click Tambah mata uang, then Simpan mata uang. Sembunyikan changes choices only; Buka laporan opens hidden used history.",
+    "Create an active bank wallet in that currency, then open Impor mutasi > CSV / Excel umum and choose the target wallet.",
+    "Choose CSV/TSV/XLSX, map required columns including genuine running balance, set decimal/date/order, confirm the file currency, then create the preview.",
+    "Review duplicate candidates, categories and projected balance before the explicit save. Nothing is financially saved during mapping alone."
+  ],
+  "catalog_source": {
+    "publisher": "SIX ISO4217 maintenance agency",
+    "published": "2026-09-17",
+    "url": "https://www.six-group.com/dam/download/financial-information/data-center/iso-currrency/lists/list-one.xml",
+    "supported_codes_with_numeric_minor_units": 165,
+    "download": {
+      "path": "work/currencies/iso4217-list-one.xml",
+      "sha256": "33139b438657d1cee116ba737807ea71d19d6de4b90f799a09c56f0cc6a1b0ff"
+    }
+  },
+  "verification": {
+    "unit_passed": 1484,
+    "unit_failed": 0,
+    "unit_files": 45,
+    "browser_scenarios_passed": 213,
+    "browser_scenarios_failed": 0,
+    "new_currency_import_scenarios": 28,
+    "existing_browser_regressions": 185,
+    "new_suite_exact_financial_byte_comparisons": 73,
+    "new_suite_semantic_checks": 63,
+    "ux_contexts_passed": 2,
+    "performance_samples_passed": 5,
+    "typecheck": "passed",
+    "build": "passed",
+    "browser": "156.0.8078.76",
+    "browser_fixtures_synthetic_only": true,
+    "browser_page_errors": 0
+  },
+  "browser_evidence": [
+    {
+      "path": "work/currencies/new-final-2/summary.json",
+      "sha256": "d666c59c1554e89f027a0c6d007635d80a90693722c97b82d80884383e11ada5",
+      "suite": "new-final-2",
+      "passed": 28
+    },
+    {
+      "path": "work/currencies/original-final/summary.json",
+      "sha256": "23d4a6f515baa5fab74dc520743e2f6fae41a3fda016664717aa84d7bd10197d",
+      "suite": "original-final",
+      "passed": 39
+    },
+    {
+      "path": "work/currencies/recovery-final/summary.json",
+      "sha256": "b49ac6550fb2019c5b4c67a2a0aecfdcb61a0559b5102e322d2f88d05dce3256",
+      "suite": "recovery-final",
+      "passed": 12
+    },
+    {
+      "path": "work/currencies/category-final/summary.json",
+      "sha256": "e15f2d438204350cd453025778e909b16caf529a5f64aa0ebcfbdc18a3d7e9a3",
+      "suite": "category-final",
+      "passed": 15
+    },
+    {
+      "path": "work/currencies/keyword-pack-final/summary.json",
+      "sha256": "db464fe7496243b7e06e1161ce3965d823c16fcd6eb196cef2a6180fc24417ee",
+      "suite": "keyword-pack-final",
+      "passed": 13
+    },
+    {
+      "path": "work/currencies/confirmed-mapping-final/summary.json",
+      "sha256": "0ff06a6bbe066dc2107c02d493f4a2d7dd58efcfd1a8aa9904bfaff9277fa041",
+      "suite": "confirmed-mapping-final",
+      "passed": 10
+    },
+    {
+      "path": "work/currencies/bank-auto-final/summary.json",
+      "sha256": "ab536aaeea2d443c17672dc5972a4d43d1605fa2090d119313547b7ef47b1496",
+      "suite": "bank-auto-final",
+      "passed": 14
+    },
+    {
+      "path": "work/currencies/bank-description-final/summary.json",
+      "sha256": "f0a8044f31d7be5c2119e50da5126da8f7b809b8d5a4f2e9bc44fb5c40fb47ef",
+      "suite": "bank-description-final",
+      "passed": 9
+    },
+    {
+      "path": "work/currencies/source-final/summary.json",
+      "sha256": "f275858f3375752404ee8d90b3b1498ea9d5d9224818c73b2172381b881a8a1c",
+      "suite": "source-final",
+      "passed": 4
+    },
+    {
+      "path": "work/currencies/backfill-final/summary.json",
+      "sha256": "92c7d995221067ea3df51eb1d7a948da22088e3e149bc37d4230f349d3f335e5",
+      "suite": "backfill-final",
+      "passed": 2
+    },
+    {
+      "path": "work/currencies/theme-final/summary.json",
+      "sha256": "f4fe52a4a25f89a3b97475d335a94add8d201d6fa56553ffd49be47c4a90b91a",
+      "suite": "theme-final",
+      "passed": 21
+    },
+    {
+      "path": "work/currencies/cashflow-final/summary.json",
+      "sha256": "a7f94a9b22b6bfcca85856555527028b4acbdd430ae727dc9715d4905ee29ba0",
+      "suite": "cashflow-final",
+      "passed": 15
+    },
+    {
+      "path": "work/currencies/bank-review-final/summary.json",
+      "sha256": "93494253c8d57b8d4c1a3cda5a6639665ec5de1a9d5d3a23b1c9c828167ea997",
+      "suite": "bank-review-final",
+      "passed": 12
+    },
+    {
+      "path": "work/currencies/wallet-final/summary.json",
+      "sha256": "5f31a0c60eda8fcf786c798dc7ba87196ac237cb9535ad9c3eab48a9373d149a",
+      "suite": "wallet-final",
+      "passed": 19
+    }
+  ],
+  "additional_evidence": {
+    "unit": {
+      "path": "work/currencies/final-unit.json",
+      "sha256": "d13e4f0dbf813a2b2936b2fc82980b47d8cb3e4c3e329ba1de957276d496fce3"
+    },
+    "ux": {
+      "path": "work/currencies/ux-final/summary.json",
+      "sha256": "111f8409a9877800bce303c5bf107ba9ead90b198472b997b565247556264727"
+    },
+    "performance": {
+      "path": "work/currencies/performance-final/summary.json",
+      "sha256": "3add38a753b200383297f2c167781e1e501b530748577f2f9c37f454ad758926",
+      "metrics": {
+        "median_batch_ms": 4687.0,
+        "p95_batch_ms": 4750.0,
+        "maximum_active_frame_gap_ms": 186
+      },
+      "budgets": {
+        "median_batch_ms": 5000,
+        "p95_batch_ms": 8000,
+        "maximum_active_frame_gap_ms": 250
+      }
+    }
+  },
+  "retained_initial_failures": [
+    {
+      "path": "work/currencies/new-final",
+      "reason": "Initial independent synthetic v6 fixture encoding was noncanonical and the app correctly refused it without a write. Fixture encoder corrected; initial diagnostics retained."
+    },
+    {
+      "path": "work/currencies/new-final-rerun",
+      "reason": "23/28 passed on earlier4d10764a build. Four selector/copy harness mismatches were fixed without weakening assertions. One real empty-XLSX-cell reader defect was fixed with focused regressions; final28 rerun on8c39ac46."
+    }
+  ],
+  "limits": [
+    "Generic import supports UTF-8 CSV/TSV and unencrypted XLSX with one account/currency and a genuine running-balance column. Legacy XLS/ODS/PDF and files without running balance are not supported by this path.",
+    "Column mapping, decimal convention, date format, source order and target currency require explicit confirmation. Import does not convert currency or infer account ownership.",
+    "Catalog ships 165 codes with defined numeric minor units from the SIX ISO4217 snapshot published2026-09-17; it is not an online exchange-rate feed or arbitrary custom-token registry.",
+    "Currency removal means hiding an available choice. Used wallets, balances and history remain accessible; no financial data is deleted or converted by this setting.",
+    "New multicurrency/visibility/generic-source data use table-tuples-v6. Older applications reject the unsupported format rather than silently discarding features; legacy v1/older supported formats remain readable.",
+    "Raw import file8MiB, expanded XLSX32MiB,50000transactions and512columns are bounded independently from the logical stored-wire8MiB and browser quota. Oversize or failed writes preserve existing durable data.",
+    "Cross-format candidate duplicates require an explicit keep/distinct decision; incomplete legacy evidence cannot prove identity and is not silently linked.",
+    "Browser tests used fresh synthetic Chromium Windows contexts and320px mobile emulation. Physical Safari/iOS/Android, manual screen readers and every possible bank workbook were not tested.",
+    "Contrast measurements cover sampled visible solid text/controls; gradients and disabled controls are excluded.",
+    "Performance gate covers10individually saved edits on a10k plain ledger; it does not guarantee65k or metadata-heavy UI performance.",
+    "Legacy missing source facts, dates and associations remain unresolved without original evidence. Full historical cloud A-H source is not claimed recovered.",
+    "No personal backup/profile was read or migrated in this feature task. No online change, external CI execution, push, deployment, ZIP bundle or off-PC backup was performed."
+  ],
+  "packaging": "Deferred by user; local history/checkpoint only.",
+  "online_website_modified": false,
+  "real_financial_data_migrated": false,
+  "pushed": false,
+  "deployed": false
+}

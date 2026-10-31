@@ -1,0 +1,154 @@
+{
+  "updated_utc": "2026-10-31T13:36:21.509257+00:00",
+  "base_local_checkpoint": "d21e46e",
+  "status": "local_bank_description_and_review_flow_verified",
+  "production_html_sha256": "7c81ec951b58c72bfab253841c25bcbe105fbc343eaf8cff1271f9c65e58580e",
+  "policy": [
+    "Explicit positive TAM ATM SORUNLU ISLEM IADESI is returned ATM funds, category Pengembalian dana and bank income, not cash deposit or new earnings. Conflicting or wrong-sign wording remains unresolved.",
+    "Physical POS debits fall back to generic Belanja only when more specific or manual rules do not take precedence. This identifies the payment operation, not purchased goods.",
+    "Category pack5 has30default labels and81rules; upgrade is additive for3newidentities and retains custom rules, removed rules and inactive targets.",
+    "Import and saved review use one union definition with independently inspectable type/category reasons; one entry is never counted twice.",
+    "Readable titles prioritize custom notes, otherwise known operation and only an explicitly marked merchant. Original bank wording remains accessible and unchanged.",
+    "Existing transaction confirmation/category changes require the established reviewed Apply and coordinated save. No startup financial migration is added.",
+    "Date/source/amount/wallet/count and posting invariants remain enforced; current actual account cashflow calculations are unchanged."
+  ],
+  "verification": {
+    "unit_passed": 1246,
+    "unit_failed": 0,
+    "unit_files": 40,
+    "browser_scenarios_passed": 166,
+    "ux_contexts_passed": 2,
+    "performance_samples_passed": 5,
+    "typecheck": "passed",
+    "build": "passed",
+    "browser": "156.0.8078.76",
+    "browser_fixtures_synthetic_only": true,
+    "browser_page_errors": 0
+  },
+  "evidence": [
+    {
+      "suite": "original-final",
+      "passed": 39,
+      "summary": "work/bank-review/original-final/summary.json",
+      "sha256": "b19bf46ab1e889cfb7d4fd26eef3af8104d142f9c0d8d2c6e79af0e9e918b5cf"
+    },
+    {
+      "suite": "recovery-final",
+      "passed": 12,
+      "summary": "work/bank-review/recovery-final/summary.json",
+      "sha256": "1cebfcbef669a9f7224eaf372637c950ac0839bd4d44afd53e1426fd62401dbe"
+    },
+    {
+      "suite": "category-final",
+      "passed": 15,
+      "summary": "work/bank-review/category-final/summary.json",
+      "sha256": "6c002339441fb3b9f7377c3c4d0f8263da2d240ce9314740b0643b6b54534820"
+    },
+    {
+      "suite": "keyword-pack-final",
+      "passed": 13,
+      "summary": "work/bank-review/keyword-pack-final/summary.json",
+      "sha256": "6756eaf52e34231a19ba675a0b64c3d3b565db6c862b7255e82ebc2867e3c202"
+    },
+    {
+      "suite": "confirmed-mapping-final",
+      "passed": 10,
+      "summary": "work/bank-review/confirmed-mapping-final/summary.json",
+      "sha256": "e9c4057a4b3c2bc98a72d0c937fb731734338d7ed93b067de7252e4418501d61"
+    },
+    {
+      "suite": "bank_auto-final",
+      "passed": 14,
+      "summary": "work/bank-review/bank_auto-final/summary.json",
+      "sha256": "05a106f29dd7785c724b0ec65fa3bcd14c5e6aa0c59003892324a8b6713f889a"
+    },
+    {
+      "suite": "bank_description-final-rerun",
+      "passed": 9,
+      "summary": "work/bank-review/bank_description-final-rerun/summary.json",
+      "sha256": "9e3ae316cafc9da84acad7aafff8e7c0a7999d9aec2c4816522dc59ddbe66db5"
+    },
+    {
+      "suite": "source-final",
+      "passed": 4,
+      "summary": "work/bank-review/source-final/summary.json",
+      "sha256": "192b38dda7cc3c64a1cc616e4273253fb9c10459889bab7673eac9998a645485"
+    },
+    {
+      "suite": "backfill-final",
+      "passed": 2,
+      "summary": "work/bank-review/backfill-final/summary.json",
+      "sha256": "fe6db26adbf7f065a3e6084c7382fe62a80dadc8abbfc1e0c5a1078ed7756261"
+    },
+    {
+      "suite": "theme-final",
+      "passed": 21,
+      "summary": "work/bank-review/theme-final/summary.json",
+      "sha256": "c34587152987b215a00b9cb181fb19fcd69a6de983afa5f5a9becf04b14c5cdd"
+    },
+    {
+      "suite": "cashflow-final",
+      "passed": 15,
+      "summary": "work/bank-review/cashflow-final/summary.json",
+      "sha256": "1883fc299a3168021af555e16cadce2c11b01fb264a28663c28c965eb7b1fd50"
+    },
+    {
+      "suite": "new-final-rerun",
+      "passed": 12,
+      "summary": "work/bank-review/new-final-rerun/summary.json",
+      "sha256": "b0cd999916e60c967fbbe6e651f7cfad6b524a0ee77f59e15c432ed5bce4138a"
+    }
+  ],
+  "additional_evidence": {
+    "unit": {
+      "path": "work/bank-review/final-unit.json",
+      "sha256": "30875eb0179bc77a1f3452c8e6b742227d1636d508dcf2780fc188e190363eb0"
+    },
+    "ux": {
+      "path": "work/bank-review/ux-final/summary.json",
+      "sha256": "ea636d74452158ec271a8dba14072b48fedee4cfe7ee8613e09303787432735d"
+    },
+    "performance": {
+      "path": "work/bank-review/performance-final/summary.json",
+      "sha256": "0ffd718b04a179fad131f5990138ceac89633578b49e6ae1429cd6bdaf9346ea",
+      "metrics": {
+        "median_batch_ms": 4016.0,
+        "p95_batch_ms": 4031.0,
+        "maximum_active_frame_gap_ms": 127.70000004768372
+      },
+      "budgets": {
+        "median_batch_ms": 5000,
+        "p95_batch_ms": 8000,
+        "maximum_active_frame_gap_ms": 250
+      }
+    },
+    "reference_xlsx": {
+      "path": "work/bank-review/read-only-xlsx-proposal.json",
+      "sha256": "6c05ed7601e8402e53e981961a98ee3a2e0cbbee91b1ac60b8054bd0dc6c20d6",
+      "rows": 378,
+      "unresolved_with_defaults": 0,
+      "generic_card_categories": 14,
+      "atm_refunds": 1,
+      "original_unchanged": true,
+      "simulation_only": true
+    },
+    "reference_backup": {
+      "path": "work/bank-review/read-only-legacy-proposal.json",
+      "sha256": "a070f6447ed166ab4ee76f9fc506d147ca940388137079a01f50d6184af72203",
+      "entries": 378,
+      "posting_amounts_count_ids_wallets_preserved": true,
+      "manual_categories_preserved": true,
+      "original_unchanged": true,
+      "simulation_only": true
+    }
+  },
+  "test_harness_note": "Initial new-gate cases assumed calendar-month opening was known for a one-day imported baseline. Baseline safety correctly refused it. Harness now explicitly checks unavailable monthly opening then all-records opening; all12 finalcases pass. Initial results retained. An old capacity-case identity check was adapted to read collapsed original wording via text_content; original assertions about manual categories remain unchanged and the full nine-case suite was rerun.",
+  "limits": [
+    "Generic Belanja does not determine the purchased goods; ambiguous cases and personal suggestion rules still require user choice.",
+    "Reference378/378 result uses defaultsettings; personal deletedcategories or custom suggestionrules may intentionally leave items unresolved.",
+    "Browser evidence uses Chromium Windows with mobile emulation, not physical iOS/Safari or manual screenreader. Contrast samples exclude gradients and disabledcontrols.",
+    "Performance gate is10k plain ledger and10UIedits, not65k UI or metadata-heavy guarantee.",
+    "Existing personal browser data was not controlled or migrated; read-only in-memory proposals are not evidence of saving categories into that browser.",
+    "No online deployment, remote push, external CI run, ZIP package or off-PC backup was requested or performed."
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "base_commit": "716229dba1928965bf971325b503eb9dfe0f341d",
+  "full_cloud_A_H_recovered": false,
+  "records": [
+    {
+      "stage": "E5",
+      "recovered_path": "advanced-e5/src/lib/sourceModel.ts",
+      "provenance": "historical-final-hash-verified",
+      "recovered_sha256": "d57e67a9e332a6555a964f30743d2b28bfd89b1b742df4cd1be1603ca8aa060f",
+      "local_path": "src/lib/sourceModel.ts",
+      "current_sha256": "20646a41b27bca54a01893438c0597c023ef603b2c10ff9921773a20ca8b44e7",
+      "same_after_lf_normalization": false,
+      "interpretation": "adapted-or-reconstructed"
+    },
+    {
+      "stage": "E5",
+      "recovered_path": "advanced-e5/src/lib/sourceCodec.ts",
+      "provenance": "historical-final-hash-verified",
+      "recovered_sha256": "72fc30f6538f79781b832bf5ef3ba4d0945d9102cb5ebe7a572c8653aa546033",
+      "local_path": "src/lib/sourceCodec.ts",
+      "current_sha256": "1dc71985d24a2803b2cd2fefd093def012a4de46a687752f702cee701c28b096",
+      "same_after_lf_normalization": false,
+      "interpretation": "adapted-or-reconstructed"
+    },
+    {
+      "stage": "E5",
+      "recovered_path": "advanced-e5/src/lib/transferPostings.ts",
+      "provenance": "historical-final-hash-verified",
+      "recovered_sha256": "919996d38c239b79f6d5eab0a14b6c0d28e3ff033918888344f1dc28fcbd7875",
+      "local_path": "src/lib/transferPostings.ts",
+      "current_sha256": "919996d38c239b79f6d5eab0a14b6c0d28e3ff033918888344f1dc28fcbd7875",
+      "same_after_lf_normalization": true,
+      "interpretation": "reused-as-is"
+    },
+    {
+      "stage": "E5",
+      "recovered_path": "advanced-e5/src/lib/transferCommands.ts",
+      "provenance": "complete-snapshot-plus-context-checked-diffs",
+      "recovered_sha256": "5e036a3bbcbc08025d369f9c97a8f8136e3dc3532861cc37544e804c5be24506",
+      "local_path": "src/lib/transferCommands.ts",
+      "current_sha256": "5e036a3bbcbc08025d369f9c97a8f8136e3dc3532861cc37544e804c5be24506",
+      "same_after_lf_normalization": true,
+      "interpretation": "reused-as-is"
+    },
+    {
+      "stage": "E3",
+      "recovered_path": "intermediate-e3/sourceCommands.ts",
+      "provenance": "intermediate-snapshot-final-version-missing",
+      "recovered_sha256": "e6ecb54c747622e8b2f9c0a01104896bc26276e333e2cc3bfde1d2a797e5ae41",
+      "local_path": "src/lib/sourceCommands.ts",
+      "current_sha256": "e43cf67894365940a7fc582590ba3035fbde1febede019df0285cfffe1e0199a",
+      "same_after_lf_normalization": false,
+      "interpretation": "adapted-or-reconstructed"
+    },
+    {
+      "stage": "C/E2",
+      "recovered_path": "e2-fragments/importCommit.ts",
+      "provenance": "complete-recovered-module",
+      "recovered_sha256": "59d9cf94e2df0773f7cabf4a8f380d08ae8e580b0d53e6bfa8a3c29ade916835",
+      "local_path": "src/lib/importCommit.ts",
+      "current_sha256": "59d9cf94e2df0773f7cabf4a8f380d08ae8e580b0d53e6bfa8a3c29ade916835",
+      "same_after_lf_normalization": true,
+      "interpretation": "reused-as-is"
+    },
+    {
+      "stage": "H",
+      "recovered_path": "h-fragments/src/lib/moneyFormatting.ts",
+      "provenance": "complete-recovered-module",
+      "recovered_sha256": "af41c90ea8e0658ee1e6a541000e9ad647c5d392bc89632fb0e5563d53789823",
+      "local_path": "src/lib/moneyFormatting.ts",
+      "current_sha256": "af41c90ea8e0658ee1e6a541000e9ad647c5d392bc89632fb0e5563d53789823",
+      "same_after_lf_normalization": true,
+      "interpretation": "reused-as-is"
+    },
+    {
+      "stage": "G",
+      "recovered_path": "g-layer/src/components/ui/PrivacyNotice.tsx",
+      "provenance": "complete-recovered-body",
+      "recovered_sha256": "40238bb3336f56c6b731f0c3dcf84cd523152eac76013deb7d9b11f5d0e35d54",
+      "local_path": "src/components/PrivacyNotice.tsx",
+      "current_sha256": "40238bb3336f56c6b731f0c3dcf84cd523152eac76013deb7d9b11f5d0e35d54",
+      "same_after_lf_normalization": true,
+      "interpretation": "reused-as-is"
+    },
+    {
+      "stage": "G",
+      "recovered_path": "g-layer/src/lib/bulkCategoryCommand.ts",
+      "provenance": "historical-final-hash-verified-reference-only",
+      "recovered_sha256": "c867a1a1716edc3a3bf592e9072e094747283e171e5dc7c14405308955fd2744",
+      "local_path": null,
+      "current_sha256": null,
+      "same_after_lf_normalization": false,
+      "interpretation": "preserved-reference-not-directly-integrated"
+    },
+    {
+      "stage": "G",
+      "recovered_path": "g-layer/src/features/bulk/bulkOperation.ts",
+      "provenance": "historical-final-hash-verified-reference-only",
+      "recovered_sha256": "d0877c54ac423f38cf88e6cf1d18c959d81a8dfa59d765c1e48dd3e71e9a8f8a",
+      "local_path": null,
+      "current_sha256": null,
+      "same_after_lf_normalization": false,
+      "interpretation": "preserved-reference-not-directly-integrated"
+    }
+  ],
+  "new_local_components": [
+    "legacyValidation",
+    "jsonBudget",
+    "reconciliation",
+    "historyView",
+    "dashboardView",
+    "persistence",
+    "RecoveryImportView",
+    "StatementReview",
+    "SourceDetails",
+    "Modal",
+    "TransactionModal",
+    "browser release gates"
+  ],
+  "notes": [
+    "Files missing from cloud are not assumed corrupted.",
+    "Historical hashes describe recovered input; final adapted files have their own hashes.",
+    "G bulk helpers require missing dependency boundary, so their complete recovered bodies remain reference material; local atomic bulk command replaces that dependency."
+  ]
+}

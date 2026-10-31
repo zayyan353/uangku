@@ -1,0 +1,73 @@
+{
+  "updated_utc": "2026-10-31T01:14:07.368724+00:00",
+  "feature": "Light, dark and system appearance preference",
+  "status": "implemented_and_verified_locally",
+  "base_local_checkpoint": "3b8310dbdf859860a93703beb25e0c03ce1b70c2",
+  "production_html_sha256": "46db3f4986ce5ecf5028c7fd9b728a2d8d5682435083bcff298ec8b43fd57ac7",
+  "behavior": [
+    "Accessible native theme picker in topbar: Sistem, Terang, Gelap.",
+    "Default follows device; live system changes affect only the system preference.",
+    "Explicit selection persists and synchronizes across tabs using uangku:theme:v1.",
+    "Early head bootstrap applies resolved appearance before React mounts.",
+    "Blocked persistence retains session appearance and reports inability to remember the choice.",
+    "Financial ledger and currency/lastWallets preference keys are untouched by appearance changes."
+  ],
+  "verification": {
+    "unit_passed": 370,
+    "unit_failed": 0,
+    "unit_files": 18,
+    "typecheck_build": "passed",
+    "theme_browser_cases": 21,
+    "theme_read_only_comparisons": 126,
+    "theme_contrast_samples": 5548,
+    "theme_minimum_measured_contrast": 4.776777414302961,
+    "original_browser_scenarios": 39,
+    "light_ux_contexts": 2,
+    "light_ux_read_only_comparisons": 20,
+    "browser": "155.0.8059.86",
+    "synthetic_only": true
+  },
+  "covered": [
+    "Startup, reload, live media changes, native keyboard selection, real second-tab events.",
+    "Invalid preferences and simulated theme-only/all-storage read and write errors.",
+    "Light/dark at viewport widths320,390,1440; all four navigation pages.",
+    "Ordinary entry, FX entry/validation, amount/transfer read-only details, privacy dialog.",
+    "Exact v1/v2 financial bytes, currency/lastWallets bytes and v2 backup object preservation."
+  ],
+  "limits": [
+    "Windows Chromium automation with mobile emulation; no physical iOS/Android or manual screen-reader verification.",
+    "Contrast samples cover visible solid text/control/placeholder states after finite transitions settle; gradients and disabled controls excluded.",
+    "Startup attribute/frame observations are not a pixel-level filmstrip guarantee.",
+    "Full source lifecycle, backfill, quota/capacity and performance browser suites were not repeated for this appearance change; prior evidence remains historical.",
+    "Remote CI now includes the theme gate in configuration but was not executed remotely."
+  ],
+  "test_harness_corrections": {
+    "initial_attempt": "work/theme-browser/candidate-1/summary.json",
+    "review": "work/theme-browser/candidate-1/REVIEW.json",
+    "description": "Initial visual checks selected a hidden mobile privacy button and sampled transient button color transitions. Corrected harness uses visible privacy control and waits for finite transitions; startup observation unchanged. Both attempts retained.",
+    "final_full_run": "work/theme-browser/candidate-2/summary.json"
+  },
+  "evidence": [
+    {
+      "suite": "theme",
+      "summary": "work/theme-browser/candidate-2/summary.json",
+      "sha256": "8af4375839a80625f478c8c8131b82c2e3375d53d580804cc29a2ef26df42688"
+    },
+    {
+      "suite": "original",
+      "summary": "work/theme/original-smoke/summary.json",
+      "sha256": "60f38510d49286f56faeaaaea182eefb7c0fc101ff3a5be0bb742f67fc333626"
+    },
+    {
+      "suite": "light_ux",
+      "summary": "work/theme/light-ux/summary.json",
+      "sha256": "e3e27d36c7154758efdb813c4a75476fb45b730872703c3e353c8ef5adacd2db"
+    }
+  ],
+  "online_website_modified": false,
+  "remote_push_performed": false,
+  "deployment_performed": false,
+  "personal_financial_data_used": false,
+  "new_archive_created": false,
+  "archive_decision": "New combined packaging and off-PC backup deferred by user; old snapshots retained."
+}

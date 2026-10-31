@@ -1,0 +1,149 @@
+{
+  "updated_utc": "2026-10-31T14:43:55.915604+00:00",
+  "base_local_checkpoint": "239bcc3",
+  "status": "local_wallet_lifecycle_verified",
+  "production_html_sha256": "3e84e24b5966fbce42b4e94354a94522d69a3bca72be208b4c13edf1140d2211",
+  "user_decision": "Archive used wallets and retain history; only empty zero-balance unreferenced wallets can be permanently deleted.",
+  "policy": [
+    "Create and edit are explicit distinct commands; stale edits cannot recreate deleted wallet IDs. New same-currency duplicate nicknames are rejected while unchanged historical duplicates remain usable.",
+    "A wallet with zero opening balance and no entry, source fact, statement, baseline, retained transfer or other metadata reference can be deleted after confirmation, including the final wallet or built-in Ziraat ID.",
+    "Wallets with balance or history are archived and can be restored. Archive never removes entries, wallet balances, source facts or transfer evidence.",
+    "Reports and global history retain archived wallet postings. Active wallet lists, new transaction/import choices and category review chores exclude archives. Historical rows and transitively connected transfer counterentries are read-only until restoration.",
+    "Archive metadata walletArchives[{walletId,at}] is retained in backup/export and uses table-tuples-v5. Old formats refuse the feature; no unsupported field is silently discarded.",
+    "Opening balance is locked once history or retained evidence exists; currency of an existing wallet remains fixed. Cek saldo handles present-day reconciliation.",
+    "Wallet card and heading totals use the same actual cutoff, baseline and unknown-date guards. Selected-wallet history uses that wallet posting dates, including split-date samecurrency transfers.",
+    "Import chooses only active TRY wallets, invalidates stale previews when the target disappears, and offers creating a TRY wallet when none is available.",
+    "Mutations use captured revision/data and the coordinated Web Locks writer. Archive admission preserves both sides and retained evidence; only explicit whole-backup replacement/start-over bypasses the archive guard.",
+    "Failed saves retain stable-ID form input and recovery/retry; archived/delete mutations do not claim success before persistence."
+  ],
+  "verification": {
+    "unit_passed": 1319,
+    "unit_failed": 0,
+    "unit_files": 42,
+    "browser_scenarios_passed": 185,
+    "ux_contexts_passed": 2,
+    "performance_samples_passed": 5,
+    "typecheck": "passed",
+    "build": "passed",
+    "browser": "156.0.8078.76",
+    "browser_fixtures_synthetic_only": true,
+    "browser_page_errors": 0
+  },
+  "evidence": [
+    {
+      "suite": "new-final-complete",
+      "passed": 19,
+      "summary": "work/wallets/new-final-complete/summary.json",
+      "sha256": "0c9d2cbf4500b8afe7021cd2f814e35ef74675bd5c8fbce3840273715a079420"
+    },
+    {
+      "suite": "original-final",
+      "passed": 39,
+      "summary": "work/wallets/original-final/summary.json",
+      "sha256": "55fd8fbc0a0acbb2b58b275d008d1656922cc382278a042a2b14254f0df6d922"
+    },
+    {
+      "suite": "category-final",
+      "passed": 15,
+      "summary": "work/wallets/category-final/summary.json",
+      "sha256": "ed3305782f20a3134a132937db002364b9d98d99216936e1f9e199ee4439e4ac"
+    },
+    {
+      "suite": "keyword-pack-final",
+      "passed": 13,
+      "summary": "work/wallets/keyword-pack-final/summary.json",
+      "sha256": "ae82fdf5d9f1d4bc1f5c6a85b05bbdc8164b23129769289e8da59073282d235e"
+    },
+    {
+      "suite": "confirmed-mapping-final",
+      "passed": 10,
+      "summary": "work/wallets/confirmed-mapping-final/summary.json",
+      "sha256": "a59a45b04bdfba0da2e5e299ea24965a0e13aa6e1f7daedfc72d2d50018000cd"
+    },
+    {
+      "suite": "bank_auto-final",
+      "passed": 14,
+      "summary": "work/wallets/bank_auto-final/summary.json",
+      "sha256": "4d25e1fad909d8e3cc3778a12e96657d62b14c628e07de85d0d06ae91d6cad30"
+    },
+    {
+      "suite": "bank_description-final",
+      "passed": 9,
+      "summary": "work/wallets/bank_description-final/summary.json",
+      "sha256": "3920f4c52ddf6c0fe5b06a35ad6652b8ab5293c7eeeaf282b34d40582573ec8f"
+    },
+    {
+      "suite": "source-final",
+      "passed": 4,
+      "summary": "work/wallets/source-final/summary.json",
+      "sha256": "49615628e2449034c19d08c4c09122e525b182c87139633425b74ae8f8c74a92"
+    },
+    {
+      "suite": "backfill-final",
+      "passed": 2,
+      "summary": "work/wallets/backfill-final/summary.json",
+      "sha256": "b31203d2497be80c09424e962cbe82ee0b7e531d9c5af054fa319f0f905a35dc"
+    },
+    {
+      "suite": "recovery-final",
+      "passed": 12,
+      "summary": "work/wallets/recovery-final/summary.json",
+      "sha256": "72cbcbcb12fbe2695f3ff8ca57334094efb93fcf477fef61e0c79bd3d7008425"
+    },
+    {
+      "suite": "theme-final",
+      "passed": 21,
+      "summary": "work/wallets/theme-final/summary.json",
+      "sha256": "c77b7ffc4d41de9d2e90098140e180f3c0a317ab3a5f3498f113b012059eccfb"
+    },
+    {
+      "suite": "cashflow-final",
+      "passed": 15,
+      "summary": "work/wallets/cashflow-final/summary.json",
+      "sha256": "e0e057c0addd7d3ff47d8959009b09df25cff423327bea7c37898c2f2ff5b479"
+    },
+    {
+      "suite": "bank-review-final-rerun",
+      "passed": 12,
+      "summary": "work/wallets/bank-review-final-rerun/summary.json",
+      "sha256": "ba8a4a2212dd41dadee7c640b2f1f6dcc35dc770c37637a0f20ccc7f4159aea3"
+    }
+  ],
+  "additional_evidence": {
+    "unit": {
+      "path": "work/wallets/final-unit.json",
+      "sha256": "ea1ba7bd8a58b308e035d5d4be10f70d65ea6d1725992b7c04a98a6b6cf20fcc"
+    },
+    "ux": {
+      "path": "work/wallets/ux-final/summary.json",
+      "sha256": "9dcc817035f5b185b8b73448788a207db16829f9dab01d1ba906b54663b76d9b"
+    },
+    "performance": {
+      "path": "work/wallets/performance-final/summary.json",
+      "sha256": "0bec4c6f76e0cd68ebaace77a2d43af54d6935f6f4534bb4dd80235d27f1e145",
+      "metrics": {
+        "median_batch_ms": 4829.0,
+        "p95_batch_ms": 4906.0,
+        "maximum_active_frame_gap_ms": 216
+      },
+      "budgets": {
+        "median_batch_ms": 5000,
+        "p95_batch_ms": 8000,
+        "maximum_active_frame_gap_ms": 250
+      }
+    }
+  },
+  "test_harness_notes": [
+    "Initial new-wallet harness used exact labels that included option/helper text; anchored control-label matching and UTF8 Windows stdout fixed the harness. Initial failure screenshots/notes retained; all19 finalcases rerun.",
+    "Old bank-review contrast harness had zero visible control samples after fullpage capture and the new wallet scope pushed filters outside the viewport. Harness now centers each of the three actual filters before contrast measurement; full12case suite rerun.",
+    "Original smoke overflow assertion now checks the durable inline wallet error instead of a transient toast, retaining meaningful error wording and no-write assertions."
+  ],
+  "limits": [
+    "Only synthetic fresh browser profiles were tested; no personal financial data, real browser profile, or online website was changed.",
+    "Browser evidence is Chromium Windows with mobile emulation, not physical Safari/iOS/Android or manual screenreader verification.",
+    "Contrast evidence covers sampled visible solid colors, excluding gradients and disabled controls.",
+    "Archive format requires the new supporting application; older app versions reject it safely.",
+    "10k plain-ledger10edit performancegate does not guarantee65k or100archived-wallet/source-heavy UI performance.",
+    "No off-PC backup, ZIP bundle, external CI execution, push or deployment was requested or performed."
+  ]
+}

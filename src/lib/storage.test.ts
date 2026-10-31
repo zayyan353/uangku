@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createEmptyState, makeDemoData, readStored, STORAGE_KEY, validateBackup, type StoredData } from './storage';
+import { createEmptyState, makeDemoData, readStored, serializeBackup, STORAGE_KEY, validateBackup, type StoredData } from './storage';
 import { walletBalance, type Entry } from './finance';
 
 function empty(): StoredData {
@@ -14,20 +14,21 @@ function transaction(overrides: Partial<Entry> = {}): Entry {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('empty and demonstration state', () => {
-  it('starts with the user’s 13 zero-balance wallets and no transactions', () => {
+  it('starts with ten zero-balance bank/e-wallet accounts and no cash bookkeeping', () => {
     const state = createEmptyState();
-    expect(state.wallets).toHaveLength(13);
-    expect(state.wallets.filter((wallet) => wallet.currency === 'IDR')).toHaveLength(9);
-    expect(state.wallets.filter((wallet) => wallet.currency === 'TRY')).toHaveLength(3);
-    expect(state.wallets.filter((wallet) => wallet.currency === 'USD')).toHaveLength(1);
+    expect(state.wallets).toHaveLength(10);
+    expect(state.wallets.filter((wallet) => wallet.currency === 'IDR')).toHaveLength(8);
+    expect(state.wallets.filter((wallet) => wallet.currency === 'TRY')).toHaveLength(2);
+    expect(state.wallets.filter((wallet) => wallet.currency === 'USD')).toHaveLength(0);
+    expect(state.wallets.some((wallet) => wallet.kind === 'cash')).toBe(false);
     expect(state.wallets.every((wallet) => wallet.openingBalance === 0)).toBe(true);
     expect(state.entries).toEqual([]);
-    expect(new Set(state.wallets.map((wallet) => wallet.id)).size).toBe(13);
+    expect(new Set(state.wallets.map((wallet) => wallet.id)).size).toBe(10);
   });
 
   it('validates a complete demo without reusing mutable input objects', () => {
     const input = makeDemoData();
-    const output = validateBackup(input);
+    const output = validateBackup(JSON.parse(serializeBackup(input)));
     expect(output).toEqual(input);
     expect(output).not.toBe(input);
     expect(output.state.wallets[0]).not.toBe(input.state.wallets[0]);
@@ -40,7 +41,7 @@ describe('empty and demonstration state', () => {
 });
 
 describe('backup validation', () => {
-  it('copies only documented fields, including optional transfer and import metadata', () => {
+  it('preserves documented transfer fields and rejects unsupported fields rather than dropping source data', () => {
     const data = empty();
     data.state.entries = [transaction({ type: 'transfer', toWalletId: 'ziraat-try', amount: 1_000,
       toAmount: 2, rate: 0.002, fee: 100, sourceKey: 'source', toSourceKey: 'destination', importBatch: 'batch' })];
@@ -48,8 +49,9 @@ describe('backup validation', () => {
       wallets: data.state.wallets.map((wallet) => ({ ...wallet, extra: true })),
       entries: data.state.entries.map((entry) => ({ ...entry, extra: true })),
     } };
-    expect(validateBackup(source)).toEqual(data);
-    expect(validateBackup(source).state.entries[0].toSourceKey).toBe('destination');
+    expect(() => validateBackup(source)).toThrow(/tidak didukung/);
+    expect(validateBackup(data)).toEqual(data);
+    expect(validateBackup(data).state.entries[0].toSourceKey).toBe('destination');
   });
 
   it('validates signed unreviewed entries without asserting income', () => {
@@ -78,7 +80,7 @@ describe('backup validation', () => {
   it('rejects unknown currencies and wrong wallet types', () => {
     const data = empty();
     const wallet = data.state.wallets[0] as unknown as Record<string, unknown>;
-    wallet.currency = 'EUR';
+    wallet.currency = 'ZZZ';
     expect(() => validateBackup(data)).toThrow(/mata uang/);
     wallet.currency = 'IDR';
     wallet.kind = 'credit-card';
@@ -177,7 +179,7 @@ describe('reading browser storage is non-destructive', () => {
     const data = empty();
     const setItem = vi.fn();
     vi.stubGlobal('localStorage', { getItem: vi.fn(() => JSON.stringify(data)), setItem });
-    expect(readStored()).toEqual({ data, error: null, blocked: false });
+    expect(readStored()).toEqual({ data, error: null, blocked: false, token: JSON.stringify(data), persisted: true });
     expect(setItem).not.toHaveBeenCalled();
   });
 

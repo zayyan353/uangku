@@ -16,8 +16,15 @@ const wallets: Wallet[] = [
 afterEach(() => vi.unstubAllGlobals());
 
 describe('optional UI preferences stay separate from financial data', () => {
+  it('retains supported new currencies and per-currency wallet hints without touching financial storage', () => {
+    const setItem = vi.fn(), getItem = vi.fn(() => JSON.stringify({ currency: 'KWD', lastWallets: { JPY: 'yen', KWD: 'dinar', EUR: 'euro', ZZZ: 'unknown' } }));
+    vi.stubGlobal('localStorage', { getItem, setItem });
+    expect(readPreferences()).toEqual({ currency: 'KWD', lastWallets: { JPY: 'yen', KWD: 'dinar', EUR: 'euro' } });
+    expect(setItem).not.toHaveBeenCalled();
+  });
+
   it('reads sanitized currency and wallet hints without writing or reading the ledger', () => {
-    const raw = JSON.stringify({ currency: 'TRY', lastWallets: { TRY: 'cash-try', IDR: 'bca', EUR: 'discard' }, balance: 999 });
+    const raw = JSON.stringify({ currency: 'TRY', lastWallets: { TRY: 'cash-try', IDR: 'bca', ZZZ: 'discard' }, balance: 999 });
     const getItem = vi.fn(() => raw), setItem = vi.fn();
     vi.stubGlobal('localStorage', { getItem, setItem });
     expect(readPreferences()).toEqual({ currency: 'TRY', lastWallets: { TRY: 'cash-try', IDR: 'bca' } });
@@ -25,7 +32,7 @@ describe('optional UI preferences stay separate from financial data', () => {
     expect(setItem).not.toHaveBeenCalled();
   });
 
-  it.each([null, '{bad', 'null', '[]', JSON.stringify({ currency: 'EUR', lastWallets: null })])('falls back safely for missing or invalid preferences', (text) => {
+  it.each([null, '{bad', 'null', '[]', JSON.stringify({ currency: 'ZZZ', lastWallets: null })])('falls back safely for missing or invalid preferences', (text) => {
     const setItem = vi.fn();
     vi.stubGlobal('localStorage', { getItem: () => text, setItem });
     expect(readPreferences()).toEqual({ currency: 'IDR', lastWallets: {} });
@@ -57,8 +64,8 @@ describe('optional UI preferences stay separate from financial data', () => {
 });
 
 describe('last wallet selection follows the requested currency', () => {
-  it('prefers a valid cash wallet remembered for the currency', () => {
-    expect(preferredWallet(wallets, 'TRY', { currency: 'IDR', lastWallets: { TRY: 'cash-try' } })).toBe('cash-try');
+  it('ignores remembered cash and selects an active bank for the currency', () => {
+    expect(preferredWallet(wallets, 'TRY', { currency: 'IDR', lastWallets: { TRY: 'cash-try' } })).toBe('ziraat');
   });
 
   it('ignores stale or cross-currency IDs rather than debiting the wrong wallet', () => {
@@ -73,12 +80,12 @@ describe('last wallet selection follows the requested currency', () => {
 });
 
 describe('transfer destination defaults reduce accidental currency changes', () => {
-  it('prefers cash of the same currency from a bank or e-wallet', () => {
-    expect(preferredDestination(wallets, 'ziraat')).toBe('cash-try');
-    expect(preferredDestination(wallets, 'papara')).toBe('cash-try');
+  it('prefers another active bank or e-wallet of the same currency', () => {
+    expect(preferredDestination(wallets, 'ziraat')).toBe('papara');
+    expect(preferredDestination(wallets, 'papara')).toBe('ziraat');
   });
 
-  it('prefers a bank of the same currency from cash', () => {
+  it('can resolve an obsolete cash source hint without proposing cash', () => {
     expect(preferredDestination(wallets, 'cash-try')).toBe('ziraat');
   });
 
@@ -87,6 +94,12 @@ describe('transfer destination defaults reduce accidental currency changes', () 
     expect(preferredDestination(withoutCash, 'ziraat')).toBe('papara');
     const withoutBank = wallets.filter(wallet => wallet.id !== 'ziraat');
     expect(preferredDestination(withoutBank, 'cash-try')).toBe('papara');
+  });
+
+  it('returns no choice when only archived cash wallets remain', () => {
+    const archived = wallets.filter(wallet => wallet.kind === 'cash');
+    expect(preferredWallet(archived, 'TRY', { currency: 'TRY', lastWallets: { TRY: 'cash-try' } })).toBeUndefined();
+    expect(preferredDestination(archived, 'cash-try')).toBe('');
   });
 
   it('handles missing source or destination wallets without returning the source', () => {

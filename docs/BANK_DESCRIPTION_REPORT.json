@@ -1,0 +1,108 @@
+{
+  "updated_utc": "2026-10-31T02:39:16.077969+00:00",
+  "feature": "Bank operation interpretation and conservative online category fallback",
+  "status": "implemented_and_verified_locally",
+  "base_local_checkpoint": "3ecfea3",
+  "production_html_sha256": "5fde3d4639a6c15fd8050a5ee31df428e4ee6d80f76ea8935b071739156c7b32",
+  "default_categories": 30,
+  "default_rules": 77,
+  "new_bank_rules": 14,
+  "current_keywordPackVersion": 3,
+  "operation_policy": [
+    "ATM PARA CEKME -> withdrawal hint and Tarik tunai suggestion; deposits ATM YATAN/YURTICI ATM P.Y./ATM PARA YATIRMA -> Setor tunai suggestion.",
+    "Non-POS Havale/EFT/FAST/Virman -> Transfer suggestion. Person names are not classified independently of the banking channel.",
+    "Transfer-channel BSMV Tahsilati or Komisyon(u) Tahsilati suffix identifies a service fee before generic transfer interpretation.",
+    "New negative fee rows are expenses; incoming fees remain unreviewed. ATM and bank-transfer rows retain signed unreviewed cash flows.",
+    "PREPAID IADE/IADESI uses Cashback per user convention, but unresolved credits are suggestions and do not confirm income.",
+    "SANAL POS ALISVERIS uses Belanja online only if no specific merchant or personal rule matches, including ambiguous merchant suggestions.",
+    "POS merchant names and FAST FOOD text are not bank-transfer evidence. Plain POS does not gain the online fallback."
+  ],
+  "preservation": [
+    "No automatic cash-wallet choice, counter-leg creation, transfer pairing, or classification of historical financial types.",
+    "Original fingerprint normalization is unchanged; hardcoded historical fingerprint goldens and reimport deduplication pass.",
+    "Bank facts, signed amounts, IDs, dates and existing categories remain unchanged by category preview/application.",
+    "Immutable linked descriptions outrank editable notes; blank source descriptions do not fall through to edited-note operation guesses.",
+    "Operation hints appear in import preview, transaction history, category review and edit forms.",
+    "v2-to-v3 settings adoption adds only the new bank pack and four labels. Prior deleted/edited confirmed defaults are not replayed or restored.",
+    "v3 marker preserves later deletions, case-variant labels, export/import, and manual rule modes. Explicit default additions do not relabel existing personal choices.",
+    "Count/byte/quota/concurrency refusals preserve original settings and existing financial data."
+  ],
+  "verification": {
+    "unit_passed": 875,
+    "unit_failed": 0,
+    "unit_files": 32,
+    "typecheck_build": "passed",
+    "bank_description_browser_cases": 9,
+    "confirmed_mapping_browser_cases": 10,
+    "keyword_browser_cases": 13,
+    "category_browser_cases": 15,
+    "theme_browser_cases": 21,
+    "original_browser_scenarios": 39,
+    "total_browser_scenarios": 107,
+    "browser": "156.0.8078.76",
+    "browser_fixtures_synthetic_only": true,
+    "browser_page_errors": 0
+  },
+  "evidence": [
+    {
+      "suite": "bank",
+      "summary": "work/bank-description/final-candidate/summary.json",
+      "sha256": "7d86aa555ebd57dd012d82d3800f693d3085a7625e5815c890befd7321980b5a"
+    },
+    {
+      "suite": "confirmed",
+      "summary": "work/bank-description/confirmed-final/summary.json",
+      "sha256": "370c259f0e6d8731131b58797c989ec9cbae9e7a41a0535d64bf689fdbaddf9b"
+    },
+    {
+      "suite": "keywords",
+      "summary": "work/bank-description/keyword-final/summary.json",
+      "sha256": "28f5253767163ca365b6672f62e90124ede24bb8855855dcbe524d75388fec01"
+    },
+    {
+      "suite": "category",
+      "summary": "work/bank-description/category-final/summary.json",
+      "sha256": "fbec9153c65f2bcd3f89d70928a308b4ac7f75bbd7edb26b1865f0faa1676f29"
+    },
+    {
+      "suite": "original",
+      "summary": "work/bank-description/original-final/summary.json",
+      "sha256": "d30ae779616b3a28aad97e58929e2294155dce92b743b34f8951a93e6b3701de"
+    },
+    {
+      "suite": "theme",
+      "summary": "work/bank-description/theme-final/summary.json",
+      "sha256": "7a7a8d03a4d842e50a4f6802d983ad3913a623f765e5b6ab1d6170cc2d38dd5a"
+    }
+  ],
+  "compatibility": {
+    "keywordPackVersion_supported": [
+      1,
+      2,
+      3
+    ],
+    "unmarked_legacy_settings_accepted": true,
+    "financial_wire_schema_changed": false,
+    "fingerprint_algorithm_changed": false,
+    "automatic_historical_type_repair": false
+  },
+  "user_sample": {
+    "scope": "Previously supplied backup and workbook evaluated read-only; original fingerprints and file hashes verified.",
+    "original_files_modified": false,
+    "real_data_used_in_browser_fixtures": false,
+    "personal_records_copied_into_repository": false
+  },
+  "limits": [
+    "Transfer destination and cash ownership still require user review; a recipient name does not supply a valid counterpart wallet.",
+    "Old ATM/transfer records already classified as expenses are not silently repaired; category review changes annotations only.",
+    "Cashback is a user-defined category convention; unresolved incoming financial types remain unreviewed.",
+    "Chromium on Windows and mobile emulation were verified; physical devices and manual screen readers were not tested.",
+    "Full performance, backfill and source-lifecycle suites were not repeated as whole suites; targeted storage/source cases and original regressions passed.",
+    "CI configuration includes this gate; remote CI was not executed."
+  ],
+  "online_website_modified": false,
+  "remote_push_performed": false,
+  "deployment_performed": false,
+  "new_source_archive_created": false,
+  "packaging": "New combined ZIP and off-PC backup deferred by user; old snapshots retained."
+}

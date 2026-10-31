@@ -17,3 +17,6 @@ screenshots/
 *.tsbuildinfo
 __pycache__/
 *.pyc
+private-data/
+local-backups/
+*.bundle

@@ -43,6 +43,17 @@ function workbook(rows: unknown[][] = transactions, currency = 'TL', customHeade
 }
 
 describe('parseZiraatWorkbook', () => {
+  it('keeps original bank text separate from mutable preview annotations', () => {
+    const result = parseZiraatWorkbook(workbook([['23.10.2026', '  RAW-REF  ', '  POS sumber asli  ', -20, 100]]), wallet, []);
+    const row = result.rows[0];
+    expect(row.description).toBe('POS sumber asli');
+    expect(row.originalDescription).toBe('  POS sumber asli  ');
+    expect(row.originalReference).toBe('  RAW-REF  ');
+    row.description = 'Catatan pilihan pengguna';
+    row.category = 'Belanja';
+    expect(row.originalDescription).toBe('  POS sumber asli  ');
+    expect(row.originalReference).toBe('  RAW-REF  ');
+  });
   it('maps dated rows, keeps same reference transactions distinct and reconciles balances', () => {
     const preview = parseZiraatWorkbook(workbook(), wallet, []);
     expect(preview.rows).toHaveLength(3);
@@ -56,13 +67,13 @@ describe('parseZiraatWorkbook', () => {
     expect(preview.rows[0].sourceKey).not.toContain('REF-REPEATED');
   });
 
-  it('keeps credits and transfer hints pending while preserving signed cash flow', () => {
+  it('recognizes bank transfers as single signed movements while preserving bank cash flow', () => {
     const preview = parseZiraatWorkbook(workbook(), wallet, []);
-    expect(preview.rows[1].classification).toBe('unreviewed');
-    expect(preview.rows[1].warning).toContain('ditinjau');
+    expect(preview.rows[1].classification).toBe('movement');
+    expect(preview.rows[1].warning).toContain('Transfer');
     const entries = entriesFromImport(preview.rows, wallet.id, 'batch-example');
     expect(entries).toHaveLength(3);
-    expect(entries[1]).toMatchObject({ type: 'unreviewed', amount: 10000, walletId: wallet.id });
+    expect(entries[1]).toMatchObject({ type: 'movement', amount: 10000, walletId: wallet.id });
     expect(entries.reduce((total, entry) => total + (entry.type === 'expense' ? -entry.amount : entry.amount), preview.openingBalance)).toBe(preview.closingBalance);
   });
 

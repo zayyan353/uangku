@@ -6,6 +6,7 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -14,7 +15,7 @@ jobs:
   test-and-build:
     name: Tes dan build
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - name: Ambil kode
         uses: actions/checkout@v6
@@ -30,3 +31,70 @@ jobs:
         run: npm test
       - name: Buat build produksi
         run: npm run build
+      - name: Siapkan Python untuk regresi browser
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Pasang browser pengujian
+        run: |
+          python -m pip install playwright==1.64.1
+          python -m playwright install --with-deps chromium
+      - name: Uji build produksi dengan data sintetis
+        env:
+          UANGKU_TEST_URL: http://127.0.0.1:4173
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > "$RUNNER_TEMP/preview.log" 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID"' EXIT
+          python - <<'PY'
+          import time, urllib.request
+          for attempt in range(60):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:4173', timeout=2) as response:
+                      if response.status == 200:
+                          break
+              except OSError:
+                  time.sleep(.25)
+          else:
+              raise SystemExit('Production preview did not start')
+          PY
+          python tests/browser_smoke.py --output "$RUNNER_TEMP/uangku-browser-original"
+          python tests/recovery_browser.py --output "$RUNNER_TEMP/uangku-browser-recovery"
+          python tests/ux_browser.py --output "$RUNNER_TEMP/uangku-browser-ux"
+          python tests/theme_browser.py --output "$RUNNER_TEMP/uangku-browser-theme"
+          python tests/category_browser.py --output "$RUNNER_TEMP/uangku-browser-category"
+          python tests/keyword_pack_browser.py --output "$RUNNER_TEMP/uangku-browser-keywords"
+          python tests/confirmed_mapping_browser.py --output "$RUNNER_TEMP/uangku-browser-confirmed-mappings"
+          python tests/bank_description_browser.py --output "$RUNNER_TEMP/uangku-browser-bank-descriptions"
+          python tests/bank_auto_browser.py --output "$RUNNER_TEMP/uangku-browser-bank-auto"
+          python tests/bank_review_browser.py --output "$RUNNER_TEMP/uangku-browser-bank-review"
+          python tests/wallet_browser.py --output "$RUNNER_TEMP/uangku-browser-wallets"
+          python tests/currency_import_browser.py --output "$RUNNER_TEMP/uangku-browser-currency-import"
+          python tests/cashflow_browser.py --output "$RUNNER_TEMP/uangku-browser-cashflow"
+          python tests/source_browser.py --output "$RUNNER_TEMP/uangku-browser-source"
+          python tests/backfill_browser.py --output "$RUNNER_TEMP/uangku-browser-backfill"
+          python tests/performance_browser.py --output "$RUNNER_TEMP/uangku-browser-performance"
+      - name: Simpan bukti pengujian browser
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-evidence
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/uangku-browser-original
+            ${{ runner.temp }}/uangku-browser-recovery
+            ${{ runner.temp }}/uangku-browser-ux
+            ${{ runner.temp }}/uangku-browser-theme
+            ${{ runner.temp }}/uangku-browser-category
+            ${{ runner.temp }}/uangku-browser-keywords
+            ${{ runner.temp }}/uangku-browser-confirmed-mappings
+            ${{ runner.temp }}/uangku-browser-bank-descriptions
+            ${{ runner.temp }}/uangku-browser-bank-auto
+            ${{ runner.temp }}/uangku-browser-bank-review
+            ${{ runner.temp }}/uangku-browser-wallets
+            ${{ runner.temp }}/uangku-browser-currency-import
+            ${{ runner.temp }}/uangku-browser-cashflow
+            ${{ runner.temp }}/uangku-browser-source
+            ${{ runner.temp }}/uangku-browser-backfill
+            ${{ runner.temp }}/uangku-browser-performance
+            ${{ runner.temp }}/preview.log

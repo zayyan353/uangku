@@ -1,0 +1,286 @@
+{
+  "candidate_html_sha256": "f2bad04827ba3ca7bb628b6648436f26d73ad3c3d8d1a22717699b782866cd65",
+  "status_counts": {
+    "VERIFIED_LOCAL": 13,
+    "PARTIAL_LEGACY_UNVERIFIED": 1,
+    "VERIFIED_COVERED_STATES": 1,
+    "MITIGATED_ORIGIN_BOUNDARY": 1,
+    "VERIFIED_LOCAL_10K": 2,
+    "IMPROVED_LOCAL": 1,
+    "CONFIGURED_LOCAL_REMOTE_NOT_RUN": 1
+  },
+  "findings": [
+    {
+      "id": "DATA-001",
+      "priority": "P0",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Web Locks, token CAS, stale forms, clean sync and recovery drafts retain competing changes or report conflict.",
+      "dependencies": [],
+      "browser_evidence": [
+        "recovery-delivery/summary.json",
+        "original-delivery/summary.json"
+      ],
+      "code_or_tests": "persistence.test.ts"
+    },
+    {
+      "id": "BUG-001",
+      "priority": "P1",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Manual-overlap decisions bind current candidates and both transfer posting dates; import commit is guarded against stale storage.",
+      "dependencies": [
+        "DATA-001",
+        "FIN-003"
+      ],
+      "browser_evidence": [
+        "recovery-delivery/summary.json",
+        "source-delivery-desktop/summary.json",
+        "source-delivery-mobile/summary.json"
+      ],
+      "code_or_tests": "sourceIntegrity.review.test.ts"
+    },
+    {
+      "id": "DATA-002",
+      "priority": "P1",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Compact v1/v2 export matches restore; large legacy pretty backup restores; metadata references roundtrip or reject without writes.",
+      "dependencies": [
+        "ARCH-005"
+      ],
+      "browser_evidence": [
+        "recovery-delivery/summary.json",
+        "source-delivery-desktop/summary.json",
+        "source-delivery-mobile/summary.json"
+      ],
+      "code_or_tests": "recoveryBackup.test.ts"
+    },
+    {
+      "id": "FIN-001",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Actual cutoff follows each posting date; future records remain separate; balances before evidenced baseline or with undated legs are not presented as certain.",
+      "dependencies": [
+        "FIN-003"
+      ],
+      "browser_evidence": [
+        "recovery-delivery/summary.json",
+        "source-delivery-desktop/summary.json",
+        "source-delivery-mobile/summary.json"
+      ],
+      "code_or_tests": "localSourceFoundation.test.ts"
+    },
+    {
+      "id": "FIN-002",
+      "priority": "P2",
+      "status": "PARTIAL_LEGACY_UNVERIFIED",
+      "scope": "Known immutable bank facts, annotations, overrides/deletion and explicit reimport are implemented. Missing historic facts/associations cannot be reconstructed without evidence and remain labelled unverified.",
+      "dependencies": [
+        "DATA-001",
+        "DATA-002"
+      ],
+      "browser_evidence": [
+        "source-delivery-desktop/summary.json",
+        "source-delivery-mobile/summary.json"
+      ],
+      "code_or_tests": "sourceIntegrity.review.test.ts"
+    },
+    {
+      "id": "FIN-003",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Transfer source/destination dates, fees, pairing, delete/restore and evidenced unpair survive roundtrip and month/currency filtering.",
+      "dependencies": [
+        "FIN-002"
+      ],
+      "browser_evidence": [
+        "source-delivery-desktop/summary.json",
+        "source-delivery-mobile/summary.json"
+      ],
+      "code_or_tests": "sourceIntegrityRegression.test.ts"
+    },
+    {
+      "id": "DATA-003",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Partial94.50 to174.50; source-only capture, explicit anchored backfill/rebase, preserved manual flows and refusal without overlap are verified.",
+      "dependencies": [
+        "FIN-002",
+        "FIN-003",
+        "DATA-002"
+      ],
+      "browser_evidence": [
+        "source-delivery-desktop/summary.json",
+        "source-delivery-mobile/summary.json",
+        "backfill-delivery-desktop/summary.json",
+        "backfill-delivery-mobile/summary.json"
+      ],
+      "code_or_tests": "localSourceFoundation.test.ts"
+    },
+    {
+      "id": "BUG-002",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Save labels follow durable result; source metadata survives quota recovery and exactly-once retry.",
+      "dependencies": [],
+      "browser_evidence": [
+        "recovery-delivery/summary.json",
+        "source-delivery-desktop/summary.json",
+        "source-delivery-mobile/summary.json"
+      ],
+      "code_or_tests": "persistence.test.ts"
+    },
+    {
+      "id": "UX-001",
+      "priority": "P2",
+      "status": "VERIFIED_COVERED_STATES",
+      "scope": "Measured visible solid-background text contrast passes; gradients/disabled and manual assistive-tech coverage are outside measured scope.",
+      "dependencies": [],
+      "browser_evidence": [
+        "ux-delivery/summary.json"
+      ],
+      "code_or_tests": "historyView.test.ts"
+    },
+    {
+      "id": "UX-002",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "FX invalid input and submission feedback remain visible/focused in modal.",
+      "dependencies": [],
+      "browser_evidence": [
+        "ux-delivery/summary.json",
+        "original-delivery/summary.json"
+      ],
+      "code_or_tests": "browser: FX feedback"
+    },
+    {
+      "id": "UX-003",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Search defaults to all periods, explicit period control and truthful scope; indexed history is read-only.",
+      "dependencies": [],
+      "browser_evidence": [
+        "ux-delivery/summary.json",
+        "original-delivery/summary.json"
+      ],
+      "code_or_tests": "historyView.test.ts"
+    },
+    {
+      "id": "UX-004",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Displayed month/year follows report selection.",
+      "dependencies": [],
+      "browser_evidence": [
+        "ux-delivery/summary.json"
+      ],
+      "code_or_tests": "historyView.test.ts"
+    },
+    {
+      "id": "UX-005",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Mobile filter reflow and reachable controls;320/768px native label area, full amount details and privacy access independently verified.",
+      "dependencies": [],
+      "browser_evidence": [
+        "ux-delivery/summary.json",
+        "original-delivery/summary.json"
+      ],
+      "code_or_tests": "browser: mobile filters and narrow-delivery"
+    },
+    {
+      "id": "UX-006",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Exact full amounts and transfer fee/debit details are available in a read-only dialog.",
+      "dependencies": [],
+      "browser_evidence": [
+        "ux-delivery/summary.json",
+        "original-delivery/summary.json"
+      ],
+      "code_or_tests": "recoveryMoneyFormatting.test.ts"
+    },
+    {
+      "id": "SEC-001",
+      "priority": "P2",
+      "status": "MITIGATED_ORIGIN_BOUNDARY",
+      "scope": "Dedicated local loopback port, no personal profile tests, privacy disclosure; same-origin scripts/profile still share readable local storage, without app encryption/login.",
+      "dependencies": [],
+      "browser_evidence": [
+        "original-delivery/summary.json"
+      ],
+      "code_or_tests": "components/PrivacyNotice.tsx"
+    },
+    {
+      "id": "ARCH-001",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL_10K",
+      "scope": "History and import preview render bounded50-row pages; 10k production UI workload passes.",
+      "dependencies": [
+        "DATA-001"
+      ],
+      "browser_evidence": [
+        "performance-delivery/summary.json",
+        "ux-delivery/summary.json"
+      ],
+      "code_or_tests": "historyView.test.ts"
+    },
+    {
+      "id": "ARCH-002",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL_10K",
+      "scope": "Indexed history/source lookups, linear aggregate validation, one prepared serialization boundary and identical-token read fastpath; budgets unchanged.",
+      "dependencies": [
+        "ARCH-001",
+        "DATA-001"
+      ],
+      "browser_evidence": [
+        "performance-delivery/summary.json"
+      ],
+      "code_or_tests": "validationBoundary.review.test.ts"
+    },
+    {
+      "id": "ARCH-003",
+      "priority": "P3",
+      "status": "IMPROVED_LOCAL",
+      "scope": "Domain commands, codecs, persistence, read-models, import, shared modal and transaction editor are separate; root layout/orchestration still has further optional refactoring.",
+      "dependencies": [],
+      "browser_evidence": [
+        "original-delivery/summary.json",
+        "recovery-delivery/summary.json"
+      ],
+      "code_or_tests": "src/components and src/lib"
+    },
+    {
+      "id": "ARCH-004",
+      "priority": "P3",
+      "status": "CONFIGURED_LOCAL_REMOTE_NOT_RUN",
+      "scope": "Reusable CI includes production browser gates; Pages local workflow is manual-only and depends on verification. Remote CI/publication was not invoked.",
+      "dependencies": [
+        "DATA-001",
+        "BUG-001",
+        "DATA-002",
+        "FIN-003",
+        "DATA-003"
+      ],
+      "browser_evidence": [
+        "original-delivery/summary.json",
+        "recovery-delivery/summary.json",
+        "ux-delivery/summary.json",
+        "source-delivery-desktop/summary.json",
+        "backfill-delivery-desktop/summary.json",
+        "performance-delivery/summary.json"
+      ],
+      "code_or_tests": ".github/workflows"
+    },
+    {
+      "id": "ARCH-005",
+      "priority": "P2",
+      "status": "VERIFIED_LOCAL",
+      "scope": "Iterable exact sums,60k/65k and6500-source Unicode roundtrip preserve overflow/count/size refusal. UI65k performance is not claimed.",
+      "dependencies": [],
+      "browser_evidence": [
+        "recovery-delivery/summary.json"
+      ],
+      "code_or_tests": "localSourceFoundation.test.ts"
+    }
+  ]
+}

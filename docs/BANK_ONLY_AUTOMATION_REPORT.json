@@ -1,0 +1,168 @@
+{
+  "updated_utc": "2026-10-31T03:18:17.607010+00:00",
+  "feature": "Bank-only wallets and confirmed automatic bank operations",
+  "status": "implemented_and_verified_locally",
+  "base_local_checkpoint": "0eed09d",
+  "production_html_sha256": "f54bc4e2eedb13453bffc127dbf0a663ea21233cf92ef0d4384092ef513302cb",
+  "default_categories": 30,
+  "default_rules": 78,
+  "current_keywordPackVersion": 4,
+  "operation_policy": [
+    "New correct-direction ATM withdrawals/deposits and non-POS Havale/EFT/FAST/Virman principal rows are confirmed signed movement entries affecting this account only.",
+    "Movement is excluded from income and spending; no cash wallet, destination owner, paired leg, or cash ledger is fabricated.",
+    "Incoming whole-word PREPAID is income with Cashback under the user-approved convention; debit/unknown-sign PREPAID is not auto-income.",
+    "Negative identified transfer fees are expenses; specific merchant rules retain priority over generic online purchases.",
+    "Unknown flows, opposite ATM signs and non-PREPAID reversal evidence remain unreviewed.",
+    "Historical unreviewed bank rows are confirmed only by explicit reviewed Apply; existing non-unreviewed manual financial types are retained."
+  ],
+  "cash_policy": [
+    "All currencies: cash removed from new/demo wallets, create/edit choices, preferred-wallet and transfer defaults, import target choices, active balances, spending reports and pending queues.",
+    "Only zero-opening cash definitions with no active entry or retained metadata references are removed via the existing revision-guarded writer.",
+    "Referenced or nonzero legacy cash remains in a read-only archive and financial backup; existing bank/cash transfer history is retained and not editable through individual or bulk forms."
+  ],
+  "preservation": [
+    "All writes retain Web Locks, captured expectedData and token CAS, failure drafts and retry guards.",
+    "Manual categories/rules, archived targets, deleted defaults and deliberate suggestion modes are protected; v3-to-v4 changes only exact untouched bank defaults and adds incoming-PREPAID rule.",
+    "Immutable source wording outranks edited notes, including blank source descriptions; historical fingerprint algorithm is unchanged.",
+    "Source-backed confirmation preserves signed postings, IDs, dates, notes, source facts and links, updating only explicitly reviewed type/category annotations.",
+    "Movement form accepts positive nominal plus explicit direction; both orientations of explicit pairing preserve both balances, source dates and fingerprints without extra entries."
+  ],
+  "compatibility": {
+    "plain_backup_wire_versions": [
+      1,
+      3
+    ],
+    "source_backup_wire_versions": {
+      "version": 2,
+      "codecs": [
+        "table-tuples-v1",
+        "table-tuples-v2",
+        "table-tuples-v3",
+        "table-tuples-v4"
+      ]
+    },
+    "movement_plain_wire": 3,
+    "movement_source_codec": "table-tuples-v4",
+    "older_formats_reject_movement": true,
+    "logical_limit_bytes": 8388608,
+    "raw_restore_limit_bytes": 33554432
+  },
+  "verification": {
+    "unit_passed": 1080,
+    "unit_failed": 0,
+    "unit_files": 37,
+    "typecheck_build": "passed",
+    "total_browser_scenarios": 138,
+    "browser": "156.0.8078.76",
+    "browser_fixtures_synthetic_only": true,
+    "browser_page_errors": 0
+  },
+  "evidence": [
+    {
+      "suite": "original",
+      "passed": 39,
+      "summary": "work/bank-auto/original-final-2/summary.json",
+      "sha256": "0b915d40a16d8a8988e63b705dbbc751e062a33a6a1e323d9188b5007c240019"
+    },
+    {
+      "suite": "categories",
+      "passed": 15,
+      "summary": "work/bank-auto/category-final-2/summary.json",
+      "sha256": "33e8ea0f8ad57730f335aa658eeea49392000e6ade40a7a2ac666b66656f9295"
+    },
+    {
+      "suite": "keywords",
+      "passed": 13,
+      "summary": "work/bank-auto/keywords-final/summary.json",
+      "sha256": "f7e57842a70069a379990f550ddd4fd08038c3e667b909ce6f7f6a86a7b059eb"
+    },
+    {
+      "suite": "confirmed_merchants",
+      "passed": 10,
+      "summary": "work/bank-auto/confirmed-final/summary.json",
+      "sha256": "46b37ae1d65a3fb5e7e6341bad5619987c704f2868249eb9fd179f1974bfc183"
+    },
+    {
+      "suite": "theme",
+      "passed": 21,
+      "summary": "work/bank-auto/theme-final/summary.json",
+      "sha256": "5418102d3f13dbf52d40661bcc5555593bcdad5fc165a00539e5ced0474df64d"
+    },
+    {
+      "suite": "bank_descriptions",
+      "passed": 9,
+      "summary": "work/bank-auto/bank-description-final/summary.json",
+      "sha256": "1a3623998ea36c04f61c49f490bd41da2f66dd6bbc76b3dee419c092d3d462e5"
+    },
+    {
+      "suite": "bank_only_automatic",
+      "passed": 13,
+      "summary": "work/bank-auto/final-candidate/summary.json",
+      "sha256": "064f99c768b3e0d8f00dd2e91a3508916ec6f100759d2398ff39f5e67508549b"
+    },
+    {
+      "suite": "sources",
+      "passed": 4,
+      "summary": "work/bank-auto/source-final/summary.json",
+      "sha256": "92100f7e96de8a7fa5542bedc4fae6cf982716648036bcf82dc8073b93662b96"
+    },
+    {
+      "suite": "recovery",
+      "passed": 12,
+      "summary": "work/bank-auto/recovery-final/summary.json",
+      "sha256": "1bdb5fe4cfb115ed86932715b238579ad8edc0d9bc5f6e85ba2a397904b9b1d5"
+    },
+    {
+      "suite": "backfill",
+      "passed": 2,
+      "summary": "work/bank-auto/backfill-final/summary.json",
+      "sha256": "3139852c1fe3cec2c9d1ed4d20c9efe0050a885f3c530bf1a1d9b538aecb409b"
+    }
+  ],
+  "unit_evidence": {
+    "path": "work/bank-auto/final-unit-2.json",
+    "sha256": "f025f141470e001660afdc42053cec9756f26b597edf2787732d217cb88a9bf7"
+  },
+  "sample_readonly_proposal": {
+    "scope": "Read-only in-memory proposal; no financial document or browser storage written",
+    "input_sha256": "e68274286f9438479b3296fd9735e910f36b9e54867658256c44ccc416e8ec0a",
+    "original_bytes_unchanged": true,
+    "entries": 378,
+    "matched_automatic": 363,
+    "known_types_confirmed": 187,
+    "empty_cash_wallets_removed_in_proposal": 3,
+    "remaining_cash_wallets": 0,
+    "all_retained_wallet_balances_unchanged": true,
+    "source_facts_links_unchanged": true,
+    "ids_dates_notes_fingerprints_signed_amounts_unchanged": true,
+    "wire_version": 2,
+    "codec": "table-tuples-v4",
+    "wire_bytes": 137375,
+    "input_not_overwritten": true
+  },
+  "review_findings_resolved": [
+    "Negative movement nominal could invert selected direction; nonpositive nominal is now refused.",
+    "Cash-linked legacy ordinary records could remain selectable for bulk edits; all selection/application paths now refuse them.",
+    "Positive movement conversion to internal transfer needed credited-wallet orientation and existing movement pair candidates; both sides now tested."
+  ],
+  "retained_initial_attempts": [
+    "work/bank-auto-unit-integration.json: old cash-active fixture expectations updated to bank/ewallet while genuine cash archive coverage was added.",
+    "work/bank-auto/original-final: generic pending-credit fixture changed from known Havale to an unknown incoming description, retaining pending behavior coverage and exact balances.",
+    "work/bank-auto/category-final: FAST import expectation updated to confirmed movement, preserving source/money assertions.",
+    "work/bank-auto/candidate-1: currency-label selector corrected; 12/13 passed before selector fix.",
+    "work/bank-auto/bank-description-candidate-1: archived/capacity assertions updated to allow independent type confirmation without reactivating removed categories."
+  ],
+  "limits": [
+    "Chromium on Windows and mobile emulation only; no physical Safari/iOS/Android or manual screen-reader claim.",
+    "Current suites prove the tested cases; full cloud A-H recovery and legacy missing evidence remain incomplete.",
+    "Full UI performance and 65k interactive rendering were not repeated for this feature; unit capacity/overflow and large-backup browser regression passed.",
+    "New movement backups require a version supporting plain wire3 or source codec4; old online code is unchanged and is not a supported target for these new backups."
+  ],
+  "online_website_modified": false,
+  "remote_push_performed": false,
+  "deployment_performed": false,
+  "real_financial_data_migrated": false,
+  "new_source_archive_created": false,
+  "packaging": "Combined ZIP/off-PC backup deferred by user; prior snapshots retained.",
+  "ci": "New bank-only browser gate configured locally in existing workflow; remote CI not executed."
+}

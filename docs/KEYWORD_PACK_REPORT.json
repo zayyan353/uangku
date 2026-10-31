@@ -1,0 +1,87 @@
+{
+  "updated_utc": "2026-10-31T01:58:09.525680+00:00",
+  "feature": "Expanded local keyword rules with manual settings preservation and scoped service matching",
+  "status": "implemented_and_verified_locally",
+  "base_local_checkpoint": "21e66dc",
+  "production_html_sha256": "9774b1efa14da247e6da1aef7c9cb9868c0e435e83c249a94b6e07004ffa42eb",
+  "default_categories": 23,
+  "original_default_rules": 30,
+  "new_keyword_rules": 26,
+  "effective_new_profile_rules": 56,
+  "behavior": [
+    "Adds public merchant/service aliases for scooter, transit, telecom, markets, subscriptions, bank fees, personal care, clothing and university charges.",
+    "Legacy valid settings receive an effective in-memory merge without initial storage writes; existing category names, rule IDs, modes, targets and order remain intact.",
+    "Merge skips inactive category targets, existing normalized keywords and colliding IDs; no category is resurrected or existing rule replaced.",
+    "Trendyol Yemek/Market/Plus suppress only the exact untouched bundled general Trendyol suggestion. Edited/custom general rules remain active and can force suggestions.",
+    "New automatic rules cannot upgrade existing broader suggestion-only matches when no preexisting automatic rule matched.",
+    "Ambiguous transfers, cash, refunds, unresolved types, processor aliases and conflicting categories remain suggestions.",
+    "Bundled GRATIS requires a bank merchant label; explicit user rules remain literal. Bundled generic Google YouTube does not conflict with untouched YouTube Premium.",
+    "Explicit settings saves record optional keywordPackVersion=1; manually deleted additions remain deleted after reload and export/import.",
+    "Explicit Add bundled keywords operates on the manager draft, preserving existing rules and requiring the normal save.",
+    "Valid configurations over expansion count/byte limits remain effective unchanged with a notice; corrupt/unreadable settings suspend automatic matching.",
+    "Category suggestions never mutate financial data on startup. Existing history uses the normal preview/apply flow and new imports use preview/save."
+  ],
+  "compatibility": {
+    "legacy_category_settings_accepted": true,
+    "settings_export_preserves_optional_pack_marker": true,
+    "financial_v1_v2_wire_schema_changed": false,
+    "finance_storage_key_changed": false,
+    "settings_max_rules": 200,
+    "settings_export_envelope_max_bytes": 131072,
+    "revision_guards": "Original raw settings CAS token and Web Locks retained; financial writer unchanged."
+  },
+  "verification": {
+    "unit_passed": 602,
+    "unit_failed": 0,
+    "unit_files": 24,
+    "typecheck_build": "passed",
+    "keyword_browser_cases": 13,
+    "category_browser_cases": 15,
+    "theme_browser_cases": 21,
+    "original_browser_scenarios": 39,
+    "total_browser_scenarios": 88,
+    "browser": "156.0.8078.76",
+    "browser_fixtures_synthetic_only": true,
+    "browser_page_errors": 0
+  },
+  "evidence": [
+    {
+      "suite": "keywords",
+      "summary": "work/keyword-pack/final-candidate/summary.json",
+      "sha256": "5e9216f75b4b8fac84049982eb3076707cf3b49267eb64141718b096b5bef61f"
+    },
+    {
+      "suite": "category",
+      "summary": "work/keyword-pack/category-final/summary.json",
+      "sha256": "b9a241d7d2bd70495950f6e3d370c4067012b695c095bc46712b701c6d414ddc"
+    },
+    {
+      "suite": "original",
+      "summary": "work/keyword-pack/original-final/summary.json",
+      "sha256": "b6e500d35b0c0dd5c74553beedfbb441b88c89beb262e8a199157c0e65c0787b"
+    },
+    {
+      "suite": "theme",
+      "summary": "work/keyword-pack/theme-final/summary.json",
+      "sha256": "63a0d23c70cc5beda7eba58e320dc081c8a7e4d2b7503878027b9e620d563dc4"
+    }
+  ],
+  "test_fixture_change": "Existing category-browser manual fixture declares keywordPackVersion=1; its 15 behavioral assertions remain unchanged. Separate 13-case gate tests actual legacy expansion.",
+  "user_sample": {
+    "scope": "Previously supplied JSON/XLSX matched and category rules evaluated read-only in memory.",
+    "original_files_modified": false,
+    "real_financial_data_imported_into_browser_tests": false,
+    "personal_records_copied_into_repository_or_fixtures": false
+  },
+  "limits": [
+    "Merchant rules express editable bookkeeping conventions, not certainty about each purchased item.",
+    "Browser verification uses Chromium on Windows and mobile viewport emulation, not physical devices or manual screen readers.",
+    "Broad performance, source lifecycle, backfill and recovery suites were not rerun in full; existing category gates include targeted quota, concurrency and source-annotation checks.",
+    "CI configuration includes the keyword gate; external CI was not run."
+  ],
+  "online_website_modified": false,
+  "remote_push_performed": false,
+  "deployment_performed": false,
+  "new_source_archive_created": false,
+  "packaging": "User deferred new combined ZIP and off-PC backup; old snapshots retained."
+}

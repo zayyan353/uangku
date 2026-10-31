@@ -1,0 +1,436 @@
+{
+  "created_utc": "2026-10-31T00:40:19.738633+00:00",
+  "status": "local_currency_management_and_generic_import_verified",
+  "base_repository": "https://github.com/zayyan353/uangku",
+  "base_commit": "716229dba1928965bf971325b503eb9dfe0f341d",
+  "canonical_directory": "uangku-local",
+  "branch": "local-rebuild",
+  "full_cloud_A_H_source_recovered": false,
+  "inventory": "docs/RECOVERY_INVENTORY.json",
+  "production_html_sha256": "8c39ac46aa79330a857f399a33e7020ad188a7660a4441c74e7cdf682ca75599",
+  "lockfile_sha256": "d778fda39bd307080db4b2e637a07267ac8db712f0f96ad68a12e815b6add374",
+  "verification": {
+    "unit_passed": 1484,
+    "unit_failed": 0,
+    "unit_files": 45,
+    "browser_scenarios_passed": 213,
+    "browser_scenarios_failed": 0,
+    "new_currency_import_scenarios": 28,
+    "existing_browser_regressions": 185,
+    "new_suite_exact_financial_byte_comparisons": 73,
+    "new_suite_semantic_checks": 63,
+    "ux_contexts_passed": 2,
+    "performance_samples_passed": 5,
+    "typecheck": "passed",
+    "build": "passed",
+    "browser": "156.0.8078.76",
+    "browser_fixtures_synthetic_only": true,
+    "browser_page_errors": 0
+  },
+  "local_review_ready": true,
+  "public_release_decision": "not_requested_or_performed",
+  "online_website_modified": false,
+  "remote_push_performed": false,
+  "deployment_performed": false,
+  "personal_financial_backup_read": true,
+  "real_data_migrated": false,
+  "ci": "configured_locally_including_currency_import_gate_not_externally_executed",
+  "material_limits": [
+    "Generic import supports UTF-8 CSV/TSV and unencrypted XLSX with one account/currency and a genuine running-balance column. Legacy XLS/ODS/PDF and files without running balance are not supported by this path.",
+    "Column mapping, decimal convention, date format, source order and target currency require explicit confirmation. Import does not convert currency or infer account ownership.",
+    "Catalog ships 165 codes with defined numeric minor units from the SIX ISO4217 snapshot published2026-09-17; it is not an online exchange-rate feed or arbitrary custom-token registry.",
+    "Currency removal means hiding an available choice. Used wallets, balances and history remain accessible; no financial data is deleted or converted by this setting.",
+    "New multicurrency/visibility/generic-source data use table-tuples-v6. Older applications reject the unsupported format rather than silently discarding features; legacy v1/older supported formats remain readable.",
+    "Raw import file8MiB, expanded XLSX32MiB,50000transactions and512columns are bounded independently from the logical stored-wire8MiB and browser quota. Oversize or failed writes preserve existing durable data.",
+    "Cross-format candidate duplicates require an explicit keep/distinct decision; incomplete legacy evidence cannot prove identity and is not silently linked.",
+    "Browser tests used fresh synthetic Chromium Windows contexts and320px mobile emulation. Physical Safari/iOS/Android, manual screen readers and every possible bank workbook were not tested.",
+    "Contrast measurements cover sampled visible solid text/controls; gradients and disabled controls are excluded.",
+    "Performance gate covers10individually saved edits on a10k plain ledger; it does not guarantee65k or metadata-heavy UI performance.",
+    "Legacy missing source facts, dates and associations remain unresolved without original evidence. Full historical cloud A-H source is not claimed recovered.",
+    "No personal backup/profile was read or migrated in this feature task. No online change, external CI execution, push, deployment, ZIP bundle or off-PC backup was performed."
+  ],
+  "evidence": [
+    {
+      "path": "work/currencies/new-final-2/summary.json",
+      "sha256": "d666c59c1554e89f027a0c6d007635d80a90693722c97b82d80884383e11ada5",
+      "suite": "new-final-2",
+      "passed": 28
+    },
+    {
+      "path": "work/currencies/original-final/summary.json",
+      "sha256": "23d4a6f515baa5fab74dc520743e2f6fae41a3fda016664717aa84d7bd10197d",
+      "suite": "original-final",
+      "passed": 39
+    },
+    {
+      "path": "work/currencies/recovery-final/summary.json",
+      "sha256": "b49ac6550fb2019c5b4c67a2a0aecfdcb61a0559b5102e322d2f88d05dce3256",
+      "suite": "recovery-final",
+      "passed": 12
+    },
+    {
+      "path": "work/currencies/category-final/summary.json",
+      "sha256": "e15f2d438204350cd453025778e909b16caf529a5f64aa0ebcfbdc18a3d7e9a3",
+      "suite": "category-final",
+      "passed": 15
+    },
+    {
+      "path": "work/currencies/keyword-pack-final/summary.json",
+      "sha256": "db464fe7496243b7e06e1161ce3965d823c16fcd6eb196cef2a6180fc24417ee",
+      "suite": "keyword-pack-final",
+      "passed": 13
+    },
+    {
+      "path": "work/currencies/confirmed-mapping-final/summary.json",
+      "sha256": "0ff06a6bbe066dc2107c02d493f4a2d7dd58efcfd1a8aa9904bfaff9277fa041",
+      "suite": "confirmed-mapping-final",
+      "passed": 10
+    },
+    {
+      "path": "work/currencies/bank-auto-final/summary.json",
+      "sha256": "ab536aaeea2d443c17672dc5972a4d43d1605fa2090d119313547b7ef47b1496",
+      "suite": "bank-auto-final",
+      "passed": 14
+    },
+    {
+      "path": "work/currencies/bank-description-final/summary.json",
+      "sha256": "f0a8044f31d7be5c2119e50da5126da8f7b809b8d5a4f2e9bc44fb5c40fb47ef",
+      "suite": "bank-description-final",
+      "passed": 9
+    },
+    {
+      "path": "work/currencies/source-final/summary.json",
+      "sha256": "f275858f3375752404ee8d90b3b1498ea9d5d9224818c73b2172381b881a8a1c",
+      "suite": "source-final",
+      "passed": 4
+    },
+    {
+      "path": "work/currencies/backfill-final/summary.json",
+      "sha256": "92c7d995221067ea3df51eb1d7a948da22088e3e149bc37d4230f349d3f335e5",
+      "suite": "backfill-final",
+      "passed": 2
+    },
+    {
+      "path": "work/currencies/theme-final/summary.json",
+      "sha256": "f4fe52a4a25f89a3b97475d335a94add8d201d6fa56553ffd49be47c4a90b91a",
+      "suite": "theme-final",
+      "passed": 21
+    },
+    {
+      "path": "work/currencies/cashflow-final/summary.json",
+      "sha256": "a7f94a9b22b6bfcca85856555527028b4acbdd430ae727dc9715d4905ee29ba0",
+      "suite": "cashflow-final",
+      "passed": 15
+    },
+    {
+      "path": "work/currencies/bank-review-final/summary.json",
+      "sha256": "93494253c8d57b8d4c1a3cda5a6639665ec5de1a9d5d3a23b1c9c828167ea997",
+      "suite": "bank-review-final",
+      "passed": 12
+    },
+    {
+      "path": "work/currencies/wallet-final/summary.json",
+      "sha256": "5f31a0c60eda8fcf786c798dc7ba87196ac237cb9535ad9c3eab48a9373d149a",
+      "suite": "wallet-final",
+      "passed": 19
+    }
+  ],
+  "previous_reconstruction_checkpoint": {
+    "commit": "3b8310dbdf859860a93703beb25e0c03ce1b70c2",
+    "production_html_sha256": "f2bad04827ba3ca7bb628b6648436f26d73ad3c3d8d1a22717699b782866cd65",
+    "verification": {
+      "unit_passed": 346,
+      "unit_failed": 0,
+      "unit_files": 17,
+      "typecheck_build": "passed",
+      "original_browser_scenarios": 39,
+      "recovery_browser_scenarios": 12,
+      "source_browser_desktop": 4,
+      "source_browser_mobile": 4,
+      "backfill_browser_desktop": 2,
+      "backfill_browser_mobile": 2,
+      "ux_contexts": 2,
+      "ux_read_only_comparisons": 20,
+      "ux_contrast_samples": 539,
+      "ux_minimum_measured_contrast": 4.776777414302961,
+      "narrow_viewports": [
+        320,
+        768
+      ],
+      "narrow_read_only_comparisons": 28,
+      "performance_samples": 5,
+      "performance_metrics": {
+        "median_batch_ms": 4204.0,
+        "p95_batch_ms": 4297.0,
+        "maximum_active_frame_gap_ms": 154.30000007152557
+      },
+      "performance_budgets": {
+        "median_batch_ms": 5000,
+        "p95_batch_ms": 8000,
+        "maximum_active_frame_gap_ms": 250
+      },
+      "performance_baseline_metrics_same_host": {
+        "median_batch_ms": 12266.0,
+        "p95_batch_ms": 12390.0,
+        "maximum_active_frame_gap_ms": 627.2999999523163
+      },
+      "performance_checks": {
+        "all_samples_passed": true,
+        "source_stable": true,
+        "median_budget": true,
+        "p95_budget": true,
+        "frame_budget": true
+      },
+      "browser": "155.0.8059.86",
+      "synthetic_only": true
+    },
+    "evidence": [
+      {
+        "suite": "original",
+        "summary": "work\\local-browser\\original-delivery\\summary.json",
+        "sha256": "eed7facab5b1a9cde57c9b010f24b5176e3be15256a82de89b373c9d5013ac58"
+      },
+      {
+        "suite": "recovery",
+        "summary": "work\\local-browser\\recovery-delivery\\summary.json",
+        "sha256": "dc3fd7361e2363337a603c54f75fcb1dcf7e3f80a58939b979a62bf3b7e6355f"
+      },
+      {
+        "suite": "ux",
+        "summary": "work\\local-browser\\ux-delivery\\summary.json",
+        "sha256": "6d847c8985089020214933e4da3ced3e4392141e27bdbf76dff7eac4902f8282"
+      },
+      {
+        "suite": "performance",
+        "summary": "work\\local-browser\\performance-delivery\\summary.json",
+        "sha256": "27d7c24a3c30da7e7ce5b2f56b1dfa66b972ab8cf5cb9d8c07942ac4e5ab6d3a"
+      },
+      {
+        "suite": "source_desktop",
+        "summary": "work\\local-browser\\source-delivery-desktop\\summary.json",
+        "sha256": "35a0e80bce521e1e2d17f77f2783667516adce9f42f5d79091b6e8def6f56d33"
+      },
+      {
+        "suite": "source_mobile",
+        "summary": "work\\local-browser\\source-delivery-mobile\\summary.json",
+        "sha256": "35aec79234160d7d700665a2b375f1f3d1135fdfef9a1e80f8187360ecea2ecf"
+      },
+      {
+        "suite": "backfill_desktop",
+        "summary": "work\\local-browser\\backfill-delivery-desktop\\summary.json",
+        "sha256": "d2a68bcfd8b4e3ebf5febac178ffde077af9f87782d733a23564dcd100411d3f"
+      },
+      {
+        "suite": "backfill_mobile",
+        "summary": "work\\local-browser\\backfill-delivery-mobile\\summary.json",
+        "sha256": "48a0b44078b85569d78bfed233621d79fd6935349752be448adb53d1d2481927"
+      }
+    ],
+    "note": "Historical baseline results and old review ZIP/bundle remain valid for this checkpoint only."
+  },
+  "updated_utc": "2026-10-31T16:00:29.849146+00:00",
+  "latest_feature_report": "docs/CURRENCY_IMPORT_REPORT.json",
+  "packaging": "Deferred by user; old archives retained without regenerating them.",
+  "previous_feature_checkpoints": [
+    {
+      "commit": "ea9a1d7",
+      "production_html_sha256": "46db3f4986ce5ecf5028c7fd9b728a2d8d5682435083bcff298ec8b43fd57ac7",
+      "verification": {
+        "unit_passed": 370,
+        "unit_failed": 0,
+        "unit_files": 18,
+        "typecheck_build": "passed",
+        "theme_browser_cases": 21,
+        "theme_read_only_comparisons": 126,
+        "theme_contrast_samples": 5548,
+        "theme_minimum_measured_contrast": 4.776777414302961,
+        "original_browser_scenarios": 39,
+        "light_ux_contexts": 2,
+        "light_ux_read_only_comparisons": 20,
+        "browser": "155.0.8059.86",
+        "synthetic_only": true
+      },
+      "evidence": [
+        {
+          "suite": "theme",
+          "summary": "work/theme-browser/candidate-2/summary.json",
+          "sha256": "8af4375839a80625f478c8c8131b82c2e3375d53d580804cc29a2ef26df42688"
+        },
+        {
+          "suite": "original",
+          "summary": "work/theme/original-smoke/summary.json",
+          "sha256": "60f38510d49286f56faeaaaea182eefb7c0fc101ff3a5be0bb742f67fc333626"
+        },
+        {
+          "suite": "light_ux",
+          "summary": "work/theme/light-ux/summary.json",
+          "sha256": "e3e27d36c7154758efdb813c4a75476fb45b730872703c3e353c8ef5adacd2db"
+        }
+      ],
+      "report": "docs/THEME_FEATURE_REPORT.json"
+    },
+    {
+      "commit": "21e66dc",
+      "production_html_sha256": "b688b232f121ba1295bcf03e63092a1aca24d327aac0d7ef81f5340aee4fd2c0",
+      "verification": {
+        "unit_passed": 506,
+        "unit_failed": 0,
+        "unit_files": 22,
+        "typecheck_build": "passed",
+        "category_browser_cases": 15,
+        "theme_browser_cases": 21,
+        "original_browser_scenarios": 39,
+        "category_exact_financial_byte_comparisons": 23,
+        "category_financial_semantic_invariance_checks": 11,
+        "category_contrast_samples": 943,
+        "category_minimum_measured_contrast": 5.48099637734324,
+        "browser": "155.0.8059.86",
+        "automated_fixtures_synthetic_only": true
+      },
+      "evidence": [
+        {
+          "suite": "category",
+          "summary": "work/category/final-candidate/summary.json",
+          "sha256": "559f8bc9d5196d5f3f762a744e63a653749e74ab12288f823bf1ef98edb0fffb"
+        },
+        {
+          "suite": "original",
+          "summary": "work/category/original-final/summary.json",
+          "sha256": "8a2cd0f1fcb48b5b60853cd597487ff0b786d57d1c7e953252109d99d5d77ff7"
+        },
+        {
+          "suite": "theme",
+          "summary": "work/category/theme-final/summary.json",
+          "sha256": "68ac62c0263dfd88e60ba3200b7ff65a4a03119cffbac433c08329efbea5b1fd"
+        }
+      ],
+      "report": "docs/CATEGORY_FEATURE_REPORT.json"
+    },
+    {
+      "commit": "21edad8",
+      "production_html_sha256": "9774b1efa14da247e6da1aef7c9cb9868c0e435e83c249a94b6e07004ffa42eb",
+      "verification": {
+        "unit_passed": 602,
+        "unit_failed": 0,
+        "unit_files": 24,
+        "typecheck_build": "passed",
+        "keyword_browser_cases": 13,
+        "category_browser_cases": 15,
+        "theme_browser_cases": 21,
+        "original_browser_scenarios": 39,
+        "total_browser_scenarios": 88,
+        "browser": "156.0.8078.76",
+        "browser_fixtures_synthetic_only": true,
+        "browser_page_errors": 0
+      },
+      "evidence": [
+        {
+          "suite": "keywords",
+          "summary": "work/keyword-pack/final-candidate/summary.json",
+          "sha256": "5e9216f75b4b8fac84049982eb3076707cf3b49267eb64141718b096b5bef61f"
+        },
+        {
+          "suite": "category",
+          "summary": "work/keyword-pack/category-final/summary.json",
+          "sha256": "b9a241d7d2bd70495950f6e3d370c4067012b695c095bc46712b701c6d414ddc"
+        },
+        {
+          "suite": "original",
+          "summary": "work/keyword-pack/original-final/summary.json",
+          "sha256": "b6e500d35b0c0dd5c74553beedfbb441b88c89beb262e8a199157c0e65c0787b"
+        },
+        {
+          "suite": "theme",
+          "summary": "work/keyword-pack/theme-final/summary.json",
+          "sha256": "63a0d23c70cc5beda7eba58e320dc081c8a7e4d2b7503878027b9e620d563dc4"
+        }
+      ],
+      "report": "docs/KEYWORD_PACK_REPORT.json"
+    },
+    {
+      "commit": "3ecfea3",
+      "production_html_sha256": "5bfaeeb35b32c878c59493e86349313ce791d0ccba7851c76f9a5a8aa530f9e7",
+      "verification": {
+        "unit_passed": 685,
+        "unit_failed": 0,
+        "unit_files": 26,
+        "typecheck_build": "passed",
+        "confirmed_mapping_browser_cases": 10,
+        "keyword_browser_cases": 13,
+        "category_browser_cases": 15,
+        "theme_browser_cases": 21,
+        "original_browser_scenarios": 39,
+        "total_browser_scenarios": 98,
+        "browser": "156.0.8078.76",
+        "browser_fixtures_synthetic_only": true,
+        "browser_page_errors": 0
+      },
+      "evidence": [
+        {
+          "suite": "confirmed",
+          "summary": "work/confirmed-mapping/final-candidate/summary.json",
+          "sha256": "faf2785f511f173e26db9c221b4fce8890848dc5b7cb38590391c875946df8a6"
+        },
+        {
+          "suite": "keywords",
+          "summary": "work/confirmed-mapping/keyword-final/summary.json",
+          "sha256": "51f6bc025400eab2a8e5e859c4a37f47a5b68263189af82eaadeb7192196feea"
+        },
+        {
+          "suite": "category",
+          "summary": "work/confirmed-mapping/category-final/summary.json",
+          "sha256": "cb1ee133955e3236d633b8be43e3ac5ce49852e4f48bd920013495eb95958833"
+        },
+        {
+          "suite": "original",
+          "summary": "work/confirmed-mapping/original-final/summary.json",
+          "sha256": "70962b3d0aaa011c19e62006572ee80c862317c82784a12952717a107ff3eeb5"
+        },
+        {
+          "suite": "theme",
+          "summary": "work/confirmed-mapping/theme-final/summary.json",
+          "sha256": "287b5053c0ae3ac72565aa3a492dfeae306941b29162b0f5b12a60088b625b3c"
+        }
+      ],
+      "report": "docs/CONFIRMED_MAPPING_REPORT.json"
+    },
+    {
+      "commit": "172ae4adc4803c7afc0f840f756fcb8615e648a3",
+      "production_html_sha256": "3e84e24b5966fbce42b4e94354a94522d69a3bca72be208b4c13edf1140d2211",
+      "verification": {
+        "unit_passed": 1319,
+        "unit_failed": 0,
+        "unit_files": 42,
+        "browser_scenarios_passed": 185,
+        "ux_contexts_passed": 2,
+        "performance_samples_passed": 5,
+        "typecheck": "passed",
+        "build": "passed",
+        "browser": "156.0.8078.76",
+        "browser_fixtures_synthetic_only": true,
+        "browser_page_errors": 0
+      },
+      "report": "docs/WALLET_LIFECYCLE_REPORT.json"
+    }
+  ],
+  "personal_backup_scope": "User-provided example read-only in memory; browser tests use synthetic data.",
+  "current_report": "docs/CURRENCY_IMPORT_REPORT.json",
+  "keywordPackVersion": 4,
+  "cash_bookkeeping": "disabled; referenced legacy history retained as read-only archive",
+  "real_browser_application": {
+    "status": "not_applied",
+    "reason": "Computer Use stopped because it could not determine the current Windows browser URL with enough confidence to enforce policy. No bypass attempted.",
+    "category_or_transaction_save_clicked": false,
+    "original_browser_balances_and_duplicates_verified": false,
+    "note": "All completed financial invariance checks are synthetic tests, not a claim that real browser history was migrated."
+  },
+  "account_cashflow_report": "docs/ACCOUNT_CASHFLOW_REPORT.json",
+  "account_cashflow_scope": "Read-only reporting. Existing categories, rules, entries and source facts preserved; all signed dated bank flows counted. Calculation agreement does not prove bank-statement completeness.",
+  "bank_description_review_report": "docs/BANK_DESCRIPTION_REVIEW_REPORT.json",
+  "bank_description_review_scope": "StrictATMrefund, genericphysicalPOSfallback, source-first display and consistent reviewreasons; saved data changes only through reviewedApply.",
+  "wallet_lifecycle_report": "docs/WALLET_LIFECYCLE_REPORT.json",
+  "wallet_lifecycle_scope": "Create/edit, safe emptywallet deletion, persisted archive/restore with retained financial history, exactwallet history and consistent actualbalance totals; personaldata unchanged.",
+  "currency_import_report": "docs/CURRENCY_IMPORT_REPORT.json",
+  "currency_import_scope": "165catalog codes; retained hidden history; exact minor-unit money/major FX; explicit mappedCSV/TSV/XLSX with real running balances and reviewed duplicate decisions.",
+  "feature_personal_backup_read": false
+}

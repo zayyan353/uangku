@@ -142,6 +142,40 @@ describe('bulk categories preserve financial meaning until explicitly confirmed'
 });
 
 describe('conservative transfer candidate suggestions', () => {
+  it('offers confirmed movement legs symmetrically without changing either signed posting or balance', () => {
+    const original = state([
+      entry({ id: 'bank-debit', type: 'movement', amount: -1_000, date: '2026-10-31' }),
+      entry({ id: 'wallet-credit', type: 'movement', walletId: 'tracked-ewallet', amount: 1_000, date: '2026-11-02' }),
+    ]);
+    original.wallets = [...wallets, { id: 'tracked-ewallet', name: 'Synthetic e-wallet', currency: 'TRY', kind: 'ewallet', openingBalance: 0 }];
+    const before = structuredClone(original), beforeBalances = balances(original);
+    expect(transferCandidates(original, 'bank-debit')).toEqual([{ id: 'wallet-credit', daysApart: 2 }]);
+    expect(transferCandidates(original, 'wallet-credit')).toEqual([{ id: 'bank-debit', daysApart: 2 }]);
+    expect(original).toEqual(before); expect(balances(original)).toEqual(beforeBalances);
+    expect(original.entries.map(row => [row.type, row.amount])).toEqual([['movement', -1_000], ['movement', 1_000]]);
+  });
+
+  it.each([
+    ['movement', 'unreviewed'], ['unreviewed', 'movement'],
+  ] as const)('allows an explicit candidate between %s debit and %s credit', (debitType, creditType) => {
+    const original = state([
+      entry({ id: 'debit', type: debitType, amount: -1_000 }),
+      entry({ id: 'credit', type: creditType, walletId: 'tracked-bank', amount: 1_000 }),
+    ]);
+    original.wallets = [...wallets, { id: 'tracked-bank', name: 'Synthetic second bank', currency: 'TRY', kind: 'bank', openingBalance: 0 }];
+    expect(transferCandidates(original, 'credit')).toEqual([{ id: 'debit', daysApart: 0 }]);
+    expect(transferCandidates(original, 'debit')).toEqual([{ id: 'credit', daysApart: 0 }]);
+  });
+
+  it('does not turn ordinary confirmed income, expense, adjustment, or existing transfer into movement pairing candidates', () => {
+    const original = state([
+      entry({ id: 'debit', type: 'movement', amount: -1_000 }),
+      ...(['income', 'expense', 'adjustment', 'transfer'] as const).map(type => entry({ id: type, type, walletId: 'tracked-bank', amount: 1_000 })),
+    ]);
+    original.wallets = [...wallets, { id: 'tracked-bank', name: 'Synthetic second bank', currency: 'TRY', kind: 'bank', openingBalance: 0 }];
+    expect(transferCandidates(original, 'debit')).toEqual([]);
+  });
+
   it('matches opposite signed pending flows in another wallet, closest date first', () => {
     const original = state([
       entry({ amount: -1_000 }),

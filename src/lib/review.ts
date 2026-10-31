@@ -1,7 +1,7 @@
 import { CATEGORY_NAMES, validateEntry, type Entry, type State } from './finance';
 
 export function canCategorize(entry: Entry): boolean {
-  return entry.type === 'expense' || entry.type === 'income' || entry.type === 'unreviewed';
+  return entry.type === 'expense' || entry.type === 'income' || entry.type === 'unreviewed' || entry.type === 'movement';
 }
 
 /**
@@ -52,13 +52,13 @@ function calendarTime(date: string): number | null {
 /** Suggestions only: no ownership, FX rate, fee split, or confirmation is inferred. */
 export function transferCandidates(state: State, entryId: string): Array<{ id: string; daysApart: number }> {
   const entry = state.entries.find(candidate => candidate.id === entryId);
-  if (!entry || entry.type !== 'unreviewed' || !Number.isSafeInteger(entry.amount) || entry.amount === 0) return [];
+  if (!entry || !['unreviewed', 'movement'].includes(entry.type) || !Number.isSafeInteger(entry.amount) || entry.amount === 0) return [];
   const source = state.wallets.find(wallet => wallet.id === entry.walletId);
   const time = calendarTime(entry.date);
   if (!source || time === null) return [];
   const currencies = new Map(state.wallets.map(wallet => [wallet.id, wallet.currency]));
   return state.entries.flatMap(candidate => {
-    if (candidate.id === entry.id || candidate.type !== 'unreviewed' || candidate.walletId === entry.walletId
+    if (candidate.id === entry.id || !['unreviewed', 'movement'].includes(candidate.type) || candidate.walletId === entry.walletId
       || currencies.get(candidate.walletId) !== source.currency || candidate.amount !== -entry.amount) return [];
     const candidateTime = calendarTime(candidate.date);
     if (candidateTime === null) return [];
