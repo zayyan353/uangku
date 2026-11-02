@@ -1076,6 +1076,15 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 }
 
 /* Read-only account cashflow overview. */
+.balance-card-compact { min-height: 0; padding: 18px 20px; margin-bottom: 18px; }
+.balance-card-compact .balance-card-top { justify-content: flex-start; flex-wrap: wrap; margin-bottom: 10px; }
+.balance-card-compact .balance-currency { margin-left: auto; }
+.balance-card-compact .balance-number { margin-bottom: 10px; }
+.balance-card-compact .balance-meta { line-height: 1.5; overflow-wrap: anywhere; }
+.balance-card-compact .balance-meta svg { flex-shrink: 0; }
+.balance-card-compact .balance-bottom { margin-top: 10px; padding-top: 8px; }
+.balance-demo { color: #173b31; background: #d5ee96; font-size: 11px; font-weight: 650; border-radius: 5px; padding: 3px 6px; }
+.balance-period { position: relative; z-index: 1; color: inherit; font-size: 11px; line-height: 1.5; margin: 3px 0 0; }
 .cashflow-overview { min-width: 0; }
 .cashflow-controls { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; margin: 0 0 18px; }
 .cashflow-controls label { display: flex; flex: 1 1 230px; min-width: 0; max-width: 380px; flex-direction: column; gap: 6px; }

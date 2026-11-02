@@ -104,7 +104,7 @@ def money_text(amount):
 
 class Case:
     def __init__(self, browser, args, name, *, data=None, width=1440,
-                 theme='light', currency='TRY'):
+                 height=None, theme='light', currency='TRY'):
         self.args, self.name, self.width = args, name, width
         self.errors, self.byte_checks, self.semantic_checks = [], 0, 0
         self.contrasts = []
@@ -116,7 +116,7 @@ class Case:
         self.raw = compact(wire)
         parts = urlsplit(args.url)
         self.context = browser.new_context(
-            viewport={'width': width, 'height': 1000 if width > 600 else 844},
+            viewport={'width': width, 'height': height or (1000 if width > 600 else 844)},
             is_mobile=width < 600, has_touch=width < 600, color_scheme=theme,
             timezone_id='Europe/Istanbul', accept_downloads=True,
             storage_state={'cookies': [], 'origins': [{
@@ -378,6 +378,38 @@ def visual(case):
     case.assert_unchanged()
 
 
+def first_fold(case):
+    page = case.page
+    card = page.locator('.balance-card')
+    action = page.get_by_role('button', name='Catat transaksi', exact=True)
+    amount = page.get_by_test_id('cashflow-closing')
+
+    def check_frame():
+        assert page.evaluate('window.scrollY') == 0
+        nav_top = page.locator('.mobile-nav').bounding_box()['y']
+        for node in [amount, card.locator('.balance-meta'), card.locator('.balance-period'), action]:
+            expect(node).to_have_count(1)
+            box = node.bounding_box()
+            assert box and box['y'] >= 0 and box['y'] + box['height'] <= nav_top, (box, nav_top)
+            assert box['x'] >= 0 and box['x'] + box['width'] <= case.width + 1, box
+        assert action.evaluate('el => { const r=el.getBoundingClientRect(); return el.contains(document.elementFromPoint(r.x+r.width/2,r.y+r.height/2)); }')
+
+    check_frame()
+    expect(card.locator('.balance-demo')).to_have_count(1 if case.data['demo'] else 0)
+    expect(amount).to_have_attribute('data-amount', '29750')
+    case.scope('second')
+    page.evaluate('window.scrollTo(0, 0)')
+    check_frame()
+    expect(card.locator('.balance-meta')).to_have_text('Synthetic second bank')
+    expect(amount).to_have_attribute('data-amount', '19750')
+    case.month('2099-01')
+    page.evaluate('window.scrollTo(0, 0)')
+    check_frame()
+    expect(amount).to_have_text('Belum tersedia')
+    expect(card.locator('.balance-period')).to_contain_text('periode belum dimulai')
+    case.assert_unchanged()
+
+
 def source_fixture():
     rows = [entry('source-in', 1_000, 'income'),
             entry('source-out', 300, 'expense', category='Pendidikan')]
@@ -451,6 +483,11 @@ def cases():
     for width in [320, 390]:
         for theme in ['dark', 'light']:
             result.append((f'visual-{width}-{theme}', {'width': width, 'theme': theme}, visual))
+    fold_data = document([entry('spend', 250, 'expense', wallet_id='second')],
+        [wallet(), wallet('second', 'Synthetic second bank', opening=20_000)])
+    for width, height, demo in [(320, 568, True), (390, 844, True), (375, 667, False)]:
+        result.append((f'first-fold-{width}x{height}', {'width': width, 'height': height,
+            'data': {**fold_data, 'demo': demo}}, first_fold))
     return result
 
 

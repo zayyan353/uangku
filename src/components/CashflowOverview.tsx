@@ -1,4 +1,5 @@
 import { ArrowDownLeft, ArrowUpRight, Wallet as WalletIcon } from 'lucide-react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import { formatDate, formatMoney, type Currency, type Wallet } from '../lib/finance';
 import { monthLabel } from '../lib/historyView';
 import type { CashflowReport } from '../lib/cashflowReport';
@@ -14,13 +15,47 @@ interface Props {
   archivedWalletIds?: ReadonlySet<string>;
   onPeriodChange: (period: 'month' | 'all') => void;
   onWalletChange: (walletId: string) => void;
+  balanceCard: ReactNode;
 }
 
-export default function CashflowOverview({ report, error, currency, month, period, walletId, wallets, archivedWalletIds, onPeriodChange, onWalletChange }: Props) {
-  const scope = walletId === 'all' ? `Semua rekening & e-wallet ${currency}` : wallets.find(wallet => wallet.id === walletId)?.name ?? 'Rekening';
+const phoneLayout = '(max-width: 760px)';
+function subscribeLayout(listener: () => void) {
+  const media = window.matchMedia(phoneLayout);
+  media.addEventListener('change', listener);
+  return () => media.removeEventListener('change', listener);
+}
+export function useMobileOverview() {
+  return useSyncExternalStore(subscribeLayout, () => window.matchMedia(phoneLayout).matches);
+}
+
+function periodCaption(report: CashflowReport | undefined, month: string, period: Props['period']) {
+  if (!report) return 'Laporan belum dapat dihitung';
+  if (report.notStarted) return `${monthLabel(month)} · periode belum dimulai`;
+  return period === 'all' ? `Seluruh catatan hingga ${formatDate(report.periodEnd)}` : `${formatDate(report.periodStart!)} – ${formatDate(report.periodEnd)}`;
+}
+
+export function CashflowBalance({ report, currency, month, period, scope, mobile, demo }: Pick<Props, 'report' | 'currency' | 'month' | 'period'> & {
+  scope: string; mobile: boolean; demo: boolean;
+}) {
+  const closing = report?.closingBalance;
+  return <section className={`balance-card${mobile ? ' balance-card-compact' : ''}`}>
+    <div className="balance-card-top">
+      <span className="balance-label">Saldo akhir periode</span>
+      {mobile && demo && <span className="balance-demo">Data contoh</span>}
+      <span className="balance-currency">{currency === 'TRY' ? 'TL' : currency}</span>
+    </div>
+    <div className="balance-number"><span data-testid="cashflow-closing" data-amount={closing ?? undefined}>{closing == null ? mobile ? 'Belum tersedia' : '—' : formatMoney(closing, currency)}</span></div>
+    <div className="balance-meta"><WalletIcon size={15} /><span>{scope}</span></div>
+    {mobile && <p className="balance-period">{periodCaption(report, month, period)}</p>}
+    <span className="balance-orbit orbit-one" /><span className="balance-orbit orbit-two" />
+    <div className="balance-bottom"><span>Seluruh catatan: {report ? formatMoney(report.allRecordsBalance, currency) : '—'} · termasuk tanggal masa depan</span></div>
+  </section>;
+}
+
+export default function CashflowOverview({ report, error, currency, month, period, walletId, wallets, archivedWalletIds, onPeriodChange, onWalletChange, balanceCard }: Props) {
   const warning = error || report?.balanceWarning || (report?.notStarted ? 'Periode belum dimulai. Transaksi bertanggal masa depan tidak masuk arus rekening aktual.' : '');
   const amount = (value: number | null | undefined, id?: string) => <span data-testid={id ? `cashflow-${id}` : undefined} data-amount={value ?? undefined}>{value === null || value === undefined ? '—' : formatMoney(value, currency)}</span>;
-  const caption = report?.notStarted ? `${monthLabel(month)} · periode belum dimulai` : report ? period === 'all' ? `Seluruh catatan hingga ${formatDate(report.periodEnd)}` : `${formatDate(report.periodStart!)} – ${formatDate(report.periodEnd)}` : 'Laporan belum dapat dihitung';
+  const caption = periodCaption(report, month, period);
   return <div className="cashflow-overview">
     <div className="cashflow-controls">
       <label><span className="field-label">Cakupan arus rekening</span><select className="select-input" aria-label="Cakupan arus rekening" value={walletId} onChange={event => onWalletChange(event.target.value)}><option value="all">Semua rekening & e-wallet {currency}</option>{wallets.map(wallet => <option key={wallet.id} value={wallet.id}>{wallet.name}{archivedWalletIds?.has(wallet.id) ? ' (arsip)' : ''}</option>)}</select></label>
@@ -30,7 +65,7 @@ export default function CashflowOverview({ report, error, currency, month, perio
     {!!archivedWalletIds?.size && <p className="cashflow-explanation">Laporan tetap mencakup {archivedWalletIds.size} dompet arsip. Pengarsipan tidak menghapus saldo atau histori.</p>}
     {warning && <div className="notice warning" data-testid="cashflow-warning" role="status">{warning}</div>}
     <div className="overview-grid">
-      <section className="balance-card"><div className="balance-card-top"><span className="balance-label">Saldo akhir periode</span><span className="balance-currency">{currency === 'TRY' ? 'TL' : currency}</span></div><div className="balance-number">{amount(report?.closingBalance, 'closing')}</div><div className="balance-meta"><WalletIcon size={15} /><span>{scope}</span></div><span className="balance-orbit orbit-one" /><span className="balance-orbit orbit-two" /><div className="balance-bottom"><span>Seluruh catatan: {amount(report?.allRecordsBalance)} · termasuk tanggal masa depan</span></div></section>
+      {balanceCard}
       <div className="stats-stack"><section className="stat-card"><span className="stat-icon income"><ArrowDownLeft size={22} /></span><div><span className="stat-label">Uang masuk rekening</span><strong className="stat-value">{amount(report?.inflow, 'inflow')}</strong><span className="stat-foot">Termasuk transfer masuk dan catatan belum dikategorikan</span></div></section><section className="stat-card"><span className="stat-icon expense"><ArrowUpRight size={22} /></span><div><span className="stat-label">Uang keluar rekening</span><strong className="stat-value">{amount(report?.outflow, 'outflow')}</strong><span className="stat-foot">Termasuk transfer keluar, tarik tunai, dan biaya</span></div></section></div>
     </div>
     <section className="panel cashflow-reconciliation" data-testid="cashflow-reconciliation" data-complete={report?.isComplete ? 'true' : 'false'} aria-label="Perhitungan saldo periode">

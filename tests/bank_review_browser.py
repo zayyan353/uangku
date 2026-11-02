@@ -317,6 +317,18 @@ def queue_subsets(case):
         reason.select_option(value);expect(table).to_have_count(len(ids))
         for id_ in ids:expect(table.filter(has_text='SYNTHETIC '+id_)).to_have_count(1)
         case.unchanged()
+    reason.select_option('category')
+    p.get_by_label('Cari transaksi',exact=True).fill('category-only')
+    nav(p,'Ringkasan');nav(p,'Transaksi')
+    expect(reason).to_have_value('category')
+    expect(p.get_by_label('Cari transaksi',exact=True)).to_have_value('category-only')
+    expect(table).to_have_count(1)
+    nav(p,'Ringkasan')
+    p.locator('.pending-banner').click()
+    expect(reason).to_have_value('all')
+    expect(p.get_by_label('Cari transaksi',exact=True)).to_have_value('')
+    expect(table).to_have_count(3)
+    case.unchanged()
     p.reload(wait_until='networkidle');case.unchanged()
 
 
