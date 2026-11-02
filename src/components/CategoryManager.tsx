@@ -151,7 +151,7 @@ export default function CategoryManager({ settings, onSave, onClose, notice }: {
           </section>
           <section className="category-manager-section" aria-label="Cadangan pengaturan kategori">
             <h3>Simpan pengaturan terpisah</h3>
-            <p className="field-help">Cadangan transaksi belum menyertakan daftar pilihan dan aturan kategori ini. Ekspor pengaturan agar kategori yang belum dipakai serta aturan pribadi ikut tersimpan. Nama kategori yang sudah dipakai tetap ada dalam cadangan transaksi.</p>
+            <p className="field-help">Pilih Cadangkan semuanya di menu utama untuk menyimpan transaksi, semua pilihan kategori, dan aturan yang sudah disimpan dalam satu file. Tombol di bawah mengekspor pengaturan dalam formulir ini saja.</p>
             <div className="category-manager-files"><button type="button" className="button secondary" onClick={exportSettings}><Download size={16} /> Ekspor pengaturan kategori</button><button type="button" className="button secondary" onClick={() => fileRef.current?.click()}><Upload size={16} /> Impor pengaturan kategori</button></div>
             <input ref={fileRef} type="file" accept=".json,application/json" className="category-settings-file" aria-label="File pengaturan kategori" onChange={event => void importSettings(event.target.files?.[0])} />
             <p className="field-help">Impor maksimal 128 KiB; hanya mengganti formulir sampai kamu menyimpan.</p>

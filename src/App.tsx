@@ -13,7 +13,9 @@ import {
   validateEntry, walletBalanceAt,
   type Currency, type Entry, type State, type Wallet,
 } from './lib/finance';
-import { createEmptyState, MAX_RESTORE_BYTES, parseBackupText, prepareBackup, serializeBackup, type StoredData } from './lib/storage';
+import { createEmptyState, MAX_RESTORE_BYTES, prepareBackup, serializeBackup, type StoredData } from './lib/storage';
+import { parseRestoreFile } from './lib/fullBackup';
+import type { CandidateOptions } from './lib/persistence';
 import { useLedgerStorage } from './hooks/useLedgerStorage';
 import RecoveryImportView from './components/RecoveryImportView';
 import { preferredWallet, readPreferences, writePreferences } from './lib/preferences';
@@ -187,7 +189,7 @@ export default function App() {
   useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, historyPeriod, historyPage, reviewReason, historyWallet]);
   useEffect(() => { setHistoryPage(1); }, [query, filter, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet]);
   useEffect(() => { setAmountDetail(null); }, [state]);
-  async function persistCandidate(next: StoredData, options?: { expectedData?: StoredData; expectedToken?: string | null; replaceBlocked?: boolean; replaceLedger?: boolean }): Promise<boolean> {
+  async function persistCandidate(next: StoredData, options?: CandidateOptions & { replaceLedger?: boolean }): Promise<boolean> {
     if (mutationInFlight.current) return false;
     mutationInFlight.current = true;
     try {
@@ -244,6 +246,15 @@ export default function App() {
   function backupCurrent() {
     try { downloadText(blocked ? ledger.recoveryText() : serializeBackup(data), `uangku-cadangan-${today()}.json`); notify('Cadangan diunduh. Uji pemulihannya di salinan terpisah.'); }
     catch (reason) { notify(reason instanceof Error ? reason.message : 'Cadangan belum dapat dibuat.'); }
+  }
+  async function backupAll() {
+    try {
+      const text = await ledger.exportFullBackup(categoryPreferences.raw);
+      downloadText(text, `uangku-lengkap-${today()}.json`);
+      notify('Cadangan lengkap diunduh. Dompet, transaksi, dan pengaturan kategori ada dalam satu file.');
+    } catch (reason) {
+      notify(reason instanceof Error ? reason.message : 'Cadangan lengkap belum dapat dibuat.');
+    }
   }
   const currencyWallets = useMemo(() => activeState.wallets.filter(w => w.currency === currency), [activeState.wallets, currency]);
   const dashboardWallet = currencyWallets.find(wallet => wallet.id === cashflowWallet);
@@ -308,7 +319,7 @@ export default function App() {
     } catch (err) { notify(err instanceof Error ? err.message : 'Transaksi belum bisa dirapikan.'); }
   }
   function openCategoryManager() {
-    if (mutationInFlight.current) return;
+    if (mutationInFlight.current || categoryPreferences.recovering) return;
     categorySettingsBase.current = categoryPreferences.raw;
     setCategoryManager(categoryPreferences.settings);
   }
@@ -328,7 +339,7 @@ export default function App() {
       return ok;
     } catch (error) { notify(error instanceof Error ? error.message : 'Kategori belum tersimpan.'); return false; }
   }
-  const categoryTools = <div className="category-toolbar"><button className="button secondary small" onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button secondary small" disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} onClick={() => { if (!mutationInFlight.current) setCategoryAutomation({ data, token: ledger.revisionToken }); }}><CheckCheck size={16} /> Isi kategori otomatis</button><span className="field-help">Kategori kosong & konfirmasi mutasi bank · semua periode</span>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}</div>;
+  const categoryTools = <div className="category-toolbar"><button className="button secondary small" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button secondary small" disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked || categoryPreferences.recovering} onClick={() => { if (!mutationInFlight.current) setCategoryAutomation({ data, token: ledger.revisionToken }); }}><CheckCheck size={16} /> Isi kategori otomatis</button><span className="field-help">Kategori kosong & konfirmasi mutasi bank · semua periode</span>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}</div>;
   const categoryTotals = cashflowResult.report?.categoryTotals ?? [];
   const categoryExpenseTotal = cashflowResult.report?.categoryExpenseTotal ?? 0;
   function startOwn() {
@@ -438,9 +449,38 @@ export default function App() {
   async function restore(file?: File) {
     if (!file) return;
     try {
-      if (file.size > MAX_RESTORE_BYTES) throw new Error('File pemulihan mentah maksimal 32 MiB; data logis tetap maksimal 8 MiB.');
-      const restored = parseBackupText(await file.text());
-      setConfirm({ title: 'Pulihkan cadangan?', text: `${restored.state.wallets.length} dompet dan ${restored.state.entries.length} transaksi akan menggantikan catatan di browser ini. Unduh cadangan sekarang dulu jika catatan lama masih dibutuhkan.`, label: 'Pulihkan data', action: async () => { if (await persistCandidate(restored, { replaceBlocked: true, replaceLedger: true, expectedData: data, expectedToken: ledger.revisionToken })) notify('Cadangan berhasil dipulihkan dan tersimpan.'); } });
+      if (ledger.pending || ledger.dirty || mutationInFlight.current) {
+        throw new Error('Selesaikan penyimpanan atau unduh pekerjaan yang belum tersimpan sebelum memulihkan cadangan.');
+      }
+      if (file.size > MAX_RESTORE_BYTES) throw new Error('Ukuran mentah file pemulihan maksimal 32 MiB.');
+      const backup = parseRestoreFile(await file.text());
+      const { ledger: restored } = backup;
+      const counts = `${restored.state.wallets.length} dompet, ${restored.state.entries.length} transaksi`;
+      const options = { replaceBlocked: true, replaceLedger: true, expectedData: data, expectedToken: ledger.revisionToken };
+      if (backup.kind === 'full') {
+        const settings = backup.categorySettings;
+        setConfirm({
+          title: 'Pulihkan cadangan lengkap?',
+          text: `${counts}, ${settings.names.length} kategori, dan ${settings.rules.length} aturan dari file akan menggantikan catatan dan pengaturan kategori di browser ini. Cadangkan isi saat ini dulu jika masih diperlukan.`,
+          label: 'Pulihkan semuanya',
+          action: async () => {
+            const saved = await persistCandidate(restored, {
+              ...options, restoreCategories: { settings, expectedRaw: categoryPreferences.raw },
+            });
+            if (saved) notify('Cadangan lengkap dipulihkan. Transaksi dan pengaturan kategori sudah tersimpan.');
+            else notify('Cadangan lengkap belum dipulihkan. Periksa status penyimpanan sebelum mencoba lagi.');
+          },
+        });
+      } else {
+        setConfirm({
+          title: 'Pulihkan cadangan?',
+          text: `${counts} akan menggantikan catatan di browser ini. Pengaturan kategori dan aturan pribadi tetap dipakai. Cadangkan catatan saat ini dulu jika masih diperlukan.`,
+          label: 'Pulihkan data',
+          action: async () => {
+            if (await persistCandidate(restored, options)) notify('Cadangan berhasil dipulihkan dan tersimpan.');
+          },
+        });
+      }
     } catch (err) { notify(err instanceof Error ? err.message : 'File cadangan tidak valid.'); }
     finally { if (restoreRef.current) restoreRef.current.value = ''; }
   }
@@ -468,7 +508,7 @@ export default function App() {
   }
   return <CategorySettingsContext.Provider value={categoryPreferences.settings}><div className="app-shell">
     <aside className="sidebar"><a className="brand" href="#" onClick={e => { e.preventDefault(); navigate('overview'); }} aria-label="Uangku beranda"><span className="brand-mark">u<span /></span><span className="brand-copy">uangku<span>uangmu, lebih rapi.</span></span></a><span className="nav-caption">RUANG UANGMU</span><nav>{navigation.map(({ page: p, label, icon: Icon }) => <button key={p} className={`nav-item ${page === p ? 'active' : ''}`} onClick={() => navigate(p)} aria-current={page === p ? 'page' : undefined}><Icon size={20} /><span>{label}</span>{p === 'transactions' && pendingCount > 0 && <span className="nav-count">{pendingCount}</span>}{page === p && <ChevronRight className="nav-chevron" size={15} />}</button>)}</nav>
-      <div className="sidebar-bottom"><div className="sidebar-tip"><Leaf size={23} /><strong>Nggak harus sempurna.</strong><p>Satu catatan hari ini lebih baik daripada menunggu lengkap.</p></div><div className="backup-tools"><button onClick={backupCurrent}><Download size={16} /> Cadangkan data</button><button onClick={() => restoreRef.current?.click()}><History size={16} /> Pulihkan cadangan</button></div><div className="sidebar-user"><span className="avatar">Z</span><div><strong>Ruang pribadi</strong><span><span className="status-dot" /> {ledger.label}</span></div><ShieldCheck size={18} /></div></div>
+      <div className="sidebar-bottom"><div className="sidebar-tip"><Leaf size={23} /><strong>Nggak harus sempurna.</strong><p>Satu catatan hari ini lebih baik daripada menunggu lengkap.</p></div><div className="backup-tools"><button onClick={() => void backupAll()}><Download size={16} /> Cadangkan semuanya</button><button onClick={backupCurrent}><Download size={16} /> Cadangkan transaksi saja</button><button onClick={() => restoreRef.current?.click()}><History size={16} /> Pulihkan cadangan</button></div><div className="sidebar-user"><span className="avatar">Z</span><div><strong>Ruang pribadi</strong><span><span className="status-dot" /> {ledger.label}</span></div><ShieldCheck size={18} /></div></div>
     </aside>
     <main className="main-content"><header className="topbar"><div className="breadcrumb">Ruang pribadi <ChevronRight size={13} /><strong>{navigation.find(n => n.page === page)?.label}</strong></div><div className="topbar-tools"><ThemePicker onNotice={notify} /><span className="local-indicator"><span className="status-dot" /> Lokal & pribadi</span><button className="icon-button" aria-label="Privasi dan cadangan" onClick={() => setPrivacyOpen(true)}><ShieldCheck size={18} /></button><span className="avatar small">Z</span></div></header>
       <div className="page-content"><div className="page-header"><div><div className="eyebrow">SEDIKIT DICATAT, BANYAK TERBANTU</div><h1 className="page-title">{titles[page][0]} {page === 'overview' && <span className="greeting-leaf">✳</span>}</h1><p className="page-subtitle">{titles[page][1]}</p></div><div className="page-actions">{page === 'wallets' ? <button className="button primary" onClick={() => openWallet('new')}><Plus size={18} /> Tambah dompet</button> : <><button className="button secondary" onClick={() => openTx('transfer')}><ArrowLeftRight size={17} /> Pindah uang</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></>}</div></div>
@@ -502,7 +542,7 @@ export default function App() {
       </>}
       {page === 'transactions' && <section className="panel transactions-panel">{categoryTools}{isReviewQueue && <div className="review-scope"><CircleHelp size={19} /><div><strong>Perlu dirapikan · <span data-testid="review-total" data-count={pendingCount}>{pendingCount}</span> catatan</strong><p>Semua mata uang dan semua periode. <span data-testid="review-types" data-count={pendingReview.type}>{pendingReview.type}</span> jenis perlu dicek · <span data-testid="review-categories" data-count={pendingReview.category}>{pendingReview.category}</span> kategori belum diisi. Satu catatan bisa memiliki dua alasan; total tidak dihitung ganda. Saldo mutasi sudah tercatat.</p></div></div>}<div className="filter-bar"><label className="search-input"><Search size={18} /><input placeholder="Cari keterangan atau dompet…" aria-label="Cari transaksi" value={query} onChange={e => { setQuery(e.target.value); if (e.target.value.trim() && !query.trim()) setHistoryPeriod('all'); }} /></label>{!isReviewQueue && <label className="history-period"><span className="field-label">Periode</span><select aria-label="Periode transaksi" className="select-input" value={historyPeriod} onChange={e => setHistoryPeriod(e.target.value as HistoryPeriod)}><option value="month">{reportMonth}</option><option value="all">Semua periode</option></select></label>}<select aria-label="Dompet riwayat" className="select-input" value={validHistoryWallet ?? 'all'} onChange={event => setHistoryWallet(event.target.value)}><option value="all">Semua dompet</option>{activeState.wallets.filter(wallet => isReviewQueue ? !isWalletArchived(data, wallet.id) : wallet.currency === currency).map(wallet => <option key={wallet.id} value={wallet.id}>{wallet.name}{isWalletArchived(data, wallet.id) ? ' (arsip)' : ''}</option>)}</select><select aria-label="Filter jenis transaksi" className="select-input" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Semua jenis</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option><option value="movement">Perpindahan dana rekening</option><option value="pending">Perlu dirapikan</option><option value="adjustment">Penyesuaian</option></select>{isReviewQueue && <select aria-label="Alasan perlu dirapikan" className="select-input" value={reviewReason} onChange={event => setReviewReason(event.target.value as ReviewReason)}><option value="all">Semua alasan</option><option value="type">Jenis perlu dicek</option><option value="category">Kategori belum diisi</option></select>}<button type="button" className="button secondary small" onClick={() => { openHistory('all', 'month'); setMonth(clockDay.slice(0, 7)); }}>Reset filter</button><span className="transaction-count">{allTransactions.length} transaksi</span>{!isReviewQueue && pendingCount > 0 && <button className="button secondary small" onClick={() => setFilter('pending')}>Rapikan {pendingCount} catatan</button>}</div>{selectedEntries.length > 0 && <BulkReviewPanel entries={selectedEntries} onApply={applyBulkCategory} onClear={() => setSelectedEntryIds([])} />}<p className="field-help history-scope" role="status">{isReviewQueue ? 'Semua mata uang · semua periode' : `${currency} · ${historyPeriod === 'all' ? 'Semua periode' : reportMonth}`} · {allTransactions.length} transaksi. Pilih catatan di halaman ini untuk kategori massal.</p><TransactionTable entries={historySlice.entries} state={state} data={data} onEdit={editEntry} onDelete={deleteEntry} onDetail={setAmountDetail} selection={selection} /><nav className="history-pagination" aria-label="Halaman riwayat"><span role="status">{historySlice.start}–{historySlice.end} dari {historySlice.total} · Halaman {historySlice.page} dari {historySlice.pageCount}</span><div><button className="button secondary small" disabled={historySlice.page <= 1} onClick={() => setHistoryPage(historySlice.page - 1)}>Halaman sebelumnya</button><button className="button secondary small" disabled={historySlice.page >= historySlice.pageCount} onClick={() => setHistoryPage(historySlice.page + 1)}>Halaman berikutnya</button></div></nav></section>}
       {page === 'import' && <><div className="currency-import-toolbar"><button className="button secondary small" onClick={openCurrencyManager}>Kelola mata uang</button></div>{categoryTools}<StatementReview data={data} onCommit={saveDocument} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} /><RecoveryImportView data={data} key={data.demo ? 'demo' : 'own'} state={state} demo={data.demo} onStart={startOwn} onImport={importState} notify={notify} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} preferredCurrency={currency} onAddWallet={(requested) => { if (requested) setCurrency(requested); openWallet('new'); }} /></>}
-      <footer className="bottom-note"><span><Leaf size={14} /> Nggak harus rapi sekaligus. Yang penting mulai.</span><span>{ledger.label} · cadangkan secara berkala</span><div className="mobile-backup"><button className="text-link" onClick={backupCurrent}><Download size={14} /> Cadangkan</button><button className="text-link" onClick={() => restoreRef.current?.click()}><History size={14} /> Pulihkan</button><button className="text-link" onClick={() => setPrivacyOpen(true)}><ShieldCheck size={14} /> Privasi</button></div></footer>
+      <footer className="bottom-note"><span><Leaf size={14} /> Nggak harus rapi sekaligus. Yang penting mulai.</span><span>{ledger.label} · cadangkan secara berkala</span><div className="mobile-backup"><button className="text-link" onClick={() => void backupAll()}><Download size={14} /> Cadangkan semuanya</button><button className="text-link" onClick={backupCurrent}><Download size={14} /> Cadangkan transaksi saja</button><button className="text-link" onClick={() => restoreRef.current?.click()}><History size={14} /> Pulihkan</button><button className="text-link" onClick={() => setPrivacyOpen(true)}><ShieldCheck size={14} /> Privasi</button></div></footer>
       </div>
     </main>
     <nav className="mobile-nav" aria-label="Navigasi seluler">{navigation.map(({ page: p, label, icon: Icon }) => <button key={p} className={page === p ? 'active' : ''} aria-current={page === p ? 'page' : undefined} onClick={() => navigate(p)}><Icon size={20} /><span>{label}</span></button>)}</nav>

@@ -108,7 +108,7 @@ def check_desktop(browser, tmp):
     # inventing a persisted ledger to satisfy the old automatic-write contract.
     assert stored(page) is None
     with page.expect_download() as demo_download:
-        page.locator(".sidebar").get_by_role("button", name="Cadangkan data", exact=True).click()
+        page.locator(".sidebar").get_by_role("button", name="Cadangkan transaksi saja", exact=True).click()
     demo_path = tmp / "startup-demo-synthetic.json"
     demo_download.value.save_as(demo_path)
     demo = read_document(demo_path)
@@ -183,7 +183,7 @@ def check_desktop(browser, tmp):
 
     # Download the actual backup, mutate, then restore it through the UI.
     with page.expect_download() as download_info:
-        page.locator(".sidebar").get_by_role("button", name="Cadangkan data", exact=True).click()
+        page.locator(".sidebar").get_by_role("button", name="Cadangkan transaksi saja", exact=True).click()
     backup_path = tmp / "synthetic-backup.json"
     download_info.value.save_as(backup_path)
     assert read_document(backup_path) == before

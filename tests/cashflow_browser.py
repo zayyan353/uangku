@@ -340,7 +340,7 @@ def source_read_and_backup(case):
     nav(case.page, 'Ringkasan')
     file = case.args.output / f'{case.name}-synthetic-backup.json'
     with case.page.expect_download() as download:
-        case.page.get_by_role('button', name='Cadangkan data', exact=True).click()
+        case.page.get_by_role('button', name='Cadangkan transaksi saja', exact=True).click()
     download.value.save_as(file)
     assert read_document(file) == before
     case.semantic_checks += 1

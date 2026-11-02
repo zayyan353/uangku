@@ -1,9 +1,15 @@
 import { mergeCategoryKeywordPack } from './categoryKeywordPack';
-import { validateCategorySettings, type CategorySettings } from './categorySettings';
+import { defaultCategorySettings, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { CONFIRMED_CATEGORY_NAMES } from './categoryKeywordDefinitions';
 import { mergeConfirmedCategoryMappings } from './categoryConfirmedMappings';
 import { BANK_CATEGORY_NAMES, mergeBankCategoryMappings } from './categoryBankMappings';
 import { mergeAutomaticBankMappings, mergeReviewCompletionMappings } from './bankAutoMappings';
+
+/** Only successful durable reads belong here. An absent key means the shipped defaults. */
+export function effectiveCategorySettings(raw: string | null) {
+  return raw === null ? { settings: defaultCategorySettings(), added: 0, updated: 0, error: '' }
+    : upgradeCategorySettings(validateCategorySettings(JSON.parse(raw)));
+}
 
 /** Effective additions only: the caller retains the original raw CAS token.
  * An explicit settings save records the marker, making manual removal durable.

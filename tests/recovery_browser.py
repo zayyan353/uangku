@@ -357,7 +357,7 @@ def test_blocked_metadata_confirmation(browser, output):
 
 def download_backup(page, path):
     with page.expect_download(timeout=60_000) as info:
-        page.locator('.sidebar').get_by_role('button', name='Cadangkan data', exact=True).click()
+        page.locator('.sidebar').get_by_role('button', name='Cadangkan transaksi saja', exact=True).click()
     info.value.save_as(path)
     return read_document(path)
 

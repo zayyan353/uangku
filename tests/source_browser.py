@@ -139,7 +139,7 @@ def metadata_backup_roundtrip(browser,out,initial):
     context,page,errors=context_page(browser,initial)
     path=out/'source-backup.json'
     try:
-        with page.expect_download()as download:page.get_by_role('button',name='Cadangkan data' if page.locator('.sidebar').is_visible() else 'Cadangkan',exact=True).click()
+        with page.expect_download()as download:page.get_by_role('button',name='Cadangkan transaksi saja',exact=True).click()
         download.value.save_as(path)
         assert read_document(path)==initial
         wire=json.loads(path.read_text(encoding='utf-8'))

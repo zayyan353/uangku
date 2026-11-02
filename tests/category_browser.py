@@ -456,6 +456,7 @@ def visuals(case):
 
 
 def main():
+    from full_backup_browser import category_suite_case
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--url', default=os.environ.get('UANGKU_TEST_URL', 'http://127.0.0.1:4180'))
@@ -467,6 +468,8 @@ def main():
     results = []
     cases = [('manager-desktop-light', {}, manager_lifecycle),
              ('manager-mobile-dark', {'width': 390, 'theme': 'dark'}, manager_lifecycle),
+             ('full-backup-desktop', {}, category_suite_case),
+             ('full-backup-mobile', {'width': 390, 'theme': 'dark'}, category_suite_case),
              ('history-auto-suggest-conflict-pending', {}, history_automation),
              ('source-import-desktop', {'empty': True}, source_import),
              ('source-import-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, source_import),
@@ -489,7 +492,9 @@ def main():
                 try:
                     assert assert_production_url(args.url) == build, 'Production build changed during suite'
                     case = Case(browser, args, name, **options)
-                    run(case)
+                    evidence = run(case)
+                    if evidence:
+                        result['checks'] = evidence
                     assert not case.errors, case.errors
                     result['status'] = 'passed'
                 except Exception as error:

@@ -674,8 +674,8 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .transactions-table:not(.import-table) .badge { max-width: 100%; font-size: 7px; padding: 4px 5px; }
   .bottom-note { justify-content: center; flex-direction: column; gap: 7px; font-size: 9px; }
   .bottom-note > span { justify-content: center; }
-  .mobile-backup { display: flex; justify-content: center; gap: 17px; margin-top: 4px; }
-  .mobile-backup .text-link { font-size: 10px; }
+  .mobile-backup { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 17px; margin-top: 4px; }
+  .mobile-backup .text-link { font-size: 10px; min-height: 40px; }
   .import-info .import-steps { grid-template-columns: 1fr; gap: 18px; }
   .import-info h3 { font-size: 20px; }
   .import-info { padding: 23px; }

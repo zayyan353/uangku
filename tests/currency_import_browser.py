@@ -298,7 +298,7 @@ def hide_unused_last(case):
 
 def backup_archive(case):
     p=case.page;before=stored_document(p);file=case.args.output/f'{case.name}.json'
-    with p.expect_download() as task:p.get_by_role('button',name='Cadangkan data',exact=True).click()
+    with p.expect_download() as task:p.get_by_role('button',name='Cadangkan transaksi saja',exact=True).click()
     task.value.save_as(file);assert read_document(file)==before
     assert json.loads(file.read_text(encoding='utf-8'))['codec']=='table-tuples-v6'
     case.unchanged();p.get_by_label('File cadangan Uangku',exact=True).set_input_files(file)

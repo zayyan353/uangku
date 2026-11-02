@@ -54,7 +54,7 @@ yang dikonfirmasi pengguna, bukan janji mendukung seluruh format ekspor bank.
 3. Isi saldo awal sebelum transaksi pertama yang ingin dicatat. Jika mulai
    mencatat dari hari ini, gunakan saldo hari ini dan catat transaksi berikutnya.
 4. Gunakan **Catat transaksi**, **Pindah uang**, atau **Impor mutasi**.
-5. Unduh **Cadangkan data** sebelum mengganti browser, perangkat, atau alamat
+5. Pilih **Cadangkan semuanya** sebelum mengganti browser, perangkat, atau alamat
    aplikasi, serta sebelum mengganti catatan lewat **Pulihkan cadangan**.
 
 ### Impor mutasi
@@ -103,8 +103,9 @@ Konfirmasi jenis transaksi tetap merupakan keputusan tersendiri.
 
 Gunakan **Kelola kategori** untuk mengubah pilihan dan aturan kata kunci.
 Menghapus kategori dari pilihan tidak menghapus nama kategori pada histori.
-Pengaturan kategori mempunyai **Ekspor/Impor pengaturan kategori** tersendiri;
-cadangan transaksi membawa kategori yang digunakan pada catatannya.
+**Cadangkan semuanya** menyertakan kategori yang belum dipakai dan aturan dalam
+urutan tersimpan. **Kelola kategori** juga menyediakan ekspor dan impor khusus
+pengaturan kategori.
 
 ## Penyimpanan dan cadangan
 
@@ -114,12 +115,16 @@ antarperangkat. File mutasi dibaca di browser, tanpa dikirim ke server aplikasi.
 
 - Browser, perangkat, mode privat, protokol, domain, dan port yang berbeda
   mempunyai penyimpanan terpisah.
-- Menghapus data situs dapat menghilangkan catatan. Cadangan JSON menyertakan
-  transaksi, dompet, fakta sumber, dan pengaturan mata uang yang tersimpan.
-- **Pulihkan cadangan** mengganti catatan setelah konfirmasi. Cadangkan catatan
-  yang masih diperlukan sebelum melanjutkan.
-- Batas data logis tetap **8 MiB**; kuota penyimpanan browser merupakan batas
-  terpisah. Penolakan kapasitas tidak mengganti data lama.
+- **Cadangkan semuanya** mengunduh satu file JSON berisi dompet, transaksi,
+  fakta sumber, pengaturan mata uang, daftar kategori, dan aturan kategori.
+- Untuk memulihkannya, pilih **Pulihkan cadangan**, periksa jumlah tiap jenis
+  data, lalu pilih **Pulihkan semuanya**. Catatan dan pengaturan kategori di
+  browser tujuan akan diganti bersama.
+- **Cadangkan transaksi saja** memakai format keuangan sebelumnya. Memulihkan
+  file lama ini mengganti catatan keuangan dan mempertahankan pengaturan
+  kategori di browser tujuan.
+- Batas data keuangan adalah **8 MiB** dan batas pengaturan kategori **128 KiB**.
+  Ruang yang tersedia untuk pemulihan juga mengikuti kuota penyimpanan browser.
 - Pembaruan situs tidak memindahkan catatan dari alamat lokal ke alamat publik.
   ZIP source aplikasi juga tidak otomatis menyertakan data browser.
 

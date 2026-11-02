@@ -306,7 +306,7 @@ def archive_last_active_newrecord(case):
 
 def archive_export_restore(case):
     p=case.page;before=stored_document(p);archived=case.archive();path=case.args.output/f'{case.name}-synthetic-backup.json'
-    with p.expect_download() as download:p.get_by_role('button',name='Cadangkan data',exact=True).click()
+    with p.expect_download() as download:p.get_by_role('button',name='Cadangkan transaksi saja',exact=True).click()
     download.value.save_as(path)
     wire=json.loads(path.read_text(encoding='utf-8'))
     assert wire['version']==2 and wire['codec']=='table-tuples-v5'

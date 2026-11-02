@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { commitCandidate, LedgerPersistenceController, prepareCandidate, type PersistenceLocks, type PersistencePorts, type PersistenceStorage } from './persistence';
 import { STORAGE_KEY, serializeBackup, validateBackup, type StoredData, type StoredRead } from './storage';
+import { RESTORE_JOURNAL } from './fullRestoreStorage';
 
 function data(ids: string[] = []): StoredData {
   return { app: 'uangku', version: 1, demo: false, state: {
@@ -14,7 +15,8 @@ class MemoryStorage implements PersistenceStorage {
   writes = 0;
   failWrites = false;
   failReads = false;
-  getItem(key: string) { expect(key).toBe(STORAGE_KEY); if (this.failReads) throw new Error('unavailable'); return this.raw; }
+  getItem(key: string) { if (this.failReads) throw new Error('unavailable'); if (key === RESTORE_JOURNAL) return null; expect(key).toBe(STORAGE_KEY); return this.raw; }
+  removeItem(_key: string) { throw new Error('Ledger-only saves must not remove stored records'); }
   setItem(key: string, value: string) {
     expect(key).toBe(STORAGE_KEY);
     if (this.failWrites) throw new Error('QuotaExceededError');

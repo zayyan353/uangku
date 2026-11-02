@@ -381,7 +381,7 @@ def visual_case(case, theme):
 
 
 def download_backup(case, name):
-    button = 'Cadangkan data' if case.page.locator('.sidebar').is_visible() else 'Cadangkan'
+    button = 'Cadangkan transaksi saja'
     with case.page.expect_download() as download:
         case.page.get_by_role('button', name=button, exact=True).click()
     path = case.args.output / name

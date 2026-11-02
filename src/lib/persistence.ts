@@ -1,12 +1,17 @@
 /** Fresh minimum reconstruction. This is not a byte-for-byte restore of cloud Package B. */
 import { STORAGE_KEY, prepareBackup, serializeBackup, type StoredData, type StoredRead } from './storage';
+import { CATEGORY_SETTINGS_KEY, validateCategorySettings, type CategorySettings } from './categorySettings';
+import { effectiveCategorySettings } from './categorySettingsUpgrade';
+import { serializeFullBackup } from './fullBackup';
+import { LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, recoverProfile, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
 
-export const LEDGER_LOCK = `${STORAGE_KEY}:coordinated-write`;
+export { LEDGER_LOCK };
 export const PERSISTENCE_BYTES = 8 * 1024 * 1024;
 export type PersistenceStatus = 'unsaved' | 'saving' | 'saved' | 'failed' | 'conflict' | 'unsupported' | 'blocked';
 export interface PersistenceStorage {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem(key: string): void;
 }
 export interface PersistenceLocks {
   runExclusive<T>(name: string, task: () => T | Promise<T>): Promise<T>;
@@ -15,11 +20,13 @@ export interface PersistencePorts {
   read(): StoredRead;
   storage(): PersistenceStorage | undefined;
   locks(): PersistenceLocks | undefined;
+  profileChanged?(): void;
 }
 export interface CandidateOptions {
   replaceBlocked?: boolean;
   expectedData?: StoredData;
   expectedToken?: string | null;
+  restoreCategories?: { settings: CategorySettings; expectedRaw: string | null };
 }
 export interface PersistenceSnapshot {
   data: StoredData;
@@ -72,7 +79,8 @@ async function commitPrepared(
   try {
     // Every cooperating tab uses this same lock. Comparison and setItem occur in
     // one exclusive section; a storage listener alone would not prevent races.
-    return await locks.runExclusive(LEDGER_LOCK, () => {
+    return await locks.runExclusive(LEDGER_LOCK, async () => {
+      if (storage.getItem(RESTORE_JOURNAL) !== null) await locks.runExclusive(CATEGORY_LOCK, () => recoverProfile(storage));
       if (storage.getItem(STORAGE_KEY) !== expectedToken) {
         return { status: 'conflict' as const, message: conflictMessage };
       }
@@ -149,6 +157,7 @@ export class LedgerPersistenceController {
       this.update({ error: reason instanceof Error ? reason.message : 'Data tidak valid.' });
       return false;
     }
+    if (options.restoreCategories) return this.restoreProfile(prepared, options.restoreCategories, options);
     this.draft = prepared;
     this.draftToken = this.baseToken;
     this.draftRetryBlocked = false;
@@ -166,6 +175,71 @@ export class LedgerPersistenceController {
     this.update({ data: prepared.data, dirty: true });
     return this.writeDraft();
   }
+
+  private async restoreProfile(candidate: PreparedCandidate, categories: NonNullable<CandidateOptions['restoreCategories']>,
+    options: CandidateOptions): Promise<boolean> {
+    const locks = this.ports.locks(), storage = this.ports.storage();
+    if (!locks || !storage) {
+      this.update({ error: !locks ? unsupportedMessage : 'Penyimpanan browser tidak tersedia.' });
+      return false;
+    }
+    const token = options.expectedToken === undefined ? this.baseToken : options.expectedToken;
+    if (token !== this.baseToken || (options.expectedData !== undefined && options.expectedData !== this.snapshot.data)) {
+      this.update({ error: 'Data berubah sejak pratinjau dibuka. Buka kembali cadangan untuk memeriksa ulang.' });
+      return false;
+    }
+    let nextSettings: string;
+    try { nextSettings = JSON.stringify(validateCategorySettings(categories.settings)); }
+    catch (error) { this.update({ error: error instanceof Error ? error.message : 'Pengaturan kategori tidak valid.' }); return false; }
+    const expectedSettings = categories.expectedRaw;
+    this.update({ pending: true, status: 'saving', error: '' });
+    try {
+      // Preserve legacy whitespace/encoding when only settings were changed.
+      const nextLedger = token !== null && !this.blocked && candidate.raw === serializeBackup(this.snapshot.data) ? token : candidate.raw;
+      await withProfileLocks(locks, async () => {
+        await recoverProfile(storage);
+        if (storage.getItem(STORAGE_KEY) !== token || storage.getItem(CATEGORY_SETTINGS_KEY) !== expectedSettings) {
+          throw new Error('Catatan atau kategori berubah sejak pratinjau dibuka. Buka kembali cadangan untuk memeriksa ulang.');
+        }
+        await writeRestoredProfile(storage, token, nextLedger, expectedSettings, nextSettings);
+      });
+      this.baseToken = nextLedger;
+      this.blocked = false;
+      this.blockedRaw = null;
+      this.knownTokens.set(candidate.data, nextLedger);
+      this.update({ data: candidate.data, status: 'saved', pending: false, remoteChanged: false, error: '' });
+      this.ports.profileChanged?.();
+      this.checkRemote();
+      return true;
+    } catch (error) {
+      // A full-file restore never enters the ledger-only retry or recovery path.
+      this.update({ pending: false, status: this.blocked ? 'blocked' : 'failed',
+        error: error instanceof Error && error.name === 'Error' ? error.message : 'Pemulihan lengkap gagal. Periksa ruang penyimpanan lalu buka kembali file cadangan.' });
+      this.ports.profileChanged?.();
+      return false;
+    }
+  }
+
+  exportFullBackup = async (expectedCategoryRaw: string | null): Promise<string> => {
+    const storage = this.ports.storage(), locks = this.ports.locks();
+    if (!storage) throw new Error('Penyimpanan browser tidak tersedia.');
+    const ledger = this.snapshot.data, token = this.baseToken;
+    const verify = () => {
+      if (this.blocked || this.snapshot.dirty || this.snapshot.pending || this.snapshot.data !== ledger ||
+          storage.getItem(RESTORE_JOURNAL) !== null || storage.getItem(STORAGE_KEY) !== token ||
+          storage.getItem(CATEGORY_SETTINGS_KEY) !== expectedCategoryRaw) {
+        throw new Error('Cadangan lengkap belum dapat dibuat. Periksa status penyimpanan dan muat catatan serta kategori terbaru.');
+      }
+    };
+    const exportCurrent = () => {
+      verify();
+      const file = serializeFullBackup(ledger, effectiveCategorySettings(expectedCategoryRaw).settings);
+      verify();
+      return file;
+    };
+    if (!locks) return exportCurrent();
+    return withProfileLocks(locks, async () => { await recoverProfile(storage); return exportCurrent(); });
+  };
 
   private async writeDraft(): Promise<boolean> {
     const draft = this.draft;
