@@ -369,8 +369,8 @@ export default function App() {
   }
   async function finishStartOwn(base: { data: StoredData; token: string | null }, included?: ReadonlySet<string>, replaceBlocked = false) {
     if (mutationInFlight.current) return;
-    setDemoReview(null);
     if (data !== base.data || base.token !== ledger.revisionToken || blocked !== replaceBlocked) {
+      setDemoReview(null);
       notify('Catatan berubah sejak pilihan dibuka. Periksa kembali catatan terbaru.');
       return;
     }
@@ -379,6 +379,7 @@ export default function App() {
       const ok = await persistCandidate(next, { replaceBlocked, replaceLedger: true, expectedData: base.data, expectedToken: base.token });
       if (ok) notify(included ? `${next.state.entries.length} transaksi dibawa ke catatan pribadi.` : 'Dompet kosong berhasil tersimpan.');
     } catch (error) { notify(error instanceof Error ? error.message : 'Catatan belum dapat disimpan.'); }
+    finally { setDemoReview(null); }
   }
   function openTx(type: TxMode, walletId = activityWalletId) {
     if (mutationInFlight.current) return;

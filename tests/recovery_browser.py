@@ -394,14 +394,26 @@ def test_carry_demo_transactions(browser, output):
         dlg = page.get_by_role('dialog')
         start.click()
         dlg.get_by_role('button', name='Batal', exact=True).click()
-        assert stored(page) == before
+        assert stored(page) == before, 'Cancelling the review changed the original demo'
         start.click()
+        page.evaluate('''() => new Promise(acquired => {
+            navigator.locks.request('uangku:v1:coordinated-write', () => new Promise(release => {
+                window.releaseDemoWrite = release;
+                acquired();
+            }));
+        })''')
         dlg.get_by_role('button', name='Bawa transaksi saya', exact=True).click()
-        expect(page.locator('.demo-banner')).to_have_count(0)
+        expect(dlg).to_contain_text('Sedang menyimpan')
+        dlg.press('Escape')
+        expect(dlg).to_be_visible()
+        assert page.evaluate('(key) => JSON.parse(localStorage.getItem(key)).demo', KEY), 'Ledger changed while its lock was held'
+        page.evaluate('window.releaseDemoWrite()')
+        expect(dlg).to_have_count(0)
+        expect(page.get_by_test_id('save-status')).to_contain_text('Tersimpan di browser')
         page.reload(wait_until='networkidle')
         after = stored(page)
-        assert not after['demo'] and after['state']['entries'] == [personal]
-        assert saldo(after, personal['walletId']) == -personal['amount']
+        assert not after['demo'] and after['state']['entries'] == [personal], 'Carried ledger or personal entry changed across reload'
+        assert saldo(after, personal['walletId']) == -personal['amount'], 'Sample balance leaked into the personal ledger'
 
 
 def download_backup(page, path):

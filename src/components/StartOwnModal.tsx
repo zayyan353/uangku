@@ -18,6 +18,7 @@ export default function StartOwnModal({ data, persisted, busy, onClose, onCarry,
   const [included, setIncluded] = useState(() => new Set(samples.filter(row => row.selected).map(row => row.entry.id)));
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const count = additional + included.size;
+  const savingStatus = busy && <span className="field-help" role="status">Sedang menyimpan…</span>;
   function toggle(id: string, checked: boolean) {
     const next = new Set(included);
     if (checked) next.add(id); else next.delete(id);
@@ -25,7 +26,7 @@ export default function StartOwnModal({ data, persisted, busy, onClose, onCarry,
   }
   if (confirmDiscard) return <Modal key="discard" title="Hapus catatan demo dan mulai dari kosong?" onClose={onClose}>
     <div className="modal-body"><p className="confirm-copy">Seluruh {data.state.entries.length} transaksi di mode contoh akan dihapus, termasuk yang kamu catat sendiri. Rekening juga akan diganti dengan dompet kosong. Untuk menyimpan salinan lebih dulu, batalkan lalu pilih Cadangkan semuanya.</p></div>
-    <div className="modal-footer"><button className="button secondary" data-autofocus disabled={busy} onClick={() => setConfirmDiscard(false)}>Kembali</button><button className="button danger" disabled={busy} onClick={onEmpty}>Hapus dan mulai dari kosong</button></div>
+    <div className="modal-footer demo-transition-actions">{savingStatus}<button className="button secondary" data-autofocus disabled={busy} onClick={() => setConfirmDiscard(false)}>Kembali</button><button className="button danger" disabled={busy} onClick={onEmpty}>Hapus dan mulai dari kosong</button></div>
   </Modal>;
   return <Modal key="review" title="Mulai dengan uangmu sendiri?" onClose={onClose}>
     <div className="modal-body">
@@ -43,6 +44,7 @@ export default function StartOwnModal({ data, persisted, busy, onClose, onCarry,
       </details>}
     </div>
     <div className="modal-footer demo-transition-actions">
+      {savingStatus}
       <button className="button secondary" data-autofocus disabled={busy} onClick={onClose}>Batal</button>
       <button className="button secondary" disabled={busy} onClick={() => persisted || count ? setConfirmDiscard(true) : onEmpty()}>Mulai dari kosong</button>
       <button className="button primary" disabled={busy || !persisted && count === 0} onClick={() => onCarry(included)}>Bawa transaksi saya</button>
