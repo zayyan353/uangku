@@ -14,11 +14,12 @@ export function Modal({ title, subtitle, children, onClose }: { title: string; s
     target?.focus();
     return () => { document.body.style.overflow = overflow; previous?.focus(); };
   }, []);
-  return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
+  return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) { e.preventDefault(); onClose(); } }}>
     <div ref={ref} className="modal" role="dialog" aria-modal="true" aria-label={title} onKeyDown={e => {
       if (e.key === 'Escape') onClose();
       if (e.key !== 'Tab') return;
-      const focusables = Array.from(ref.current?.querySelectorAll<HTMLElement>('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]') ?? []);
+      const focusables = Array.from(ref.current?.querySelectorAll<HTMLElement>('button:enabled, input:enabled, select:enabled, textarea:enabled, [tabindex="0"]') ?? [])
+        .filter(el => el.getClientRects().length > 0);
       const first = focusables[0], last = focusables.at(-1);
       if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last?.focus(); }
       if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }

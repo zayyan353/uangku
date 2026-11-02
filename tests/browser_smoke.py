@@ -373,6 +373,7 @@ def check_regressions(browser, tmp):
     # Failed persistence intentionally keeps the editor open. Closing it does
     # not discard the recoverable draft held by the coordinated writer.
     dialog(page).get_by_role('button', name='Batal', exact=True).click()
+    page.get_by_role('button', name='Buang isian', exact=True).click()
     expect(dialog(page)).to_have_count(0)
     with page.expect_download() as download_info:
         page.get_by_role("button", name="Unduh pekerjaan yang belum tersimpan", exact=True).click()
@@ -569,6 +570,7 @@ def check_daily_use(browser, tmp):
         assert wallet_map[destination_id]["kind"] == "bank"
         expect(dialog(page).get_by_label("Kurs transaksi", exact=True)).to_have_count(0)
         dialog(page).get_by_role("button", name="Tutup", exact=True).click()
+        page.get_by_role("button", name="Buang isian", exact=True).click()
     assert state(page)["entries"] == []
     context.close()
 

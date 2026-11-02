@@ -353,6 +353,7 @@ def visual_case(case, theme):
     expect(dialog.get_by_label('Kurs transaksi', exact=True)).to_have_attribute('aria-invalid', 'true')
     case.capture('fx-error')
     dialog.get_by_role('button', name='Batal', exact=True).click()
+    page.get_by_role('button', name='Buang isian', exact=True).click()
     nav(page, 'Transaksi')
     page.get_by_label('Cari transaksi', exact=True).fill('Synthetic exact large amount')
     page.get_by_role('button', name='Rincian nominal Synthetic exact large amount', exact=True).click()

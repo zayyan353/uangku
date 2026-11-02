@@ -178,6 +178,7 @@ def quota_metadata_retry(browser,out,initial):
         expect(page.get_by_test_id('save-status')).to_contain_text('belum tersimpan')
         assert page.evaluate('localStorage.getItem("uangku:v1")')==original
         dlg.get_by_role('button',name='Batal',exact=True).click()
+        page.get_by_role('button',name='Buang isian',exact=True).click()
         with page.expect_download()as download:page.get_by_role('button',name='Unduh pekerjaan yang belum tersimpan',exact=True).click()
         path=out/'source-quota-recovery.json';download.value.save_as(path)
         recovery=read_document(path)

@@ -1,4 +1,4 @@
-import { useContext, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeftRight, Check, Trash2 } from 'lucide-react';
 import { entrySignedAmount, formatDate, formatMoney, makeId, parseMoney, validateEntry, walletBalance, walletBalanceAt, type Entry, type State } from '../lib/finance';
 import { CategorySettingsContext } from '../hooks/useCategorySettings';
@@ -53,6 +53,28 @@ export default function TransactionModal({ data, state, initialMode, initialWall
   const [error, setError] = useState('');
   useEffect(() => { if (error) { validationRef.current?.scrollIntoView({ block: 'nearest' }); validationRef.current?.focus({ preventScroll: true }); } }, [error]);
   const amountRef = useRef<HTMLInputElement>(null);
+  const draft = { type, walletId, toWalletId, movementDirection, amount, received, rateText, fxMode, fee,
+    date, destinationDate, sourceDate, declareDates, reason, note, category, confirmed, pairId };
+  const cleanDraft = useRef(draft);
+  const saving = useRef(false);
+  const [askDiscard, setAskDiscard] = useState(false);
+  const continueButton = useRef<HTMLButtonElement>(null);
+  const previousFocus = useRef<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (askDiscard) continueButton.current?.focus();
+    else if (previousFocus.current) {
+      previousFocus.current.focus();
+      previousFocus.current = null;
+    }
+  }, [askDiscard]);
+
+  function requestClose() {
+    if (disabled || saving.current) return;
+    if (JSON.stringify(draft) === JSON.stringify(cleanDraft.current)) return onClose();
+    previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : amountRef.current;
+    setAskDiscard(true);
+  }
   const source = state.wallets.find(w => w.id === walletId);
   const destination = state.wallets.find(w => w.id === toWalletId);
   const crossCurrency = type === 'transfer' && source && destination && source.currency !== destination.currency;
@@ -123,7 +145,9 @@ export default function TransactionModal({ data, state, initialMode, initialWall
     setFxMode('received');
   }
   async function submit(e: FormEvent) {
-    e.preventDefault(); setError('');
+    e.preventDefault();
+    if (saving.current || disabled || askDiscard) return;
+    setError('');
     if (isWalletArchived(data, walletId) || type === 'transfer' && isWalletArchived(data, toWalletId) || existing && readOnlyEntryIds.has(existing.id)) return setError('Dompet diarsipkan. Pulihkan sebelum mengubah atau mencatat transaksi.');
     if (minor === null || !source) return setError('Isi dompet dan nominal yang valid.');
     if (type === 'movement' && minor <= 0) return setError('Isi nominal perpindahan lebih besar dari nol; gunakan pilihan arah untuk masuk atau keluar rekening.');
@@ -177,14 +201,29 @@ export default function TransactionModal({ data, state, initialMode, initialWall
     const changedMoney = existing && (existing.walletId !== entry.walletId || existing.date !== entry.date || signed(existing) !== signed(entry) || existing.toAmount !== entry.toAmount || existing.toWalletId !== entry.toWalletId || (existing.fee ?? 0) !== (entry.fee ?? 0));
     if (hasFacts && changedMoney && !reason.trim() && !pair) return setError('Isi alasan perubahan agar perbedaan dari fakta bank dapat ditelusuri.');
     const options: EntrySaveOptions = { reason: reason.trim(), sourceDate: type === 'transfer' ? sourceDate || null : null, destinationDate: type === 'transfer' ? destinationDate || null : null, ...(declareDates || !existing || existing.type !== 'transfer' ? { declareDates: true } : {}) };
-    if (await onSave(entry, removeIds, repeat, options) && repeat) {
-      setAmount(''); setNote(''); setError('');
-      requestAnimationFrame(() => amountRef.current?.focus());
+    saving.current = true;
+    try {
+      if (await onSave(entry, removeIds, repeat, options) && repeat) {
+        cleanDraft.current = { ...draft, amount: '', note: '' };
+        setAmount(''); setNote(''); setError('');
+        requestAnimationFrame(() => amountRef.current?.focus());
+      }
+    } finally {
+      saving.current = false;
     }
   }
   const options: TxMode[] = importedPending ? (incomingPending ? ['income', 'movement', 'transfer'] : ['expense', 'movement', 'transfer']) : ['expense', 'income', 'movement', 'transfer', 'adjustment'];
-  return <Modal title={importedPending ? 'Cek transaksi ini' : type === 'adjustment' ? 'Cocokkan saldo' : existing ? 'Ubah transaksi' : type === 'transfer' ? 'Pindah uang' : 'Catat transaksi'} subtitle={type === 'movement' ? 'Satu sisi rekening. Tidak dihitung sebagai belanja atau pemasukan; cash tidak dibukukan.' : type === 'transfer' ? 'Uangnya berpindah. Total belanja tetap sama.' : 'Catat secukupnya. Kategori bisa dibereskan nanti.'} onClose={onClose}>
-    <form onSubmit={submit}><fieldset disabled={disabled || !!existing && readOnlyEntryIds.has(existing.id)} style={{ display: 'contents' }}><div className="modal-body">
+  const title = importedPending ? 'Cek transaksi ini' : type === 'adjustment' ? 'Cocokkan saldo' : existing ? 'Ubah transaksi' : type === 'transfer' ? 'Pindah uang' : 'Catat transaksi';
+  const subtitle = type === 'movement' ? 'Satu sisi rekening. Tidak dihitung sebagai belanja atau pemasukan; cash tidak dibukukan.' : type === 'transfer' ? 'Uangnya berpindah. Total belanja tetap sama.' : 'Catat secukupnya. Kategori bisa dibereskan nanti.';
+  return <Modal title={askDiscard ? 'Buang isian transaksi?' : title} subtitle={askDiscard ? undefined : subtitle} onClose={askDiscard ? () => setAskDiscard(false) : requestClose}>
+    {askDiscard && <>
+      <div className="modal-body"><p className="confirm-copy" id="discard-draft-help">Perubahan di formulir ini belum disimpan.</p></div>
+      <div className="modal-footer">
+        <button type="button" className="button primary" ref={continueButton} aria-describedby="discard-draft-help" onClick={() => setAskDiscard(false)}>Lanjut mengisi</button>
+        <button type="button" className="button danger" disabled={disabled} onClick={onClose}>Buang isian</button>
+      </div>
+    </>}
+    <form onSubmit={submit} hidden={askDiscard} style={askDiscard ? { display: 'none' } : undefined}><fieldset disabled={disabled || !!existing && readOnlyEntryIds.has(existing.id)} style={{ display: 'contents' }}><div className="modal-body">
       {(isWalletArchived(data, walletId) || type === 'transfer' && isWalletArchived(data, toWalletId) || existing && readOnlyEntryIds.has(existing.id)) && <div className="notice warning">Dompet terkait sudah diarsipkan. Pulihkan di menu Dompet sebelum menyimpan; isian tetap dipertahankan.</div>}
       {bankHint && bankHint.kind !== 'none' && <div className={`notice ${bankHint.pending ? 'warning' : ''} bank-operation-hint`} data-bank-operation={bankHint.kind}><strong>{bankHint.label}.</strong> {bankHint.warning}</div>}
       {(type === 'transfer' ? sourceDate > today() || destinationDate > today() : date > today()) && <div className="notice warning" role="note">Tanggal masa depan: catatan ini belum masuk saldo aktual sampai tanggal posting masing-masing tiba.</div>}
@@ -219,7 +258,7 @@ export default function TransactionModal({ data, state, initialMode, initialWall
         {(existing?.sourceKey || existing?.toSourceKey || type === 'transfer') && <label className="field full"><span className="field-label">Alasan perubahan finansial atau tanggal</span><input aria-label="Alasan perubahan" className="field-input" maxLength={2000} value={reason} onChange={e => setReason(e.target.value)} placeholder="Contoh: koreksi nominal sesuai bukti pembayaran" /><span className="field-help">Kategori dan keterangan dapat dirapikan; fakta bank asli tetap disimpan terpisah.</span></label>}
         {error && <div ref={validationRef} tabIndex={-1} className="notice error full" role="alert">{error}</div>}
       </div>
-    </div><div className={`modal-footer ${!existing && (type === 'expense' || type === 'income') ? 'repeat-entry-footer' : ''}`}>{existing && onDelete && <button type="button" className="button danger small" style={{ marginRight: 'auto' }} onClick={onDelete}><Trash2 size={15} /> Hapus</button>}{existing?.type === 'transfer' && onUnpair && <button type="button" className="button secondary small" onClick={onUnpair}>Pisahkan transfer</button>}<button type="button" className="button secondary" onClick={onClose}>Batal</button><button className="button primary" type="submit"><Check size={17} /> {importedPending ? 'Simpan hasil cek' : 'Simpan transaksi'}</button>{!existing && (type === 'expense' || type === 'income') && <button className="button secondary" type="submit" data-repeat="true">Simpan &amp; catat lagi</button>}</div></fieldset></form>
+    </div><div className={`modal-footer ${!existing && (type === 'expense' || type === 'income') ? 'repeat-entry-footer' : ''}`}>{existing && onDelete && <button type="button" className="button danger small" style={{ marginRight: 'auto' }} onClick={onDelete}><Trash2 size={15} /> Hapus</button>}{existing?.type === 'transfer' && onUnpair && <button type="button" className="button secondary small" onClick={onUnpair}>Pisahkan transfer</button>}<button type="button" className="button secondary" onClick={requestClose}>Batal</button><button className="button primary" type="submit"><Check size={17} /> {importedPending ? 'Simpan hasil cek' : 'Simpan transaksi'}</button>{!existing && (type === 'expense' || type === 'income') && <button className="button secondary" type="submit" data-repeat="true">Simpan &amp; catat lagi</button>}</div></fieldset></form>
   </Modal>;
 }
 

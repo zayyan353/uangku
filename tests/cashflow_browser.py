@@ -241,6 +241,41 @@ def split_dates(case):
     case.totals(0, 200, 15_000, 14_800)
 
 
+def scoped_activity(case):
+    p = case.page
+    rows = p.locator('.transactions-table .transaction-title')
+    case.scope('digital')
+    expect(rows).to_have_text(['Synthetic flow paired'])
+    for action in ['Catat transaksi', 'Pindah uang']:
+        p.get_by_role('button', name=action, exact=True).click()
+        dialog = p.get_by_role('dialog')
+        expect(dialog.get_by_label('Dompet asal', exact=True)).to_have_value('digital')
+        if action == 'Pindah uang':
+            expect(dialog.get_by_label('Dompet tujuan', exact=True)).to_have_value('bank')
+        dialog.get_by_role('button', name='Batal', exact=True).click()
+    case.month('2026-09')
+    expect(rows).to_have_text(['Synthetic flow digital-september'])
+    p.get_by_role('button', name='Semua transaksi', exact=True).click()
+    expect(p.get_by_label('Dompet riwayat', exact=True)).to_have_value('digital')
+    expect(p.get_by_label('Periode transaksi', exact=True)).to_have_value('month')
+    expect(p.get_by_label('Bulan laporan', exact=True)).to_have_value('2026-09')
+    expect(rows).to_have_text(['Synthetic flow digital-september'])
+    nav(p, 'Ringkasan')
+    case.period('all')
+    expect(rows).to_have_text(['Synthetic flow paired', 'Synthetic flow digital-september'])
+    p.get_by_role('button', name='Semua transaksi', exact=True).click()
+    expect(p.get_by_label('Periode transaksi', exact=True)).to_have_value('all')
+    expect(p.get_by_label('Dompet riwayat', exact=True)).to_have_value('digital')
+    expect(rows).to_have_text(['Synthetic flow paired', 'Synthetic flow digital-september'])
+    nav(p, 'Ringkasan')
+    case.scope('all')
+    expect(rows).to_have_count(3)
+    p.get_by_role('button', name='Catat transaksi', exact=True).click()
+    expect(p.get_by_label('Dompet asal', exact=True)).to_have_value('bank')
+    p.get_by_role('button', name='Batal', exact=True).click()
+    case.assert_unchanged()
+
+
 def fx(case):
     case.totals(0, 4_200, 10_000, 5_800)
     case.scope('bank')
@@ -381,6 +416,11 @@ def cases():
     split = copy.deepcopy(internal)
     split['state']['entries'][0]['date'] = '2026-09-30'
     split['metadata']['transfers'][0].update(sourceDate='2026-09-30', destinationDate='2026-10-02')
+    activity = copy.deepcopy(split)
+    activity['state']['entries'] += [
+        entry('digital-september', 100, 'income', wallet_id='digital', date='2026-09-15'),
+        entry('bank-october', 250, 'expense'),
+    ]
     unknown = copy.deepcopy(internal)
     unknown['metadata']['transfers'][0]['sourceDate'] = None
     foreign = document([entry('fx', 4_000, 'transfer', category='',
@@ -401,6 +441,7 @@ def cases():
         ('month-opening-cutoff-all-history', {'data': period}, period_cutoff),
         ('paired-principal-fee-individual-scopes', {'data': internal}, internal_same_date),
         ('split-date-internal-net-bridge', {'data': split}, split_dates),
+        ('dashboard-scoped-activity', {'data': activity}, scoped_activity),
         ('fx-currency-scoped-principal', {'data': foreign}, fx),
         ('unknown-posting-date-incomplete', {'data': unknown}, unknown_dates),
         ('future-month-not-started', {'data': future}, future_month),

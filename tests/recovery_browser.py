@@ -136,6 +136,7 @@ def test_stale_form(browser, output):
         expect(b.get_by_test_id('save-status')).to_contain_text('konflik')
         assert persisted_notes(a) == ['Tab A durable']
         b.get_by_role('dialog').get_by_role('button', name='Batal', exact=True).click()
+        b.get_by_role('button', name='Buang isian', exact=True).click()
         with b.expect_download() as info:
             b.get_by_role('button', name='Unduh pekerjaan yang belum tersimpan', exact=True).click()
         path = output / 'stale-form-recovery-synthetic.json'
@@ -187,6 +188,7 @@ def test_quota_retry(browser, output):
         assert 'Tersimpan di browser' not in page.locator('.sidebar-user').inner_text()
         assert 'Transaksi tersimpan.' not in page.locator('body').inner_text()
         page.get_by_role('dialog').get_by_role('button', name='Batal', exact=True).click()
+        page.get_by_role('button', name='Buang isian', exact=True).click()
         with page.expect_download() as info:
             page.get_by_role('button', name='Unduh pekerjaan yang belum tersimpan', exact=True).click()
         path = output / 'quota-recovery-synthetic.json'
@@ -214,6 +216,72 @@ def test_no_web_locks(browser, output):
         open_expense(page, note='Unsupported draft').get_by_role('button', name='Simpan transaksi', exact=True).click()
         expect(page.get_by_test_id('save-status')).to_contain_text('tidak didukung')
         assert stored(page)['state']['entries'] == []
+
+
+def test_transaction_draft_close(browser, output):
+    initial = fixture([expense('draft-edit', note='Original note')])
+    with isolated(browser, initial, output, 'transaction-draft-close') as (_, new_page, _):
+        page = new_page()
+        dialog = page.get_by_role('dialog')
+        confirmation = page.get_by_role('dialog', name='Buang isian transaksi?', exact=True)
+        keep = confirmation.get_by_role('button', name='Lanjut mengisi', exact=True)
+        discard = confirmation.get_by_role('button', name='Buang isian', exact=True)
+        start = page.get_by_role('button', name='Catat transaksi', exact=True).first
+        start.click()
+        page.keyboard.press('Escape')
+        expect(dialog).to_have_count(0)
+
+        open_expense(page, note='Unfinished note', amount='123')
+        note = dialog.get_by_label(re.compile('Keterangan'))
+        for close_method in ('Escape', 'Tutup', 'Batal', 'backdrop'):
+            if close_method == 'Escape':
+                page.keyboard.press('Escape')
+            elif close_method == 'backdrop':
+                page.locator('.modal-backdrop').click(position={'x': 2, 'y': 2})
+            else:
+                dialog.get_by_role('button', name=close_method, exact=True).click()
+            expect(keep).to_be_focused()
+            expect(dialog).to_have_count(1)
+            if close_method == 'Escape':
+                page.keyboard.press('Enter')
+                expect(note).to_be_focused()
+            elif close_method == 'backdrop':
+                discard.click()
+                break
+            else:
+                keep.click()
+            expect(note).to_have_value('Unfinished note')
+            expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('123')
+        expect(dialog).to_have_count(0)
+        assert stored(page) == initial
+
+        page.get_by_role('button', name='Ubah Original note', exact=True).click()
+        note.fill('Changed note')
+        dialog.get_by_role('button', name='Tutup', exact=True).click()
+        page.keyboard.press('Escape')
+        expect(note).to_have_value('Changed note')
+        note.fill('Original note')
+        dialog.get_by_role('button', name='Batal', exact=True).click()
+        expect(dialog).to_have_count(0)
+        assert stored(page) == initial
+
+        page.get_by_role('button', name='Pindah uang', exact=True).first.click()
+        dialog.get_by_label('Tanggal kredit', exact=True).fill('2026-11-02')
+        page.keyboard.press('Escape')
+        expect(keep).to_be_focused()
+        keep.click()
+        expect(dialog.get_by_label('Tanggal kredit', exact=True)).to_have_value('2026-11-02')
+        dialog.get_by_role('button', name='Batal', exact=True).click()
+        discard.click()
+        assert stored(page) == initial
+
+        open_expense(page, note='Saved once', wallet='cash-idr')
+        dialog.get_by_role('button', name='Simpan & catat lagi', exact=True).click()
+        expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('')
+        expect(dialog.get_by_label('Dompet asal', exact=True)).to_have_value('cash-idr')
+        dialog.get_by_role('button', name='Batal', exact=True).click()
+        expect(dialog).to_have_count(0)
+        assert persisted_notes(page) == ['Original note', 'Saved once']
 
 
 def test_pending_writer_modal_guard(browser, output):
@@ -416,6 +484,7 @@ def main():
         ('two-tabs-sync-and-concurrent', test_clean_sync_and_concurrent_forms),
         ('quota-recovery-retry', test_quota_retry),
         ('missing-web-locks', test_no_web_locks),
+        ('transaction-draft-close', test_transaction_draft_close),
         ('pending-writer-modal-guard', test_pending_writer_modal_guard),
         ('stale-modal-delete', test_stale_modal_delete),
         ('blocked-metadata-confirmation', test_blocked_metadata_confirmation),
