@@ -99,6 +99,11 @@ Tombol **Simpan** menyertakan semua baris yang masih dipilih, termasuk yang
 tersembunyi oleh filter atau halaman lain. Kesamaan saldo akhir saja belum
 membuktikan bahwa seluruh histori rekening sudah lengkap.
 
+Jika impor Excel lama menyimpan `Caf&#233;` dan file asli menampilkan `Café`,
+bandingkan tanggal, nominal, saldo setelah mutasi, dan referensinya. Saat Uangku
+meminta keputusan untuk baris yang sama, pilih **Pertahankan catatan** agar
+mutasi tersebut hanya dihitung sekali.
+
 ### Merapikan kategori
 
 Buka **Transaksi → Isi kategori otomatis** untuk meninjau kategori kosong

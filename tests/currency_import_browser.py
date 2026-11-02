@@ -152,7 +152,8 @@ def write_xlsx(path, rows, formulas=None):
     ns='xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
     with ZipFile(path,'w',ZIP_DEFLATED) as archive:
         archive.writestr('xl/workbook.xml',f'<workbook {ns}><workbookPr date1904="0"/></workbook>')
-        archive.writestr('xl/worksheets/sheet1.xml',f'<worksheet {ns}><sheetData>{"".join(xml)}</sheetData></worksheet>')
+        worksheet = f'<worksheet {ns}><sheetData>{"".join(xml)}</sheetData></worksheet>'
+        archive.writestr('xl/worksheets/sheet1.xml', worksheet.encode('ascii', 'xmlcharrefreplace'))
 
 
 EUR_ROWS = [
@@ -414,14 +415,16 @@ def csv_signed_duplicate(case):
 def xlsx_debit_credit(case):
     path=case.args.output/f'{case.name}.xlsx'
     rows=[['date','reference','description','debit','credit','balance','currency'],
-        ['2026-10-29','SYN-K1','SYNTHETIC dinar debit',1.234,None,98.766,'KWD'],
-        ['2026-10-30','SYN-K2','SYNTHETIC dinar credit',None,2.001,100.767,'KWD'],
+        ['2026-10-29','Ç-123','Café Çağrı',1.234,None,98.766,'KWD'],
+        ['2026-10-30','&#199;-123','Literal &#233;',None,2.001,100.767,'KWD'],
         ['2026-10-31','SYN-K3','SYNTHETIC dinar final',0.007,None,100.760,'KWD']]
-    write_xlsx(path,rows);case.import_file(path,wallet_id='kwd',mode='debit-credit');case.preview();case.unchanged()
+    write_xlsx(path,rows);case.import_file(path,wallet_id='kwd',mode='debit-credit',columns={'Kolom referensi':1});case.preview();case.unchanged()
+    expect(case.page.locator('.import-table .transaction-title', has_text='Café Çağrı')).to_have_count(1)
     saved=case.save_import(3);facts=sorted(saved['metadata']['facts'],key=lambda row:row['postedOn'])
+    assert [(fact['reference'],fact['description']) for fact in facts] == [(row[1],row[2]) for row in rows[1:]]
     assert [row['signedAmount'] for row in facts]==[-1234,2001,-7]
     assert [row['balanceAfter'] for row in facts]==[98766,100767,100760]
-    assert balance(saved,'kwd')==100760 and len(saved['state']['entries'])==3;case.semantic_checks+=3
+    assert balance(saved,'kwd')==100760 and len(saved['state']['entries'])==3;case.semantic_checks+=4
 
 
 def csv_locale_newest(case):

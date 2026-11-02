@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { zipSync, strToU8 } from 'fflate';
-import { entriesFromImport, parseZiraatWorkbook } from './importer';
+import { entriesFromImport, parseZiraatWorkbook, readStatementWorkbook } from './importer';
 import type { Entry, Wallet } from './finance';
 
 const wallet: Wallet = { id: 'sample-wallet', name: 'Ziraat contoh', currency: 'TRY', kind: 'bank', openingBalance: 0 };
@@ -160,6 +160,36 @@ describe('parseZiraatWorkbook', () => {
       ['23.10.2026', 'A', 'POS contoh & lainnya', -10, 90],
     ]), wallet, []);
     expect(result.rows[0].description).toBe('POS contoh & lainnya');
+  });
+
+  it('returns the same exact text for numeric references and UTF-8 across XLSX cell storage formats', () => {
+    const rich = '\n<r><rPr><b/></rPr><t xml:space="preserve">Caf&#xE9; </t></r>\n<r><t>&#199;a&#287;r&#x131;</t></r>\n';
+    const cells = [
+      '<c t="s"><v>0</v></c>', `<c t="inlineStr"><is>${rich}</is></c>`,
+      '<c t="str"><v>Café Çağrı</v></c>', '<c t="str"><v>&#xC7;-123</v></c>',
+      '<c t="str"><v>&amp;#233; &#38;#xE9; &amp;amp; &#x1F600; e&#x301;</v></c>',
+      '<c t="inlineStr"><is><t><![CDATA[Caf&#233;]]></t></is></c>',
+    ];
+    const packed = zipSync({
+      'xl/sharedStrings.xml': strToU8(`<sst><si>${rich}</si></sst>`),
+      'xl/worksheets/sheet1.xml': strToU8(`<worksheet><sheetData><row>${cells.join('')}</row></sheetData></worksheet>`),
+      'xl/workbook.xml': strToU8('<workbook><sheets><sheet name="Caf&#233;" r:id="rId1"/></sheets></workbook>'),
+      'xl/_rels/workbook.xml.rels': strToU8('<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>'),
+    });
+    const buffer = packed.buffer.slice(packed.byteOffset, packed.byteOffset + packed.byteLength) as ArrayBuffer;
+    for (const generic of [false, true]) {
+      const [sheet] = readStatementWorkbook(buffer, generic).sheets;
+      expect(sheet.name).toBe('Café');
+      expect(sheet.values).toEqual([['Café Çağrı', 'Café Çağrı', 'Café Çağrı', 'Ç-123', '&#233; &#xE9; &amp; 😀 e\u0301', 'Caf&#233;']]);
+    }
+  });
+
+  it.each(['&#0;', '&#xD800;', '&#xFFFE;', '&#1114112;', '&nbsp;'])('rejects unsupported XML reference %s instead of changing the source text', reference => {
+    const packed = zipSync({
+      'xl/worksheets/sheet1.xml': strToU8(`<worksheet><sheetData><row><c t="str"><v>bank${reference}ref</v></c></row></sheetData></worksheet>`),
+    });
+    const buffer = packed.buffer.slice(packed.byteOffset, packed.byteOffset + packed.byteLength) as ArrayBuffer;
+    expect(() => readStatementWorkbook(buffer)).toThrow('Struktur XML');
   });
 
   it('preserves a transfer hint as pending cash flow until both wallets can be linked', () => {

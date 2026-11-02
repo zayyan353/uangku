@@ -4,6 +4,7 @@ import { executeTransferCommand } from './transferCommands';
 import { inspectImport, prepareImport, type ImportDecisions, type ImportInspection } from './importCommit';
 import { entriesFromImport, type ImportPreview, type ImportRow } from './importer';
 import { serializeSourceWire } from './sourceCodec';
+import { decodeXmlCharacterReference } from './xmlCharacterReferences';
 import {
   SOURCE_POLICY, canonicalSource, validateSourceDocument,
   type SourceAnnotation, type SourceDocument, type SourceFact, type SourceLink,
@@ -154,6 +155,7 @@ export function deleteSourcedEntry(data: SourceDocument, entryId: string, decisi
 interface SourceIndex {
   factsByFingerprint: Map<string, SourceFact[]>;
   factsByContent: Map<string, SourceFact[]>;
+  factsByLegacyXmlText: Map<string, SourceFact[]>;
   aliasesByMovement: Map<string, Entry[]>;
   entries: Map<string, Entry>; linksBySource: Map<string, SourceLink>;
   legacyByFingerprint: Map<string, Entry[]>;
@@ -167,13 +169,23 @@ interface Match {
   fact?: SourceFact; link?: SourceLink; entry?: Entry; legacyEntry?: Entry;
   deletedTransfer?: NonNullable<SourceMetadata['deletedTransfers']>[number];
   alternateFacts?: SourceFact[]; alternateLegacy?: Entry[];
+  legacyXmlOverlap: boolean;
   ambiguous: boolean; collision: boolean; signatureParts: unknown[];
 }
 function sourceIndex(data: SourceDocument): SourceIndex {
-  const index: SourceIndex = {factsByFingerprint:new Map(),factsByContent:new Map(),aliasesByMovement:new Map(),entries:new Map(data.state.entries.map(row=>[row.id,row])),linksBySource:new Map(),legacyByFingerprint:new Map(),deletedByFingerprint:new Map(),dispositions:new Map((data.metadata?.dispositions??[]).map(row=>[row.sourceId,row])),annotations:new Map((data.metadata?.annotations??[]).map(row=>[row.sourceId,row])),overrides:new Map((data.metadata?.overrides??[]).map(row=>[row.entryId,row])),manualByMovement:manualSourceCandidates(data),dates:createPostingDateIndex(data.metadata)};
+  const index: SourceIndex = {factsByFingerprint:new Map(),factsByContent:new Map(),factsByLegacyXmlText:new Map(),aliasesByMovement:new Map(),entries:new Map(data.state.entries.map(row=>[row.id,row])),linksBySource:new Map(),legacyByFingerprint:new Map(),deletedByFingerprint:new Map(),dispositions:new Map((data.metadata?.dispositions??[]).map(row=>[row.sourceId,row])),annotations:new Map((data.metadata?.annotations??[]).map(row=>[row.sourceId,row])),overrides:new Map((data.metadata?.overrides??[]).map(row=>[row.entryId,row])),manualByMovement:manualSourceCandidates(data),dates:createPostingDateIndex(data.metadata)};
   const linkedIds=new Set<string>();
   for(const link of data.metadata?.links??[]) {linkedIds.add(link.entryId);for(const ref of sourceRefs(link))index.linksBySource.set(ref,link);}
-  for(const fact of data.metadata?.facts??[]){const contentKey=sourceContentKey(fact),content=index.factsByContent.get(contentKey)??[];content.push(fact);index.factsByContent.set(contentKey,content);const rows=index.factsByFingerprint.get(fact.fingerprint)??[];rows.push(fact);index.factsByFingerprint.set(fact.fingerprint,rows);}
+  for(const fact of data.metadata?.facts??[]){
+    const contentKey=sourceContentKey(fact),content=index.factsByContent.get(contentKey)??[];content.push(fact);index.factsByContent.set(contentKey,content);
+    const rows=index.factsByFingerprint.get(fact.fingerprint)??[];rows.push(fact);index.factsByFingerprint.set(fact.fingerprint,rows);
+    const description = legacyXmlText(fact.description), reference = legacyXmlText(fact.reference ?? '');
+    if (description !== fact.description || reference !== (fact.reference ?? '')) {
+      const key = xmlObservationKey(fact, description, reference), matches = index.factsByLegacyXmlText.get(key) ?? [];
+      matches.push(fact);
+      index.factsByLegacyXmlText.set(key, matches);
+    }
+  }
   for(const entry of data.state.entries) if(!linkedIds.has(entry.id)) for(const fp of new Set([entry.sourceKey,entry.toSourceKey]))if(fp){const rows=index.legacyByFingerprint.get(fp)??[];rows.push(entry);index.legacyByFingerprint.set(fp,rows);}
   const linksByEntry = new Map((data.metadata?.links ?? []).map(link => [link.entryId, link]));
   for (const entry of data.state.entries) {
@@ -215,6 +227,18 @@ function sourceContentKey(fact: SourceFact): string {
   return canonical([fact.walletId, fact.currency, fact.postedOn, fact.signedAmount, fact.balanceAfter,
     fact.description.normalize('NFC').trim().replace(/\s+/g, ' ')]);
 }
+// Older XLSX reads could retain numeric XML references in a source fact. The
+// same spelling can be literal bank text, so use this only to request review.
+function legacyXmlText(text: string): string {
+  if (!text.includes('&#')) return text;
+  return text.replace(/&#(\d+|x[\da-fA-F]+);/g, (original, digits: string) => {
+    const hex = digits.startsWith('x');
+    return decodeXmlCharacterReference(hex ? digits.slice(1) : digits, hex ? 16 : 10) ?? original;
+  });
+}
+function xmlObservationKey(fact: SourceFact, description: string, reference: string): string {
+  return JSON.stringify([fact.walletId, fact.currency, fact.postedOn, fact.signedAmount, fact.balanceAfter, description, reference]);
+}
 function matchRow(data: SourceDocument, wallet: Wallet, row: ImportRow, index: SourceIndex): Match {
   const incoming=factFor(row,wallet,''),target=factSignature(incoming);
   const candidates=index.factsByFingerprint.get(row.sourceKey)??[];
@@ -224,14 +248,45 @@ function matchRow(data: SourceDocument, wallet: Wallet, row: ImportRow, index: S
   const entry=link?index.entries.get(link.entryId):undefined;
   const legacy=index.legacyByFingerprint.get(row.sourceKey)??[];
   const deleted=index.deletedByFingerprint.get(row.sourceKey)??[];
-  const alternateFacts = (index.factsByContent.get(sourceContentKey(incoming)) ?? []).filter(candidate =>
+  let alternateFacts = (index.factsByContent.get(sourceContentKey(incoming)) ?? []).filter(candidate =>
     candidate.fingerprint !== incoming.fingerprint && (candidate.fingerprintVersion === 'generic-v1' || incoming.fingerprintVersion === 'generic-v1'));
+  let legacyXmlOverlap = false;
+  // An exact corrected fact already carries its own link or prior decision.
+  // Its old spelling must not supersede that decision on subsequent imports.
+  if (index.factsByLegacyXmlText.size) {
+    const reference = incoming.reference ?? '', description = incoming.description;
+    const keys = [xmlObservationKey(incoming, description, reference)];
+    // A cell may combine actual accents and literal text such as "&#233;".
+    // Compare both spellings; neither key is an identity or a saved value.
+    const foldedDescription = legacyXmlText(description), foldedReference = legacyXmlText(reference);
+    if (foldedDescription !== description || foldedReference !== reference) {
+      keys.push(xmlObservationKey(incoming, foldedDescription, foldedReference));
+    }
+    const xmlMatches = keys.flatMap(key => index.factsByLegacyXmlText.get(key) ?? []);
+    if (xmlMatches.length) {
+      const alternates = new Set(alternateFacts);
+      for (const match of xmlMatches) {
+        if (fact) alternates.delete(match);
+        else alternates.add(match);
+      }
+      alternateFacts = [...alternates];
+      legacyXmlOverlap = !fact;
+    }
+  }
   const alternateLegacy = [...new Map([...(index.aliasesByMovement.get(`${wallet.id}:${row.date}:${row.amount}`) ?? []), ...(index.aliasesByMovement.get(`${wallet.id}:?:${row.amount}`) ?? [])]
-    .filter(entry => entry.sourceKey !== incoming.fingerprint && entry.toSourceKey !== incoming.fingerprint && (incoming.fingerprintVersion === 'generic-v1' || entry.sourceKey?.startsWith('generic:') || entry.toSourceKey?.startsWith('generic:'))).map(entry => [entry.id, entry])).values()];
+    .filter(entry => {
+      if (entry.sourceKey === incoming.fingerprint || entry.toSourceKey === incoming.fingerprint) return false;
+      if (incoming.fingerprintVersion === 'generic-v1' || entry.sourceKey?.startsWith('generic:') || entry.toSourceKey?.startsWith('generic:')) return true;
+      if (fact) return false;
+      const memo = legacyXmlText(entry.note), incomingMemo = incoming.description.trim();
+      if (memo === entry.note || entry.note === incomingMemo || (memo !== incomingMemo && memo !== legacyXmlText(incomingMemo))) return false;
+      legacyXmlOverlap = true;
+      return true;
+    }).map(entry => [entry.id, entry])).values()];
   const alternateParts = alternateFacts.map(candidate => { const link = index.linksBySource.get(candidate.id); return [candidate,link,link ? index.entries.get(link.entryId) : undefined,index.dispositions.get(candidate.id),index.annotations.get(candidate.id)]; });
   return {fact,link,entry,legacyEntry:legacy.length===1?legacy[0]:undefined,deletedTransfer:deleted.length===1?deleted[0]:undefined,
     ambiguous:(!entry&&!legacy.length&&alternateFacts.length+alternateLegacy.length>1)||exact.length>1||legacy.length>1||deleted.length>1||!!deleted.length&&(!!entry||!!legacy.length),collision:candidates.length>exact.length,
-    alternateFacts, alternateLegacy, signatureParts:[candidates,legacy,deleted,alternateParts,alternateLegacy.map(entry => [entry,entry.type === 'transfer' ? transferPostingDates(entry,index.dates) : null])]};
+    alternateFacts, alternateLegacy, legacyXmlOverlap, signatureParts:[candidates,legacy,deleted,alternateParts,alternateLegacy.map(entry => [entry,entry.type === 'transfer' ? transferPostingDates(entry,index.dates) : null])]};
 }
 /** Build the inspection-only legacy alias projection in one pass. */
 function projectedState(data: SourceDocument, walletId?: string): State {
@@ -272,7 +327,9 @@ function reviewFor(data: SourceDocument,wallet: Wallet,row: ImportRow,match: Mat
   else if(match.legacyEntry)status=match.legacyEntry.type==='transfer'?'transfer-limited':'legacy-uncertain';
   if(!status)return;
   const messages:Record<SourceReviewStatus,string>={
-    'alternate-source':'Ada fakta sumber dengan ciri sama atau catatan impor lama pada tanggal/nominal yang sama, tetapi identitas format atau referensinya berbeda. Histori legacy tidak selalu memiliki saldo/keterangan sumber yang lengkap. Pertahankan catatan lama untuk tidak menambah transaksi, atau pilih Transaksi berbeda hanya jika benar-benar mutasi lain. Baris yang dipertahankan disimpan sebagai sumber dikecualikan; asosiasi tidak ditebak.',
+    'alternate-source':match.legacyXmlOverlap
+      ? 'Catatan lama pada tanggal dan nominal yang sama memuat kode karakter yang mungkin berasal dari pembaca Excel lama. Bandingkan dengan file asli. Pilih Pertahankan catatan untuk menyimpan fakta file tanpa menambah transaksi, atau Transaksi berbeda jika ini memang mutasi lain.'
+      : 'Ada fakta sumber dengan ciri sama atau catatan impor lama pada tanggal/nominal yang sama, tetapi identitas format atau referensinya berbeda. Histori legacy tidak selalu memiliki saldo/keterangan sumber yang lengkap. Pertahankan catatan lama untuk tidak menambah transaksi, atau pilih Transaksi berbeda hanya jika benar-benar mutasi lain. Baris yang dipertahankan disimpan sebagai sumber dikecualikan; asosiasi tidak ditebak.',
     'known-overridden':'Fakta bank dikenal, tetapi nilai efektif telah dikoreksi. Pertahankan koreksi atau pulihkan fakta bank secara eksplisit.',
     'known-deleted':'Catatan sumber dihapus. Penghapusan dipertahankan sampai dipilih pulihkan.',
     'known-deleted-transfer':'Sumber terkait transfer terhapus. Pulihkan seluruh grup beserta kedua tanggal, biaya dan koreksinya, atau pertahankan penghapusan.',

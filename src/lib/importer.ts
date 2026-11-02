@@ -1,5 +1,6 @@
 import { unzipSync, strFromU8 } from 'fflate';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
+import { xlsxEntityDecoder } from './xmlCharacterReferences';
 import type { Currency, Entry, Wallet } from './finance';
 import { confirmedBankEntryType, interpretBankDescription, normalizeBankDescription } from './bankDescription';
 
@@ -48,9 +49,9 @@ function text(value: unknown): string {
   if (typeof value !== 'object') return String(value);
   if (Array.isArray(value)) return value.map(text).join('');
   const node = value as XmlNode;
-  if ('#text' in node) return text(node['#text']);
   if ('t' in node) return text(node.t);
   if ('r' in node) return text(node.r);
+  if ('#text' in node) return text(node['#text']);
   return '';
 }
 
@@ -61,8 +62,7 @@ function xml(source: Uint8Array): XmlNode {
   }
   return new XMLParser({ ignoreAttributes: false, removeNSPrefix: true,
     parseTagValue: false, parseAttributeValue: false, trimValues: false,
-    // Custom entities/DOCTYPE are rejected above; decode standard XML escapes.
-    processEntities: true, ignoreDeclaration: true }).parse(input) as XmlNode;
+    entityDecoder: xlsxEntityDecoder, ignoreDeclaration: true }).parse(input) as XmlNode;
 }
 
 export interface StatementSheet { name: string; values: unknown[][]; formulas: Set<number>; numericCells: Set<string> }

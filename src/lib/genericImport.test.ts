@@ -239,6 +239,77 @@ describe('XLSX source values and cross-format identity', () => {
 });
 
 describe('cross-namespace source review', () => {
+  it('reviews a corrected Excel row after an earlier anchor without rewriting or silently duplicating the old posting', () => {
+    const account = wallet('IDR'), options = mapping({ confirmedCurrency: 'IDR' });
+    const header = table().values[0];
+    const oldRow = ['2026-10-02', 'Caf&#233; &#xC7;a&#287;r&#305; / literal &#233;', '-25000', '75000', '&#199;-123', 'IDR'];
+    const oldFile = table([header, ['2026-10-01', 'Earlier posted row', '1000', '100000', 'R0', 'IDR'], oldRow]);
+    const old = ready(document('IDR'), parseGenericStatement(oldFile, options, account, []));
+    const before = serializeBackup(old);
+    // Only some of these spellings came from XML. The bank genuinely wrote
+    // the reference and the final five literal characters of the description.
+    const fixedRow = [oldRow[0], 'Café Çağrı / literal &#233;', ...oldRow.slice(2)];
+    const parse = (row: string[]) => parseGenericStatement(table([header, row]), options, account, old.state.entries);
+    const preview = parse(fixedRow), id = preview.rows[0].id, savedWallet = old.state.wallets[0];
+    const pending = prepareSourcedImport(old, savedWallet, preview, {}, false, 'incoming', at);
+    expect(pending.status).toBe('review');
+    const review = pending.inspection.sourceReviews[id];
+    expect(review).toMatchObject({ status: 'alternate-source', allowedResolutions: ['keep', 'distinct'] });
+    const kept = prepareSourcedImport(old, savedWallet, { ...preview, rows: [{ ...preview.rows[0], selected: false }] },
+      { [id]: { resolution: 'keep', signature: review.signature } }, false, 'kept', at);
+    expect(kept.status).toBe('ready');
+    if (kept.status !== 'ready') throw Error('Expected a reviewed source observation');
+    expect(kept.data.state).toEqual(old.state);
+    expect(kept.data.metadata!.facts.slice(0, 2)).toEqual(old.metadata!.facts);
+    expect(kept.data.metadata!.facts[2]).toMatchObject({ description: fixedRow[1], reference: '&#199;-123' });
+    expect(kept.data.metadata!.dispositions).toContainEqual(expect.objectContaining({ sourceId: kept.data.metadata!.facts[2].id, kind: 'excluded' }));
+    const again = inspectSourcedImport(kept.data, savedWallet, preview).sourceReviews[id];
+    expect(again.status).toBe('known-excluded');
+    expect(prepareSourcedImport(kept.data, savedWallet, preview, {}, false, 'again', at).status).toBe('review');
+    const keptAgain = prepareSourcedImport(kept.data, savedWallet, { ...preview, rows: [{ ...preview.rows[0], selected: false }] },
+      { [id]: { resolution: 'keep', signature: again.signature } }, false, 'again', at);
+    expect(keptAgain.status).toBe('ready');
+    if (keptAgain.status !== 'ready') throw Error('Expected unchanged exclusion');
+    expect(keptAgain.data.state).toEqual(old.state);
+    expect(keptAgain.data.metadata).toEqual(kept.data.metadata);
+    const distinct = prepareSourcedImport(old, savedWallet, preview, { [id]: { resolution: 'distinct', signature: review.signature } }, false, 'distinct', at);
+    expect(distinct.status).toBe('ready');
+    if (distinct.status !== 'ready') throw Error('Expected the explicitly distinct posting');
+    expect(distinct.data.state.entries).toHaveLength(3);
+    expect(distinct.data.metadata!.facts.slice(0, 2)).toEqual(old.metadata!.facts);
+    expect(serializeBackup(old)).toBe(before);
+    const anotherReference = [...fixedRow]; anotherReference[4] = 'Ç-999';
+    expect(inspectSourcedImport(old, savedWallet, parse(anotherReference)).needsReview).toBe(false);
+  });
+
+  it('keeps a Ziraat fingerprint collision under review when only the reference spelling changes', () => {
+    const account = wallet('TRY'), options = mapping({ confirmedCurrency: 'TRY' });
+    const ziraat = (reference: string): ImportPreview => {
+      const preview = parseGenericStatement(table([table().values[0],
+        ['2026-10-02', 'Unchanged memo', '-25', '75', reference, 'TRY']]), options, account, []);
+      // Ziraat's historical fingerprint excludes the originating reference.
+      return { ...preview, rows: preview.rows.map(row => ({ ...row, sourceKey: 'ziraat:0000000000000001', fingerprintVersion: 'ziraat-v1' })) };
+    };
+    const old = ready(document('TRY'), ziraat('&#199;-123')), before = serializeBackup(old);
+    const preview = ziraat('Ç-123'), status = prepareSourcedImport(old, old.state.wallets[0], preview, {}, false, 'repeat', at);
+    expect(status.status).toBe('review');
+    expect(status.inspection.sourceReviews[preview.rows[0].id]).toMatchObject({ status: 'identity-ambiguous', allowedResolutions: ['keep'] });
+    expect(serializeBackup(old)).toBe(before);
+  });
+
+  it('requires review of an old Ziraat alias without source facts if its date, amount and numeric-reference memo match', () => {
+    const data = document('TRY'), account = data.state.wallets[0];
+    data.state.entries.push({ id: 'old', walletId: account.id, date: '2026-10-02', amount: -2500, type: 'unreviewed',
+      category: 'Manual', note: 'Caf&#233; &#199;', sourceKey: 'ziraat:0000000000000001' });
+    const mapped = parseGenericStatement(table([table().values[0], ['2026-10-02', 'Café Ç', '-25', '75', 'Ç-123', 'TRY']]),
+      mapping({ confirmedCurrency: 'TRY' }), account, []);
+    const incoming: ImportPreview = { ...mapped, rows: mapped.rows.map(row => ({ ...row, sourceKey: 'ziraat:0000000000000002', fingerprintVersion: 'ziraat-v1' })) };
+    const status = prepareSourcedImport(data, account, incoming, {}, false, 'after-update', at);
+    expect(status.status).toBe('review');
+    expect(status.inspection.sourceReviews[incoming.rows[0].id]).toMatchObject({ status: 'alternate-source', allowedResolutions: ['keep', 'distinct'] });
+    expect(data.state.entries[0].category).toBe('Manual');
+  });
+
   function base() {
     const preview = parseGenericStatement(table([table().values[0], ['2026-10-01', 'Synthetic bank credit', '100', '110', 'r', 'TRY']]), mapping({ confirmedCurrency: 'TRY' }), wallet('TRY'), []);
     const ziraat: ImportPreview = { ...preview, rows: preview.rows.map(row => ({ ...row, sourceKey: 'ziraat:0000000000000001', fingerprintVersion: 'ziraat-v1' })) };
