@@ -78,7 +78,7 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
     ? inspectSourcedImport(data, walletSnapshot, currentPreview, decisions) : null,
   [data, walletSnapshot, currentPreview, decisions]);
   const currentRows = inspection?.rows ?? rows;
-  const previewPresentations = useMemo(() => new Map(result?.rows.map(row => [row.id, presentBankDescription(row.originalDescription ?? row.description, row.amount)]) ?? []), [result]);
+  const previewPresentations = useMemo(() => new Map(result?.rows.map(row => [row.id, presentBankDescription(row.originalDescription ?? row.description, row.amount, row.fingerprintVersion)]) ?? []), [result]);
   const selected = currentRows.filter(row => row.selected && !row.duplicate);
   const rowReview = (row: ImportRow) => entryReviewStatus({ type: row.classification === 'transfer' ? 'unreviewed' : row.classification, category: row.category });
   const selectedReview = reviewCounts(selected.map(row => ({ type: row.classification === 'transfer' ? 'unreviewed' as const : row.classification, category: row.category })));
@@ -172,7 +172,7 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
     const suggest = createCategorySuggester(settingsRef.current);
     const categorized = checked.rows.map(row => {
       if (row.duplicate || checked.sourceReviews[row.id] || !isUncategorized(row.category)) return row;
-      const match = suggest(row.originalDescription ?? row.description, row.classification === 'transfer' ? 'unreviewed' : row.classification, row.amount);
+      const match = suggest(row.originalDescription ?? row.description, row.classification === 'transfer' ? 'unreviewed' : row.classification, row.amount, row.fingerprintVersion);
       if (match.kind !== 'auto') return row;
       automatic[row.id] = match.suggestions[0].reason;
       return { ...row, category: match.suggestions[0].category };
@@ -274,9 +274,9 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
       <div className="import-bulk-category"><label className="field"><span className="field-label">Kategori untuk pilihan yang terlihat</span><select className="select-input" aria-label="Kategori mutasi terpilih" value={previewCategory} disabled={controlsDisabled} onChange={event => setPreviewCategory(event.target.value)}>{categoryChoices(categorySettings, previewCategory).map(name => <option key={name}>{name}</option>)}</select></label><button className="button secondary" disabled={controlsDisabled || !visibleSelected.length} onClick={applyPreviewCategory}><Tags size={16} /> Terapkan kategori ke {visibleSelected.length} mutasi</button></div>
       <div className="table-wrap"><table className="transactions-table import-table"><thead><tr><th><input type="checkbox" aria-label="Pilih semua transaksi baru" title="Pilih atau batalkan hanya mutasi baru yang terlihat" disabled={controlsDisabled || !visibleNewRows.length} checked={visibleNewRows.length > 0 && visibleNewRows.every(row => row.selected)} ref={input => { if (input) input.indeterminate = visibleSelected.length > 0 && visibleSelected.length < visibleNewRows.length; }} onChange={event => { const ids = new Set(visibleNewRows.map(row => row.id)); const checked = event.target.checked; setRows(current => current.map(row => ids.has(row.id) ? { ...row, selected: checked } : row)); }} /></th><th>Transaksi</th><th>Nominal</th><th>Jenis</th><th>Kategori</th></tr></thead>
         <tbody>{visibleRows.map(row => {
-          const view = previewPresentations.get(row.id) ?? presentBankDescription(row.originalDescription ?? row.description, row.amount);
+          const view = previewPresentations.get(row.id) ?? presentBankDescription(row.originalDescription ?? row.description, row.amount, row.fingerprintVersion);
           const bank = view.bank;
-          const match = suggestCategory(row.originalDescription ?? row.description, row.classification === 'transfer' ? 'unreviewed' : row.classification, row.amount);
+          const match = suggestCategory(row.originalDescription ?? row.description, row.classification === 'transfer' ? 'unreviewed' : row.classification, row.amount, row.fingerprintVersion);
           const overlap = inspection?.overlaps[row.id];
           const sourceReview = inspection?.sourceReviews[row.id];
           const decision = decisions[row.id];

@@ -201,6 +201,31 @@ describe('dates and approved baseline availability', () => {
 });
 
 describe('operation groups use source wording, not an invented category meaning', () => {
+  it('groups generic debits and credits without interpreting bank-specific words or losing their signs', () => {
+    const source = data([ordinary('debit', -250, 'unreviewed', 'FAST FOOD RESTAURANT'),
+      ordinary('credit', 100, 'unreviewed', 'PREPAID HOTEL DEPOSIT REFUND')]);
+    for (const entry of source.state.entries) capture(source, entry.id, entry.note);
+    for (const fact of source.metadata!.facts) fact.fingerprintVersion = 'generic-v1';
+    const before = structuredClone(source), pending = report(source);
+    expect(pending.breakdown).toEqual([{ id: 'other', label: 'Mutasi lain', inflow: 100, outflow: 250, entryCount: 2 }]);
+    expect(pending.categoryTotals).toEqual([]);
+    expect(source).toEqual(before);
+    const debit = source.state.entries[0];
+    Object.assign(debit, { type: 'expense', amount: 250, category: 'Makan' });
+    const reviewed = report(source);
+    expect(reviewed.breakdown.find(group => group.id === 'payments')?.outflow).toBe(250);
+    expect(reviewed.categoryTotals).toEqual([['Makan', 250]]);
+    expect(reviewed.closingBalance).toBe(pending.closingBalance);
+    reconciles(pending); reconciles(reviewed);
+  });
+
+  it('keeps a complete directed transfer description in the generic statement breakdown', () => {
+    const source = data([ordinary('transfer', -250, 'movement', 'GIDEN HAVALE')]);
+    capture(source, 'transfer', 'GIDEN HAVALE');
+    source.metadata!.facts[0].fingerprintVersion = 'generic-v1';
+    expect(report(source).breakdown).toEqual([{ id: 'transfer', label: 'Transfer bank', inflow: 0, outflow: 250, entryCount: 1 }]);
+  });
+
   it.each([
     ['ATM PARA ÇEKME', -100, 'atm-withdrawal'], ['ATM YATAN', 100, 'atm-deposit'],
     ['YURTİÇİ ATM P.Y.', 100, 'atm-deposit'], ['ATM PARA ÇEKME', 100, 'other'], ['ATM YATAN', -100, 'other'],

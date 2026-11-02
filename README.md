@@ -83,13 +83,16 @@ mewakili satu rekening dalam satu mata uang; impor tidak menukar mata uang.
    proyeksi saldo sebelum menekan **Simpan**. Mengubah pemetaan membatalkan
    pratinjau lama. Memilih file saja belum menyimpan transaksi.
 
-Jenis yang belum mempunyai bukti cukup disimpan sebagai **Perlu dicek**:
-nominalnya tetap memengaruhi saldo, tetapi belum dihitung sebagai pemasukan
-atau pengeluaran. Penanda bank yang sudah dikenali mengikuti pemetaan yang
-ditetapkan: setor ATM menjadi pemasukan, tarik ATM menjadi pengeluaran,
-PREPAID masuk menjadi Cashback, dan pokok transfer tetap perpindahan dana.
-Pembayaran kartu yang tujuannya belum diketahui memakai kategori Belanja
-umum, tanpa menebak barang atau layanan yang dibeli.
+Pada impor umum, debit dan kredit langsung masuk ke saldo. Keterangan yang
+belum memastikan jenis transaksi ditandai **Perlu dicek**. Misalnya, kamu
+bisa menandai `FAST FOOD RESTAURANT` sebagai pengeluaran jika itu memang
+pembelian makanan. Keterangan operasi yang dikenali secara utuh, seperti
+`GIDEN HAVALE` pada debit, tetap bisa dikenali otomatis.
+
+Pada pembaca Ziraat otomatis, penanda bank yang dikenali mengikuti pemetaan
+yang ditetapkan. Setor ATM menjadi pemasukan, tarik ATM menjadi pengeluaran,
+PREPAID masuk menjadi Cashback, dan pokok transfer menjadi perpindahan dana.
+Pembayaran kartu yang tujuannya belum diketahui memakai kategori Belanja.
 
 Filter dan kategori massal pada pratinjau berlaku untuk baris yang terlihat.
 Tombol **Simpan** menyertakan semua baris yang masih dipilih, termasuk yang

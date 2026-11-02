@@ -1,6 +1,7 @@
 import { entrySignedAmount, type Entry } from './finance';
-import type { SourceDocument } from './sourceModel';
+import type { SourceDocument, SourceFact } from './sourceModel';
 import { interpretBankDescription, type BankDescriptionInterpretation } from './bankDescription';
+import { entryFingerprintVersion, indexBankWording } from './bankWording';
 
 export interface BankEntryPresentation {
   bank: BankDescriptionInterpretation;
@@ -13,18 +14,9 @@ export interface BankEntryPresentation {
   noteIsCustom: boolean;
 }
 
-function sourceDescriptions(data: SourceDocument): Map<string, string> {
-  const facts = new Map((data.metadata?.facts ?? []).map(fact => [fact.id, fact.description]));
-  const descriptions = new Map<string, string>();
-  for (const link of data.metadata?.links ?? []) {
-    const parts = [link.source, link.destination].flatMap(id => id && facts.has(id) ? [facts.get(id)!] : []);
-    if (parts.length) descriptions.set(link.entryId, parts.join('\n\n'));
-  }
-  return descriptions;
-}
-
 /** Extract a bank-labelled merchant without treating its name as an operation. */
-function explicitMerchant(description: string): string | undefined {
+function explicitMerchant(description: string, fingerprintVersion?: SourceFact['fingerprintVersion']): string | undefined {
+  if (fingerprintVersion === 'generic-v1') return undefined;
   const markers = [...description.matchAll(/(?:^|[\s;])[İIıi][ŞSsş][Yy][Ee][Rr][İIıi]\s*:\s*/gu)];
   if (markers.length !== 1) return undefined;
   const marker = markers[0];
@@ -38,32 +30,36 @@ const typeTitle = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Tran
   adjustment: 'Penyesuaian saldo', unreviewed: 'Mutasi belum dikonfirmasi' } as const;
 
 /** Preview-only source presentation; no synthetic book entry is required. */
-export function presentBankDescription(description: string, signedAmount: number): BankEntryPresentation & { noteIsCustom: false } {
-  const bank = interpretBankDescription(description, { signedAmount });
-  const merchant = explicitMerchant(description);
+export function presentBankDescription(description: string, signedAmount: number, fingerprintVersion?: SourceFact['fingerprintVersion']): BankEntryPresentation & { noteIsCustom: false } {
+  const bank = interpretBankDescription(description, { signedAmount, fingerprintVersion });
+  const merchant = explicitMerchant(description, fingerprintVersion);
   const title = bank.kind !== 'none' ? `${bank.label}${merchant ? ` · ${merchant}` : ''}` : description || 'Mutasi belum dikonfirmasi';
   return { bank, title, description, ...(merchant ? { merchant } : {}), noteIsCustom: false };
 }
 
 /** A view-only index. Original source descriptions outrank editable notes. */
 export function createBankEntryHintLookup(data: SourceDocument) {
-  const descriptions = sourceDescriptions(data);
-  return (entry: Entry) => interpretBankDescription(entry.type === 'transfer' || entry.type === 'adjustment' ? ''
-    : descriptions.has(entry.id) ? descriptions.get(entry.id)! : entry.note, { signedAmount: entrySignedAmount(entry) });
+  const descriptions = indexBankWording(data, '\n\n');
+  return (entry: Entry) => {
+    const source = descriptions.get(entry.id);
+    return interpretBankDescription(entry.type === 'transfer' || entry.type === 'adjustment' ? '' : source?.description ?? entry.note,
+      { signedAmount: entrySignedAmount(entry), fingerprintVersion: entryFingerprintVersion(entry, source) });
+  };
 }
 
 /** Read-only presentation. Source wording and user notes remain separate. */
 export function createBankEntryPresentationLookup(data: SourceDocument) {
-  const descriptions = sourceDescriptions(data);
+  const descriptions = indexBankWording(data, '\n\n');
   return (entry: Entry): BankEntryPresentation => {
-    const linked = descriptions.has(entry.id);
-    const description = linked ? descriptions.get(entry.id)! : entry.note;
+    const source = descriptions.get(entry.id);
+    const description = source?.description ?? entry.note;
+    const fingerprintVersion = entryFingerprintVersion(entry, source);
     // The importer trims leading/trailing whitespace in the book memo, while
     // the immutable source retains those characters. That is not a user edit.
-    const noteIsCustom = linked && entry.note.trim() !== description.trim();
+    const noteIsCustom = !!source && entry.note.trim() !== description.trim();
     const bank = interpretBankDescription(entry.type === 'transfer' || entry.type === 'adjustment' ? '' : description,
-      { signedAmount: entrySignedAmount(entry) });
-    const merchant = explicitMerchant(description);
+      { signedAmount: entrySignedAmount(entry), fingerprintVersion });
+    const merchant = explicitMerchant(description, fingerprintVersion);
     const title = noteIsCustom && entry.note.trim() ? entry.note : bank.kind !== 'none'
       ? `${bank.label}${merchant ? ` · ${merchant}` : ''}` : entry.note || description || typeTitle[entry.type];
     return { bank, title, description, ...(merchant ? { merchant } : {}), noteIsCustom };

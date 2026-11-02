@@ -1,4 +1,5 @@
-import { bankTypeConfirmation, entrySourceDescriptions } from './categorySuggestions';
+import { bankTypeConfirmation } from './categorySuggestions';
+import { entryFingerprintVersion, indexBankWording } from './bankWording';
 import { entrySignedAmount } from './finance';
 import { isUncategorized } from './categorySettings';
 import { prepareBackup } from './storage';
@@ -19,7 +20,7 @@ export function applyBankDecisions(data: SourceDocument, assignments: readonly B
     if (typeof assignment.category !== 'string' || assignment.category.length > 80 || isUncategorized(assignment.category)) throw Error('Pilih kategori yang valid, maksimal 80 karakter.');
     wanted.set(assignment.entryId, { ...assignment, category: assignment.category.trim() });
   }
-  const next = structuredClone(data), descriptions = entrySourceDescriptions(data);
+  const next = structuredClone(data), wording = indexBankWording(data);
   const annotations = new Map<string, SourceAnnotation>((next.metadata?.annotations ?? []).map(row => [row.sourceId, row]));
   const sourceIds = new Map((next.metadata?.links ?? []).map(link => [link.entryId, [link.source, link.destination].filter((id): id is string => !!id)]));
   const cash = new Set(next.state.wallets.filter(wallet => wallet.kind === 'cash').map(wallet => wallet.id));
@@ -35,7 +36,8 @@ export function applyBankDecisions(data: SourceDocument, assignments: readonly B
     if (assignment.confirmBankType) {
       if (entry.type !== 'unreviewed' && entry.type !== 'movement') throw Error('Jenis transaksi sudah dikonfirmasi. Buat ulang pratinjau.');
       const signedAmount = entrySignedAmount(entry);
-      const type = bankTypeConfirmation(entry, descriptions.has(entry.id) ? descriptions.get(entry.id)! : entry.note);
+      const source = wording.get(entry.id);
+      const type = bankTypeConfirmation(entry, source?.description ?? entry.note, entryFingerprintVersion(entry, source));
       if (!type && entry.type === 'movement') throw Error('Jenis perpindahan ini sudah dikonfirmasi dan bukan ATM yang memenuhi kebijakan baru. Buat ulang pratinjau.');
       if (!type) throw Error('Jenis mutasi ini belum dapat dipastikan dari keterangan dan arah nominal.');
       entry.type = type;

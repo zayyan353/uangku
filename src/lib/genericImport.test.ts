@@ -7,6 +7,9 @@ import { inspectSourcedImport, prepareSourcedImport, applySourcedBulkCategory } 
 import type { SourceDocument } from './sourceModel';
 import { readStatementWorkbook, type ImportPreview } from './importer';
 import { parseBackupText, serializeBackup } from './storage';
+import { defaultCategorySettings } from './categorySettings';
+import { createCategorySuggester, entryCategorySuggestions } from './categorySuggestions';
+import { applyBankDecisions } from './bankDecisions';
 
 const at = '2026-10-31T12:00:00Z';
 const wallet = (currency: Wallet['currency'] = 'EUR'): Wallet => ({ id: 'bank', name: 'Synthetic statement bank', currency, kind: 'bank', openingBalance: 0 });
@@ -78,6 +81,38 @@ describe('generic statement CSV and explicit formats', () => {
 });
 
 describe('generic source preview invariants', () => {
+  it('keeps FAST FOOD and a prepaid hotel refund unresolved through import, backup and category review', () => {
+    const csv = 'Date,Description,Amount,Balance,Reference,Currency\n2026-10-01,FAST FOOD RESTAURANT,-25000,75000,A,IDR\n2026-10-02,PREPAID HOTEL DEPOSIT REFUND,10000,85000,B,IDR';
+    const [input] = readGenericTables(bytes(csv), 'statement.csv');
+    const account = wallet('IDR'), options = mapping({ confirmedCurrency: 'IDR' });
+    const preview = parseGenericStatement(input, options, account, []);
+    const settings = defaultCategorySettings(), suggest = createCategorySuggester(settings);
+    for (const row of preview.rows) {
+      expect(row.classification).toBe('unreviewed');
+      expect(suggest(row.description, 'unreviewed', row.amount, row.fingerprintVersion)).toEqual({ kind: 'none', suggestions: [] });
+    }
+    const data = parseBackupText(serializeBackup(ready(document('IDR'), preview)));
+    const [expense, credit] = [...data.state.entries].sort((a, b) => a.date.localeCompare(b.date));
+    expect([expense, credit].map(entry => [entry.type, entry.category, entry.amount])).toEqual([
+      ['unreviewed', 'Belum dikategorikan', -2500000], ['unreviewed', 'Belum dikategorikan', 1000000],
+    ]);
+    expect(walletBalance(data.state, account.id, data.metadata)).toBe(8500000);
+    expect(data.metadata!.facts.map(fact => [fact.description, fact.reference, fact.signedAmount, fact.balanceAfter])).toEqual([
+      ['FAST FOOD RESTAURANT', 'A', -2500000, 7500000], ['PREPAID HOTEL DEPOSIT REFUND', 'B', 1000000, 8500000],
+    ]);
+    expect(parseGenericStatement(input, options, account, data.state.entries).rows.every(row => row.duplicate && !row.selected)).toBe(true);
+    // A valid backup may contain only a linked fact without its redundant entry alias.
+    delete expense.sourceKey;
+    expect(entryCategorySuggestions(data, settings)).toEqual([]);
+    for (const entry of [expense, credit]) {
+      expect(() => applyBankDecisions(data, [{ entryId: entry.id, category: 'Transfer', confirmBankType: true }])).toThrow(/belum dapat dipastikan/);
+    }
+    settings.rules.push({ id: 'personal-fast-food', keyword: 'FAST FOOD RESTAURANT', category: 'Makan & minum', mode: 'auto' });
+    expect(entryCategorySuggestions(data, settings)).toMatchObject([{ entry: { id: expense.id }, match: { kind: 'suggestions', suggestions: [{ category: 'Makan & minum' }] } }]);
+    const chosen = applyBankDecisions(data, [{ entryId: expense.id, category: 'Makan & minum' }]);
+    expect(chosen.state.entries.find(entry => entry.id === expense.id)).toMatchObject({ category: 'Makan & minum', type: 'unreviewed' });
+    expect(chosen.metadata!.facts).toEqual(data.metadata!.facts);
+  });
   it('preserves raw source text, signed money, statement opening/closing and unresolved purpose', () => {
     const input = table(), before = JSON.stringify(input.values), preview = parseGenericStatement(input, mapping(), wallet(), []);
     expect(preview).toMatchObject({ currency: 'EUR', openingBalance: 1000, closingBalance: 100000 });
@@ -129,6 +164,13 @@ describe('generic source preview invariants', () => {
   it('only confirms exact recognized operations, without assuming ordinary credits are earnings', () => {
     const input = table([table().values[0], ['2026-10-01', 'TAM ATM SORUNLU ISLEM IADESI', '1', '1', 'a', 'EUR'], ['2026-10-02', 'GIDEN HAVALE', '-1', '0', 'b', 'EUR']]);
     expect(parseGenericStatement(input, mapping(), wallet(), []).rows.map(row => row.classification)).toEqual(['income', 'movement']);
+  });
+  it.each([
+    ['FAST', '-1'], ['PREPAID', '1'], ['GIDEN FAST', '1'],
+    ['GELEN EFT', '-1'], ['GIDEN HAVALE SHOP', '-1'], ['TAM ATM SORUNLU ISLEM IADESI', '-1'],
+  ])('leaves a generic memo unresolved for insufficient or contradictory evidence: %s / %s', (memo, amount) => {
+    const input = table([table().values[0], ['2026-10-01', memo, amount, '100', 'A', 'EUR']]);
+    expect(parseGenericStatement(input, mapping(), wallet(), []).rows[0].classification).toBe('unreviewed');
   });
   it('rejects >50k transactions before accepting the extra row', () => {
     const input = table([table().values[0], ...Array.from({ length: 50_001 }, (_, index) => ['2026-10-01', 'Synthetic', '1', String(index + 1), String(index), 'EUR'])]);

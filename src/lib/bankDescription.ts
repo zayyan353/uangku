@@ -1,3 +1,5 @@
+import type { SourceFact } from './sourceModel';
+
 /** Interpretation of the bank's operation wording, separate from merchant
  * categories and financial postings. No wallet ownership or pairing is inferred.
  */
@@ -13,7 +15,7 @@ export interface BankDescriptionInterpretation {
   pending: boolean;
 }
 
-export interface BankDescriptionContext { signedAmount?: number }
+export interface BankDescriptionContext { signedAmount?: number; fingerprintVersion?: SourceFact['fingerprintVersion'] }
 
 /** Policy normalization only. Never use this to rewrite historical fingerprints. */
 export function normalizeBankDescription(value: string): string {
@@ -22,6 +24,15 @@ export function normalizeBankDescription(value: string): string {
 }
 
 const contains = (value: string, phrase: string): boolean => (` ${value} `).includes(` ${phrase} `);
+/** In a mapped statement the whole memo must identify an operation, and its
+ * stated direction must agree with the signed bank amount. */
+function explicitGenericOperation(text: string, amount?: number): boolean {
+  if (!Number.isSafeInteger(amount) || !amount) return false;
+  if (amount > 0) {
+    return /^(?:gelen (?:havale|eft|fast|transfer)|atm yatan|atm para yatirma|yurtici atm p y|tam atm sorunlu islem iadesi)$/.test(text);
+  }
+  return /^(?:giden (?:havale|eft|fast|transfer)|atm para cekme|(?:sanal )?pos (?:alisveris|harcama)|(?:havale|eft|fast|transfer|virman) (?:bsmv|komisyonu?) tahsilati)$/.test(text);
+}
 function confirmedBankDirection(text: string, kind: BankDescriptionKind, amount?: number): boolean {
   if (!Number.isSafeInteger(amount) || amount === 0) return false;
   if (['iade','iadesi','refund','reversal','iptal','iptali'].some(phrase => contains(text,phrase))) return false;
@@ -34,6 +45,9 @@ function confirmedBankDirection(text: string, kind: BankDescriptionKind, amount?
 
 export function interpretBankDescription(description: string, context: BankDescriptionContext = {}): BankDescriptionInterpretation {
   const text = normalizeBankDescription(description);
+  if (context.fingerprintVersion === 'generic-v1' && !explicitGenericOperation(text, context.signedAmount)) {
+    return { kind: 'none', label: '', warning: '', pending: false };
+  }
   if (contains(text, 'prepaid') && Number.isSafeInteger(context.signedAmount) && context.signedAmount! > 0) {
     return { kind: 'cashback', label: 'Cashback prepaid', category: 'Cashback', pending: false,
       warning: 'Uang masuk PREPAID dicatat sebagai Cashback sesuai pemetaanmu.' };
@@ -99,9 +113,10 @@ export function interpretBankDescription(description: string, context: BankDescr
 
 /** User-approved bank-only semantics: ATM debit is expense and ATM credit is
  * income. Transfer principal remains a signed movement for this account only. */
-export function confirmedBankEntryType(description: string, signedAmount: number): 'movement' | 'income' | 'expense' | undefined {
+export function confirmedBankEntryType(description: string, signedAmount: number, fingerprintVersion?: SourceFact['fingerprintVersion']): 'movement' | 'income' | 'expense' | undefined {
   if (!Number.isSafeInteger(signedAmount) || signedAmount === 0) return undefined;
-  const operation = interpretBankDescription(description,{signedAmount});
+  const operation = interpretBankDescription(description, { signedAmount, fingerprintVersion });
+  if (operation.kind === 'none') return undefined;
   if (operation.kind === 'cashback' && signedAmount > 0) return 'income';
   if (operation.kind === 'atm-refund') return !operation.pending && signedAmount > 0 ? 'income' : undefined;
   if (operation.kind === 'card-purchase') return !operation.pending && signedAmount < 0 ? 'expense' : undefined;

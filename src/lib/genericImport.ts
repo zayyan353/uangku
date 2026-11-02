@@ -169,7 +169,7 @@ export function parseGenericStatement(table: GenericTable, mapping: GenericMappi
       const duplicate = known.has(sourceKey);
       rows.push({ id: `${sourceKey}:${index}`, date, amount, balance, description: originalDescription.trim(), originalDescription,
         reference: originalReference.trim(), originalReference, sourceKey, fingerprintVersion: 'generic-v1',
-        classification: confirmedBankEntryType(originalDescription, amount) ?? 'unreviewed', category: 'Belum dikategorikan',
+        classification: confirmedBankEntryType(originalDescription, amount, 'generic-v1') ?? 'unreviewed', category: 'Belum dikategorikan',
         selected: !duplicate, duplicate, warning: duplicate ? 'Sudah ada atau identik dengan baris lain. Tidak dipilih.' : undefined });
     } catch (error) { fail(`Baris ${index + 1}: ${error instanceof Error ? error.message : 'Data tidak valid.'}`); }
   }

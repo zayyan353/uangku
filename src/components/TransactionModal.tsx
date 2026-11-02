@@ -1,6 +1,6 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeftRight, Check, Trash2 } from 'lucide-react';
-import { entrySignedAmount, formatDate, formatMoney, makeId, parseMoney, validateEntry, walletBalance, walletBalanceAt, type Entry, type State } from '../lib/finance';
+import { entrySignedAmount, formatDate, formatMoney, makeId, parseMoney, validateEntry, walletBalanceAt, type Entry, type State } from '../lib/finance';
 import { CategorySettingsContext } from '../hooks/useCategorySettings';
 import { categoryChoices } from '../lib/categorySettings';
 import { createBankEntryHintLookup } from '../lib/bankEntryHints';
@@ -19,8 +19,8 @@ const moneyInput = formatMoneyInput;
 const typeLabels = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer', movement: 'Perpindahan dana', adjustment: 'Penyesuaian', unreviewed: 'Perlu dicek' };
 export interface EntrySaveOptions { reason: string; sourceDate: string | null; destinationDate: string | null; declareDates?: true }
 
-export default function TransactionModal({ data, state, initialMode, initialWallet, existing, onSave, onClose, onDelete, onUnpair, disabled = false }: {
-  data: StoredData; state: State; initialMode: TxMode; initialWallet?: string; existing?: Entry;
+export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onClose, onDelete, onUnpair, disabled = false }: {
+  data: StoredData; state: State; undatedWallets: ReadonlySet<string>; initialMode: TxMode; initialWallet?: string; existing?: Entry;
   onSave: (entry: Entry, removeIds: string[], keepOpen?: boolean, options?: EntrySaveOptions) => Promise<boolean>; onClose: () => void; onDelete?: () => void; onUnpair?: () => void; disabled?: boolean;
 }) {
   const validationRef = useRef<HTMLDivElement>(null);
@@ -33,9 +33,27 @@ export default function TransactionModal({ data, state, initialMode, initialWall
   const incomingPending = importedFlow && existing.amount > 0;
   const [type, setType] = useState<TxMode>(existing?.type === 'unreviewed' ? (existing.amount > 0 ? 'income' : 'expense') : existing?.type ?? initialMode);
   const [walletId, setWallet] = useState(existing?.walletId ?? initialWallet ?? activeWallets[0]?.id ?? '');
+  const balanceDay = today();
+  const adjustment = useMemo(() => {
+    if (type !== 'adjustment' || !walletId) return null;
+    try {
+      if (undatedWallets.has(walletId)) throw new Error('Tanggal posting belum diketahui.');
+      const current = walletBalanceAt(state, walletId, balanceDay, data.metadata);
+      const beforeEdit = existing
+        ? walletBalanceAt({ ...state, entries: state.entries.filter(entry => entry.id !== existing.id) }, walletId, balanceDay, data.metadata)
+        : current;
+      return { current, beforeEdit, error: '' };
+    } catch (reason) {
+      return { current: null, beforeEdit: null, error: reason instanceof Error ? reason.message : 'Saldo aktual belum tersedia.' };
+    }
+  }, [type, walletId, balanceDay, state, data.metadata, existing, undatedWallets]);
   const [toWalletId, setToWallet] = useState(existing?.toWalletId ?? preferredDestination(activeWallets, walletId));
   const [movementDirection, setMovementDirection] = useState<'in' | 'out'>(existing && entrySignedAmount(existing) > 0 ? 'in' : 'out');
-  const [amount, setAmount] = useState(existing ? moneyInput(existing.type === 'adjustment' ? walletBalanceAt(state, existing.walletId, today(), data.metadata) : Math.abs(existing.amount), state.wallets.find(wallet => wallet.id === existing.walletId)?.currency ?? 'IDR') : '');
+  const [amount, setAmount] = useState(() => {
+    if (!existing) return '';
+    const initial = existing.type === 'adjustment' ? adjustment?.current : Math.abs(existing.amount);
+    return initial == null ? '' : moneyInput(initial, state.wallets.find(wallet => wallet.id === existing.walletId)?.currency ?? 'IDR');
+  });
   const [received, setReceived] = useState(existing?.toAmount ? moneyInput(existing.toAmount, state.wallets.find(wallet => wallet.id === existing.toWalletId)?.currency ?? 'IDR') : '');
   const [rateText, setRate] = useState(existing?.rate?.toString().replace('.', ',') ?? '');
   const [fxMode, setFxMode] = useState<'rate' | 'received'>('rate');
@@ -122,6 +140,7 @@ export default function TransactionModal({ data, state, initialMode, initialWall
     }
   }
   function changeType(next: TxMode) {
+    if (next === type) return;
     setType(next); setError(''); setPairId(''); setConfirmed(false);
     if (next === 'transfer' && importedFlow && incomingPending) {
       setToWallet(existing.walletId);
@@ -132,6 +151,9 @@ export default function TransactionModal({ data, state, initialMode, initialWall
       setAmount(from?.currency === state.wallets.find(w => w.id === existing.walletId)?.currency ? moneyInput(existing.amount, state.wallets.find(wallet => wallet.id === existing.walletId)?.currency ?? 'IDR') : '');
     } else if (next === 'transfer') {
       setToWallet(preferredDestination(activeWallets, walletId));
+    } else if (next === 'adjustment') {
+      if (existing) setWallet(existing.walletId);
+      setAmount('');
     } else if (existing) { setWallet(existing.walletId); setAmount(moneyInput(Math.abs(existing.amount), state.wallets.find(wallet => wallet.id === existing.walletId)?.currency ?? 'IDR')); }
   }
   function selectPair(id: string) {
@@ -180,9 +202,9 @@ export default function TransactionModal({ data, state, initialMode, initialWall
     };
     if (type === 'movement') entry.amount = movementDirection === 'out' ? -minor : minor;
     if (type === 'adjustment') {
-      if (date !== today()) return setError('Cek saldo membandingkan saldo aktual hari ini. Gunakan tanggal hari ini; transaksi masa depan tetap bisa dicatat sebagai pemasukan, pengeluaran, atau transfer.');
-      try { entry.amount = minor - walletBalanceAt(cleanState, walletId, today(), data.metadata); }
-      catch { return setError('Saldo aktual melewati batas angka. Periksa transaksi bertanggal masa depan sebelum melakukan penyesuaian.'); }
+      if (date !== today() || date !== balanceDay) return setError('Cek saldo membandingkan saldo aktual hari ini. Gunakan tanggal hari ini; transaksi masa depan tetap bisa dicatat sebagai pemasukan, pengeluaran, atau transfer.');
+      if (adjustment?.beforeEdit == null) return setError(adjustment?.error || 'Saldo aktual belum tersedia.');
+      entry.amount = minor - adjustment.beforeEdit;
     }
     if (type === 'transfer') {
       entry.toWalletId = toWalletId; entry.toAmount = toMinor ?? 0; entry.rate = effectiveRate; entry.fee = feeMinor;
@@ -237,7 +259,7 @@ export default function TransactionModal({ data, state, initialMode, initialWall
         <label className="field"><span className="field-label">{type === 'transfer' ? 'Dari dompet' : 'Dompet'}</span><select required aria-label="Dompet asal" className="select-input" value={walletId} disabled={importedPending && (!incomingPending || type !== 'transfer')} onChange={e => { setWallet(e.target.value); if (type === 'transfer' && !incomingPending) setToWallet(preferredDestination(activeWallets, e.target.value)); setPairId(''); setConfirmed(false); }}>{walletId && !activeWallets.some(wallet => wallet.id === walletId) && <option value={walletId} disabled>{source?.name ?? 'Dompet tidak tersedia'} (tidak aktif)</option>}{activeWallets.filter(w => !(incomingPending && type === 'transfer' && w.id === existing.walletId)).map(w => <option key={w.id} value={w.id}>{w.name} · {w.currency}</option>)}</select></label>
         {type === 'transfer' ? <label className="field"><span className="field-label">Ke dompet</span><select required aria-label="Dompet tujuan" className="select-input" value={toWalletId} disabled={!!incomingPending} onChange={e => { setToWallet(e.target.value); setPairId(''); setConfirmed(false); }}>{toWalletId && !activeWallets.some(wallet => wallet.id === toWalletId) && <option value={toWalletId} disabled>{destination?.name ?? 'Dompet tidak tersedia'} (tidak aktif)</option>}{activeWallets.filter(w => w.id !== walletId).map(w => <option key={w.id} value={w.id}>{w.name} · {w.currency}</option>)}</select></label> : <label className="field"><span className="field-label">Tanggal</span><input required type="date" className="field-input" value={date} disabled={!!importedPending} onChange={e => setDate(e.target.value)} /></label>}
         {type === 'movement' && <label className="field full"><span className="field-label">Arah perpindahan dana</span><select aria-label="Arah perpindahan dana" className="select-input" value={movementDirection} disabled={!!importedPending} onChange={e => setMovementDirection(e.target.value as 'in' | 'out')}><option value="out">Keluar dari rekening</option><option value="in">Masuk ke rekening</option></select></label>}
-        <label className="field full"><span className="field-label">{type === 'adjustment' ? 'Saldo yang benar sekarang' : type === 'transfer' ? 'Nominal yang keluar' : 'Nominal'} <span className="field-currency">{source?.currency}</span></span><input ref={amountRef} data-autofocus required autoComplete="off" className="field-input amount-input" inputMode="decimal" aria-label="Nominal" placeholder="0" value={amount} disabled={importedPending && (!incomingPending || type !== 'transfer')} onChange={e => { setAmount(e.target.value); setConfirmed(false); }} />{source && currencyDigits(source.currency) !== 2 && <span className="field-help">{source.currency} memakai {currencyDigits(source.currency)} desimal.{currencyDigits(source.currency) > 0 ? ' Gunakan koma untuk desimal; titik tunggal dengan tiga digit ditolak karena ambigu.' : ' Isi nominal bulat tanpa pecahan.'}</span>}{type === 'adjustment' && source && <span className="field-help">Saldo catatan: {formatMoney(walletBalance(state, source.id), source.currency)}. Selisih dicatat sebagai penyesuaian, tanpa mengubah total pemasukan atau belanja.</span>}</label>
+        <label className="field full"><span className="field-label">{type === 'adjustment' ? 'Saldo yang benar sekarang' : type === 'transfer' ? 'Nominal yang keluar' : 'Nominal'} <span className="field-currency">{source?.currency}</span></span><input ref={amountRef} data-autofocus required autoComplete="off" className="field-input amount-input" inputMode="decimal" aria-label="Nominal" placeholder="0" value={amount} disabled={importedPending && (!incomingPending || type !== 'transfer')} onChange={e => { setAmount(e.target.value); setConfirmed(false); }} />{source && currencyDigits(source.currency) !== 2 && <span className="field-help">{source.currency} memakai {currencyDigits(source.currency)} desimal.{currencyDigits(source.currency) > 0 ? ' Gunakan koma untuk desimal; titik tunggal dengan tiga digit ditolak karena ambigu.' : ' Isi nominal bulat tanpa pecahan.'}</span>}{type === 'adjustment' && source && <span className="field-help">{adjustment?.current != null ? <>Saldo catatan hari ini ({formatDate(balanceDay)}) {formatMoney(adjustment.current, source.currency)}. Selisih dicatat sebagai penyesuaian.</> : adjustment?.error}</span>}</label>
         {crossCurrency && <div className="field full fx-section">
           <div className="segmented-control compact"><button type="button" className={fxMode === 'rate' ? 'active' : ''} disabled={!!incomingPending} onClick={() => { setFxMode('rate'); setConfirmed(false); }}>Isi kurs</button><button type="button" className={fxMode === 'received' ? 'active' : ''} onClick={() => { setFxMode('received'); setConfirmed(false); }}>Isi jumlah diterima</button></div>
           {fxMode === 'rate' ? <label className="field"><span className="field-label">1 {source.currency} = berapa {destination.currency}?</span><input required aria-label="Kurs transaksi" aria-invalid={invalidFx} aria-describedby="fx-input-help fx-input-feedback" inputMode="decimal" className="field-input" placeholder="Contoh: 400,5" value={rateText} onChange={e => { setRate(e.target.value); setConfirmed(false); }} /><span className="field-help">Tanpa pemisah ribuan. Contoh: 16000 atau 16000,5.</span></label> : <label className="field"><span className="field-label">Nominal yang diterima ({destination.currency})</span><input required aria-label="Nominal diterima" aria-invalid={invalidFx} aria-describedby="fx-input-help fx-input-feedback" className="field-input" inputMode="decimal" placeholder="0" value={received} disabled={!!incomingPending} onChange={e => { setReceived(e.target.value); setConfirmed(false); }} /></label>}

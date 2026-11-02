@@ -383,13 +383,23 @@ def legacy_fx_note_preserves_money(case):
 
 
 def csv_signed_duplicate(case):
-    p=case.page;path=case.args.output/f'{case.name}.csv';write_csv(path,EUR_ROWS)
+    p=case.page;path=case.args.output/f'{case.name}.csv'
+    rows=copy.deepcopy(EUR_ROWS)
+    rows[2][2]='PREPAID HOTEL DEPOSIT REFUND'
+    rows[3][2]='FAST FOOD RESTAURANT'
+    write_csv(path,rows)
     case.import_file(path);case.preview();case.unchanged()
+    for description in (rows[2][2], rows[3][2]):
+        imported = p.locator('.import-table tbody tr').filter(has_text=description)
+        expect(imported.get_by_label(re.compile('^Jenis transaksi '))).to_have_value('unreviewed')
+        expect(imported.locator('.import-row-category')).to_have_value('Belum dikategorikan')
     row=p.locator('.import-table tbody tr').filter(has_text=EUR_ROWS[1][2])
     row.locator('.import-row-category').select_option('Pendidikan')
     saved=case.save_import(3)
     assert len(saved['state']['entries'])==len(saved['metadata']['facts'])==3
     assert balance(saved,'eur')==16975
+    for description in (rows[2][2], rows[3][2]):
+        assert next(item['type'] for item in saved['state']['entries'] if item['note']==description)=='unreviewed'
     facts=sorted(saved['metadata']['facts'],key=lambda fact:fact['postedOn'])
     assert [fact['signedAmount'] for fact in facts]==[-2525,10000,-500]
     assert [fact['balanceAfter'] for fact in facts]==[7475,17475,16975]

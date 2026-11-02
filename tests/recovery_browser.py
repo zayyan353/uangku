@@ -486,6 +486,46 @@ def test_future_balance(browser, output):
         assert len(stored(page)['state']['entries']) == 3
 
 
+def test_adjust_today(browser, output):
+    tomorrow = {**expense('tomorrow', 5_000_000, date='2026-10-31'), 'type': 'income'}
+    initial = fixture([tomorrow])
+    initial['state']['wallets'][0]['openingBalance'] = 10_000_000
+    with isolated(browser, initial, output, 'adjust-today') as (_, new_page, _):
+        page = new_page()
+        nav(page, 'Dompet')
+        card = page.locator('[data-wallet-id="bca-idr"]')
+        expect(card.locator('.wallet-card-balance')).to_contain_text('100.000')
+        card.get_by_role('button', name='Cek saldo', exact=True).click()
+        dlg = page.get_by_role('dialog')
+        hint = dlg.locator('.field-help').filter(has_text='Saldo catatan')
+        expect(hint).to_contain_text('100.000')
+        target = dlg.get_by_label('Nominal', exact=True)
+        save = dlg.get_by_role('button', name='Simpan transaksi', exact=True)
+        target.fill('100000')
+        save.click()
+        expect(dlg.get_by_role('alert')).to_contain_text('Saldo sudah cocok')
+        assert stored(page) == initial
+        target.fill('110000')
+        dlg.get_by_label('Keterangan').fill('Saldo uji hari ini')
+        save.click()
+        expect(dlg).to_have_count(0)
+        expect(card.locator('.wallet-card-balance')).to_contain_text('110.000')
+        first = stored(page)['state']['entries']
+        adjustment = next(e for e in first if e['type'] == 'adjustment')
+        assert len(first) == 2 and tomorrow in first and adjustment['amount'] == 1_000_000
+
+        nav(page, 'Transaksi')
+        page.get_by_role('button', name='Ubah Saldo uji hari ini', exact=True).click()
+        expect(hint).to_contain_text('110.000')
+        expect(target).to_have_value('110000')
+        target.fill('105000')
+        save.click()
+        expect(dlg).to_have_count(0)
+        page.reload(wait_until='networkidle')
+        rows = stored(page)['state']['entries']
+        assert len(rows) == 2 and tomorrow in rows and {**adjustment, 'amount': 500_000} in rows
+
+
 def write_statement(path):
     transactions = [
         ['30.10.2026', 'R-3', 'POS toko contoh', -25.5, 174.5],
@@ -554,6 +594,7 @@ def main():
         ('backup-small-roundtrip', test_backup_small),
         ('backup-large-and-legacy-pretty', test_backup_large),
         ('future-actual-vs-all-records', test_future_balance),
+        ('adjust-today-with-future-income', test_adjust_today),
         ('manual-before-preview', lambda b, o: test_import_overlap(b, o, after_preview=False)),
         ('manual-after-preview', lambda b, o: test_import_overlap(b, o, after_preview=True)),
     ]

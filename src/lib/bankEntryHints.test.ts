@@ -134,6 +134,20 @@ describe('source-first bank entry presentation', () => {
     expect(presentBankDescription(description, -1200).bank.warning).not.toBe('Consumer change');
   });
 
+  it.each([['FAST FOOD RESTAURANT', -1200], ['PREPAID HOTEL DEPOSIT REFUND', 1200]] as const)(
+    'shows the original wording for generic imports in the preview, history and review form: %s', (description, amount) => {
+      const data = withMemo(description), row = data.state.entries[0];
+      row.amount = amount;
+      const fact = data.metadata!.facts[0];
+      fact.fingerprintVersion = 'generic-v1';
+      fact.fingerprint = row.sourceKey = 'generic:0000000000000001';
+      fact.signedAmount = amount;
+      const expected = { title: description, description, bank: { kind: 'none' } };
+      expect(presentBankDescription(description, amount, fact.fingerprintVersion)).toMatchObject(expected);
+      expect(createBankEntryPresentationLookup(data)(row)).toMatchObject(expected);
+      expect(createBankEntryHintLookup(data)(row).kind).toBe('none');
+    });
+
   it('shows a physical card merchant without guessing what the merchant sold', () => {
     const description = 'POS ALIŞVERİŞ (YURTİÇİ) KART NO: 0000 **** **** 0000 İŞYERİ: SYNTHETIC PERSON NAME MUTABAKAT: 123';
     const data = withMemo(description), view = createBankEntryPresentationLookup(data)(data.state.entries[0]);

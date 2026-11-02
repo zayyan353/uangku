@@ -1,7 +1,8 @@
 import type { Currency, Entry } from './finance';
 import { isCurrencyCode } from './currencyCatalog';
-import type { SourceDocument } from './sourceModel';
+import type { SourceDocument, SourceFact } from './sourceModel';
 import { interpretBankDescription, normalizeBankDescription } from './bankDescription';
+import { entryFingerprintVersion, indexBankWording } from './bankWording';
 import { actualBalanceProblem, createPostingDateIndex, entryPostings, type EntryPosting } from './transferPostings';
 
 export interface CashflowQuery {
@@ -80,15 +81,17 @@ type GroupId = typeof GROUPS[number][0];
 const contains = (text: string, phrase: string): boolean => (` ${text} `).includes(` ${phrase} `);
 
 /** Operation wording describes bank flow, independently of its spending category. */
-function operationGroup(entry: Entry, posting: EntryPosting, wording: string): GroupId {
+function operationGroup(entry: Entry, posting: EntryPosting, wording: string, fingerprintVersion?: SourceFact['fingerprintVersion']): GroupId {
   if (posting.role === 'fee') return 'fees';
   if (entry.type === 'transfer') return 'transfer';
-  const text = normalizeBankDescription(wording), amount = posting.signedAmount;
+  const amount = posting.signedAmount;
+  const operation = interpretBankDescription(wording, { signedAmount: amount, fingerprintVersion });
+  if (fingerprintVersion === 'generic-v1' && operation.kind === 'none') return entry.type === 'expense' ? 'payments' : 'other';
+  const text = normalizeBankDescription(wording);
   const refund = ['iade', 'iadesi', 'refund', 'reversal', 'iptal', 'iptali'].some(word => contains(text, word));
   if (amount > 0 && (contains(text, 'prepaid') || refund)) return 'refund';
   // A reversal or contradictory direction must not masquerade as a new ATM/fee operation.
   if (refund) return 'other';
-  const operation = interpretBankDescription(wording, { signedAmount: amount });
   if (operation.kind === 'atm-deposit' || operation.kind === 'atm-withdrawal') {
     return operation.pending ? 'other' : operation.kind;
   }
@@ -134,12 +137,7 @@ export function buildCashflowReport(data: SourceDocument, query: CashflowQuery):
   let unknownDatePostings = 0, openingUnavailable = false, closingUnavailable = false;
   const groups = new Map<GroupId, { inflow: bigint; outflow: bigint; entries: Set<string> }>();
   const categories = new Map<string, bigint>();
-  const sourceDescriptions = new Map<string, string>();
-  const facts = new Map(data.metadata?.facts.map(fact => [fact.id, fact.description]) ?? []);
-  for (const link of data.metadata?.links ?? []) {
-    // A captured blank description remains evidence; never substitute an edited note.
-    if (link.source !== undefined && facts.has(link.source)) sourceDescriptions.set(link.entryId, facts.get(link.source)!);
-  }
+  const descriptions = indexBankWording(data);
   for (const wallet of wallets) {
     const initial = money(wallet.openingBalance);
     opening += initial; closing += initial; all += initial;
@@ -162,7 +160,7 @@ export function buildCashflowReport(data: SourceDocument, query: CashflowQuery):
     }
     if ((entry.type === 'income' || entry.type === 'expense') && entry.amount < 0) throw new RangeError('Arah nominal transaksi laporan tidak valid.');
     const internal = entry.type === 'transfer' && scope.has(entry.walletId) && scope.has(entry.toWalletId!);
-    const wording = sourceDescriptions.has(entry.id) ? sourceDescriptions.get(entry.id)! : entry.note;
+    const source = descriptions.get(entry.id);
     for (const posting of entryPostings(entry, index)) {
       if (!scope.has(posting.walletId)) continue;
       const amount = money(posting.signedAmount);
@@ -180,7 +178,7 @@ export function buildCashflowReport(data: SourceDocument, query: CashflowQuery):
       }
       if (amount === 0n) continue;
       if (amount > 0n) inflow += amount; else outflow -= amount;
-      const id = operationGroup(entry, posting, wording);
+      const id = operationGroup(entry, posting, source?.description ?? entry.note, entryFingerprintVersion(entry, source));
       const group = groups.get(id) ?? { inflow: 0n, outflow: 0n, entries: new Set<string>() };
       if (amount > 0n) group.inflow += amount; else group.outflow -= amount;
       group.entries.add(entry.id); groups.set(id, group);
