@@ -3,7 +3,7 @@ import { STORAGE_KEY, prepareBackup, serializeBackup, type StoredData, type Stor
 import { CATEGORY_SETTINGS_KEY, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { effectiveCategorySettings } from './categorySettingsUpgrade';
 import { serializeFullBackup } from './fullBackup';
-import { LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, recoverProfile, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
+import { LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, recoverProfile, restorePending, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
 
 export { LEDGER_LOCK };
 export const PERSISTENCE_BYTES = 8 * 1024 * 1024;
@@ -30,6 +30,7 @@ export interface CandidateOptions {
 }
 export interface PersistenceSnapshot {
   data: StoredData;
+  blocked: boolean;
   status: PersistenceStatus;
   error: string;
   dirty: boolean;
@@ -45,6 +46,7 @@ export type CommitResult =
 
 const unsupportedMessage = 'Browser ini tidak mendukung Web Locks. Perubahan belum tersimpan; unduh pemulihan dan gunakan browser yang mendukungnya.';
 const conflictMessage = 'Data berubah di tab lain atau sejak formulir dibuka. Perubahan lokal belum tersimpan. Unduh pemulihan sebelum memuat data terbaru.';
+const unreadableBackupMessage = 'Data asli belum bisa dibaca. Izinkan penyimpanan untuk situs ini, lalu muat catatan terbaru.';
 
 function freezeData(data: StoredData): StoredData {
   // Metadata contains nested source facts, references and transfer decisions.
@@ -110,7 +112,6 @@ export async function commitCandidate(
 export class LedgerPersistenceController {
   private snapshot: PersistenceSnapshot;
   private baseToken: string | null;
-  private blocked: boolean;
   private blockedRaw: string | null;
   private draft: PreparedCandidate | null = null;
   private draftToken: string | null = null;
@@ -122,13 +123,12 @@ export class LedgerPersistenceController {
     const supported = Boolean(ports.locks());
     const data = freezeData(initial.data);
     this.baseToken = initial.token;
-    this.blocked = initial.blocked;
     this.blockedRaw = initial.blocked ? initial.token : null;
     this.knownTokens.set(data, initial.token);
     this.snapshot = {
-      data, supported, dirty: false, pending: false, remoteChanged: false,
+      data, blocked: initial.blocked, supported, dirty: false, pending: false, remoteChanged: false,
       revisionToken: initial.token,
-      status: !supported ? 'unsupported' : initial.blocked ? 'blocked' : initial.persisted ? 'saved' : 'unsaved',
+      status: initial.blocked ? 'blocked' : !supported ? 'unsupported' : initial.persisted ? 'saved' : 'unsaved',
       error: initial.error ?? (!supported ? unsupportedMessage : ''),
     };
   }
@@ -147,7 +147,7 @@ export class LedgerPersistenceController {
     // A second event cannot replace a pending or failed draft, even before React
     // has rerendered to disable its controls.
     if (this.snapshot.pending || this.snapshot.dirty) return false;
-    if (this.blocked && !options.replaceBlocked) {
+    if (this.snapshot.blocked && !options.replaceBlocked) {
       this.update({ status: 'blocked', error: 'Data tersimpan belum dapat dibaca. Gunakan pemulihan atau mulai ulang yang dikonfirmasi; data lama belum diubah.' });
       return false;
     }
@@ -195,7 +195,7 @@ export class LedgerPersistenceController {
     this.update({ pending: true, status: 'saving', error: '' });
     try {
       // Preserve legacy whitespace/encoding when only settings were changed.
-      const nextLedger = token !== null && !this.blocked && candidate.raw === serializeBackup(this.snapshot.data) ? token : candidate.raw;
+      const nextLedger = token !== null && !this.snapshot.blocked && candidate.raw === serializeBackup(this.snapshot.data) ? token : candidate.raw;
       await withProfileLocks(locks, async () => {
         await recoverProfile(storage);
         if (storage.getItem(STORAGE_KEY) !== token || storage.getItem(CATEGORY_SETTINGS_KEY) !== expectedSettings) {
@@ -204,16 +204,15 @@ export class LedgerPersistenceController {
         await writeRestoredProfile(storage, token, nextLedger, expectedSettings, nextSettings);
       });
       this.baseToken = nextLedger;
-      this.blocked = false;
       this.blockedRaw = null;
       this.knownTokens.set(candidate.data, nextLedger);
-      this.update({ data: candidate.data, status: 'saved', pending: false, remoteChanged: false, error: '' });
+      this.update({ data: candidate.data, blocked: false, status: 'saved', pending: false, remoteChanged: false, error: '' });
       this.ports.profileChanged?.();
       this.checkRemote();
       return true;
     } catch (error) {
       // A full-file restore never enters the ledger-only retry or recovery path.
-      this.update({ pending: false, status: this.blocked ? 'blocked' : 'failed',
+      this.update({ pending: false, status: this.snapshot.blocked ? 'blocked' : 'failed',
         error: error instanceof Error && error.name === 'Error' ? error.message : 'Pemulihan lengkap gagal. Periksa ruang penyimpanan lalu buka kembali file cadangan.' });
       this.ports.profileChanged?.();
       return false;
@@ -222,10 +221,10 @@ export class LedgerPersistenceController {
 
   exportFullBackup = async (expectedCategoryRaw: string | null): Promise<string> => {
     const storage = this.ports.storage(), locks = this.ports.locks();
-    if (!storage) throw new Error('Penyimpanan browser tidak tersedia.');
+    if (!storage || (this.snapshot.blocked && this.blockedRaw === null)) throw new Error(unreadableBackupMessage);
     const ledger = this.snapshot.data, token = this.baseToken;
     const verify = () => {
-      if (this.blocked || this.snapshot.dirty || this.snapshot.pending || this.snapshot.data !== ledger ||
+      if (this.snapshot.blocked || this.snapshot.dirty || this.snapshot.pending || this.snapshot.data !== ledger ||
           storage.getItem(RESTORE_JOURNAL) !== null || storage.getItem(STORAGE_KEY) !== token ||
           storage.getItem(CATEGORY_SETTINGS_KEY) !== expectedCategoryRaw) {
         throw new Error('Cadangan lengkap belum dapat dibuat. Periksa status penyimpanan dan muat catatan serta kategori terbaru.');
@@ -249,11 +248,10 @@ export class LedgerPersistenceController {
     const result = await commitPrepared(draft, this.draftToken, this.ports.storage(), locks);
     if (result.status === 'saved') {
       this.baseToken = result.token;
-      this.blocked = false;
       this.blockedRaw = null;
       this.knownTokens.set(result.data, result.token);
       this.draft = null;
-      this.update({ data: result.data, pending: false, dirty: false, status: 'saved', error: '', remoteChanged: false });
+      this.update({ data: result.data, blocked: false, pending: false, dirty: false, status: 'saved', error: '', remoteChanged: false });
       // Another tab can acquire the lock immediately after us. This read only
       // synchronizes a clean view; it never writes a now-obsolete snapshot.
       this.checkRemote();
@@ -267,7 +265,20 @@ export class LedgerPersistenceController {
 
   recoveryText = (): string => {
     if (this.draft) return this.draft.raw;
-    if (this.blocked && this.blockedRaw !== null) return this.blockedRaw;
+    if (this.snapshot.blocked) {
+      if (this.blockedRaw !== null) return this.blockedRaw;
+      throw new Error(unreadableBackupMessage);
+    }
+    // Permissions or another tab may change before a focus/storage event arrives.
+    let current: string | null, journal: string | null;
+    try {
+      const storage = this.ports.storage();
+      if (!storage) throw new Error();
+      journal = storage.getItem(RESTORE_JOURNAL);
+      current = storage.getItem(STORAGE_KEY);
+    } catch { throw new Error(unreadableBackupMessage); }
+    if (journal !== null) throw new Error(restorePending);
+    if (current !== this.baseToken) throw new Error('Catatan tersimpan sudah berubah. Muat catatan terbaru sebelum mengunduh cadangan.');
     return serializeBackup(this.snapshot.data);
   };
 
@@ -276,21 +287,19 @@ export class LedgerPersistenceController {
     if (this.snapshot.pending) return false;
     const latest = this.ports.read();
     if (latest.blocked) {
-      this.blocked = true;
       this.blockedRaw = latest.token;
       if (!this.snapshot.dirty) this.baseToken = latest.token;
-      this.update({ status: 'blocked', error: latest.error ?? 'Data terbaru tidak dapat dibaca.', remoteChanged: true });
+      this.update({ blocked: true, status: 'blocked', error: latest.error ?? 'Data terbaru tidak dapat dibaca.', remoteChanged: true });
       return false;
     }
     const data = freezeData(latest.data);
     this.baseToken = latest.token;
-    this.blocked = false;
     this.blockedRaw = null;
     this.draft = null;
     this.draftRetryBlocked = false;
     this.knownTokens.set(data, latest.token);
     const supported = Boolean(this.ports.locks());
-    this.update({ data, supported, dirty: false, pending: false, remoteChanged: false,
+    this.update({ data, blocked: false, supported, dirty: false, pending: false, remoteChanged: false,
       status: !supported ? 'unsupported' : latest.persisted ? 'saved' : 'unsaved', error: supported ? '' : unsupportedMessage });
     return true;
   };
@@ -305,17 +314,16 @@ export class LedgerPersistenceController {
       // Blocked reads must retry even if the raw token remains null/unchanged.
       try {
         const storage = this.ports.storage();
-        if (!this.blocked && storage && storage.getItem(STORAGE_KEY) === this.baseToken) return;
+        if (!this.snapshot.blocked && storage && storage.getItem(STORAGE_KEY) === this.baseToken) return;
       } catch { /* readStored supplies the protected error state below. */ }
       // readStored returns ledger+token from one getItem, avoiding a mismatched
       // data/token pair if a different tab writes while this callback runs.
       const latest = this.ports.read();
-      if (latest.token === this.baseToken && !latest.blocked && !this.blocked) return;
+      if (latest.token === this.baseToken && !latest.blocked && !this.snapshot.blocked) return;
       if (latest.blocked) {
-        this.blocked = true;
         this.blockedRaw = latest.token;
         this.baseToken = latest.token;
-        this.update({ status: 'blocked', error: latest.error ?? 'Data terbaru tidak dapat dibaca.', remoteChanged: true });
+        this.update({ blocked: true, status: 'blocked', error: latest.error ?? 'Data terbaru tidak dapat dibaca.', remoteChanged: true });
         return;
       }
       this.reloadLatest();

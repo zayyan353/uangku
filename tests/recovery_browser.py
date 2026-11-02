@@ -94,9 +94,10 @@ def save_expense(page, **kwargs):
 def isolated(browser, initial, output, name, *, viewport=None, init_extra=None):
     context = browser.new_context(viewport=viewport or {'width': 1440, 'height': 1000}, accept_downloads=True,
                                   timezone_id='Europe/Istanbul')
-    raw = json.dumps(initial, ensure_ascii=False, separators=(',', ':'))
-    context.add_init_script('if (localStorage.getItem(' + json.dumps(KEY) + ') === null) localStorage.setItem('
-                            + json.dumps(KEY) + ', ' + json.dumps(raw) + ');')
+    if initial is not None:
+        raw = json.dumps(initial, ensure_ascii=False, separators=(',', ':'))
+        context.add_init_script('if (localStorage.getItem(' + json.dumps(KEY) + ') === null) localStorage.setItem('
+                                + json.dumps(KEY) + ', ' + json.dumps(raw) + ');')
     if init_extra:
         context.add_init_script(init_extra)
     errors = []
@@ -355,6 +356,54 @@ def test_blocked_metadata_confirmation(browser, output):
         assert json.loads(path.read_text(encoding='utf-8')) == initial
 
 
+def test_denied_storage_backup(browser, output):
+    initial = fixture([expense('private-entry', note='Original ledger')])
+    raw = json.dumps(initial, indent=2)
+    with isolated(browser, None, output, 'denied-storage-backup') as (_, new_page, _):
+        page = new_page()
+        page.evaluate('(raw) => localStorage.setItem("uangku:v1", raw)', raw)
+        page.add_init_script('''if (sessionStorage.getItem('deny-access')) {
+            Object.defineProperty(window, 'localStorage', {get() {
+                throw new DOMException('Access denied by test', 'SecurityError');
+            }});
+        }''')
+        page.evaluate("sessionStorage.setItem('deny-access', '1')")
+        page.reload(wait_until='networkidle')
+        expect(page.get_by_test_id('save-status')).to_contain_text('Data lama dilindungi')
+        downloads = []
+        page.on('download', lambda item: downloads.append(item.suggested_filename))
+        for label in ['Cadangkan semuanya', 'Cadangkan transaksi saja', 'Unduh pekerjaan yang belum tersimpan']:
+            page.get_by_role('button', name=label, exact=True).click()
+            expect(page.locator('.toast')).to_contain_text(re.compile('penyimpanan|akses', re.I))
+        page.evaluate("sessionStorage.removeItem('deny-access')")
+        page.reload(wait_until='networkidle')
+        assert not downloads, 'A blocked storage read produced a download'
+        assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw
+        assert download_backup(page, output / 'after-access-restored.json') == initial
+
+
+def test_carry_demo_transactions(browser, output):
+    with isolated(browser, None, output, 'carry-demo-transactions') as (_, new_page, _):
+        page = new_page()
+        save_expense(page, wallet='demo-bca', amount='12345', note='Personal note in demo')
+        page.reload(wait_until='networkidle')
+        before = stored(page)
+        personal = next(entry for entry in before['state']['entries'] if entry['note'] == 'Personal note in demo')
+        assert before['demo'] and len(before['state']['entries']) > 1
+        start = page.get_by_role('button', name='Mulai pakai data sendiri', exact=True)
+        dlg = page.get_by_role('dialog')
+        start.click()
+        dlg.get_by_role('button', name='Batal', exact=True).click()
+        assert stored(page) == before
+        start.click()
+        dlg.get_by_role('button', name='Bawa transaksi saya', exact=True).click()
+        expect(page.locator('.demo-banner')).to_have_count(0)
+        page.reload(wait_until='networkidle')
+        after = stored(page)
+        assert not after['demo'] and after['state']['entries'] == [personal]
+        assert saldo(after, personal['walletId']) == -personal['amount']
+
+
 def download_backup(page, path):
     with page.expect_download(timeout=60_000) as info:
         page.locator('.sidebar').get_by_role('button', name='Cadangkan transaksi saja', exact=True).click()
@@ -488,6 +537,8 @@ def main():
         ('pending-writer-modal-guard', test_pending_writer_modal_guard),
         ('stale-modal-delete', test_stale_modal_delete),
         ('blocked-metadata-confirmation', test_blocked_metadata_confirmation),
+        ('denied-storage-backup', test_denied_storage_backup),
+        ('carry-demo-transactions', test_carry_demo_transactions),
         ('backup-small-roundtrip', test_backup_small),
         ('backup-large-and-legacy-pretty', test_backup_large),
         ('future-actual-vs-all-records', test_future_balance),

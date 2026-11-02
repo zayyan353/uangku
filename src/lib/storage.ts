@@ -93,7 +93,7 @@ export function readStored(): StoredRead {
   } catch {
     return {
       data: makeDemoData(), blocked: true, token: null, persisted: false,
-      error: 'Penyimpanan browser tidak tersedia. Perubahan belum bisa disimpan di perangkat ini.',
+      error: 'Penyimpanan browser tidak tersedia. Data asli belum bisa dibaca atau dicadangkan. Izinkan penyimpanan untuk situs ini, lalu muat catatan terbaru.',
     };
   }
   if (text === null) return { data: makeDemoData(), error: null, blocked: false, token: null, persisted: false };

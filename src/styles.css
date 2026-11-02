@@ -246,6 +246,9 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .modal-body { padding: 22px 27px; overflow-y: auto; min-height: 0; }
 .modal-footer { padding: 17px 27px 24px; display: flex; align-items: center; justify-content: flex-end; gap: 9px; border-top: 1px solid #eef1e7; }
 .modal-footer .button { min-width: 95px; }
+.demo-transition-actions { flex-wrap: wrap; }
+.demo-sample-review { margin-top: 16px; }
+.demo-sample-review summary { cursor: pointer; font-weight: 600; }
 .modal-footer.repeat-entry-footer { gap: 8px; }
 .repeat-entry-footer .button { font-size: 11px; padding-left: 13px; padding-right: 13px; }
 .repeat-entry-footer .button:first-child { margin-right: auto; }

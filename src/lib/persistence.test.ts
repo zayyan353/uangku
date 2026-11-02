@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { commitCandidate, LedgerPersistenceController, prepareCandidate, type PersistenceLocks, type PersistencePorts, type PersistenceStorage } from './persistence';
-import { STORAGE_KEY, serializeBackup, validateBackup, type StoredData, type StoredRead } from './storage';
+import { STORAGE_KEY, makeDemoData, serializeBackup, validateBackup, type StoredData, type StoredRead } from './storage';
 import { RESTORE_JOURNAL } from './fullRestoreStorage';
 
 function data(ids: string[] = []): StoredData {
@@ -12,10 +12,11 @@ function data(ids: string[] = []): StoredData {
 }
 class MemoryStorage implements PersistenceStorage {
   raw: string | null = null;
+  journal: string | null = null;
   writes = 0;
   failWrites = false;
   failReads = false;
-  getItem(key: string) { if (this.failReads) throw new Error('unavailable'); if (key === RESTORE_JOURNAL) return null; expect(key).toBe(STORAGE_KEY); return this.raw; }
+  getItem(key: string) { if (this.failReads) throw new Error('unavailable'); if (key === RESTORE_JOURNAL) return this.journal; expect(key).toBe(STORAGE_KEY); return this.raw; }
   removeItem(_key: string) { throw new Error('Ledger-only saves must not remove stored records'); }
   setItem(key: string, value: string) {
     expect(key).toBe(STORAGE_KEY);
@@ -231,6 +232,50 @@ describe('coordinated persistence: fresh minimum reconstruction', () => {
     expect(env.storage.raw).toBe('{broken');
     expect(await controller.setCandidate(data(['one']), '', { replaceBlocked: true })).toBe(true);
     expect(controller.getSnapshot()).toMatchObject({ status: 'saved', dirty: false });
+  });
+
+  it.each([true, false])('never exports the display demo from unreadable storage (Web Locks available: %s)', async supported => {
+    const original = JSON.stringify(data(['personal']));
+    const env = environment(original);
+    env.storage.failReads = true;
+    const controller = new LedgerPersistenceController({ ...env.read(), data: makeDemoData() }, {
+      ...env.ports, locks: () => supported ? env.locks : undefined,
+    });
+    expect(controller.getSnapshot()).toMatchObject({ blocked: true, data: { demo: true } });
+    expect(() => controller.recoveryText()).toThrow(/Data asli belum bisa dibaca/);
+    await expect(controller.exportFullBackup(null)).rejects.toThrow(/Data asli belum bisa dibaca/);
+    expect(env.storage.raw).toBe(original);
+    env.storage.failReads = false;
+    expect(controller.reloadLatest()).toBe(true);
+    expect(controller.getSnapshot().blocked).toBe(false);
+    expect(JSON.parse(controller.recoveryText())).toEqual(JSON.parse(original));
+    expect(env.storage.writes).toBe(0);
+  });
+
+  it('checks a clean demo against storage at download time, even without a focus or storage event', () => {
+    const env = environment();
+    const controller = new LedgerPersistenceController({ ...env.read(), data: makeDemoData() }, env.ports);
+    expect(JSON.parse(controller.recoveryText()).demo).toBe(true);
+    env.storage.journal = 'pending';
+    expect(() => controller.recoveryText()).toThrow(/Pemulihan lengkap sedang diperiksa/);
+    env.storage.journal = null;
+    env.storage.raw = JSON.stringify(data(['personal']));
+    expect(() => controller.recoveryText()).toThrow(/Catatan tersimpan sudah berubah/);
+    env.storage.failReads = true;
+    expect(() => controller.recoveryText()).toThrow(/Data asli belum bisa dibaca/);
+    expect(env.storage.writes).toBe(0);
+  });
+
+  it('still exports a genuine pending edit when the original is inaccessible during a reload', async () => {
+    const original = JSON.stringify(data(['stored']));
+    const env = environment(original);
+    const controller = env.controller();
+    env.storage.failReads = true;
+    expect(await controller.setCandidate(data(['stored', 'draft']))).toBe(false);
+    expect(controller.reloadLatest()).toBe(false);
+    expect(controller.getSnapshot()).toMatchObject({ blocked: true, dirty: true });
+    expect(controller.recoveryText()).toBe(serializeBackup(data(['stored', 'draft'])));
+    expect(env.storage.raw).toBe(original);
   });
 
   it('compares the corrupted original bytes before confirmed replacement', async () => {

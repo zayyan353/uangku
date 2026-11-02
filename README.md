@@ -48,7 +48,9 @@ yang dikonfirmasi pengguna, bukan janji mendukung seluruh format ekspor bank.
 ## Mulai memakai
 
 1. Tampilan awal memakai data contoh fiktif. Pilih **Mulai pakai data sendiri**
-   lalu konfirmasi **Mulai dari kosong** untuk menggunakan catatan pribadi.
+   lalu **Bawa transaksi saya** untuk menyimpan transaksi yang kamu tambahkan beserta
+   rekeningnya. Kamu juga bisa meninjau transaksi contoh yang ingin dibawa atau
+   memilih **Mulai dari kosong**.
 2. Buka **Kelola mata uang** bila mata uang yang dibutuhkan belum terlihat.
    Buka **Dompet** untuk menambah atau menyesuaikan rekening dan e-wallet.
 3. Isi saldo awal sebelum transaksi pertama yang ingin dicatat. Jika mulai
