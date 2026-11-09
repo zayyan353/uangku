@@ -38,6 +38,7 @@ import { visibleCurrencyCodes, setVisibleCurrencies } from './lib/currencySettin
 import { archiveWallet, restoreWallet, createWallet, editWallet, deleteUnusedWallet, walletUsage, isWalletArchived, isArchivedLinkedEntry, archivedReadOnlyEntryIds, assertArchivedWalletsUnchanged } from './lib/walletLifecycle';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { requestPersistentStorage, type PersistenceStatus } from './lib/storagePersistence';
+import { recordBackup } from './lib/backupReminder';
 import ThemePicker from './components/ThemePicker';
 import CategoryManager from './components/CategoryManager';
 import CategoryAutomation from './components/CategoryAutomation';
@@ -273,9 +274,13 @@ export default function App() {
     catch (reason) { notify(reason instanceof Error ? reason.message : 'Cadangan belum dapat dibuat.'); }
   }
   async function backupAll() {
+    // A successful full export proves the stored ledger equals this token. If the
+    // token is stale, the fingerprint just differs later and errs toward reminding.
+    const exportedToken = ledger.revisionToken;
     try {
       const text = await ledger.exportFullBackup(categoryPreferences.raw);
       downloadText(text, `uangku-lengkap-${today()}.json`);
+      if (exportedToken !== null) recordBackup(exportedToken);
       notify('Cadangan lengkap diunduh. Dompet, transaksi, dan pengaturan kategori ada dalam satu file.');
     } catch (reason) {
       notify(reason instanceof Error ? reason.message : 'Cadangan lengkap belum dapat dibuat.');

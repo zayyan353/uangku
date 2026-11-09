@@ -108,7 +108,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   "tidak" bukan error.
   *File:* modul baru `src/lib/storagePersistence.ts` + test, `PrivacyNotice.tsx`.
 
-- [ ] **MW-06 — Catat cadangan terakhir**
+- [x] **MW-06 — Catat cadangan terakhir**
   Setelah "Cadangkan semuanya" dipicu (`backupAll` di `App.tsx`), simpan catatan
   di key terpisah (`uangku:last-backup:v1`). Jangan masuk ke format ledger.
 
