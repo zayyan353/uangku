@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, type CategorySettings } from './categorySettings';
 import { CATEGORY_LOCK, finishInterruptedRestore, RESTORE_JOURNAL } from './fullRestoreStorage';
+import { BUDGETS_KEY, serializeBudgets } from './budgets';
 import { LedgerPersistenceController, type PersistenceLocks, type PersistenceStorage } from './persistence';
 import { createEmptyState, parseBackupText, serializeBackup, STORAGE_KEY, type StoredData } from './storage';
 
@@ -153,5 +154,63 @@ describe('full restore and export use one reviewed ledger/category pair', () => 
     stale.store.setItem(CATEGORY_SETTINGS_KEY, nextRaw);
     await expect(stale.controller.exportFullBackup(previousRaw)).rejects.toThrow();
     expect(corrupt.store.writes).toEqual([]);
+  });
+});
+
+describe('budgets travel with full export and restore (MW-12a)', () => {
+  const budgets = { IDR: { Belanja: 5000000 } };
+
+  it('exports stored budgets and omits the section when none are stored', async () => {
+    const plain = environment(nextRaw);
+    expect(JSON.parse(await plain.controller.exportFullBackup(nextRaw))).not.toHaveProperty('budgets');
+    const withBudgets = environment(nextRaw);
+    withBudgets.store.map.set(BUDGETS_KEY, serializeBudgets(budgets));
+    expect(JSON.parse(await withBudgets.controller.exportFullBackup(nextRaw)).budgets).toEqual(budgets);
+  });
+
+  it('refuses to export when stored budgets are unreadable instead of dropping them', async () => {
+    const corrupt = environment(nextRaw);
+    corrupt.store.map.set(BUDGETS_KEY, '{bad');
+    await expect(corrupt.controller.exportFullBackup(nextRaw)).rejects.toThrow(/Anggaran/);
+    expect(corrupt.store.map.get(BUDGETS_KEY)).toBe('{bad');
+  });
+
+  it('writes restored budgets after the ledger and categories', async () => {
+    const { store, controller } = environment();
+    const raw = store.getItem(STORAGE_KEY);
+    expect(await controller.setCandidate(updated, '', { expectedToken: raw, restoreCategories: { settings, expectedRaw: previousRaw, budgets } })).toBe(true);
+    expect(store.map.get(BUDGETS_KEY)).toBe(serializeBudgets(budgets));
+    expect(store.map.get(CATEGORY_SETTINGS_KEY)).toBe(nextRaw);
+    expect(store.writes.indexOf(BUDGETS_KEY)).toBeGreaterThan(store.writes.lastIndexOf(STORAGE_KEY));
+    expect(controller.getSnapshot().error).toBe('');
+  });
+
+  it('keeps current budgets when the backup has no budget section', async () => {
+    const { store, restore } = environment();
+    store.map.set(BUDGETS_KEY, serializeBudgets({ TRY: { Belanja: 1 } }));
+    expect(await restore()).toBe(true);
+    expect(store.map.get(BUDGETS_KEY)).toBe(serializeBudgets({ TRY: { Belanja: 1 } }));
+    expect(store.writes).not.toContain(BUDGETS_KEY);
+  });
+
+  it('reports a failed budget write without undoing the restore or touching old budgets', async () => {
+    const { store, controller } = environment();
+    const old = serializeBudgets({ TRY: { Belanja: 1 } });
+    store.map.set(BUDGETS_KEY, old);
+    store.fault = key => key === BUDGETS_KEY;
+    const raw = store.getItem(STORAGE_KEY);
+    expect(await controller.setCandidate(updated, '', { expectedToken: raw, restoreCategories: { settings, expectedRaw: previousRaw, budgets } })).toBe(true);
+    expect(parseBackupText(store.getItem(STORAGE_KEY)!)).toEqual(updated);
+    expect(store.map.get(BUDGETS_KEY)).toBe(old);
+    expect(controller.getSnapshot().error).toMatch(/anggaran dari cadangan belum tersimpan/);
+  });
+
+  it('rejects invalid budgets before writing anything', async () => {
+    const { store, controller } = environment();
+    const before = new Map(store.map);
+    const raw = store.getItem(STORAGE_KEY);
+    expect(await controller.setCandidate(updated, '', { expectedToken: raw,
+      restoreCategories: { settings, expectedRaw: previousRaw, budgets: { IDR: { Belanja: -5 } } } })).toBe(false);
+    expect(store.map).toEqual(before);
   });
 });

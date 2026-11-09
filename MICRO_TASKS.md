@@ -159,7 +159,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   digit pecahan per mata uang), tombol di `HistoryFilters.tsx`
   (pakai `downloadText` yang sudah ada, dengan type `text/csv`).
 
-- [ ] **MW-12a — Anggaran: model & penyimpanan**
+- [x] **MW-12a — Anggaran: model & penyimpanan**
   Peta `{ mataUang → { kategori → batasBulanan } }`, disimpan di key sendiri,
   divalidasi, ikut "Cadangkan semuanya". Cek kompatibilitas dua arah di `fullBackup`:
   - cadangan lama (tanpa anggaran) tetap bisa dipulihkan;

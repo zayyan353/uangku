@@ -494,7 +494,7 @@ export default function App() {
           label: 'Pulihkan semuanya',
           action: async () => {
             const saved = await persistCandidate(restored, {
-              ...options, restoreCategories: { settings, expectedRaw: categoryPreferences.raw },
+              ...options, restoreCategories: { settings, expectedRaw: categoryPreferences.raw, ...(backup.budgets ? { budgets: backup.budgets } : {}) },
             });
             if (saved) notify('Cadangan lengkap dipulihkan. Transaksi dan pengaturan kategori sudah tersimpan.');
             else notify('Cadangan lengkap belum dipulihkan. Periksa status penyimpanan sebelum mencoba lagi.');
