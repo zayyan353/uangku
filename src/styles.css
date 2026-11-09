@@ -350,6 +350,10 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .category-value { font-size: 11px; }
 .category-track { height: 5px; margin-left: 15px; }
 .category-fill { display: block; }
+.category-budget-note { display: block; margin: 6px 0 0 15px; color: #52634f; font-size: 10px; }
+.category-row.over-budget .category-fill { background: #b4583f; }
+.category-row.over-budget :is(.category-value, .category-budget-note) { color: #a24c35; }
+.category-budget-hint { margin: 12px 0 0; }
 .category-legend { font-size: 9px; line-height: 1.7; align-items: center; gap: 6px; }
 .category-legend .status-dot { width: 4px; height: 4px; }
 .pending-banner { width: 100%; text-align: left; border-color: #e8e5c8; }
@@ -1168,3 +1172,6 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 
 .import-format-picker { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
 @media (max-width: 600px) { .import-format-picker .button { flex: 1; white-space: normal; } }
+html[data-theme="dark"] .category-budget-note { color: var(--text-muted); }
+html[data-theme="dark"] .category-row.over-budget .category-fill { background: var(--error-text); }
+html[data-theme="dark"] .category-row.over-budget :is(.category-value, .category-budget-note) { color: var(--error-text); }

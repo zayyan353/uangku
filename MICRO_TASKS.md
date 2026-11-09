@@ -169,7 +169,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
 - [x] **MW-12b — Anggaran: atur batas di Kelola kategori**
   Input nominal per kategori pengeluaran di `CategoryManager.tsx`. Butuh MW-12a.
 
-- [ ] **MW-12c — Anggaran: progress di Ringkasan**
+- [x] **MW-12c — Anggaran: progress di Ringkasan**
   Di panel "Kategori pengeluaran terkonfirmasi", tampilkan terpakai / batas dan warna
   kalau lewat. Butuh MW-12b.
 
