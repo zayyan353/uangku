@@ -166,7 +166,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   - cadangan baru tidak membuat format v1 rusak (field baru opsional).
   Hanya logika + test, belum ada UI.
 
-- [ ] **MW-12b — Anggaran: atur batas di Kelola kategori**
+- [x] **MW-12b — Anggaran: atur batas di Kelola kategori**
   Input nominal per kategori pengeluaran di `CategoryManager.tsx`. Butuh MW-12a.
 
 - [ ] **MW-12c — Anggaran: progress di Ringkasan**

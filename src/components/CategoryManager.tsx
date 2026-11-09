@@ -6,6 +6,8 @@ import { CATEGORY_SETTINGS_LIMIT, categorySettingsExport, parseCategorySettingsE
 import type { CategoryRule } from '../lib/categorization';
 import { mergeCurrentCategoryKeywordPack } from '../lib/categoryConfirmedMappings';
 import { mergeCurrentAutomaticBankMappings } from '../lib/bankAutoMappings';
+import { applyBudgetInputs, budgetInputs, type BudgetMap } from '../lib/budgets';
+import { currencyInfo, type Currency } from '../lib/finance';
 
 const UNCATEGORIZED = 'Belum dikategorikan';
 
@@ -13,13 +15,23 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Pengaturan belum dapat diproses.';
 }
 
-export default function CategoryManager({ settings, onSave, onClose, notice }: {
+export default function CategoryManager({ settings, budgets = {}, budgetsError = '', currencies = [], currency, onSave, onClose, notice }: {
   settings: CategorySettings;
-  onSave: (next: CategorySettings) => Promise<boolean>;
+  /** Stored monthly limits; budgets are edited per currency and saved with the settings. */
+  budgets?: BudgetMap;
+  budgetsError?: string;
+  currencies?: readonly Currency[];
+  currency?: Currency;
+  /** nextBudgets is passed only when a limit was edited in this form. */
+  onSave: (next: CategorySettings, nextBudgets?: BudgetMap) => Promise<boolean>;
   onClose: () => void;
   notice?: string;
 }) {
   const [draft, setDraft] = useState(() => structuredClone(settings));
+  const budgetCurrencies = [...new Set([...(currency ? [currency] : []), ...currencies])];
+  const [budgetCurrency, setBudgetCurrency] = useState<Currency | undefined>(budgetCurrencies[0]);
+  // Edited text per currency; untouched currencies keep their stored limits.
+  const [budgetDraft, setBudgetDraft] = useState<Partial<Record<Currency, Record<string, string>>>>({});
   const [newName, setNewName] = useState('');
   const [keyword, setKeyword] = useState('');
   const [ruleCategory, setRuleCategory] = useState(settings.names.find(name => name !== UNCATEGORIZED) ?? '');
@@ -31,6 +43,9 @@ export default function CategoryManager({ settings, onSave, onClose, notice }: {
   const fileRef = useRef<HTMLInputElement>(null);
   const errorRef = useRef<HTMLDivElement>(null);
   const ruleNames = draft.names.filter(name => name !== UNCATEGORIZED);
+  const budgetLocked = Boolean(budgetsError) || !budgetCurrency;
+  const budgetTexts = budgetCurrency ? { ...budgetInputs(budgets, budgetCurrency, ruleNames), ...budgetDraft[budgetCurrency] } : {};
+  const hiddenBudgets = budgetCurrency ? Object.keys(budgets[budgetCurrency] ?? {}).filter(name => !ruleNames.includes(name)).length : 0;
 
   useEffect(() => {
     if (!ruleNames.includes(ruleCategory)) setRuleCategory(ruleNames[0] ?? '');
@@ -73,15 +88,27 @@ export default function CategoryManager({ settings, onSave, onClose, notice }: {
       update({ ...bank.settings, keywordPackVersion: 5 }, `${merged.added + bank.added} kata kunci ditambahkan dan ${merged.updated + bank.updated} pemetaan bawaan disesuaikan di formulir. Aturan pribadi dipertahankan. Klik Simpan pengaturan untuk menyimpan.`);
     } catch (error) { setError(errorMessage(error)); }
   }
+  function changeBudget(name: string, text: string) {
+    if (busyRef.current || budgetLocked || !budgetCurrency) return;
+    setBudgetDraft(current => ({ ...current, [budgetCurrency]: { ...current[budgetCurrency], [name]: text } }));
+    setError(''); setMessage('');
+  }
+  function nextBudgets(): BudgetMap | undefined {
+    if (budgetLocked) return undefined;
+    const edited = Object.entries(budgetDraft) as [Currency, Record<string, string>][];
+    if (!edited.length) return undefined;
+    return edited.reduce((map, [code, inputs]) => applyBudgetInputs(map, code, inputs), budgets);
+  }
   async function save() {
     if (busyRef.current) return;
     let checked: CategorySettings;
-    try { checked = validateCategorySettings(draft); }
+    let limits: BudgetMap | undefined;
+    try { checked = validateCategorySettings(draft); limits = nextBudgets(); }
     catch (reason) { setError(errorMessage(reason)); return; }
     busyRef.current = true; setPending('save'); setError(''); setMessage('');
     let saved = false;
     try {
-      saved = await onSave(checked);
+      saved = limits ? await onSave(checked, limits) : await onSave(checked);
       if (!saved) setError('Pengaturan belum tersimpan. Formulir ini tetap dipertahankan; periksa pesan penyimpanan lalu coba lagi.');
     } catch (reason) { setError(errorMessage(reason)); }
     finally { busyRef.current = false; setPending(null); }
@@ -127,6 +154,15 @@ export default function CategoryManager({ settings, onSave, onClose, notice }: {
               <button type="button" className="button secondary" disabled={draft.names.length >= 100 || !newName.trim()} onClick={addName}><Plus size={16} /> Tambah kategori</button>
             </div>
             <ul className="category-manager-names">{draft.names.map(name => <li key={name}><span>{name}</span>{name === UNCATEGORIZED ? <small>Kategori dasar</small> : <button type="button" className="icon-button" aria-label={`Hapus kategori ${name}`} title="Hapus dari pilihan; catatan lama tetap disimpan" onClick={() => removeName(name)}><Trash2 size={16} /></button>}</li>)}</ul>
+          </section>
+          <section className="category-manager-section" aria-label="Anggaran bulanan">
+            <h3>Anggaran bulanan</h3>
+            <p className="field-help">Batas pengeluaran per bulan untuk setiap kategori, per mata uang. Kosongkan untuk tanpa batas. Anggaran disimpan bersama pengaturan ini dan ikut Cadangkan semuanya; transaksi tidak diubah.</p>
+            {budgetsError ? <p className="notice warning">{budgetsError}</p> : !budgetCurrency ? <p className="field-help">Tambahkan mata uang lebih dulu untuk mengatur anggaran.</p> : <>
+              {budgetCurrencies.length > 1 && <label className="field category-budget-currency"><span className="field-label">Mata uang anggaran</span><select className="select-input" aria-label="Mata uang anggaran" value={budgetCurrency} onChange={event => setBudgetCurrency(event.target.value as Currency)}>{budgetCurrencies.map(code => <option key={code} value={code}>{code} · {currencyInfo(code).label}</option>)}</select></label>}
+              <ul className="category-budget-list">{ruleNames.map(name => <li key={name}><label className="field"><span className="field-label">{name}</span><input className="field-input" aria-label={`Anggaran ${name} (${budgetCurrency})`} inputMode="decimal" autoComplete="off" maxLength={24} placeholder="Tanpa batas" value={budgetTexts[name] ?? ''} onChange={event => changeBudget(name, event.target.value)} /></label></li>)}</ul>
+              {hiddenBudgets > 0 && <p className="field-help">{hiddenBudgets} anggaran {budgetCurrency} untuk kategori yang tidak aktif tetap disimpan dan aktif kembali bila kategorinya ditambahkan lagi.</p>}
+            </>}
           </section>
           <section className="category-manager-section" aria-label="Aturan kategori">
             <h3>Aturan kata kunci <span>{draft.rules.length}/200</span></h3>

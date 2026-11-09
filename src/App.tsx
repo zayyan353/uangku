@@ -16,6 +16,7 @@ import { createEmptyState, MAX_RESTORE_BYTES, prepareBackup, serializeBackup, ty
 import { parseRestoreFile } from './lib/fullBackup';
 import { carryDemo } from './lib/demoTransition';
 import type { CandidateOptions } from './lib/persistence';
+import type { BudgetMap } from './lib/budgets';
 import { useLedgerStorage } from './hooks/useLedgerStorage';
 import { useTransactionTemplates } from './hooks/useTransactionTemplates';
 import RecoveryImportView from './components/RecoveryImportView';
@@ -71,8 +72,9 @@ function downloadText(content: string, name: string, type = 'application/json') 
 export default function App() {
   const ledger = useLedgerStorage();
   const categoryPreferences = useCategorySettings();
-  const [categoryManager, setCategoryManager] = useState<CategorySettings | null>(null);
+  const [categoryManager, setCategoryManager] = useState<{ settings: CategorySettings; budgets: BudgetMap; budgetsError: string } | null>(null);
   const categorySettingsBase = useRef<string | null>(null);
+  const categoryBudgetsBase = useRef<string | null>(null);
   const [categoryAutomation, setCategoryAutomation] = useState<{ data: StoredData; token: string | null } | null>(null);
   const [preferences, setPreferences] = useState(readPreferences);
   const data = ledger.data;
@@ -332,12 +334,13 @@ export default function App() {
   function openCategoryManager() {
     if (mutationInFlight.current || categoryPreferences.recovering) return;
     categorySettingsBase.current = categoryPreferences.raw;
-    setCategoryManager(categoryPreferences.settings);
+    categoryBudgetsBase.current = categoryPreferences.budgetsRaw;
+    setCategoryManager({ settings: categoryPreferences.settings, budgets: categoryPreferences.budgets, budgetsError: categoryPreferences.budgetsError });
   }
-  async function saveCategorySettings(next: CategorySettings): Promise<boolean> {
+  async function saveCategorySettings(next: CategorySettings, budgets?: BudgetMap): Promise<boolean> {
     try {
-      await categoryPreferences.save(next, categorySettingsBase.current);
-      setCategoryManager(null); notify('Kategori dan aturan berhasil disimpan di browser ini.'); return true;
+      await categoryPreferences.save(next, categorySettingsBase.current, budgets ? { budgets, expectedRaw: categoryBudgetsBase.current } : undefined);
+      setCategoryManager(null); notify(budgets ? 'Kategori, aturan, dan anggaran berhasil disimpan di browser ini.' : 'Kategori dan aturan berhasil disimpan di browser ini.'); return true;
     } catch (error) { notify(error instanceof Error ? error.message : 'Pengaturan kategori belum tersimpan.'); return false; }
   }
   async function applyAutomaticCategories(assignments: CategoryAssignment[]): Promise<boolean> {
@@ -570,7 +573,7 @@ export default function App() {
     {txModal && <TransactionModal data={data} state={state} onSaveTemplate={transactionTemplates.add} undatedWallets={undatedWallets} initialMode={txModal.type} initialWallet={txModal.walletId} existing={txModal.existing} disabled={ledger.pending} onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined} onSave={saveEntry} onClose={() => { if (!mutationInFlight.current) setTxModal(null); }} onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined} />}
     {amountDetail && <AmountDetailModal entry={amountDetail} state={state} data={data} onClose={() => setAmountDetail(null)} />}
     {currencyManager && <CurrencyManager data={currencyManager.data} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported} onSave={saveCurrencyList} onView={code => { setCurrency(code); setCurrencyManager(null); navigate('overview'); }} onClose={() => { if (!mutationInFlight.current) setCurrencyManager(null); }} />}
-    {categoryManager && <CategoryManager settings={categoryManager} notice={categoryPreferences.error || (categoryPreferences.packAdded || categoryPreferences.packUpdated ? `${categoryPreferences.packAdded} kata kunci tambahan aktif dan ${categoryPreferences.packUpdated} pemetaan bawaan disesuaikan. Kategori dan aturan pribadi dipertahankan.` : undefined)} onSave={saveCategorySettings} onClose={() => setCategoryManager(null)} />}
+    {categoryManager && <CategoryManager settings={categoryManager.settings} budgets={categoryManager.budgets} budgetsError={categoryManager.budgetsError} currencies={visibleCurrencies} currency={currency} notice={categoryPreferences.error || (categoryPreferences.packAdded || categoryPreferences.packUpdated ? `${categoryPreferences.packAdded} kata kunci tambahan aktif dan ${categoryPreferences.packUpdated} pemetaan bawaan disesuaikan. Kategori dan aturan pribadi dipertahankan.` : undefined)} onSave={saveCategorySettings} onClose={() => setCategoryManager(null)} />}
     {categoryAutomation && <CategoryAutomation data={categoryAutomation.data} disabled={ledger.dirty || blocked || !ledger.supported} onApply={applyAutomaticCategories} onClose={() => { if (!mutationInFlight.current) setCategoryAutomation(null); }} />}
     {cashArchiveOpen && <CashArchive data={data} onClose={() => setCashArchiveOpen(false)} />}
     {privacyOpen && <PrivacyNotice persistence={persistence} onClose={() => setPrivacyOpen(false)} />}

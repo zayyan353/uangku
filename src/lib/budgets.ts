@@ -1,5 +1,6 @@
 import { isCurrencyCode } from './currencyCatalog';
-import type { Currency } from './finance';
+import { parseMoney, type Currency } from './finance';
+import { formatMoneyInput } from './moneyFormatting';
 import { UNCATEGORIZED } from './categorySettings';
 
 /**
@@ -89,4 +90,40 @@ export function parseStoredBudgets(raw: string | null): BudgetMap {
   let value: unknown;
   try { value = JSON.parse(raw); } catch { throw new Error('Anggaran tersimpan tidak dapat dibaca.'); }
   return validateBudgets(value);
+}
+
+/**
+ * Editable text per category for one currency. An empty string means the
+ * category has no limit. Used by the category manager form.
+ */
+export function budgetInputs(budgets: BudgetMap, currency: Currency, names: readonly string[]): Record<string, string> {
+  const section = budgets[currency] ?? {};
+  const inputs: Record<string, string> = {};
+  for (const name of names) {
+    if (name === UNCATEGORIZED) continue;
+    inputs[name] = Object.hasOwn(section, name) ? formatMoneyInput(section[name], currency) : '';
+  }
+  return inputs;
+}
+
+/**
+ * Applies form text for one currency to a budget map. Blank removes that
+ * category's limit; any other text must be a positive amount for the
+ * currency. Categories not in inputs keep their stored limits, so limits for
+ * hidden or removed categories are never dropped silently.
+ */
+export function applyBudgetInputs(budgets: BudgetMap, currency: Currency, inputs: Readonly<Record<string, string>>): BudgetMap {
+  const section: Record<string, number> = { ...(budgets[currency] ?? {}) };
+  for (const [name, text] of Object.entries(inputs)) {
+    if (!text.trim()) { delete section[name]; continue; }
+    const minor = parseMoney(text, currency);
+    if (minor === null || minor <= 0 || !Number.isSafeInteger(minor)) {
+      throw new Error(`Anggaran ${name} (${currency}): isi nominal positif, misalnya 1.500.000, atau kosongkan untuk tanpa batas.`);
+    }
+    section[name] = minor;
+  }
+  const next: BudgetMap = { ...budgets };
+  if (Object.keys(section).length) next[currency] = section;
+  else delete next[currency];
+  return validateBudgets(next);
 }
