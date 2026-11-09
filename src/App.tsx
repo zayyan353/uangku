@@ -26,7 +26,6 @@ import { createHistoryIndex, queryHistory, paginateHistory, monthLabel, type His
 import { createPostingDateIndex, entryPostings } from './lib/transferPostings';
 import { applySourcedEntryEdit, applySourcedBulkCategory, deleteSourcedEntry, saveTransferEntry } from './lib/sourceCommands';
 import { executeTransferCommand } from './lib/transferCommands';
-import SourceDetails from './components/SourceDetails';
 import StatementReview from './components/StatementReview';
 import { buildCashflowReport, type CashflowReport } from './lib/cashflowReport';
 import CashflowOverview, { CashflowBalance, useMobileOverview } from './components/CashflowOverview';
@@ -39,6 +38,7 @@ import { PrivacyNotice } from './components/PrivacyNotice';
 import { AppSidebar, MobileFooter, MobileNav, NAVIGATION, type Page } from './components/AppNavigation';
 import { HistoryFilters } from './components/HistoryFilters';
 import TransactionTable from './components/TransactionTable';
+import AmountDetailModal from './components/AmountDetailModal';
 import { typeLabels } from './lib/entryTypeLabels';
 import { historyCsv, type HistoryCsvRow } from './lib/csvExport';
 import { requestPersistentStorage, type PersistenceStatus } from './lib/storagePersistence';
@@ -52,7 +52,7 @@ import { applyBankDecisions, type BankCategoryAssignment as CategoryAssignment }
 import { activeAccountState, isCashLinkedEntry, removeUnusedCashWallets } from './lib/cashScope';
 import CashArchive from './components/CashArchive';
 import { createBankEntryPresentationLookup } from './lib/bankEntryHints';
-import { entryReviewStatus, reviewCounts, type ReviewReason } from './lib/reviewStatus';
+import { reviewCounts, type ReviewReason } from './lib/reviewStatus';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' });
 const today = () => DATE_FORMAT.format(new Date());
@@ -73,24 +73,6 @@ function WalletSymbol({ wallet, small = false }: { wallet: Wallet; small?: boole
   return <span className={`wallet-icon ${wallet.kind} ${small ? 'small' : ''}`} style={{ '--wallet-color': wallet.currency === 'TRY' ? '#a36c51' : wallet.currency === 'USD' ? '#6576a4' : '#3d7368' } as React.CSSProperties}>
     {wallet.kind === 'cash' ? <WalletIcon size={small ? 17 : 21} /> : wallet.kind === 'bank' ? <Landmark size={small ? 17 : 21} /> : <span>{wallet.name.slice(0, 1)}</span>}
   </span>;
-}
-
-function AmountDetailModal({ entry, state, data, onClose }: { entry: Entry; state: State; data: StoredData; onClose: () => void }) {
-  const source = state.wallets.find(wallet => wallet.id === entry.walletId)!;
-  const destination = state.wallets.find(wallet => wallet.id === entry.toWalletId);
-  const outgoing = entry.type === 'expense' || entry.type === 'transfer' || entry.amount < 0;
-  const presentation = useMemo(() => createBankEntryPresentationLookup(data)(entry), [data, entry]);
-  const hasSource = !!data.metadata?.links.some(link => link.entryId === entry.id && (link.source || link.destination));
-  const review = entryReviewStatus(entry);
-  return <Modal title="Rincian nominal" subtitle="Baca saja. Membuka rincian tidak mengubah catatan atau saldo." onClose={onClose}>
-    <div className="modal-body amount-detail"><h3>{presentation.title}</h3><dl>
-      <dt>Jenis catatan</dt><dd>{typeLabels[entry.type]}</dd>{presentation.bank.kind !== 'none' && <><dt>Operasi pada mutasi</dt><dd data-bank-operation={presentation.bank.kind}>{presentation.bank.label}</dd></>}{presentation.merchant && <><dt>Merchant pada mutasi</dt><dd>{presentation.merchant}</dd></>}{review.pending && <><dt>Perlu dirapikan</dt><dd>{[review.type ? 'Jenis belum dikonfirmasi' : '', review.category ? 'Kategori belum diisi' : ''].filter(Boolean).join(' · ')}</dd></>}<dt>Tanggal catatan</dt><dd>{formatDate(entry.date)}</dd>
-      <dt>{entry.type === 'transfer' ? 'Dompet asal' : 'Dompet'}</dt><dd>{source.name} · {source.currency}</dd>
-      <dt>{outgoing ? 'Nominal keluar' : 'Nominal masuk'}</dt><dd>{formatMoney(Math.abs(entry.amount), source.currency)}</dd>
-      {entry.type === 'transfer' && <><dt>Biaya tambahan</dt><dd>{formatMoney(entry.fee ?? 0, source.currency)}</dd><dt>Total debit dompet asal</dt><dd>{formatMoney(entry.amount + (entry.fee ?? 0), source.currency)}</dd>{destination && <><dt>Dompet tujuan</dt><dd>{destination.name} · {destination.currency}</dd><dt>Nominal diterima</dt><dd>{formatMoney(entry.toAmount ?? 0, destination.currency)}</dd></>}{entry.rate !== undefined && <><dt>Kurs transaksi tersimpan</dt><dd>1 {source.currency} = {new Intl.NumberFormat('id-ID', { maximumFractionDigits: 20 }).format(entry.rate)} {destination?.currency}</dd></>}</>}
-      <dt>Kategori</dt><dd>{entry.category || '—'}</dd>{presentation.noteIsCustom && <><dt>Catatanmu</dt><dd>{entry.note || '—'}</dd></>}{!hasSource && <><dt>Keterangan lengkap</dt><dd>{presentation.description || '—'}</dd></>}
-    </dl>{presentation.bank.kind !== 'none' && <p className="field-help">{presentation.bank.warning}</p>}<SourceDetails data={data} entry={entry} /></div><div className="modal-footer"><button className="button secondary" onClick={onClose}>Tutup rincian</button></div>
-  </Modal>;
 }
 
 export default function App() {
