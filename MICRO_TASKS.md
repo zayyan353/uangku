@@ -134,7 +134,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   ledger sekarang beda dengan yang dicatat MW-06. Bisa ditutup sampai besok.
   Butuh MW-06. Logika di `backupReminder.ts` (dites), UI di `App.tsx`.
 
-- [ ] **MW-09 — Manifest PWA + ikon**
+- [x] **MW-09 — Manifest PWA + ikon**
   Tambah `public/manifest.webmanifest`, ikon 192/512 PNG, `apple-touch-icon`,
   dan `<link rel="manifest">` di `index.html` (ingat `base: './'`, path relatif).
   File di `public/` dikopi apa adanya ke `dist/`, jadi aman dengan `viteSingleFile`.
