@@ -3,6 +3,7 @@ import { STORAGE_KEY, prepareBackup, serializeBackup, type StoredData, type Stor
 import { CATEGORY_SETTINGS_KEY, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { effectiveCategorySettings } from './categorySettingsUpgrade';
 import { serializeFullBackup } from './fullBackup';
+import { BUDGETS_KEY, parseStoredBudgets, serializeBudgets, type BudgetMap } from './budgets';
 import { LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, recoverProfile, restorePending, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
 
 export { LEDGER_LOCK };
@@ -26,7 +27,8 @@ export interface CandidateOptions {
   replaceBlocked?: boolean;
   expectedData?: StoredData;
   expectedToken?: string | null;
-  restoreCategories?: { settings: CategorySettings; expectedRaw: string | null };
+  /** budgets: from a full backup; undefined keeps the browser's current budgets. */
+  restoreCategories?: { settings: CategorySettings; expectedRaw: string | null; budgets?: BudgetMap };
 }
 export interface PersistenceSnapshot {
   data: StoredData;
@@ -191,6 +193,10 @@ export class LedgerPersistenceController {
     let nextSettings: string;
     try { nextSettings = JSON.stringify(validateCategorySettings(categories.settings)); }
     catch (error) { this.update({ error: error instanceof Error ? error.message : 'Pengaturan kategori tidak valid.' }); return false; }
+    let nextBudgets: string | undefined;
+    try { if (categories.budgets) nextBudgets = serializeBudgets(categories.budgets); }
+    catch (error) { this.update({ error: error instanceof Error ? error.message : 'Anggaran pada cadangan tidak valid.' }); return false; }
+    let budgetsNotSaved = false;
     const expectedSettings = categories.expectedRaw;
     this.update({ pending: true, status: 'saving', error: '' });
     try {
@@ -202,11 +208,17 @@ export class LedgerPersistenceController {
           throw new Error('Catatan atau kategori berubah sejak pratinjau dibuka. Buka kembali cadangan untuk memeriksa ulang.');
         }
         await writeRestoredProfile(storage, token, nextLedger, expectedSettings, nextSettings);
+        // After the ledger commit point. A failed write leaves the previous
+        // budgets untouched and is reported; it never undoes the restore.
+        if (nextBudgets !== undefined && storage.getItem(BUDGETS_KEY) !== nextBudgets) {
+          try { storage.setItem(BUDGETS_KEY, nextBudgets); } catch { budgetsNotSaved = true; }
+        }
       });
       this.baseToken = nextLedger;
       this.blockedRaw = null;
       this.knownTokens.set(candidate.data, nextLedger);
-      this.update({ data: candidate.data, blocked: false, status: 'saved', pending: false, remoteChanged: false, error: '' });
+      this.update({ data: candidate.data, blocked: false, status: 'saved', pending: false, remoteChanged: false,
+        error: budgetsNotSaved ? 'Catatan dan kategori sudah dipulihkan, tetapi anggaran dari cadangan belum tersimpan. Periksa ruang penyimpanan browser.' : '' });
       this.ports.profileChanged?.();
       this.checkRemote();
       return true;
@@ -232,7 +244,7 @@ export class LedgerPersistenceController {
     };
     const exportCurrent = () => {
       verify();
-      const file = serializeFullBackup(ledger, effectiveCategorySettings(expectedCategoryRaw).settings);
+      const file = serializeFullBackup(ledger, effectiveCategorySettings(expectedCategoryRaw).settings, parseStoredBudgets(storage.getItem(BUDGETS_KEY)));
       verify();
       return file;
     };

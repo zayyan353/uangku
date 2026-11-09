@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CATEGORY_SETTINGS_LIMIT, UNCATEGORIZED, type CategorySettings } from './categorySettings';
+import { CATEGORY_SETTINGS_LIMIT, UNCATEGORIZED, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { parseRestoreFile, serializeFullBackup } from './fullBackup';
+import { BUDGETS_LIMIT } from './budgets';
 import { MAX_RESTORE_BYTES, parseBackupText, serializeBackup, type StoredData } from './storage';
 
 const categories: CategorySettings = {
@@ -95,5 +96,55 @@ describe('full and legacy backup files', () => {
     }))).toThrow(/ukuran/i);
     const nested = '['.repeat(70) + 'null' + ']'.repeat(70);
     expect(() => parseRestoreFile(JSON.stringify(full).replace('"rules":[', '"rules":[' + nested + ','))).toThrow(/kedalaman/i);
+  });
+});
+
+describe('optional budgets in full backups (MW-12a)', () => {
+  const budgets = { IDR: { 'Makan & minum': 150000000 }, TRY: { 'Langganan pribadi': 9999 } };
+
+  it('keeps files without budgets byte-identical to the earlier format', () => {
+    const legacy = `{"app":"uangku-full-backup","version":1,"ledger":${serializeBackup(ledger())},"categorySettings":${JSON.stringify(validateCategorySettings(categories))}}`;
+    expect(serializeFullBackup(ledger(), categories)).toBe(legacy);
+    expect(serializeFullBackup(ledger(), categories, {})).toBe(legacy);
+    expect(serializeFullBackup(ledger(), categories, { IDR: {} })).toBe(legacy);
+    expect(Object.keys(JSON.parse(legacy))).toEqual(['app', 'version', 'ledger', 'categorySettings']);
+  });
+
+  it('restores older full backups that have no budget section', () => {
+    const legacy = `{"app":"uangku-full-backup","version":1,"ledger":${serializeBackup(ledger())},"categorySettings":${JSON.stringify(validateCategorySettings(categories))}}`;
+    const restored = parseRestoreFile(legacy);
+    expect(restored.kind).toBe('full');
+    if (restored.kind !== 'full') return;
+    expect(restored.budgets).toBeUndefined();
+    expect('budgets' in restored).toBe(false);
+    expect(restored.categorySettings).toEqual(categories);
+  });
+
+  it('round-trips budgets after the existing sections, leaving ledger and categories unchanged', () => {
+    const text = serializeFullBackup(bankLedger(), categories, budgets);
+    const file = JSON.parse(text);
+    expect(Object.keys(file)).toEqual(['app', 'version', 'ledger', 'categorySettings', 'budgets']);
+    expect(file.version).toBe(1);
+    expect(text.startsWith(serializeFullBackup(bankLedger(), categories).slice(0, -1))).toBe(true);
+    const restored = parseRestoreFile(text);
+    if (restored.kind !== 'full') throw new Error('expected full backup');
+    expect(restored.budgets).toEqual(budgets);
+    expect(restored.categorySettings).toEqual(categories);
+    expect(serializeBackup(restored.ledger)).toBe(serializeBackup(parseBackupText(serializeBackup(bankLedger()))));
+  });
+
+  it('rejects the whole file when the budget section is invalid', () => {
+    const base = JSON.parse(serializeFullBackup(ledger(), categories));
+    for (const bad of [null, [], { XYZ: { A: 1 } }, { IDR: { Belanja: -1 } }, { IDR: { Belanja: 1.5 } }, { IDR: { [UNCATEGORIZED]: 1 } }]) {
+      expect(() => parseRestoreFile(JSON.stringify({ ...base, budgets: bad })), JSON.stringify(bad)).toThrow();
+    }
+    expect(() => parseRestoreFile(JSON.stringify({ ...base, budgets: { IDR: { A: 1 } }, extra: 1 }))).toThrow(/extra/);
+  });
+
+  it('bounds the budget section before validating it', () => {
+    const base = JSON.parse(serializeFullBackup(ledger(), categories));
+    const huge = { IDR: Object.fromEntries(Array.from({ length: 400 }, (_, i) => [`${'x'.repeat(60)}${i}`, 1])) };
+    expect(JSON.stringify(huge).length).toBeGreaterThan(BUDGETS_LIMIT);
+    expect(() => parseRestoreFile(JSON.stringify({ ...base, budgets: huge }))).toThrow();
   });
 });
