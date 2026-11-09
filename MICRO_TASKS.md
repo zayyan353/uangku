@@ -58,7 +58,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   *Selesai kalau:* tidak ada lagi instruksi yang bertentangan dengan alur di atas.
   *Catatan:* butuh izin eksplisit pemilik repo, karena MW ini mengubah aturan publikasi.
 
-- [ ] **MW-02 — Ganti status lama dengan STATUS.md singkat**
+- [x] **MW-02 — Ganti status lama dengan STATUS.md singkat**
   `RECOVERY_STATUS.json` (19 KB) masih mencatat `branch: local-rebuild` dan
   `deployment_performed: false`. Buat `STATUS.md` ≤ 30 baris (versi live, jumlah
   tes, batasan utama), lalu pindahkan `RECOVERY_STATUS.json` ke `docs/archive/`.
