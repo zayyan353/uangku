@@ -24,20 +24,19 @@ Hindari menjalankan dua versi aplikasi bersamaan pada origin yang sama.
 
 ## Menyimpan pekerjaan
 
-Gunakan branch `local-rebuild`. Buat checkpoint Git setelah kelompok perubahan
-lulus pemeriksaan terkait. Remote baca menunjuk repository asli, tetapi push URL
-sengaja dinonaktifkan pada salinan kerja ini. Tidak ada push atau deployment yang
-diperlukan untuk menjalankan lokal. Publikasi memerlukan keputusan pengguna terpisah.
+Branch utama adalah `main`, dan push ke `main` otomatis menerbitkan situs. Karena
+itu perubahan dikerjakan per micro-work (lihat `MICRO_TASKS.md`):
 
-Sesuai keputusan pengguna, paket ZIP/folder gabungan baru dan cadangan luar PC
-ditunda sampai aplikasi lebih matang. Selama pengembangan, simpan checkpoint Git
-lokal dan pertahankan seluruh cadangan lama. Arsip lama merepresentasikan
-checkpoint saat dibuat, bukan otomatis versi fitur terbaru.
+1. Buat branch baru dari `main`.
+2. Ubah kode sesuai satu MW.
+3. Jalankan `npm test` dan `npm run build`; keduanya harus lulus.
+4. Commit, push branch, lalu buka pull request ke `main`.
+5. Merge setelah CI **Periksa Uangku** hijau. Merge itulah yang menerbitkan situs.
 
-Simpan source dan riwayat Git dalam cadangan yang berbeda dari folder kerja aktif.
-Periksa checksum dan uji pemulihan cadangan. Salinan pada disk PC yang sama belum
-melindungi dari kerusakan atau kehilangan seluruh PC; cadangan luar PC perlu lokasi
-terpisah yang dipilih pengguna.
+Jangan push langsung ke `main`. Aturan lengkap ada di `AGENTS.md`.
+
+Riwayat source tersimpan di GitHub. Arsip ZIP/folder lama tetap dipertahankan dan
+merepresentasikan checkpoint saat dibuat, bukan otomatis versi fitur terbaru.
 
 ## Data transaksi
 
@@ -76,6 +75,7 @@ Di PC ini, runtime Python dan dependency Playwright juga tersedia dari task indu
 lihat laporan lokal untuk perintah dan bukti eksekusi yang sebenarnya. Harness
 memeriksa hash HTML agar tidak menguji server lama atau development secara keliru.
 
-CI browser dikonfigurasi pada salinan lokal, belum membuktikan CI GitHub pernah
-berjalan. Workflow Pages lokal hanya dapat dipicu manual dengan persetujuan
-publikasi dan menjalankan gate CI sebelum build/deployment.
+Di GitHub, workflow **Periksa Uangku** menjalankan tes unit, build, dan tes browser
+pada setiap pull request. Workflow **Publikasikan Uangku** berjalan saat ada push
+ke `main` (atau dipicu manual dengan konfirmasi rilis), menjalankan gate yang sama,
+lalu menerbitkan situs. Hasil lokal saja tidak membuktikan CI GitHub lulus.

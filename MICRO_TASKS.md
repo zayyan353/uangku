@@ -46,7 +46,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   `--median-budget-ms 6000`; default lokal, p95 (8000 ms), dan frame budget tetap.
   Menyelidiki kenapa batch-nya ~5 detik bisa jadi MW terpisah.
 
-- [ ] **MW-01 — Perbarui aturan kerja (prasyarat semua MW lain)**
+- [x] **MW-01 — Perbarui aturan kerja (prasyarat semua MW lain)**
   `AGENTS.md` masih bilang branch `local-rebuild` dan "tidak boleh push, merge,
   atau deploy". Selama belum diganti, agen AI yang membaca repo akan menolak push.
   `LOCAL_WORKFLOW.md` (baris 27–29) dan `README_LOCAL.txt` (baris 10) juga masih
