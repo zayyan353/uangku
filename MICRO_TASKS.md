@@ -140,7 +140,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   File di `public/` dikopi apa adanya ke `dist/`, jadi aman dengan `viteSingleFile`.
   *Selesai kalau:* build tetap satu `index.html` + aset di `dist/`, dan bisa "Tambah ke Layar Utama".
 
-- [ ] **MW-10 — Petunjuk "Tambah ke Layar Utama" + pindah data**
+- [x] **MW-10 — Petunjuk "Tambah ke Layar Utama" + pindah data**
   Satu paragraf di `PrivacyNotice.tsx` dan README (iPhone: Bagikan → Tambah ke
   Layar Utama; Android: menu ⋮ → Instal aplikasi). Butuh MW-09.
 

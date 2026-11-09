@@ -139,6 +139,25 @@ antarperangkat. File mutasi dibaca di browser, tanpa dikirim ke server aplikasi.
 - Pembaruan situs tidak memindahkan catatan dari alamat lokal ke alamat publik.
   ZIP source aplikasi juga tidak otomatis menyertakan data browser.
 
+### Tambah ke Layar Utama
+
+Uangku bisa dipasang seperti aplikasi. Di iPhone, buka situsnya di Safari, pilih
+**Bagikan → Tambah ke Layar Utama**. Di Android, buka di Chrome, pilih menu
+**⋮ → Instal aplikasi** (atau **Tambahkan ke layar utama**).
+
+**Penting untuk iPhone:** aplikasi yang dibuka dari Layar Utama punya
+penyimpanan **terpisah dari Safari**. Catatan yang sudah ada di Safari tidak ikut
+pindah, jadi aplikasinya akan tampak kosong; datamu tidak hilang. Untuk
+memindahkannya:
+
+1. Di Safari, pilih **Cadangkan semuanya** dan simpan file JSON-nya.
+2. Buka Uangku dari ikon di Layar Utama.
+3. Pilih **Pulihkan cadangan**, pilih file tadi, periksa jumlahnya, lalu
+   **Pulihkan semuanya**.
+
+Setelah itu, catat di salah satu tempat saja (Safari atau Layar Utama) supaya
+catatan tidak terpecah di dua penyimpanan.
+
 Jangan masukkan mutasi bank asli, cadangan pribadi, kredensial, atau data
 keuangan nyata ke repository publik. Pengujian menggunakan fixture sintetis.
 
