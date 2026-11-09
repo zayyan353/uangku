@@ -3,11 +3,10 @@ import StartOwnModal from './components/StartOwnModal';
 import TransactionModal, { type TxMode, type EntrySaveOptions } from './components/TransactionModal';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  ArrowDownLeft, ArrowDownToLine, ArrowLeftRight, ArrowRight, ArrowUpRight,
-  Check, CheckCheck, CheckCircle2, ChevronDown, ChevronRight, CircleHelp,
-  Coffee, Download, FileSpreadsheet, FolderOpen, History, Landmark,
+  ArrowDownToLine, ArrowLeftRight, ArrowRight, Check, CheckCheck, CheckCircle2, ChevronDown, ChevronRight, CircleHelp,
+  Download, FileSpreadsheet, FolderOpen, History, Landmark,
   Leaf, MoreHorizontal, Plus, ShieldCheck,
-  SlidersHorizontal, Sparkles, Tags, Trash2, Wallet as WalletIcon, X,
+  Sparkles, Tags, Wallet as WalletIcon, X,
 } from 'lucide-react';
 import {
   CATEGORY_NAMES, formatDate, formatMoney, makeId,
@@ -24,7 +23,7 @@ import { preferredWallet, readPreferences, writePreferences } from './lib/prefer
 import { canCategorize, categorizeEntries, transferCandidates } from './lib/review';
 import BulkReviewPanel from './components/BulkReviewPanel';
 import { createHistoryIndex, queryHistory, paginateHistory, monthLabel, type HistoryPeriod } from './lib/historyView';
-import { createPostingDateIndex, entryPostings, transferPostingDates } from './lib/transferPostings';
+import { createPostingDateIndex, entryPostings } from './lib/transferPostings';
 import { applySourcedEntryEdit, applySourcedBulkCategory, deleteSourcedEntry, saveTransferEntry } from './lib/sourceCommands';
 import { executeTransferCommand } from './lib/transferCommands';
 import SourceDetails from './components/SourceDetails';
@@ -39,6 +38,8 @@ import { archiveWallet, restoreWallet, createWallet, editWallet, deleteUnusedWal
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { AppSidebar, MobileFooter, MobileNav, NAVIGATION, type Page } from './components/AppNavigation';
 import { HistoryFilters } from './components/HistoryFilters';
+import TransactionTable from './components/TransactionTable';
+import { typeLabels } from './lib/entryTypeLabels';
 import { historyCsv, type HistoryCsvRow } from './lib/csvExport';
 import { requestPersistentStorage, type PersistenceStatus } from './lib/storagePersistence';
 import { LAST_BACKUP_KEY, REMINDER_DISMISSED_KEY, backupReminderReason, dismissReminder, lastBackupLabel, ledgerFingerprint, readLastBackup, readReminderDismissed, recordBackup } from './lib/backupReminder';
@@ -58,7 +59,6 @@ const today = () => DATE_FORMAT.format(new Date());
 const currencyFlag = (code: Currency) => code === 'IDR' ? '🇮🇩' : code === 'TRY' ? '🇹🇷' : code === 'USD' ? '🇺🇸' : code === 'EUR' ? '🇪🇺' : '¤';
 const currencyLabel = (code: Currency) => currencyInfo(code).label;
 const kindLabel = (kind: Wallet['kind']) => kind === 'cash' ? 'Uang tunai' : kind === 'ewallet' ? 'E-wallet' : 'Rekening bank';
-const typeLabels = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer', movement: 'Perpindahan dana', adjustment: 'Penyesuaian', unreviewed: 'Perlu dicek' };
 const COLORS = ['#e4a06a', '#7da69b', '#a2b96c', '#a0a5d4', '#d7b568', '#d58e9f', '#8db8c9', '#b1b8ae'];
 
 function downloadText(content: string, name: string, type = 'application/json') {
@@ -73,39 +73,6 @@ function WalletSymbol({ wallet, small = false }: { wallet: Wallet; small?: boole
   return <span className={`wallet-icon ${wallet.kind} ${small ? 'small' : ''}`} style={{ '--wallet-color': wallet.currency === 'TRY' ? '#a36c51' : wallet.currency === 'USD' ? '#6576a4' : '#3d7368' } as React.CSSProperties}>
     {wallet.kind === 'cash' ? <WalletIcon size={small ? 17 : 21} /> : wallet.kind === 'bank' ? <Landmark size={small ? 17 : 21} /> : <span>{wallet.name.slice(0, 1)}</span>}
   </span>;
-}
-
-function TransactionTable({ entries, state, data, onEdit, onDelete, onDetail, selection }: {
-  entries: Entry[]; state: State; data: StoredData; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void; onDetail: (entry: Entry) => void;
-  selection?: { ids: Set<string>; toggle: (id: string) => void; toggleAll: () => void };
-}) {
-  const readOnlyEntryIds = useMemo(() => archivedReadOnlyEntryIds(data), [data]);
-  const bankPresentation = useMemo(() => createBankEntryPresentationLookup(data), [data.metadata]);
-  if (!entries.length) return <div className="empty-state"><History size={30} /><h3>Belum ada transaksi di sini</h3><p>Mulai dari satu catatan kecil, atau impor mutasi rekeningmu.</p></div>;
-  const eligible = entries.filter(entry => canCategorize(entry) && !isCashLinkedEntry(state, entry) && !readOnlyEntryIds.has(entry.id));
-  const selectedCount = eligible.filter(e => selection?.ids.has(e.id)).length;
-  return <div className="table-wrap"><table className="transactions-table"><thead><tr>
-    <th>{selection && <input className="selection-checkbox" type="checkbox" aria-label="Pilih semua transaksi yang terlihat" disabled={!eligible.length} checked={eligible.length > 0 && selectedCount === eligible.length} ref={input => { if (input) input.indeterminate = selectedCount > 0 && selectedCount < eligible.length; }} onChange={selection.toggleAll} />}Transaksi</th><th>Dompet</th><th>Tanggal</th><th>Nominal</th><th><span className="screen-reader-only">Aksi</span></th>
-  </tr></thead><tbody>{entries.map(entry => {
-    const wallet = state.wallets.find(w => w.id === entry.walletId)!;
-    const destination = state.wallets.find(w => w.id === entry.toWalletId);
-    const positive = entry.type === 'income' || ((entry.type === 'adjustment' || entry.type === 'unreviewed' || entry.type === 'movement') && entry.amount > 0);
-    const dates = entry.type === 'transfer' ? transferPostingDates(entry, data.metadata) : null;
-    const presentation = bankPresentation(entry);
-    const bank = presentation.bank;
-    const review = entryReviewStatus(entry);
-    const archived = isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id);
-    const Icon = entry.type === 'transfer' ? ArrowLeftRight : entry.type === 'adjustment' ? SlidersHorizontal : positive ? ArrowDownLeft : entry.category === 'Makan & minum' ? Coffee : ArrowUpRight;
-    return <tr key={entry.id}>
-      <td><div className={`transaction-cell ${selection ? 'selectable' : ''}`}>
-        {selection && <input className="selection-checkbox" type="checkbox" aria-label={`Pilih ${entry.note || typeLabels[entry.type]} untuk kategori`} title={canCategorize(entry) ? 'Pilih untuk kategori massal' : 'Transfer dan penyesuaian tidak memakai kategori belanja'} disabled={!canCategorize(entry) || archived} checked={canCategorize(entry) && !archived && selection.ids.has(entry.id)} onChange={() => selection.toggle(entry.id)} />}
-        <span className={`transaction-icon ${entry.type}`}><Icon size={18} /></span><div><span className="transaction-title" title={presentation.title}>{presentation.title}</span><span className="transaction-note">{entry.type === 'transfer' ? `${wallet.name} → ${destination?.name}` : entry.type === 'unreviewed' ? `${entry.category && entry.category !== 'Belum dikategorikan' ? entry.category + ' · ' : ''}Jenis belum dikonfirmasi` : entry.category || typeLabels[entry.type]}</span>{review.category && !review.type && <span className="field-help review-reason">Kategori belum diisi; jenis pengeluaran/pemasukan sudah diketahui.</span>}{bank.kind !== "none" && <span className="field-help bank-operation-hint" data-bank-operation={bank.kind}>{bank.label}{bank.kind === 'card-purchase' && (review.category || entry.category === 'Belanja') ? ' · tujuan belanja belum spesifik' : ''}</span>}{presentation.description && presentation.title !== presentation.description && <details className="bank-wording"><summary>Keterangan bank asli</summary><p>{presentation.description}</p></details>}<span className="transaction-mobile-meta">{wallet.name} · {formatDate(entry.date)}</span></div>
-      </div></td>
-      <td><span className="wallet-table-name">{wallet.name}</span><span className="transaction-note">{wallet.currency}</span></td><td className="date-cell">{dates ? <><span>Debit: {dates.source ? formatDate(dates.source) : 'Belum diketahui'}</span><span className="transaction-note">Kredit: {dates.destination ? formatDate(dates.destination) : 'Belum diketahui'}</span>{dates.basis === 'legacy-assumed' && <small className="field-help">Tanggal legacy belum dibuktikan terpisah</small>}</> : formatDate(entry.date)}</td>
-      <td className="amount-cell"><button type="button" className="amount-detail-button" aria-label={`Rincian nominal ${entry.note || typeLabels[entry.type]}`} onClick={() => onDetail(entry)}><strong className={entry.type === 'transfer' ? '' : positive ? 'amount-positive' : 'amount-negative'}>{entry.type === 'transfer' ? '' : positive ? '+' : '−'}{formatMoney(Math.abs(entry.amount), wallet.currency)}</strong>{entry.type === 'transfer' && destination && <span className="transaction-note">→ {formatMoney(entry.toAmount ?? 0, destination.currency)}</span>}{entry.fee ? <span className="transaction-note">Biaya {formatMoney(entry.fee, wallet.currency)}</span> : null}<span className="amount-detail-hint">Rincian nominal</span></button>{entry.type === 'unreviewed' && <span className="badge unreviewed">Perlu dicek</span>}</td>
-      <td>{archived ? <span className="field-help">Arsip · baca saja</span> : <div className="row-actions"><button className={entry.type === 'unreviewed' ? 'button secondary small' : 'icon-button'} aria-label={`${entry.type === 'unreviewed' ? 'Cek' : 'Ubah'} ${entry.note || 'transaksi'}`} onClick={() => onEdit(entry)}>{entry.type === 'unreviewed' ? 'Cek' : <MoreHorizontal size={18} />}</button><button className="icon-button delete-action" aria-label={`Hapus ${entry.note || 'transaksi'}`} onClick={() => onDelete(entry)}><Trash2 size={15} /></button></div>}</td>
-    </tr>;
-  })}</tbody></table></div>;
 }
 
 function AmountDetailModal({ entry, state, data, onClose }: { entry: Entry; state: State; data: StoredData; onClose: () => void }) {
