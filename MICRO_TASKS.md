@@ -40,6 +40,12 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
 
 ## A. Rapikan repo & CI (murah, mulai dari sini)
 
+- [x] **MW-00 — Longgarkan batas median performa CI** (ditambahkan belakangan, zayyan353/uangku#2)
+  Di runner GitHub, median batch tes performa konsisten ~5,05 detik, jadi batas
+  5000 ms membuat CI gagal acak tanpa perubahan kode. `ci.yml` sekarang memberi
+  `--median-budget-ms 6000`; default lokal, p95 (8000 ms), dan frame budget tetap.
+  Menyelidiki kenapa batch-nya ~5 detik bisa jadi MW terpisah.
+
 - [ ] **MW-01 — Perbarui aturan kerja (prasyarat semua MW lain)**
   `AGENTS.md` masih bilang branch `local-rebuild` dan "tidak boleh push, merge,
   atau deploy". Selama belum diganti, agen AI yang membaca repo akan menolak push.
@@ -191,5 +197,5 @@ Aturan: hanya memindahkan kode, perilaku tidak berubah, semua tes tetap hijau
 ---
 
 **Urutan:**
-MW-01 → 02 → 03 → 03b → 04 → 05 → 06 → 16 → 07 → 08 → 09 → 10 → 17 → 11,
+MW-00 → 01 → 02 → 03 → 03b → 04 → 05 → 06 → 16 → 07 → 08 → 09 → 10 → 17 → 11,
 lalu sisa C (12a–13b) atau D (14, 15, 18) sesuai kebutuhan.
