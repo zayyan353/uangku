@@ -71,12 +71,12 @@ function downloadText(content: string, name: string, type = 'application/json') 
 export default function App() {
   const ledger = useLedgerStorage();
   const categoryPreferences = useCategorySettings();
-  const transactionTemplates = useTransactionTemplates();
   const [categoryManager, setCategoryManager] = useState<CategorySettings | null>(null);
   const categorySettingsBase = useRef<string | null>(null);
   const [categoryAutomation, setCategoryAutomation] = useState<{ data: StoredData; token: string | null } | null>(null);
   const [preferences, setPreferences] = useState(readPreferences);
   const data = ledger.data;
+  const transactionTemplates = useTransactionTemplates();
   const visibleCurrencies = useMemo(() => visibleCurrencyCodes(data), [data.metadata, data.state.wallets]);
   const [currencyManager, setCurrencyManager] = useState<{ data: StoredData; token: string | null } | null>(null);
   const storageError = ledger.error;
