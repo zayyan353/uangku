@@ -73,7 +73,7 @@ jobs:
           python tests/cashflow_browser.py --output "$RUNNER_TEMP/uangku-browser-cashflow"
           python tests/source_browser.py --output "$RUNNER_TEMP/uangku-browser-source"
           python tests/backfill_browser.py --output "$RUNNER_TEMP/uangku-browser-backfill"
-          python tests/performance_browser.py --output "$RUNNER_TEMP/uangku-browser-performance"
+          python tests/performance_browser.py --output "$RUNNER_TEMP/uangku-browser-performance" --median-budget-ms 6000
       - name: Simpan bukti pengujian browser
         if: always()
         uses: actions/upload-artifact@v7
