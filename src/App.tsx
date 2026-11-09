@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import {
   ArrowDownLeft, ArrowDownToLine, ArrowLeftRight, ArrowRight, ArrowUpRight,
   Check, CheckCheck, CheckCircle2, ChevronDown, ChevronRight, CircleHelp,
-  Coffee, FileSpreadsheet, FolderOpen, History, Landmark,
+  Coffee, Download, FileSpreadsheet, FolderOpen, History, Landmark,
   Leaf, MoreHorizontal, Plus, Search, ShieldCheck,
   SlidersHorizontal, Sparkles, Tags, Trash2, Wallet as WalletIcon, X,
 } from 'lucide-react';
@@ -39,7 +39,7 @@ import { archiveWallet, restoreWallet, createWallet, editWallet, deleteUnusedWal
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { AppSidebar, MobileFooter, MobileNav, NAVIGATION, type Page } from './components/AppNavigation';
 import { requestPersistentStorage, type PersistenceStatus } from './lib/storagePersistence';
-import { LAST_BACKUP_KEY, lastBackupLabel, readLastBackup, recordBackup } from './lib/backupReminder';
+import { LAST_BACKUP_KEY, REMINDER_DISMISSED_KEY, backupReminderReason, dismissReminder, lastBackupLabel, ledgerFingerprint, readLastBackup, readReminderDismissed, recordBackup } from './lib/backupReminder';
 import ThemePicker from './components/ThemePicker';
 import CategoryManager from './components/CategoryManager';
 import CategoryAutomation from './components/CategoryAutomation';
@@ -274,13 +274,23 @@ export default function App() {
     catch (reason) { notify(reason instanceof Error ? reason.message : 'Cadangan belum dapat dibuat.'); }
   }
   const [lastBackup, setLastBackup] = useState(() => readLastBackup());
+  const [reminderDismissedOn, setReminderDismissedOn] = useState(() => readReminderDismissed());
   useEffect(() => {
     // Another tab may record a newer backup.
-    const sync = (event: StorageEvent) => { if (event.key === LAST_BACKUP_KEY || event.key === null) setLastBackup(readLastBackup()); };
+    const sync = (event: StorageEvent) => {
+      if (event.key === LAST_BACKUP_KEY || event.key === null) setLastBackup(readLastBackup());
+      if (event.key === REMINDER_DISMISSED_KEY || event.key === null) setReminderDismissedOn(readReminderDismissed());
+    };
     window.addEventListener('storage', sync);
     return () => window.removeEventListener('storage', sync);
   }, []);
   const lastBackupText = lastBackupLabel(lastBackup);
+  const currentFingerprint = useMemo(() => ledger.revisionToken === null ? null : ledgerFingerprint(ledger.revisionToken), [ledger.revisionToken]);
+  const reminderReason = data.demo || blocked ? null : backupReminderReason({ lastBackup, currentFingerprint, now: Date.now(), today: clockDay, dismissedOn: reminderDismissedOn });
+  function closeReminder() {
+    dismissReminder(clockDay);
+    setReminderDismissedOn(clockDay);
+  }
   async function backupAll() {
     // A successful full export proves the stored ledger equals this token. If the
     // token is stale, the fingerprint just differs later and errs toward reminding.
@@ -575,6 +585,7 @@ export default function App() {
           <button className="button secondary small" disabled={ledger.pending || !ledger.supported || !ledger.dirty} onClick={() => void retryDraft()}>Coba simpan lagi</button>
           <button className="button secondary small" disabled={ledger.pending} onClick={() => setConfirm({ title: 'Muat catatan terbaru?', text: ledger.dirty ? 'Unduh pekerjaan lokal terlebih dahulu jika masih diperlukan. Setelah dikonfirmasi, tampilan diganti dengan data browser terbaru.' : 'Uangku akan mencoba membaca kembali catatan di penyimpanan browser.', label: 'Muat catatan terbaru', action: () => { if (ledger.reloadLatest()) { setTxModal(null); setWalletModal(null); } } })}>Muat catatan terbaru</button></>}
       </div>
+      {reminderReason && <div className="backup-reminder" role="status" data-testid="backup-reminder" data-reason={reminderReason}><span className="demo-banner-icon"><Download size={20} /></span><div className="demo-banner-copy"><strong>{reminderReason === 'never' ? 'Belum ada cadangan lengkap.' : 'Sudah lebih dari 7 hari sejak cadangan terakhir.'}</strong><span>{reminderReason === 'never' ? 'Catatan hanya tersimpan di browser ini. Unduh satu file cadangan supaya tidak hilang bila data situs terhapus.' : 'Catatan sudah berubah sejak itu. Unduh cadangan lengkap yang baru.'}</span></div><button className="button ghost small" onClick={() => void backupAll()}>Cadangkan sekarang</button><button className="button ghost small" onClick={closeReminder}>Nanti saja</button></div>}
       {data.demo && <div className="demo-banner"><span className="demo-banner-icon"><Sparkles size={20} /></span><div className="demo-banner-copy"><strong>Kenalan dulu pakai data contoh.</strong><span>{blocked ? 'Penyimpanan perlu dipulihkan. Yang tampil adalah contoh sementara.' : 'Transaksi yang kamu tambahkan di sini bisa dibawa saat mulai memakai data sendiri.'}</span></div><button className="button ghost small" disabled={ledger.pending || ledger.dirty} onClick={startOwn}>Mulai pakai data sendiri <ArrowRight size={16} /></button></div>}
       {page !== 'import' && !isReviewQueue && <div className="currency-toolbar"><div className="currency-tabs" aria-label="Mata uang">{shownCurrencyTabs.map(c => <button key={c.code} className={`currency-tab ${currency === c.code ? 'active' : ''}`} onClick={() => setCurrency(c.code)} aria-label={`${c.code === 'TRY' ? 'TL' : c.code} ${c.label}`} aria-pressed={currency === c.code}><span className="currency-flag">{currencyFlag(c.code)}</span><span className="currency-code">{c.code === 'TRY' ? 'TL' : c.code}</span><span className="currency-label">{c.label}{!visibleCurrencies.includes(c.code) ? ' · riwayat' : ''}</span></button>)}</div><button className="button secondary small currency-manage-button" onClick={openCurrencyManager}>Kelola mata uang</button>{page !== 'wallets' && (page !== 'transactions' || historyPeriod === 'month') && (page !== 'overview' || cashflowPeriod === 'month') && <label className="date-pill"><History size={15} /><input aria-label="Bulan laporan" type="month" value={month} onChange={e => { if (e.target.value) setMonth(e.target.value); }} /></label>}</div>}
       {page === 'overview' && <>
