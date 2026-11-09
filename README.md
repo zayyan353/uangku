@@ -5,6 +5,7 @@ pengeluaran, transfer, impor mutasi, serta kategori yang bisa disesuaikan.
 
 - **Alamat publik:** <https://zayyan353.github.io/uangku/>
 - **Alamat pengembangan lokal:** <http://127.0.0.1:4180>
+- **Status versi, tes, dan batasan:** [STATUS.md](STATUS.md)
 
 Catatan keuangan disimpan di browser masing-masing. Alamat lokal dan alamat
 publik mempunyai penyimpanan terpisah; publikasi kode tidak memindahkan data.
