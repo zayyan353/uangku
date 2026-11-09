@@ -446,6 +446,76 @@ def financial_conflict(case):
     case.semantic_comparisons += 2
 
 
+TEMPLATES = 'uangku:templates:v1'
+
+
+def transaction_templates(case):
+    """MW-13a: save a transaction form as a template without recording it."""
+    p = case.page
+    stored = lambda: p.evaluate('(key)=>localStorage.getItem(key)', TEMPLATES)
+    assert stored() is None
+    p.get_by_role('button', name='Catat transaksi', exact=True).click()
+    dialog = p.get_by_role('dialog')
+    dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+    dialog.get_by_label('Nominal', exact=True).fill('45')
+    dialog.get_by_label(re.compile('^Kategori')).select_option('Makan & minum')
+    dialog.get_by_label(re.compile('^Keterangan')).fill('Kopi pagi')
+    dialog.get_by_role('button', name='Simpan sebagai template', exact=True).click()
+    expect(dialog.get_by_label('Nama template', exact=True)).to_have_value('Kopi pagi')
+    dialog.get_by_role('button', name='Simpan template', exact=True).click()
+    expect(dialog.get_by_role('status').filter(has_text='Template “Kopi pagi” tersimpan')).to_be_visible()
+    saved = json.loads(stored())
+    assert len(saved) == 1 and {k: v for k, v in saved[0].items() if k != 'id'} == {
+        'name': 'Kopi pagi', 'type': 'expense', 'walletId': 'bank', 'currency': 'TRY',
+        'category': 'Makan & minum', 'note': 'Kopi pagi', 'amount': 4500}, saved
+    case.unchanged()
+    # The same name is refused and leaves the stored list untouched.
+    before = stored()
+    dialog.get_by_role('button', name='Simpan sebagai template', exact=True).click()
+    dialog.get_by_role('button', name='Simpan template', exact=True).click()
+    expect(dialog.get_by_role('alert')).to_contain_text('sudah dipakai')
+    assert stored() == before
+    dialog.get_by_label('Nominal', exact=True).fill('-3')
+    dialog.get_by_label('Nama template', exact=True).fill('Nominal salah')
+    dialog.get_by_role('button', name='Simpan template', exact=True).click()
+    expect(dialog.get_by_role('alert')).to_contain_text('lebih besar dari nol')
+    assert stored() == before
+    # Blank amount is allowed; Enter in the name saves the template, not the transaction.
+    dialog.get_by_label('Nominal', exact=True).fill('')
+    dialog.get_by_label('Nama template', exact=True).fill('Belanja variabel')
+    dialog.get_by_label('Nama template', exact=True).press('Enter')
+    expect(dialog.get_by_role('status').filter(has_text='Belanja variabel')).to_be_visible()
+    second = json.loads(stored())[1]
+    assert second['name'] == 'Belanja variabel' and 'amount' not in second
+    case.unchanged()
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    dialog.get_by_role('button', name='Buang isian', exact=True).click()
+    expect(p.get_by_role('dialog')).to_have_count(0)
+    case.unchanged()
+    # Transfers and edits of existing entries offer no template button.
+    p.get_by_role('button', name='Catat transaksi', exact=True).click()
+    dialog = p.get_by_role('dialog')
+    dialog.get_by_role('button', name='Transfer', exact=True).click()
+    expect(dialog.get_by_role('button', name='Simpan sebagai template', exact=True)).to_have_count(0)
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    if p.get_by_role('button', name='Buang isian', exact=True).count():
+        p.get_by_role('button', name='Buang isian', exact=True).click()
+    p.get_by_role('button', name='Ubah Historical category retained', exact=True).click()
+    expect(p.get_by_role('dialog').get_by_role('button', name='Simpan sebagai template', exact=True)).to_have_count(0)
+    p.get_by_role('dialog').get_by_role('button', name='Batal', exact=True).click()
+    # An unreadable stored list is never replaced.
+    p.evaluate('(key)=>localStorage.setItem(key,"{broken")', TEMPLATES)
+    p.reload(wait_until='networkidle')
+    nav(p, 'Transaksi')
+    p.get_by_role('button', name='Catat transaksi', exact=True).click()
+    dialog = p.get_by_role('dialog')
+    dialog.get_by_role('button', name='Simpan sebagai template', exact=True).click()
+    dialog.get_by_role('button', name='Simpan template', exact=True).click()
+    expect(dialog.get_by_role('alert')).to_contain_text('tidak dapat dibaca')
+    assert stored() == '{broken'
+    case.unchanged()
+
+
 def visuals(case):
     dialog = case.manager()
     case.capture('manager')
@@ -477,7 +547,9 @@ def main():
              ('settings-quota-retains-draft', {}, settings_quota),
              ('settings-pending-close-guard', {}, pending_settings),
              ('financial-quota-draft-and-retry', {}, financial_quota),
-             ('financial-stale-category-conflict', {}, financial_conflict)]
+             ('financial-stale-category-conflict', {}, financial_conflict),
+             ('transaction-templates-desktop', {}, transaction_templates),
+             ('transaction-templates-mobile-dark', {'width': 390, 'theme': 'dark'}, transaction_templates)]
     for width, theme in [(1440, 'light'), (1440, 'dark'), (390, 'light'), (390, 'dark'), (320, 'dark')]:
         cases.append((f'visual-{width}-{theme}', {'width': width, 'theme': theme}, visuals))
     with sync_playwright() as pw:

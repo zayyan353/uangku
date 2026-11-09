@@ -173,11 +173,13 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   Di panel "Kategori pengeluaran terkonfirmasi", tampilkan terpakai / batas dan warna
   kalau lewat. Butuh MW-12b.
 
-- [ ] **MW-13a — Template transaksi: simpan**
+- [x] **MW-13a — Template transaksi: simpan**
   "Simpan sebagai template" di `TransactionModal.tsx` (jenis, dompet, kategori,
   nominal, catatan). Hanya template, **tidak** otomatis membuat transaksi.
   Tentukan juga apakah template ikut "Cadangkan semuanya" (sebaiknya ya, dengan
   aturan kompatibilitas yang sama seperti MW-12a).
+  *Keputusan:* ya, field opsional `templates` di cadangan lengkap, hanya ditulis
+  bila ada template (aturan sama dengan `budgets`).
 
 - [ ] **MW-13b — Template transaksi: isi cepat**
   Daftar template di atas form transaksi baru; klik = form terisi, tanggal = hari ini. Butuh MW-13a.
