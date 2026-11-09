@@ -26,7 +26,6 @@ from theme_browser import TEXT_CONTRAST_JS, CONTROL_CONTRAST_JS
 
 FINANCE = 'uangku:v1'
 SETTINGS = 'uangku:categories:v1'
-TEMPLATES = 'uangku:templates:v1'
 UNCAT = 'Belum dikategorikan'
 
 
@@ -445,6 +444,9 @@ def financial_conflict(case):
     expect(p.get_by_test_id('save-status')).to_contain_text('Tersimpan di browser')
     assert stored_document(p) == remote
     case.semantic_comparisons += 2
+
+
+TEMPLATES = 'uangku:templates:v1'
 
 
 def transaction_templates(case):
