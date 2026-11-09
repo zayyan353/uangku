@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LAST_BACKUP_KEY, ledgerFingerprint, readLastBackup, recordBackup } from './backupReminder';
+import { LAST_BACKUP_KEY, lastBackupLabel, ledgerFingerprint, readLastBackup, recordBackup } from './backupReminder';
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const items = new Map(Object.entries(initial));
@@ -82,5 +82,22 @@ describe('recordBackup / readLastBackup', () => {
   it('drops unknown fields when reading', () => {
     const storage = memoryStorage({ [LAST_BACKUP_KEY]: JSON.stringify({ at: '2026-11-09T00:00:00.000Z', fingerprint: ledgerFingerprint(LEDGER), extra: true }) });
     expect(readLastBackup(storage)).toEqual({ at: '2026-11-09T00:00:00.000Z', fingerprint: ledgerFingerprint(LEDGER) });
+  });
+});
+
+describe('lastBackupLabel', () => {
+  it('says there is no backup yet', () => {
+    expect(lastBackupLabel(null)).toBe('Cadangan terakhir: belum ada');
+  });
+
+  it('shows date and time in the app time zone (Europe/Istanbul, UTC+3)', () => {
+    const label = lastBackupLabel({ at: '2026-11-09T17:36:01.896Z', fingerprint: ledgerFingerprint(LEDGER) });
+    expect(label.startsWith('Cadangan terakhir: ')).toBe(true);
+    expect(label).toContain('9 Nov 2026');
+    expect(label).toMatch(/20[.:]36/);
+  });
+
+  it('uses the Istanbul date across UTC midnight', () => {
+    expect(lastBackupLabel({ at: '2026-11-09T22:30:00.000Z', fingerprint: ledgerFingerprint(LEDGER) })).toContain('10 Nov 2026');
   });
 });

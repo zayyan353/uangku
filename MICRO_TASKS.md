@@ -123,7 +123,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
 
   *File:* modul baru `src/lib/backupReminder.ts` + test, `App.tsx` (fungsi `backupAll`).
 
-- [ ] **MW-07 — Tampilkan "Cadangan terakhir: …"**
+- [x] **MW-07 — Tampilkan "Cadangan terakhir: …"**
   Teks kecil di sidebar & footer HP, di dekat tombol cadangan.
   Butuh MW-06 dan MW-16 (sidebar sudah di komponen sendiri).
   *File:* `src/components/AppNavigation.tsx`, plus `App.tsx` kalau footer HP

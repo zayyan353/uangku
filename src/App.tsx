@@ -39,7 +39,7 @@ import { archiveWallet, restoreWallet, createWallet, editWallet, deleteUnusedWal
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { AppSidebar, MobileFooter, MobileNav, NAVIGATION, type Page } from './components/AppNavigation';
 import { requestPersistentStorage, type PersistenceStatus } from './lib/storagePersistence';
-import { recordBackup } from './lib/backupReminder';
+import { LAST_BACKUP_KEY, lastBackupLabel, readLastBackup, recordBackup } from './lib/backupReminder';
 import ThemePicker from './components/ThemePicker';
 import CategoryManager from './components/CategoryManager';
 import CategoryAutomation from './components/CategoryAutomation';
@@ -273,6 +273,14 @@ export default function App() {
     }
     catch (reason) { notify(reason instanceof Error ? reason.message : 'Cadangan belum dapat dibuat.'); }
   }
+  const [lastBackup, setLastBackup] = useState(() => readLastBackup());
+  useEffect(() => {
+    // Another tab may record a newer backup.
+    const sync = (event: StorageEvent) => { if (event.key === LAST_BACKUP_KEY || event.key === null) setLastBackup(readLastBackup()); };
+    window.addEventListener('storage', sync);
+    return () => window.removeEventListener('storage', sync);
+  }, []);
+  const lastBackupText = lastBackupLabel(lastBackup);
   async function backupAll() {
     // A successful full export proves the stored ledger equals this token. If the
     // token is stale, the fingerprint just differs later and errs toward reminding.
@@ -280,7 +288,7 @@ export default function App() {
     try {
       const text = await ledger.exportFullBackup(categoryPreferences.raw);
       downloadText(text, `uangku-lengkap-${today()}.json`);
-      if (exportedToken !== null) recordBackup(exportedToken);
+      if (exportedToken !== null && recordBackup(exportedToken)) setLastBackup(readLastBackup());
       notify('Cadangan lengkap diunduh. Dompet, transaksi, dan pengaturan kategori ada dalam satu file.');
     } catch (reason) {
       notify(reason instanceof Error ? reason.message : 'Cadangan lengkap belum dapat dibuat.');
@@ -556,7 +564,7 @@ export default function App() {
     setHistoryPeriod(period); setHistoryPage(1); setSelectedEntryIds([]);
   }
   return <CategorySettingsContext.Provider value={categoryPreferences.settings}><div className="app-shell">
-    <AppSidebar page={page} pendingCount={pendingCount} statusLabel={ledger.label} onNavigate={navigate} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} />
+    <AppSidebar page={page} pendingCount={pendingCount} statusLabel={ledger.label} lastBackupText={lastBackupText} onNavigate={navigate} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} />
     <main className="main-content"><header className="topbar"><div className="breadcrumb">Ruang pribadi <ChevronRight size={13} /><strong>{NAVIGATION.find(n => n.page === page)?.label}</strong></div><div className="topbar-tools"><ThemePicker onNotice={notify} /><span className="local-indicator"><span className="status-dot" /> Lokal & pribadi</span><button className="icon-button" aria-label="Privasi dan cadangan" onClick={() => setPrivacyOpen(true)}><ShieldCheck size={18} /></button><span className="avatar small">Z</span></div></header>
       <div className="page-content"><div className="page-header"><div><div className="eyebrow">SEDIKIT DICATAT, BANYAK TERBANTU</div><h1 className="page-title">{titles[page][0]} {page === 'overview' && <span className="greeting-leaf">✳</span>}</h1><p className="page-subtitle">{titles[page][1]}</p></div><div className="page-actions">{page === 'wallets' ? <button className="button primary" onClick={() => openWallet('new')}><Plus size={18} /> Tambah dompet</button> : <><button className="button secondary" onClick={() => openTx('transfer')}><ArrowLeftRight size={17} /> Pindah uang</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></>}</div></div>
       {mobileOverview && balanceCard}
@@ -589,7 +597,7 @@ export default function App() {
       </>}
       {page === 'transactions' && <section className="panel transactions-panel">{categoryTools}{isReviewQueue && <div className="review-scope"><CircleHelp size={19} /><div><strong>Perlu dirapikan · <span data-testid="review-total" data-count={pendingCount}>{pendingCount}</span> catatan</strong><p>Semua mata uang dan semua periode. <span data-testid="review-types" data-count={pendingReview.type}>{pendingReview.type}</span> jenis perlu dicek · <span data-testid="review-categories" data-count={pendingReview.category}>{pendingReview.category}</span> kategori belum diisi. Satu catatan bisa memiliki dua alasan; total tidak dihitung ganda. Saldo mutasi sudah tercatat.</p></div></div>}<div className="filter-bar"><label className="search-input"><Search size={18} /><input placeholder="Cari keterangan atau dompet…" aria-label="Cari transaksi" value={query} onChange={e => { setQuery(e.target.value); if (e.target.value.trim() && !query.trim()) setHistoryPeriod('all'); }} /></label>{!isReviewQueue && <label className="history-period"><span className="field-label">Periode</span><select aria-label="Periode transaksi" className="select-input" value={historyPeriod} onChange={e => setHistoryPeriod(e.target.value as HistoryPeriod)}><option value="month">{reportMonth}</option><option value="all">Semua periode</option></select></label>}<select aria-label="Dompet riwayat" className="select-input" value={validHistoryWallet ?? 'all'} onChange={event => setHistoryWallet(event.target.value)}><option value="all">Semua dompet</option>{activeState.wallets.filter(wallet => isReviewQueue ? !isWalletArchived(data, wallet.id) : wallet.currency === currency).map(wallet => <option key={wallet.id} value={wallet.id}>{wallet.name}{isWalletArchived(data, wallet.id) ? ' (arsip)' : ''}</option>)}</select><select aria-label="Filter jenis transaksi" className="select-input" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Semua jenis</option><option value="expense">Pengeluaran</option><option value="income">Pemasukan</option><option value="transfer">Transfer</option><option value="movement">Perpindahan dana rekening</option><option value="pending">Perlu dirapikan</option><option value="adjustment">Penyesuaian</option></select>{isReviewQueue && <select aria-label="Alasan perlu dirapikan" className="select-input" value={reviewReason} onChange={event => setReviewReason(event.target.value as ReviewReason)}><option value="all">Semua alasan</option><option value="type">Jenis perlu dicek</option><option value="category">Kategori belum diisi</option></select>}<button type="button" className="button secondary small" onClick={() => { openHistory('all', 'month'); setMonth(clockDay.slice(0, 7)); }}>Reset filter</button><span className="transaction-count">{allTransactions.length} transaksi</span>{!isReviewQueue && pendingCount > 0 && <button className="button secondary small" onClick={() => setFilter('pending')}>Rapikan {pendingCount} catatan</button>}</div>{selectedEntries.length > 0 && <BulkReviewPanel entries={selectedEntries} onApply={applyBulkCategory} onClear={() => setSelectedEntryIds([])} />}<p className="field-help history-scope" role="status">{isReviewQueue ? 'Semua mata uang · semua periode' : `${currency} · ${historyPeriod === 'all' ? 'Semua periode' : reportMonth}`} · {allTransactions.length} transaksi. Pilih catatan di halaman ini untuk kategori massal.</p><TransactionTable entries={historySlice.entries} state={state} data={data} onEdit={editEntry} onDelete={deleteEntry} onDetail={setAmountDetail} selection={selection} /><nav className="history-pagination" aria-label="Halaman riwayat"><span role="status">{historySlice.start}–{historySlice.end} dari {historySlice.total} · Halaman {historySlice.page} dari {historySlice.pageCount}</span><div><button className="button secondary small" disabled={historySlice.page <= 1} onClick={() => setHistoryPage(historySlice.page - 1)}>Halaman sebelumnya</button><button className="button secondary small" disabled={historySlice.page >= historySlice.pageCount} onClick={() => setHistoryPage(historySlice.page + 1)}>Halaman berikutnya</button></div></nav></section>}
       {page === 'import' && <><div className="currency-import-toolbar"><button className="button secondary small" onClick={openCurrencyManager}>Kelola mata uang</button></div>{categoryTools}<StatementReview data={data} onCommit={saveDocument} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} /><RecoveryImportView data={data} key={data.demo ? 'demo' : 'own'} state={state} demo={data.demo} onStart={startOwn} onImport={importState} notify={notify} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} preferredCurrency={currency} onAddWallet={(requested) => { if (requested) setCurrency(requested); openWallet('new'); }} /></>}
-      <MobileFooter statusLabel={ledger.label} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} />
+      <MobileFooter statusLabel={ledger.label} lastBackupText={lastBackupText} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} />
       </div>
     </main>
     <MobileNav page={page} onNavigate={navigate} />

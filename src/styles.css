@@ -298,6 +298,7 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .backup-tools { flex-direction: column; align-items: stretch; gap: 4px; padding: 0 9px 18px; }
 .backup-tools button { border: 0; background: transparent; color: #a7beaf; display: flex; align-items: center; gap: 10px; text-align: left; padding: 9px 4px; font-size: 11px; border-radius: 7px; }
 .backup-tools button:hover { color: #edf7e8; background: #ffffff06; }
+.backup-tools .backup-last { margin: 2px 4px 0; color: #a7beaf; font-size: 10px; line-height: 1.5; }
 .sidebar-user > div { min-width: 0; }
 .sidebar-user > div > span { display: flex; align-items: center; gap: 5px; font-size: 9px; color: #9db4a4; margin-top: 5px; white-space: nowrap; }
 .status-dot { width: 5px; height: 5px; border-radius: 50%; background: #95b97c; display: inline-block; flex-shrink: 0; }
@@ -679,6 +680,7 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .bottom-note > span { justify-content: center; }
   .mobile-backup { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 17px; margin-top: 4px; }
   .mobile-backup .text-link { font-size: 10px; min-height: 40px; }
+  .mobile-backup .backup-last { flex-basis: 100%; font-size: 10px; }
   .import-info .import-steps { grid-template-columns: 1fr; gap: 18px; }
   .import-info h3 { font-size: 20px; }
   .import-info { padding: 23px; }
