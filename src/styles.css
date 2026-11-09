@@ -964,6 +964,9 @@ html[data-theme="dark"] .badge.unreviewed { color: var(--warning-text); backgrou
 html[data-theme="dark"] .amount-positive { color: var(--success-text) !important; }
 html[data-theme="dark"] .amount-negative { color: var(--error-text) !important; }
 html[data-theme="dark"] .category-track { background: var(--line); }
+html[data-theme="dark"] .category-budget-note { color: var(--text-muted); }
+html[data-theme="dark"] .category-row.over-budget .category-fill { background: var(--error-text); }
+html[data-theme="dark"] .category-row.over-budget :is(.category-value, .category-budget-note) { color: var(--error-text); }
 html[data-theme="dark"] .currency-tab.active { color: var(--text); background: var(--surface-raised); border-color: var(--control-border); }
 html[data-theme="dark"] .quick-wallet-action { color: var(--success-text); background: var(--success-surface); border-color: var(--success-border); }
 html[data-theme="dark"] .add-wallet-card { color: var(--text-muted); background: #16231b; border-color: var(--control-border); }
@@ -1172,6 +1175,3 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 
 .import-format-picker { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
 @media (max-width: 600px) { .import-format-picker .button { flex: 1; white-space: normal; } }
-html[data-theme="dark"] .category-budget-note { color: var(--text-muted); }
-html[data-theme="dark"] .category-row.over-budget .category-fill { background: var(--error-text); }
-html[data-theme="dark"] .category-row.over-budget :is(.category-value, .category-budget-note) { color: var(--error-text); }
