@@ -193,7 +193,7 @@ Aturan: hanya memindahkan kode, perilaku tidak berubah, semua tes tetap hijau
   Kerjakan sebelum MW-07/08.
 - [x] **MW-17 — Pindahkan filter bar riwayat** ke `src/components/HistoryFilters.tsx`.
   Kerjakan sebelum MW-11.
-- [ ] **MW-18 — Pindahkan halaman Dompet** (grid kartu) ke `src/components/WalletsPage.tsx`.
+- [x] **MW-18 — Pindahkan halaman Dompet** (grid kartu) ke `src/components/WalletsPage.tsx`.
 
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 

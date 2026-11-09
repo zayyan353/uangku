@@ -4,12 +4,11 @@ import TransactionModal, { type TxMode, type EntrySaveOptions } from './componen
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowRight, Check, CheckCheck, CheckCircle2, ChevronDown, ChevronRight, CircleHelp,
-  Download, FileSpreadsheet, FolderOpen, History, Landmark,
-  Leaf, MoreHorizontal, Plus, ShieldCheck,
+  Download, FileSpreadsheet, FolderOpen, History, Leaf, Plus, ShieldCheck,
   Sparkles, Tags, Wallet as WalletIcon, X,
 } from 'lucide-react';
 import {
-  CATEGORY_NAMES, formatDate, formatMoney, makeId,
+  CATEGORY_NAMES, formatMoney, makeId,
   validateEntry, walletBalanceAt,
   type Currency, type Entry, type State, type Wallet,
 } from './lib/finance';
@@ -39,6 +38,7 @@ import { AppSidebar, MobileFooter, MobileNav, NAVIGATION, type Page } from './co
 import { HistoryFilters } from './components/HistoryFilters';
 import TransactionTable from './components/TransactionTable';
 import AmountDetailModal from './components/AmountDetailModal';
+import WalletsPage, { WalletSymbol, kindLabel } from './components/WalletsPage';
 import { typeLabels } from './lib/entryTypeLabels';
 import { historyCsv, type HistoryCsvRow } from './lib/csvExport';
 import { requestPersistentStorage, type PersistenceStatus } from './lib/storagePersistence';
@@ -58,7 +58,6 @@ const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbu
 const today = () => DATE_FORMAT.format(new Date());
 const currencyFlag = (code: Currency) => code === 'IDR' ? '🇮🇩' : code === 'TRY' ? '🇹🇷' : code === 'USD' ? '🇺🇸' : code === 'EUR' ? '🇪🇺' : '¤';
 const currencyLabel = (code: Currency) => currencyInfo(code).label;
-const kindLabel = (kind: Wallet['kind']) => kind === 'cash' ? 'Uang tunai' : kind === 'ewallet' ? 'E-wallet' : 'Rekening bank';
 const COLORS = ['#e4a06a', '#7da69b', '#a2b96c', '#a0a5d4', '#d7b568', '#d58e9f', '#8db8c9', '#b1b8ae'];
 
 function downloadText(content: string, name: string, type = 'application/json') {
@@ -66,13 +65,6 @@ function downloadText(content: string, name: string, type = 'application/json') 
   const anchor = document.createElement('a');
   anchor.href = url; anchor.download = name; anchor.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
-
-
-function WalletSymbol({ wallet, small = false }: { wallet: Wallet; small?: boolean }) {
-  return <span className={`wallet-icon ${wallet.kind} ${small ? 'small' : ''}`} style={{ '--wallet-color': wallet.currency === 'TRY' ? '#a36c51' : wallet.currency === 'USD' ? '#6576a4' : '#3d7368' } as React.CSSProperties}>
-    {wallet.kind === 'cash' ? <WalletIcon size={small ? 17 : 21} /> : wallet.kind === 'bank' ? <Landmark size={small ? 17 : 21} /> : <span>{wallet.name.slice(0, 1)}</span>}
-  </span>;
 }
 
 export default function App() {
@@ -564,17 +556,7 @@ export default function App() {
         {pendingCount > 0 && <button className="pending-banner" onClick={() => openHistory('all', 'all', 'pending')}><span className="pending-icon"><CircleHelp size={20} /></span><span><strong>{pendingCount} catatan bisa dirapikan nanti</strong><span>{pendingReview.type} jenis perlu dicek · {pendingReview.category} kategori belum diisi. Saldo sudah tercatat.</span></span><span className="pending-cta">Cek catatan <ArrowRight size={16} /></span></button>}
         <section className="panel transactions-panel"><div className="panel-header"><div><h2>Transaksi terbaru</h2><p>{dashboardWallet?.name ?? `Semua rekening & e-wallet ${currency}`} · {cashflowPeriod === 'all' ? 'Semua periode' : reportMonth}</p></div><button className="text-link" onClick={() => openHistory(cashflowScope, cashflowPeriod)}>Semua transaksi <ArrowRight size={15} /></button></div><TransactionTable entries={allTransactions.slice(0, 5)} state={state} data={data} onEdit={editEntry} onDelete={deleteEntry} onDetail={setAmountDetail} /></section>
       </>}
-      {page === 'wallets' && <>
-        {cashWallets.length > 0 && <div className="notice"><span>Histori cash lama disimpan sebagai arsip baca saja dan tidak masuk total aktif.</span><button className="button secondary small" onClick={() => setCashArchiveOpen(true)}>Lihat arsip cash lama</button></div>}
-        <div className="wallet-view-tabs" role="group" aria-label="Status dompet"><button className={`button ${walletView === 'active' ? 'primary' : 'secondary'}`} data-testid="wallet-active-tab" aria-pressed={walletView === 'active'} onClick={() => setWalletView('active')}>Aktif ({availableCurrencyWallets.length})</button><button className={`button ${walletView === 'archive' ? 'primary' : 'secondary'}`} data-testid="wallet-archive-tab" aria-pressed={walletView === 'archive'} onClick={() => setWalletView('archive')}>Arsip ({archivedCurrencyWallets.length})</button></div>
-        <div className="section-heading"><div><h2 className="section-title">Dompet {currencyLabel(currency)} · {walletView === 'archive' ? 'Arsip' : 'Aktif'}</h2><p className="section-description">{displayedWallets.length} dompet · saldo aktual {formatDate(clockDay)}: <strong data-testid="wallet-current-total" data-amount={walletPageTotal.value ?? undefined}>{walletPageTotal.text}</strong></p></div><span className="badge neutral">{currency === 'TRY' ? 'TL / TRY' : currency}</span></div>
-        {walletView === 'archive' && <div className="notice">Dompet arsip tetap masuk saldo dan laporan. Histori dapat dibaca; pulihkan dompet untuk mencatat, mengimpor, atau mengubah transaksi.</div>}
-        <div className="wallet-grid">{displayedWallets.map(w => <section key={w.id} className="wallet-card" data-wallet-id={w.id}><div className="wallet-card-top"><WalletSymbol wallet={w} /><span className="wallet-info"><strong>{w.name}</strong><span>{kindLabel(w.kind)}{walletView === 'archive' ? ' · Arsip' : ''}</span></span>{walletView === 'active' && <button className="icon-button" aria-label={`Atur dompet ${w.name}`} onClick={() => openWallet(w)}><MoreHorizontal size={20} /></button>}</div><span className="wallet-card-label">Saldo aktual {formatDate(clockDay)}</span><strong className="wallet-card-balance">{actualText(w.id, w.currency)}</strong><div className="wallet-card-footer"><span className="badge neutral">{w.currency}</span><div className="wallet-card-actions">{walletView === 'active' ? <><button className="text-link" onClick={() => openTx('expense', w.id)}><Plus size={14} /> Catat</button><button className="text-link" onClick={() => openTx('adjustment', w.id)}>Cek saldo <ArrowRight size={14} /></button></> : <><button className="text-link" aria-label={`Lihat histori ${w.name}`} onClick={() => { setCurrency(w.currency); openHistory(w.id, 'all'); }}>Lihat histori</button><button className="text-link" aria-label={`Pulihkan dompet ${w.name}`} onClick={() => requestWalletAction(w, 'restore')}>Pulihkan dompet</button></>}</div></div></section>)}
-          {walletView === 'active' && <button className="wallet-card add-wallet-card" onClick={() => openWallet('new')}><span className="add-wallet-icon"><Plus size={24} /></span><strong>Tambah dompet</strong><span>Rekening bank atau e-wallet baru.</span></button>}
-        </div>
-        {walletView === 'archive' && !displayedWallets.length && <div className="empty-state compact"><WalletIcon size={28} /><p>Belum ada dompet arsip {currency}.</p></div>}
-        <div className="notice"><CircleHelp size={18} /><span>Satu dompet untuk satu mata uang. Dompet kosong dapat dihapus lewat Atur dompet; dompet dengan saldo atau histori dapat diarsipkan.</span></div>
-      </>}
+      {page === 'wallets' && <WalletsPage hasCashArchive={cashWallets.length > 0} onOpenCashArchive={() => setCashArchiveOpen(true)} walletView={walletView} onWalletViewChange={setWalletView} activeCount={availableCurrencyWallets.length} archivedCount={archivedCurrencyWallets.length} currency={currency} currencyName={currencyLabel(currency)} clockDay={clockDay} total={walletPageTotal} wallets={displayedWallets} actualText={actualText} onOpenWallet={openWallet} onRecord={walletId => openTx('expense', walletId)} onCheckBalance={walletId => openTx('adjustment', walletId)} onShowHistory={w => { setCurrency(w.currency); openHistory(w.id, 'all'); }} onRestore={w => requestWalletAction(w, 'restore')} />}
       {page === 'transactions' && <section className="panel transactions-panel">{categoryTools}{isReviewQueue && <div className="review-scope"><CircleHelp size={19} /><div><strong>Perlu dirapikan · <span data-testid="review-total" data-count={pendingCount}>{pendingCount}</span> catatan</strong><p>Semua mata uang dan semua periode. <span data-testid="review-types" data-count={pendingReview.type}>{pendingReview.type}</span> jenis perlu dicek · <span data-testid="review-categories" data-count={pendingReview.category}>{pendingReview.category}</span> kategori belum diisi. Satu catatan bisa memiliki dua alasan; total tidak dihitung ganda. Saldo mutasi sudah tercatat.</p></div></div>}<HistoryFilters isReviewQueue={isReviewQueue} query={query} onQueryChange={value => { setQuery(value); if (value.trim() && !query.trim()) setHistoryPeriod('all'); }} period={historyPeriod} periodMonthLabel={reportMonth} onPeriodChange={setHistoryPeriod} walletId={validHistoryWallet ?? 'all'} walletOptions={activeState.wallets.filter(wallet => isReviewQueue ? !isWalletArchived(data, wallet.id) : wallet.currency === currency).map(wallet => ({ id: wallet.id, name: wallet.name, archived: isWalletArchived(data, wallet.id) }))} onWalletChange={setHistoryWallet} typeFilter={filter} onTypeFilterChange={setFilter} reviewReason={reviewReason} onReviewReasonChange={setReviewReason} onReset={() => { openHistory('all', 'month'); setMonth(clockDay.slice(0, 7)); }} onDownloadCsv={downloadHistoryCsv} transactionCount={allTransactions.length} pendingCount={pendingCount} />{selectedEntries.length > 0 && <BulkReviewPanel entries={selectedEntries} onApply={applyBulkCategory} onClear={() => setSelectedEntryIds([])} />}<p className="field-help history-scope" role="status">{isReviewQueue ? 'Semua mata uang · semua periode' : `${currency} · ${historyPeriod === 'all' ? 'Semua periode' : reportMonth}`} · {allTransactions.length} transaksi. Pilih catatan di halaman ini untuk kategori massal.</p><TransactionTable entries={historySlice.entries} state={state} data={data} onEdit={editEntry} onDelete={deleteEntry} onDetail={setAmountDetail} selection={selection} /><nav className="history-pagination" aria-label="Halaman riwayat"><span role="status">{historySlice.start}–{historySlice.end} dari {historySlice.total} · Halaman {historySlice.page} dari {historySlice.pageCount}</span><div><button className="button secondary small" disabled={historySlice.page <= 1} onClick={() => setHistoryPage(historySlice.page - 1)}>Halaman sebelumnya</button><button className="button secondary small" disabled={historySlice.page >= historySlice.pageCount} onClick={() => setHistoryPage(historySlice.page + 1)}>Halaman berikutnya</button></div></nav></section>}
       {page === 'import' && <><div className="currency-import-toolbar"><button className="button secondary small" onClick={openCurrencyManager}>Kelola mata uang</button></div>{categoryTools}<StatementReview data={data} onCommit={saveDocument} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} /><RecoveryImportView data={data} key={data.demo ? 'demo' : 'own'} state={state} demo={data.demo} onStart={startOwn} onImport={importState} notify={notify} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} preferredCurrency={currency} onAddWallet={(requested) => { if (requested) setCurrency(requested); openWallet('new'); }} /></>}
       <MobileFooter statusLabel={ledger.label} lastBackupText={lastBackupText} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} />
