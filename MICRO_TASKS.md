@@ -1,0 +1,201 @@
+# Uangku — Daftar Micro-Work
+
+Dicek: 9 November 2026, commit `b0ddda1` (main). Revisi 2: keputusan alur, lingkup MW-03, dan urutan sudah diambil.
+
+**Kondisi sekarang:** sehat menurut catatan terakhir (48 file tes / 1.533 tes unit,
+build lulus, situs publik melayani `b0ddda1`). Angka tes belum dijalankan ulang
+sejak revisi ini; jalankan `npm test` sebagai baseline sebelum MW pertama.
+
+## Keputusan (9 November 2026)
+
+1. **Alur rilis:** satu PR per MW. Tidak ada push langsung ke `main`.
+2. **Lingkup MW-03:** versi diperluas (hapus run CI ganda, plus MW-03b).
+3. **Urutan:** refactor dulu. MW-16 sebelum MW-07/08, MW-17 sebelum MW-11.
+
+## Cara pakai daftar ini
+
+- Kerjakan **satu MW per sesi AI**. Jangan gabung.
+- Setiap MW: branch baru → ubah → `npm test` → `npm run build` → commit → PR ke `main`.
+- **Masuk ke `main` lewat PR**, bukan push langsung. Alasannya: push ke
+  `main` = auto-deploy, dan CI menjalankan 16 tes browser Playwright yang tidak
+  ikut di `npm test`. `ci.yml` jalan di `pull_request`, jadi kegagalan ketahuan
+  sebelum masuk `main`. Merge hanya kalau CI hijau.
+- MW yang mengubah UI (07, 08, 11, 12b, 12c, 13a, 13b) bisa lolos tes lokal tapi
+  gagal di tes browser. Kalau bisa, jalankan juga tes browser yang relevan di
+  `tests/*_browser.py` terhadap `npm run preview`.
+- Kalau tes merah dan nggak beres dalam 1–2 percobaan: `git checkout .` dan
+  pecah MW itu jadi lebih kecil, jangan dipaksa.
+- Centang `[x]` di file ini di commit yang sama.
+
+Template prompt (salin, ganti ID):
+
+```
+Repo: zayyan353/uangku. Kerjakan HANYA MW-XX dari MICRO_TASKS.md.
+Jangan ubah file lain di luar yang disebut kecuali wajib.
+Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
+"MW-XX: <judul>", centang MW-XX di MICRO_TASKS.md, lalu buka PR ke main.
+```
+
+---
+
+## A. Rapikan repo & CI (murah, mulai dari sini)
+
+- [x] **MW-00 — Longgarkan batas median performa CI** (ditambahkan belakangan, zayyan353/uangku#2)
+  Di runner GitHub, median batch tes performa konsisten ~5,05 detik, jadi batas
+  5000 ms membuat CI gagal acak tanpa perubahan kode. `ci.yml` sekarang memberi
+  `--median-budget-ms 6000`; default lokal, p95 (8000 ms), dan frame budget tetap.
+  Menyelidiki kenapa batch-nya ~5 detik bisa jadi MW terpisah.
+
+- [ ] **MW-01 — Perbarui aturan kerja (prasyarat semua MW lain)**
+  `AGENTS.md` masih bilang branch `local-rebuild` dan "tidak boleh push, merge,
+  atau deploy". Selama belum diganti, agen AI yang membaca repo akan menolak push.
+  `LOCAL_WORKFLOW.md` (baris 27–29) dan `README_LOCAL.txt` (baris 10) juga masih
+  bilang push dinonaktifkan. Tulis ulang aturannya: kerja per micro-work, masuk
+  ke `main` hanya setelah `npm test` + `npm run build` lulus (dan CI hijau kalau
+  lewat PR). Pertahankan aturan lain di `AGENTS.md` yang masih berlaku (data
+  sintetis, Web Locks, format v1, laporan jujur).
+  *File:* `AGENTS.md`, `LOCAL_WORKFLOW.md`, `README_LOCAL.txt`.
+  *Selesai kalau:* tidak ada lagi instruksi yang bertentangan dengan alur di atas.
+  *Catatan:* butuh izin eksplisit pemilik repo, karena MW ini mengubah aturan publikasi.
+
+- [ ] **MW-02 — Ganti status lama dengan STATUS.md singkat**
+  `RECOVERY_STATUS.json` (19 KB) masih mencatat `branch: local-rebuild` dan
+  `deployment_performed: false`. Buat `STATUS.md` ≤ 30 baris (versi live, jumlah
+  tes, batasan utama), lalu pindahkan `RECOVERY_STATUS.json` ke `docs/archive/`.
+  Pastikan tidak ada skrip/tes yang membaca path lama.
+  *Selesai kalau:* README menautkan STATUS.md, tidak ada file yang dihapus.
+
+- [ ] **MW-03 — Rapikan duplikasi CI**
+  Kondisi sekarang, setiap push ke `main`:
+  - `ci.yml` jalan **dua kali**: sekali dari trigger `push`, sekali lagi sebagai
+    job `verify` di `pages.yml`. Keduanya menjalankan semua tes browser.
+  - Job `build` di `pages.yml` menjalankan `npm test` sekali lagi.
+
+  Langkah:
+  1. Hapus langkah "Jalankan tes" di job `build` (`pages.yml`).
+  2. Hapus trigger `push` di `ci.yml` (sisakan `pull_request`, `workflow_dispatch`,
+     `workflow_call`). Push ke `main` tetap diperiksa lewat `verify`.
+
+  *File:* `.github/workflows/pages.yml`, `.github/workflows/ci.yml`.
+  *Selesai kalau:* push ke `main` hanya menjalankan satu set tes browser, run hijau.
+
+- [ ] **MW-03b — Masukkan `full_backup_browser.py` ke CI**
+  `tests/full_backup_browser.py` ada di repo tapi tidak dipanggil di `ci.yml`,
+  padahal ini tes untuk fitur cadangan yang akan disentuh MW-06/07/08/12a.
+  Jalankan dulu secara lokal terhadap `npm run preview`. Kalau lulus, tambahkan ke
+  langkah tes browser dan daftar `upload-artifact`. Kalau gagal, laporkan dan
+  jangan dipaksa; perbaikannya jadi MW terpisah.
+  *File:* `.github/workflows/ci.yml`.
+
+- [ ] **MW-04 — Betulkan deskripsi meta**
+  `index.html` baris 24 menyebut "Dompet, cash, dan mata uangmu", padahal dompet
+  cash tidak dipakai di pembukuan aktif. Ubah kalimatnya jadi rekening & e-wallet.
+  *File:* `index.html`.
+
+## B. Keamanan data (paling penting — data cuma ada di browser)
+
+- [ ] **MW-05 — Minta penyimpanan persisten**
+  Panggil `navigator.storage.persist()` sekali setelah pengguna mulai pakai data
+  sendiri (bukan demo). Aman kalau API tidak ada. Tampilkan hasilnya (ya/tidak)
+  di jendela Privasi. Di Safari hasilnya ditentukan heuristik browser, jadi
+  "tidak" bukan error.
+  *File:* modul baru `src/lib/storagePersistence.ts` + test, `PrivacyNotice.tsx`.
+
+- [ ] **MW-06 — Catat cadangan terakhir**
+  Setelah "Cadangkan semuanya" dipicu (`backupAll` di `App.tsx`), simpan catatan
+  di key terpisah (`uangku:last-backup:v1`). Jangan masuk ke format ledger.
+
+  Isi catatan: `{ at: <ISO timestamp>, fingerprint: <string> }`.
+  - `fingerprint` dibutuhkan MW-08, karena **transaksi tidak punya `createdAt`**,
+    jadi "ada transaksi baru setelah backup" tidak bisa dicek dari tanggal.
+    Pakai sidik jari ledger yang murah (misalnya jumlah entri + hash isi entri,
+    atau `revisionToken` dari `persistence.ts` kalau stabil antar sesi).
+  - Batasan yang harus diterima: browser tidak bisa memastikan file benar-benar
+    tersimpan di perangkat. "Berhasil" di sini berarti unduhan sudah dipicu
+    tanpa error.
+
+  *File:* modul baru `src/lib/backupReminder.ts` + test, `App.tsx` (fungsi `backupAll`).
+
+- [ ] **MW-07 — Tampilkan "Cadangan terakhir: …"**
+  Teks kecil di sidebar & footer HP, di dekat tombol cadangan.
+  Butuh MW-06 dan MW-16 (sidebar sudah di komponen sendiri).
+  *File:* `src/components/AppNavigation.tsx`, plus `App.tsx` kalau footer HP
+  (`bottom-note`) tidak ikut dipindah di MW-16.
+
+- [ ] **MW-08 — Banner pengingat cadangan**
+  Muncul kalau belum pernah backup, atau backup > 7 hari **dan** `fingerprint`
+  ledger sekarang beda dengan yang dicatat MW-06. Bisa ditutup sampai besok.
+  Butuh MW-06. Logika di `backupReminder.ts` (dites), UI di `App.tsx`.
+
+- [ ] **MW-09 — Manifest PWA + ikon**
+  Tambah `public/manifest.webmanifest`, ikon 192/512 PNG, `apple-touch-icon`,
+  dan `<link rel="manifest">` di `index.html` (ingat `base: './'`, path relatif).
+  File di `public/` dikopi apa adanya ke `dist/`, jadi aman dengan `viteSingleFile`.
+  *Selesai kalau:* build tetap satu `index.html` + aset di `dist/`, dan bisa "Tambah ke Layar Utama".
+
+- [ ] **MW-10 — Petunjuk "Tambah ke Layar Utama" + pindah data**
+  Satu paragraf di `PrivacyNotice.tsx` dan README (iPhone: Bagikan → Tambah ke
+  Layar Utama; Android: menu ⋮ → Instal aplikasi). Butuh MW-09.
+
+  **Wajib ada:** di iPhone, aplikasi dari Layar Utama punya **penyimpanan terpisah
+  dari Safari**. Data yang sudah ada di Safari tidak ikut pindah. Langkahnya:
+  cadangkan semuanya di Safari → buka dari Layar Utama → pulihkan cadangan.
+  Tanpa petunjuk ini pengguna akan mengira datanya hilang.
+
+## C. Fitur kecil yang berguna
+
+- [ ] **MW-11 — Ekspor CSV riwayat yang sedang terfilter**
+  Tombol "Unduh CSV" di halaman Transaksi; isi = baris yang cocok dengan filter
+  sekarang (tanggal, dompet, jenis, kategori, nominal, keterangan).
+  Butuh MW-17, supaya tombolnya masuk ke `HistoryFilters.tsx`.
+  *File:* modul baru `src/lib/csvExport.ts` + test (escape koma/kutip/baris baru,
+  digit pecahan per mata uang), tombol di `HistoryFilters.tsx`
+  (pakai `downloadText` yang sudah ada, dengan type `text/csv`).
+
+- [ ] **MW-12a — Anggaran: model & penyimpanan**
+  Peta `{ mataUang → { kategori → batasBulanan } }`, disimpan di key sendiri,
+  divalidasi, ikut "Cadangkan semuanya". Cek kompatibilitas dua arah di `fullBackup`:
+  - cadangan lama (tanpa anggaran) tetap bisa dipulihkan;
+  - cadangan baru tidak membuat format v1 rusak (field baru opsional).
+  Hanya logika + test, belum ada UI.
+
+- [ ] **MW-12b — Anggaran: atur batas di Kelola kategori**
+  Input nominal per kategori pengeluaran di `CategoryManager.tsx`. Butuh MW-12a.
+
+- [ ] **MW-12c — Anggaran: progress di Ringkasan**
+  Di panel "Kategori pengeluaran terkonfirmasi", tampilkan terpakai / batas dan warna
+  kalau lewat. Butuh MW-12b.
+
+- [ ] **MW-13a — Template transaksi: simpan**
+  "Simpan sebagai template" di `TransactionModal.tsx` (jenis, dompet, kategori,
+  nominal, catatan). Hanya template, **tidak** otomatis membuat transaksi.
+  Tentukan juga apakah template ikut "Cadangkan semuanya" (sebaiknya ya, dengan
+  aturan kompatibilitas yang sama seperti MW-12a).
+
+- [ ] **MW-13b — Template transaksi: isi cepat**
+  Daftar template di atas form transaksi baru; klik = form terisi, tanggal = hari ini. Butuh MW-13a.
+
+## D. Pemeliharaan (pecah App.tsx 597 baris, satu potong per MW)
+
+Aturan: hanya memindahkan kode, perilaku tidak berubah, semua tes tetap hijau
+(termasuk tes browser di CI).
+
+- [ ] **MW-14 — Pindahkan `TransactionTable`** ke `src/components/TransactionTable.tsx`.
+- [ ] **MW-15 — Pindahkan `AmountDetailModal`** ke `src/components/AmountDetailModal.tsx`.
+- [ ] **MW-16 — Pindahkan sidebar + navigasi HP** ke `src/components/AppNavigation.tsx`.
+  Kerjakan sebelum MW-07/08.
+- [ ] **MW-17 — Pindahkan filter bar riwayat** ke `src/components/HistoryFilters.tsx`.
+  Kerjakan sebelum MW-11.
+- [ ] **MW-18 — Pindahkan halaman Dompet** (grid kartu) ke `src/components/WalletsPage.tsx`.
+
+## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
+
+- [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).
+  Butuh contoh file mutasi asli yang angkanya sudah disamarkan.
+- [ ] **MW-20 — Impor PDF/XLS lama.** Ini makro; pecah dulu setelah ada contoh file.
+
+---
+
+**Urutan:**
+MW-00 → 01 → 02 → 03 → 03b → 04 → 05 → 06 → 16 → 07 → 08 → 09 → 10 → 17 → 11,
+lalu sisa C (12a–13b) atau D (14, 15, 18) sesuai kebutuhan.
