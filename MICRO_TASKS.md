@@ -94,7 +94,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   (`category_browser.py --only full-backup`: 2 lulus, 0 gagal). Menambah
   `python tests/full_backup_browser.py` ke CI tidak akan menjalankan tes apa pun.
 
-- [ ] **MW-04 — Betulkan deskripsi meta**
+- [x] **MW-04 — Betulkan deskripsi meta**
   `index.html` baris 24 menyebut "Dompet, cash, dan mata uangmu", padahal dompet
   cash tidak dipakai di pembukuan aktif. Ubah kalimatnya jadi rekening & e-wallet.
   *File:* `index.html`.
