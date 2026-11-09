@@ -79,13 +79,20 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   *File:* `.github/workflows/pages.yml`, `.github/workflows/ci.yml`.
   *Selesai kalau:* push ke `main` hanya menjalankan satu set tes browser, run hijau.
 
-- [ ] **MW-03b — Masukkan `full_backup_browser.py` ke CI**
+- [x] **MW-03b — Masukkan `full_backup_browser.py` ke CI**
   `tests/full_backup_browser.py` ada di repo tapi tidak dipanggil di `ci.yml`,
   padahal ini tes untuk fitur cadangan yang akan disentuh MW-06/07/08/12a.
   Jalankan dulu secara lokal terhadap `npm run preview`. Kalau lulus, tambahkan ke
   langkah tes browser dan daftar `upload-artifact`. Kalau gagal, laporkan dan
   jangan dipaksa; perbaikannya jadi MW terpisah.
   *File:* `.github/workflows/ci.yml`.
+  *Hasil (9 November 2026):* premisnya keliru, `ci.yml` tidak diubah. File ini
+  modul tanpa `main`/`--output`; `tests/category_browser.py` mengimpornya
+  (`category_suite_case`) dan menjalankannya sebagai kasus `full-backup-desktop`
+  dan `full-backup-mobile`, dan `category_browser.py` sudah ada di CI. Kedua kasus
+  lulus di CI (run PR zayyan353/uangku#5) dan lokal terhadap `npm run preview`
+  (`category_browser.py --only full-backup`: 2 lulus, 0 gagal). Menambah
+  `python tests/full_backup_browser.py` ke CI tidak akan menjalankan tes apa pun.
 
 - [ ] **MW-04 — Betulkan deskripsi meta**
   `index.html` baris 24 menyebut "Dompet, cash, dan mata uangmu", padahal dompet
