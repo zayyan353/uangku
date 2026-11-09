@@ -1,5 +1,5 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeftRight, Check, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, BookmarkPlus, Check, Trash2 } from 'lucide-react';
 import { entrySignedAmount, formatDate, formatMoney, makeId, parseMoney, validateEntry, walletBalanceAt, type Entry, type State } from '../lib/finance';
 import { CategorySettingsContext } from '../hooks/useCategorySettings';
 import { categoryChoices } from '../lib/categorySettings';
@@ -11,6 +11,7 @@ import { convertMinorCurrency, deriveCurrencyRate, currencyDigits, isCurrencyCon
 import { transferCandidates } from '../lib/review';
 import type { StoredData } from '../lib/storage';
 import { isWalletArchived, archivedReadOnlyEntryIds } from '../lib/walletLifecycle';
+import type { TransactionTemplate } from '../lib/transactionTemplates';
 import Modal from './Modal';
 import SourceDetails from './SourceDetails';
 export type TxMode = 'expense' | 'income' | 'transfer' | 'adjustment' | 'movement';
@@ -19,9 +20,11 @@ const moneyInput = formatMoneyInput;
 const typeLabels = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer', movement: 'Perpindahan dana', adjustment: 'Penyesuaian', unreviewed: 'Perlu dicek' };
 export interface EntrySaveOptions { reason: string; sourceDate: string | null; destinationDate: string | null; declareDates?: true }
 
-export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onClose, onDelete, onUnpair, disabled = false }: {
+export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onSaveTemplate, onClose, onDelete, onUnpair, disabled = false }: {
   data: StoredData; state: State; undatedWallets: ReadonlySet<string>; initialMode: TxMode; initialWallet?: string; existing?: Entry;
   onSave: (entry: Entry, removeIds: string[], keepOpen?: boolean, options?: EntrySaveOptions) => Promise<boolean>; onClose: () => void; onDelete?: () => void; onUnpair?: () => void; disabled?: boolean;
+  /** Saves a template only; it never records a transaction. Rejects with a message on failure. */
+  onSaveTemplate?: (template: TransactionTemplate) => Promise<void>;
 }) {
   const validationRef = useRef<HTMLDivElement>(null);
   const categorySettings = useContext(CategorySettingsContext);
@@ -76,6 +79,10 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   const cleanDraft = useRef(draft);
   const saving = useRef(false);
   const [askDiscard, setAskDiscard] = useState(false);
+  const [templateName, setTemplateName] = useState<string | null>(null);
+  const [templateError, setTemplateError] = useState('');
+  const [templateNotice, setTemplateNotice] = useState('');
+  const [templateSaving, setTemplateSaving] = useState(false);
   const continueButton = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
 
@@ -166,9 +173,33 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
     setDestinationDate(incomingPending ? existing?.date ?? date : pair.date);
     setFxMode('received');
   }
+  const canTemplate = !existing && !!onSaveTemplate && (type === 'expense' || type === 'income');
+  function openTemplate() {
+    setTemplateError(''); setTemplateNotice('');
+    setTemplateName((note.trim() || (category !== 'Belum dikategorikan' ? category : typeLabels[type])).slice(0, 60));
+  }
+  async function saveTemplate() {
+    if (!onSaveTemplate || templateName === null || templateSaving || saving.current || disabled) return;
+    if (type !== 'expense' && type !== 'income') return;
+    setTemplateError(''); setTemplateNotice('');
+    if (!source) return setTemplateError('Pilih dompet untuk template ini.');
+    const name = templateName.trim();
+    if (!name) return setTemplateError('Isi nama template.');
+    const templateAmount = amount.trim() ? parseMoney(amount, source.currency) : null;
+    if (amount.trim() && (templateAmount === null || templateAmount <= 0)) return setTemplateError('Nominal template harus lebih besar dari nol, atau kosongkan nominal bila berubah-ubah.');
+    const template: TransactionTemplate = { id: makeId(), name, type, walletId: source.id, currency: source.currency, category, note: note.trim(), ...(templateAmount ? { amount: templateAmount } : {}) };
+    setTemplateSaving(true);
+    try {
+      await onSaveTemplate(template);
+      setTemplateName(null);
+      setTemplateNotice(`Template “${name}” tersimpan. Transaksi belum dicatat; klik Simpan transaksi bila ingin mencatatnya sekarang.`);
+    } catch (reason) {
+      setTemplateError(reason instanceof Error ? reason.message : 'Template belum tersimpan.');
+    } finally { setTemplateSaving(false); }
+  }
   async function submit(e: FormEvent) {
     e.preventDefault();
-    if (saving.current || disabled || askDiscard) return;
+    if (saving.current || disabled || askDiscard || templateSaving) return;
     setError('');
     if (isWalletArchived(data, walletId) || type === 'transfer' && isWalletArchived(data, toWalletId) || existing && readOnlyEntryIds.has(existing.id)) return setError('Dompet diarsipkan. Pulihkan sebelum mengubah atau mencatat transaksi.');
     if (minor === null || !source) return setError('Isi dompet dan nominal yang valid.');
@@ -276,6 +307,14 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
         </>}
         {(type === 'expense' || type === 'income' || type === 'movement') && <label className="field full"><span className="field-label">Kategori <span className="optional">boleh nanti</span></span><select className="select-input" value={category} onChange={e => setCategory(e.target.value)}>{categoryChoices(categorySettings, category).map(c => <option key={c}>{c}</option>)}</select></label>}
         <label className="field full"><span className="field-label">Keterangan <span className="optional">opsional</span></span><input className="field-input" maxLength={2000} value={note} placeholder="Contoh: makan siang, pembayaran tagihan…" onChange={e => setNote(e.target.value)} /></label>
+        {canTemplate && <div className="field full template-save">
+          {templateName === null ? <button type="button" className="button secondary small" onClick={openTemplate}><BookmarkPlus size={15} /> Simpan sebagai template</button> : <div className="template-save-panel" aria-busy={templateSaving}>
+            <label className="field"><span className="field-label">Nama template</span><input className="field-input" aria-label="Nama template" maxLength={60} value={templateName} disabled={templateSaving} onChange={e => { setTemplateName(e.target.value); setTemplateError(''); }} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); void saveTemplate(); } }} /><span className="field-help">Menyimpan jenis, dompet, kategori, nominal, dan keterangan di atas. Kosongkan nominal bila jumlahnya berubah-ubah. Tidak mencatat transaksi.</span></label>
+            <div className="template-save-actions"><button type="button" className="button secondary small" disabled={templateSaving} onClick={() => { setTemplateName(null); setTemplateError(''); }}>Batal</button><button type="button" className="button primary small" disabled={templateSaving} onClick={() => void saveTemplate()}><BookmarkPlus size={15} /> {templateSaving ? 'Menyimpan…' : 'Simpan template'}</button></div>
+          </div>}
+          {templateError && <p className="notice error" role="alert">{templateError}</p>}
+          {templateNotice && <p className="notice success" role="status">{templateNotice}</p>}
+        </div>}
         {existing && <SourceDetails data={data} entry={existing} />}
         {(existing?.sourceKey || existing?.toSourceKey || type === 'transfer') && <label className="field full"><span className="field-label">Alasan perubahan finansial atau tanggal</span><input aria-label="Alasan perubahan" className="field-input" maxLength={2000} value={reason} onChange={e => setReason(e.target.value)} placeholder="Contoh: koreksi nominal sesuai bukti pembayaran" /><span className="field-help">Kategori dan keterangan dapat dirapikan; fakta bank asli tetap disimpan terpisah.</span></label>}
         {error && <div ref={validationRef} tabIndex={-1} className="notice error full" role="alert">{error}</div>}

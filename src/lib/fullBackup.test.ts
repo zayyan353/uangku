@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CATEGORY_SETTINGS_LIMIT, UNCATEGORIZED, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { parseRestoreFile, serializeFullBackup } from './fullBackup';
 import { BUDGETS_LIMIT } from './budgets';
+import { TEMPLATES_LIMIT } from './transactionTemplates';
 import { MAX_RESTORE_BYTES, parseBackupText, serializeBackup, type StoredData } from './storage';
 
 const categories: CategorySettings = {
@@ -146,5 +147,42 @@ describe('optional budgets in full backups (MW-12a)', () => {
     const huge = { IDR: Object.fromEntries(Array.from({ length: 400 }, (_, i) => [`${'x'.repeat(60)}${i}`, 1])) };
     expect(JSON.stringify(huge).length).toBeGreaterThan(BUDGETS_LIMIT);
     expect(() => parseRestoreFile(JSON.stringify({ ...base, budgets: huge }))).toThrow();
+  });
+});
+
+describe('optional templates in full backups (MW-13a)', () => {
+  const templates = [{ id: 't1', name: 'Kopi pagi', type: 'expense' as const, walletId: 'w1', currency: 'TRY' as const, category: 'Makan & minum', amount: 4500, note: 'Kopi' }];
+  const budgets = { IDR: { 'Makan & minum': 150000000 } };
+
+  it('keeps files without templates identical to the earlier format', () => {
+    expect(serializeFullBackup(ledger(), categories, {}, [])).toBe(serializeFullBackup(ledger(), categories));
+    expect(serializeFullBackup(ledger(), categories, budgets, [])).toBe(serializeFullBackup(ledger(), categories, budgets));
+  });
+
+  it('restores backups without a template section and leaves templates undefined', () => {
+    const restored = parseRestoreFile(serializeFullBackup(ledger(), categories, budgets));
+    if (restored.kind !== 'full') throw new Error('expected full backup');
+    expect('templates' in restored).toBe(false);
+    expect(restored.budgets).toEqual(budgets);
+  });
+
+  it('round-trips templates after the other sections', () => {
+    const text = serializeFullBackup(ledger(), categories, budgets, templates);
+    expect(Object.keys(JSON.parse(text))).toEqual(['app', 'version', 'ledger', 'categorySettings', 'budgets', 'templates']);
+    expect(Object.keys(JSON.parse(serializeFullBackup(ledger(), categories, {}, templates)))).toEqual(['app', 'version', 'ledger', 'categorySettings', 'templates']);
+    const restored = parseRestoreFile(text);
+    if (restored.kind !== 'full') throw new Error('expected full backup');
+    expect(restored.templates).toEqual(templates);
+    expect(restored.budgets).toEqual(budgets);
+  });
+
+  it('rejects the whole file when the template section is invalid or oversized', () => {
+    const base = JSON.parse(serializeFullBackup(ledger(), categories));
+    for (const bad of [null, {}, [{ ...templates[0], amount: -1 }], [{ ...templates[0], type: 'transfer' }], [templates[0], templates[0]]]) {
+      expect(() => parseRestoreFile(JSON.stringify({ ...base, templates: bad })), JSON.stringify(bad)).toThrow();
+    }
+    const huge = Array.from({ length: 40 }, (_, i) => ({ ...templates[0], id: `t${i}`, name: `T${i}`, note: 'x'.repeat(2000) }));
+    expect(JSON.stringify(huge).length).toBeGreaterThan(TEMPLATES_LIMIT);
+    expect(() => parseRestoreFile(JSON.stringify({ ...base, templates: huge }))).toThrow();
   });
 });
