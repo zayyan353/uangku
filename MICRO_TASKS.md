@@ -189,7 +189,7 @@ Aturan: hanya memindahkan kode, perilaku tidak berubah, semua tes tetap hijau
 
 - [ ] **MW-14 — Pindahkan `TransactionTable`** ke `src/components/TransactionTable.tsx`.
 - [ ] **MW-15 — Pindahkan `AmountDetailModal`** ke `src/components/AmountDetailModal.tsx`.
-- [ ] **MW-16 — Pindahkan sidebar + navigasi HP** ke `src/components/AppNavigation.tsx`.
+- [x] **MW-16 — Pindahkan sidebar + navigasi HP** ke `src/components/AppNavigation.tsx`.
   Kerjakan sebelum MW-07/08.
 - [ ] **MW-17 — Pindahkan filter bar riwayat** ke `src/components/HistoryFilters.tsx`.
   Kerjakan sebelum MW-11.
