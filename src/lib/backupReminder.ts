@@ -92,3 +92,52 @@ export function lastBackupLabel(record: LastBackup | null): string {
   if (Number.isNaN(at.getTime())) return 'Cadangan terakhir: belum ada';
   return `Cadangan terakhir: ${BACKUP_TIME_FORMAT.format(at)}`;
 }
+
+/** Day (YYYY-MM-DD, app time zone) on which the reminder was closed "until tomorrow". */
+export const REMINDER_DISMISSED_KEY = 'uangku:backup-reminder-dismissed:v1';
+export const BACKUP_REMINDER_DAYS = 7;
+const DAY_MS = 86_400_000;
+const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+export type BackupReminderReason = 'never' | 'stale';
+
+/**
+ * Why the reminder should show, or null. Shows when there is no recorded full
+ * backup, or when the last one is older than seven days and the stored ledger
+ * changed since (fingerprints differ; entries have no createdAt). Closing it
+ * hides it for the rest of that calendar day.
+ */
+export function backupReminderReason(input: {
+  lastBackup: LastBackup | null;
+  /** Fingerprint of the stored ledger now; null when nothing is stored. */
+  currentFingerprint: string | null;
+  now: number;
+  today: string;
+  dismissedOn: string | null;
+}): BackupReminderReason | null {
+  if (input.dismissedOn !== null && input.dismissedOn === input.today) return null;
+  if (!input.lastBackup) return 'never';
+  const age = input.now - Date.parse(input.lastBackup.at);
+  if (!(age > BACKUP_REMINDER_DAYS * DAY_MS)) return null;
+  return input.currentFingerprint === input.lastBackup.fingerprint ? null : 'stale';
+}
+
+export function readReminderDismissed(storage: StorageLike | undefined = browserStorage()): string | null {
+  try {
+    const value = storage?.getItem(REMINDER_DISMISSED_KEY);
+    return value && DAY_PATTERN.test(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Optional UI hint: a failed write only means the reminder may show again. */
+export function dismissReminder(today: string, storage: StorageLike | undefined = browserStorage()): boolean {
+  if (!storage || !DAY_PATTERN.test(today)) return false;
+  try {
+    storage.setItem(REMINDER_DISMISSED_KEY, today);
+    return true;
+  } catch {
+    return false;
+  }
+}

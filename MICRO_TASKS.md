@@ -129,7 +129,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   *File:* `src/components/AppNavigation.tsx`, plus `App.tsx` kalau footer HP
   (`bottom-note`) tidak ikut dipindah di MW-16.
 
-- [ ] **MW-08 — Banner pengingat cadangan**
+- [x] **MW-08 — Banner pengingat cadangan**
   Muncul kalau belum pernah backup, atau backup > 7 hari **dan** `fingerprint`
   ledger sekarang beda dengan yang dicatat MW-06. Bisa ditutup sampai besok.
   Butuh MW-06. Logika di `backupReminder.ts` (dites), UI di `App.tsx`.

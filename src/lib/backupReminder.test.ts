@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { LAST_BACKUP_KEY, lastBackupLabel, ledgerFingerprint, readLastBackup, recordBackup } from './backupReminder';
+import {
+  LAST_BACKUP_KEY, REMINDER_DISMISSED_KEY, backupReminderReason, dismissReminder, lastBackupLabel,
+  ledgerFingerprint, readLastBackup, readReminderDismissed, recordBackup,
+} from './backupReminder';
 
 function memoryStorage(initial: Record<string, string> = {}) {
   const items = new Map(Object.entries(initial));
@@ -99,5 +102,65 @@ describe('lastBackupLabel', () => {
 
   it('uses the Istanbul date across UTC midnight', () => {
     expect(lastBackupLabel({ at: '2026-11-09T22:30:00.000Z', fingerprint: ledgerFingerprint(LEDGER) })).toContain('10 Nov 2026');
+  });
+});
+
+describe('backupReminderReason', () => {
+  const fingerprint = ledgerFingerprint(LEDGER);
+  const changed = ledgerFingerprint(`${LEDGER} `);
+  const at = '2026-11-01T10:00:00.000Z';
+  const now = (iso: string) => Date.parse(iso);
+  const base = { lastBackup: { at, fingerprint }, currentFingerprint: changed, today: '2026-11-09', dismissedOn: null };
+
+  it('shows when there has never been a full backup', () => {
+    expect(backupReminderReason({ ...base, lastBackup: null, now: now('2026-11-09T10:00:00Z') })).toBe('never');
+    expect(backupReminderReason({ ...base, lastBackup: null, currentFingerprint: null, now: now('2026-11-09T10:00:00Z') })).toBe('never');
+  });
+
+  it('shows when older than seven days and the ledger changed', () => {
+    expect(backupReminderReason({ ...base, now: now('2026-11-09T10:00:00Z') })).toBe('stale');
+    expect(backupReminderReason({ ...base, currentFingerprint: null, now: now('2026-11-09T10:00:00Z') })).toBe('stale');
+  });
+
+  it('stays hidden when older than seven days but unchanged', () => {
+    expect(backupReminderReason({ ...base, currentFingerprint: fingerprint, now: now('2026-11-30T10:00:00Z') })).toBeNull();
+  });
+
+  it('stays hidden within seven days even when changed, with the boundary exclusive', () => {
+    expect(backupReminderReason({ ...base, now: now('2026-11-05T10:00:00Z') })).toBeNull();
+    expect(backupReminderReason({ ...base, now: now('2026-11-08T10:00:00.000Z') })).toBeNull();
+    expect(backupReminderReason({ ...base, now: now('2026-11-08T10:00:00.001Z') })).toBe('stale');
+  });
+
+  it('ignores a backup time in the future', () => {
+    expect(backupReminderReason({ ...base, lastBackup: { at: '2026-12-01T00:00:00.000Z', fingerprint }, now: now('2026-11-09T10:00:00Z') })).toBeNull();
+  });
+
+  it('is hidden for the rest of the day it was closed, and back the next day', () => {
+    expect(backupReminderReason({ ...base, lastBackup: null, dismissedOn: '2026-11-09', now: now('2026-11-09T10:00:00Z') })).toBeNull();
+    expect(backupReminderReason({ ...base, dismissedOn: '2026-11-09', now: now('2026-11-09T10:00:00Z') })).toBeNull();
+    expect(backupReminderReason({ ...base, lastBackup: null, dismissedOn: '2026-11-08', today: '2026-11-09', now: now('2026-11-09T10:00:00Z') })).toBe('never');
+  });
+});
+
+describe('reminder dismissal storage', () => {
+  it('round-trips a day and rejects malformed values', () => {
+    const storage = memoryStorage();
+    expect(readReminderDismissed(storage)).toBeNull();
+    expect(dismissReminder('2026-11-09', storage)).toBe(true);
+    expect(storage.items.get(REMINDER_DISMISSED_KEY)).toBe('2026-11-09');
+    expect(readReminderDismissed(storage)).toBe('2026-11-09');
+    expect(dismissReminder('besok', storage)).toBe(false);
+    for (const bad of ['', 'tomorrow', '2026-11-9', '{"day":"2026-11-09"}']) {
+      expect(readReminderDismissed(memoryStorage({ [REMINDER_DISMISSED_KEY]: bad }))).toBeNull();
+    }
+  });
+
+  it('never throws on unavailable or full storage', () => {
+    expect(readReminderDismissed(undefined)).toBeNull();
+    expect(dismissReminder('2026-11-09', undefined)).toBe(false);
+    const broken = { getItem: () => { throw new Error('denied'); }, setItem: () => { throw new Error('full'); } };
+    expect(readReminderDismissed(broken)).toBeNull();
+    expect(dismissReminder('2026-11-09', broken)).toBe(false);
   });
 });
