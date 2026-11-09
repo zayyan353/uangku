@@ -1,5 +1,5 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeftRight, BookmarkPlus, Check, Trash2 } from 'lucide-react';
+import { ArrowLeftRight, BookmarkPlus, Check, Trash2, Zap } from 'lucide-react';
 import { entrySignedAmount, formatDate, formatMoney, makeId, parseMoney, validateEntry, walletBalanceAt, type Entry, type State } from '../lib/finance';
 import { CategorySettingsContext } from '../hooks/useCategorySettings';
 import { categoryChoices } from '../lib/categorySettings';
@@ -11,7 +11,7 @@ import { convertMinorCurrency, deriveCurrencyRate, currencyDigits, isCurrencyCon
 import { transferCandidates } from '../lib/review';
 import type { StoredData } from '../lib/storage';
 import { isWalletArchived, archivedReadOnlyEntryIds } from '../lib/walletLifecycle';
-import type { TransactionTemplate } from '../lib/transactionTemplates';
+import { templateFill, type TransactionTemplate } from '../lib/transactionTemplates';
 import Modal from './Modal';
 import SourceDetails from './SourceDetails';
 export type TxMode = 'expense' | 'income' | 'transfer' | 'adjustment' | 'movement';
@@ -20,11 +20,14 @@ const moneyInput = formatMoneyInput;
 const typeLabels = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer', movement: 'Perpindahan dana', adjustment: 'Penyesuaian', unreviewed: 'Perlu dicek' };
 export interface EntrySaveOptions { reason: string; sourceDate: string | null; destinationDate: string | null; declareDates?: true }
 
-export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onSaveTemplate, onClose, onDelete, onUnpair, disabled = false }: {
+export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onSaveTemplate, templates = [], templatesError = '', onClose, onDelete, onUnpair, disabled = false }: {
   data: StoredData; state: State; undatedWallets: ReadonlySet<string>; initialMode: TxMode; initialWallet?: string; existing?: Entry;
   onSave: (entry: Entry, removeIds: string[], keepOpen?: boolean, options?: EntrySaveOptions) => Promise<boolean>; onClose: () => void; onDelete?: () => void; onUnpair?: () => void; disabled?: boolean;
   /** Saves a template only; it never records a transaction. Rejects with a message on failure. */
   onSaveTemplate?: (template: TransactionTemplate) => Promise<void>;
+  /** Saved templates offered as quick fills above a new expense or income form. */
+  templates?: readonly TransactionTemplate[];
+  templatesError?: string;
 }) {
   const validationRef = useRef<HTMLDivElement>(null);
   const categorySettings = useContext(CategorySettingsContext);
@@ -83,6 +86,7 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   const [templateError, setTemplateError] = useState('');
   const [templateNotice, setTemplateNotice] = useState('');
   const [templateSaving, setTemplateSaving] = useState(false);
+  const [fillNotice, setFillNotice] = useState<{ name: string; warnings: string[] } | null>(null);
   const continueButton = useRef<HTMLButtonElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
 
@@ -174,6 +178,19 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
     setFxMode('received');
   }
   const canTemplate = !existing && !!onSaveTemplate && (type === 'expense' || type === 'income');
+  const showTemplates = !existing && (initialMode === 'expense' || initialMode === 'income') && (templates.length > 0 || !!templatesError);
+  function useTemplate(template: TransactionTemplate) {
+    if (saving.current || disabled) return;
+    const fill = templateFill(template, activeWallets, categorySettings.names, today());
+    setType(fill.type); setPairId(''); setConfirmed(false); setError('');
+    if (fill.walletId) setWallet(fill.walletId);
+    const currency = state.wallets.find(wallet => wallet.id === (fill.walletId || walletId))?.currency ?? template.currency;
+    setAmount(fill.amount !== null ? moneyInput(fill.amount, currency) : '');
+    setCategory(fill.category); setNote(fill.note); setDate(fill.date);
+    setTemplateName(null); setTemplateError(''); setTemplateNotice('');
+    setFillNotice({ name: template.name, warnings: fill.warnings });
+    requestAnimationFrame(() => amountRef.current?.focus());
+  }
   function openTemplate() {
     setTemplateError(''); setTemplateNotice('');
     setTemplateName((note.trim() || (category !== 'Belum dikategorikan' ? category : typeLabels[type])).slice(0, 60));
@@ -280,6 +297,11 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
       {(isWalletArchived(data, walletId) || type === 'transfer' && isWalletArchived(data, toWalletId) || existing && readOnlyEntryIds.has(existing.id)) && <div className="notice warning">Dompet terkait sudah diarsipkan. Pulihkan di menu Dompet sebelum menyimpan; isian tetap dipertahankan.</div>}
       {bankHint && bankHint.kind !== 'none' && <div className={`notice ${bankHint.pending ? 'warning' : ''} bank-operation-hint`} data-bank-operation={bankHint.kind}><strong>{bankHint.label}.</strong> {bankHint.warning}</div>}
       {(type === 'transfer' ? sourceDate > today() || destinationDate > today() : date > today()) && <div className="notice warning" role="note">Tanggal masa depan: catatan ini belum masuk saldo aktual sampai tanggal posting masing-masing tiba.</div>}
+      {showTemplates && <div className="template-quick" role="group" aria-label="Template transaksi">
+        <span className="field-label"><Zap size={14} /> Isi cepat dari template</span>
+        {templatesError ? <p className="notice warning">{templatesError}</p> : <div className="template-quick-list">{templates.map(template => <button key={template.id} type="button" className={`button secondary small${template.type === 'income' ? ' template-income' : ''}`} aria-label={`Isi dari template ${template.name}`} title={`${template.type === 'income' ? 'Pemasukan' : 'Pengeluaran'} · ${template.category}${template.amount ? ` · ${formatMoney(template.amount, template.currency)}` : ''}`} onClick={() => useTemplate(template)}>{template.name}</button>)}</div>}
+        {fillNotice && <div className={`notice ${fillNotice.warnings.length ? 'warning' : 'success'}`} role="status">Formulir diisi dari template “{fillNotice.name}” dengan tanggal hari ini. Periksa lalu simpan.{fillNotice.warnings.map(warning => <span key={warning} className="template-fill-warning">{warning}</span>)}</div>}
+      </div>}
       <div className="segmented-control" aria-label="Jenis transaksi">{options.map(t => <button key={t} type="button" className={type === t ? 'active' : ''} onClick={() => changeType(t)}>{t === 'adjustment' ? 'Cek saldo' : typeLabels[t]}</button>)}</div>
       {suggestedPairs.length > 0 && <div className="transfer-suggestion"><strong>Mungkin pasangan transfer</strong><p>Nominal sama, arah berlawanan, di dompet lain. Pilih pasangan yang benar lalu simpan hasil cek.</p>{suggestedPairs.map(candidate => {
         const pair = state.entries.find(e => e.id === candidate.id)!;

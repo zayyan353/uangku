@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appendTemplate, MAX_TEMPLATES, parseStoredTemplates, serializeTemplates, TEMPLATES_LIMIT, validateTemplates, type TransactionTemplate } from './transactionTemplates';
+import { appendTemplate, templateFill, MAX_TEMPLATES, parseStoredTemplates, serializeTemplates, TEMPLATES_LIMIT, validateTemplates, type TransactionTemplate } from './transactionTemplates';
 
 const coffee: TransactionTemplate = { id: 't1', name: 'Kopi pagi', type: 'expense', walletId: 'bank', currency: 'TRY', category: 'Makan & minum', amount: 4500, note: 'Kopi dekat kampus' };
 const salary: TransactionTemplate = { id: 't2', name: 'Gaji', type: 'income', walletId: 'bank', currency: 'IDR', category: 'Gaji', note: '' };
@@ -54,5 +54,34 @@ describe('stored templates', () => {
     expect(appendTemplate(first.raw, salary).templates).toEqual([coffee, salary]);
     expect(() => appendTemplate('{bad', salary)).toThrow(/tidak dapat dibaca/);
     expect(() => appendTemplate(first.raw, { ...salary, name: 'kopi pagi' })).toThrow(/sudah dipakai/);
+  });
+});
+
+describe('templateFill (MW-13b)', () => {
+  const wallets = [{ id: 'bank', currency: 'TRY' as const }, { id: 'idr', currency: 'IDR' as const }];
+  const categories = ['Belum dikategorikan', 'Makan & minum', 'Gaji'];
+
+  it('fills type, wallet, amount, category and note, with today as the date', () => {
+    expect(templateFill(coffee, wallets, categories, '2026-11-09')).toEqual({
+      type: 'expense', walletId: 'bank', amount: 4500, category: 'Makan & minum', note: 'Kopi dekat kampus', date: '2026-11-09', warnings: [] });
+    expect(templateFill(salary, wallets, categories, '2026-11-09')).toMatchObject({ type: 'income', walletId: 'bank', amount: null, warnings: [] });
+  });
+
+  it('leaves the wallet and amount empty when the wallet is gone', () => {
+    const fill = templateFill({ ...coffee, walletId: 'archived' }, wallets, categories, '2026-11-09');
+    expect(fill).toMatchObject({ walletId: '', amount: null });
+    expect(fill.warnings.join(' ')).toMatch(/tidak aktif/);
+  });
+
+  it('drops the amount when the wallet currency changed', () => {
+    const fill = templateFill({ ...coffee, walletId: 'idr' }, wallets, categories, '2026-11-09');
+    expect(fill).toMatchObject({ walletId: 'idr', amount: null });
+    expect(fill.warnings.join(' ')).toMatch(/TRY ke IDR/);
+  });
+
+  it('falls back to Belum dikategorikan for a removed category', () => {
+    const fill = templateFill({ ...coffee, category: 'Kategori lama' }, wallets, categories, '2026-11-09');
+    expect(fill.category).toBe('Belum dikategorikan');
+    expect(fill.warnings.join(' ')).toMatch(/Kategori lama/);
   });
 });

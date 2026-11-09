@@ -181,7 +181,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   *Keputusan:* ya, field opsional `templates` di cadangan lengkap, hanya ditulis
   bila ada template (aturan sama dengan `budgets`).
 
-- [ ] **MW-13b — Template transaksi: isi cepat**
+- [x] **MW-13b — Template transaksi: isi cepat**
   Daftar template di atas form transaksi baru; klik = form terisi, tanggal = hari ini. Butuh MW-13a.
 
 ## D. Pemeliharaan (pecah App.tsx 597 baris, satu potong per MW)
