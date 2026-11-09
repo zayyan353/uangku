@@ -187,7 +187,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
 Aturan: hanya memindahkan kode, perilaku tidak berubah, semua tes tetap hijau
 (termasuk tes browser di CI).
 
-- [ ] **MW-14 — Pindahkan `TransactionTable`** ke `src/components/TransactionTable.tsx`.
+- [x] **MW-14 — Pindahkan `TransactionTable`** ke `src/components/TransactionTable.tsx`.
 - [ ] **MW-15 — Pindahkan `AmountDetailModal`** ke `src/components/AmountDetailModal.tsx`.
 - [x] **MW-16 — Pindahkan sidebar + navigasi HP** ke `src/components/AppNavigation.tsx`.
   Kerjakan sebelum MW-07/08.
