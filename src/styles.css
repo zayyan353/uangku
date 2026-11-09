@@ -1048,6 +1048,10 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .category-manager-rules .select-input { padding-left: 8px; padding-right: 5px; font-size: 11px; }
 .category-rule-delete { grid-column: 1 / -1; justify-self: start; }
 .category-rule-inactive { grid-column: 1 / -1; margin: 0; line-height: 1.8; color: var(--text-muted); }
+.category-budget-currency { max-width: 280px; }
+.category-budget-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 12px; list-style: none; margin: 0 0 10px; padding: 0; }
+.category-budget-list .field { margin-bottom: 0; }
+.category-budget-list .field-label { font-size: 11px; overflow-wrap: anywhere; }
 .category-manager-files { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; margin-bottom: 13px; }
 .category-settings-file { display: none; }
 .category-manager .notice { font-size: 11px; line-height: 1.8; overflow-wrap: anywhere; }
@@ -1058,6 +1062,8 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
   .category-manager .modal-footer .button { flex: 1; min-width: 90px; padding-left: 10px; padding-right: 10px; }
   .category-manager-add { flex-direction: column; align-items: stretch; }
   .category-manager-names { grid-template-columns: minmax(0, 1fr); }
+  .category-budget-list { grid-template-columns: minmax(0, 1fr); }
+  .category-budget-currency { max-width: none; }
   .category-rule-create, .category-manager-rules li { grid-template-columns: minmax(0, 1fr); }
   .category-manager-files, .category-manager-files .button { width: 100%; }
   .category-manager-files .button { white-space: normal; }

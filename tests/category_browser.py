@@ -26,6 +26,7 @@ from theme_browser import TEXT_CONTRAST_JS, CONTROL_CONTRAST_JS
 
 FINANCE = 'uangku:v1'
 SETTINGS = 'uangku:categories:v1'
+BUDGETS = 'uangku:budgets:v1'
 UNCAT = 'Belum dikategorikan'
 
 
@@ -209,6 +210,68 @@ def manager_lifecycle(case):
     expect(dialog.locator('.category-manager-names li').filter(has_text='Kopi pribadi')).to_have_count(1)
     case.save_manager(dialog)
     assert p.evaluate('(key)=>JSON.parse(localStorage.getItem(key))', SETTINGS) == saved
+    case.unchanged()
+
+
+def budget_limits(case):
+    """MW-12b: monthly limits per category are edited in Kelola kategori."""
+    p = case.page
+    stored = lambda: p.evaluate('(key)=>localStorage.getItem(key)', BUDGETS)
+    settings_before = p.evaluate('(key)=>localStorage.getItem(key)', SETTINGS)
+    assert stored() is None
+    dialog = case.manager()
+    limit = dialog.get_by_label('Anggaran Makan & minum (TRY)', exact=True)
+    expect(limit).to_have_value('')
+    expect(dialog.get_by_label(f'Anggaran {UNCAT} (TRY)', exact=True)).to_have_count(0)
+    limit.fill('-5')
+    dialog.get_by_role('button', name='Simpan pengaturan', exact=True).click()
+    expect(dialog.get_by_role('alert')).to_contain_text('nominal positif')
+    assert stored() is None, 'Rejected budget input was written'
+    limit.fill('1.500,50')
+    dialog.get_by_label('Anggaran Transportasi (TRY)', exact=True).fill('750')
+    case.save_manager(dialog)
+    expect(p.get_by_text('anggaran berhasil disimpan', exact=False)).to_be_visible()
+    assert json.loads(stored()) == {'TRY': {'Makan & minum': 150050, 'Transportasi': 75000}}
+    assert p.evaluate('(key)=>localStorage.getItem(key)', SETTINGS) != settings_before
+    case.unchanged()
+    p.reload(wait_until='networkidle')
+    nav(p, 'Transaksi')
+    dialog = case.manager()
+    expect(dialog.get_by_label('Anggaran Makan & minum (TRY)', exact=True)).to_have_value('1500,50')
+    expect(dialog.get_by_label('Anggaran Transportasi (TRY)', exact=True)).to_have_value('750')
+    # Removing a category keeps its stored limit instead of dropping it silently.
+    dialog.get_by_role('button', name='Hapus kategori Transportasi', exact=True).click()
+    expect(dialog.get_by_text('1 anggaran TRY untuk kategori yang tidak aktif', exact=False)).to_be_visible()
+    dialog.get_by_label('Anggaran Makan & minum (TRY)', exact=True).fill('')
+    case.save_manager(dialog)
+    assert json.loads(stored()) == {'TRY': {'Transportasi': 75000}}
+    dialog = case.manager()
+    case.add_name(dialog, 'Transportasi')
+    expect(dialog.get_by_label('Anggaran Transportasi (TRY)', exact=True)).to_have_value('750')
+    dialog.get_by_label('Anggaran Transportasi (TRY)', exact=True).fill('')
+    case.save_manager(dialog)
+    assert stored() is None, 'Clearing every limit should remove the key'
+    # A stale tab must not overwrite budgets saved elsewhere.
+    dialog = case.manager()
+    dialog.get_by_label('Anggaran Kesehatan (TRY)', exact=True).fill('100')
+    other = compact({'TRY': {'Pendidikan': 900}})
+    p.evaluate('([key,value])=>localStorage.setItem(key,value)', [BUDGETS, other])
+    dialog.get_by_role('button', name='Simpan pengaturan', exact=True).click()
+    expect(dialog.get_by_role('alert')).to_be_visible()
+    expect(p.get_by_text('Anggaran berubah di tab lain', exact=False)).to_be_visible()
+    expect(dialog.get_by_label('Anggaran Kesehatan (TRY)', exact=True)).to_have_value('100')
+    assert stored() == other
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    # Unreadable budgets lock the section and survive a settings save untouched.
+    p.evaluate('(key)=>localStorage.setItem(key,"{broken")', BUDGETS)
+    p.reload(wait_until='networkidle')
+    nav(p, 'Transaksi')
+    dialog = case.manager()
+    expect(dialog.get_by_text('Anggaran tersimpan tidak dapat dibaca', exact=False)).to_be_visible()
+    expect(dialog.get_by_label('Anggaran Kesehatan (TRY)', exact=True)).to_have_count(0)
+    case.add_name(dialog, 'Kopi anggaran')
+    case.save_manager(dialog)
+    assert stored() == '{broken'
     case.unchanged()
 
 
@@ -470,6 +533,8 @@ def main():
              ('manager-mobile-dark', {'width': 390, 'theme': 'dark'}, manager_lifecycle),
              ('full-backup-desktop', {}, category_suite_case),
              ('full-backup-mobile', {'width': 390, 'theme': 'dark'}, category_suite_case),
+             ('budget-limits-desktop', {}, budget_limits),
+             ('budget-limits-mobile-dark', {'width': 390, 'theme': 'dark'}, budget_limits),
              ('history-auto-suggest-conflict-pending', {}, history_automation),
              ('source-import-desktop', {'empty': True}, source_import),
              ('source-import-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, source_import),

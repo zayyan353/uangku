@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUDGETS_LIMIT, isEmptyBudgets, parseStoredBudgets, serializeBudgets, validateBudgets } from './budgets';
+import { applyBudgetInputs, BUDGETS_LIMIT, budgetInputs, isEmptyBudgets, parseStoredBudgets, serializeBudgets, validateBudgets } from './budgets';
 
 describe('validateBudgets', () => {
   it('accepts per-currency monthly limits in minor units', () => {
@@ -63,5 +63,48 @@ describe('parseStoredBudgets', () => {
     expect(() => parseStoredBudgets('{bad')).toThrow(/tidak dapat dibaca/);
     expect(() => parseStoredBudgets('{"IDR":{"Belanja":-1}}')).toThrow();
     expect(() => parseStoredBudgets(' '.repeat(BUDGETS_LIMIT + 1))).toThrow(/16 KiB/);
+  });
+});
+
+describe('budget form inputs (MW-12b)', () => {
+  const stored = { IDR: { 'Makan & minum': 150000000, Hapus: 5000000 }, TRY: { Belanja: 250050 } };
+
+  it('shows stored limits as editable text and skips Belum dikategorikan', () => {
+    expect(budgetInputs(stored, 'IDR', ['Belum dikategorikan', 'Makan & minum', 'Transportasi']))
+      .toEqual({ 'Makan & minum': '1500000', Transportasi: '' });
+    expect(budgetInputs(stored, 'TRY', ['Belanja'])).toEqual({ Belanja: '2500,50' });
+    expect(budgetInputs({}, 'USD', ['Belanja'])).toEqual({ Belanja: '' });
+  });
+
+  it('round-trips the editable text without changing stored limits', () => {
+    const inputs = budgetInputs(stored, 'TRY', ['Belanja']);
+    expect(applyBudgetInputs(stored, 'TRY', inputs)).toEqual(stored);
+  });
+
+  it('sets, changes and clears limits for one currency only', () => {
+    const next = applyBudgetInputs(stored, 'IDR', { 'Makan & minum': '2.000.000', Transportasi: '750.000,50', Hapus: ' ' });
+    expect(next).toEqual({ IDR: { 'Makan & minum': 200000000, Transportasi: 75000050 }, TRY: stored.TRY });
+    expect(stored.IDR).toEqual({ 'Makan & minum': 150000000, Hapus: 5000000 });
+  });
+
+  it('keeps limits for categories that are not in the form', () => {
+    expect(applyBudgetInputs(stored, 'IDR', { Transportasi: '10000' }).IDR)
+      .toEqual({ 'Makan & minum': 150000000, Hapus: 5000000, Transportasi: 1000000 });
+  });
+
+  it('drops a currency section once every limit is cleared', () => {
+    expect(applyBudgetInputs(stored, 'TRY', { Belanja: '' })).toEqual({ IDR: stored.IDR });
+    expect(isEmptyBudgets(applyBudgetInputs({ USD: { A: 1 } }, 'USD', { A: '' }))).toBe(true);
+  });
+
+  it('refuses zero, negative and malformed amounts', () => {
+    for (const text of ['0', '-5', '0,00', 'abc', '1e5', '1,5,5']) {
+      expect(() => applyBudgetInputs({}, 'IDR', { Belanja: text }), text).toThrow(/nominal positif/);
+    }
+  });
+
+  it('still enforces the stored map limits', () => {
+    const many = Object.fromEntries(Array.from({ length: 101 }, (_, i) => [`K${i}`, '1']));
+    expect(() => applyBudgetInputs({}, 'IDR', many)).toThrow(/maksimal 100/);
   });
 });
