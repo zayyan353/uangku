@@ -29,7 +29,7 @@ jobs:
       contents: read
 
   build:
-    name: Tes dan siapkan situs
+    name: Siapkan situs
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -44,8 +44,6 @@ jobs:
           cache-dependency-path: package-lock.json
       - name: Pasang dependency dari lockfile
         run: npm ci
-      - name: Jalankan tes
-        run: npm test
       - name: Buat build produksi
         run: npm run build
       - name: Catat identitas rilis

@@ -65,7 +65,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   Pastikan tidak ada skrip/tes yang membaca path lama.
   *Selesai kalau:* README menautkan STATUS.md, tidak ada file yang dihapus.
 
-- [ ] **MW-03 — Rapikan duplikasi CI**
+- [x] **MW-03 — Rapikan duplikasi CI**
   Kondisi sekarang, setiap push ke `main`:
   - `ci.yml` jalan **dua kali**: sekali dari trigger `push`, sekali lagi sebagai
     job `verify` di `pages.yml`. Keduanya menjalankan semua tes browser.
