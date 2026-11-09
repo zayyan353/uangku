@@ -80,3 +80,15 @@ export function recordBackup(storedLedger: string, at: Date = new Date(), storag
     return false;
   }
 }
+
+const BACKUP_TIME_FORMAT = new Intl.DateTimeFormat('id-ID', {
+  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul',
+});
+
+/** Short text for the sidebar and mobile footer, in the app's reporting time zone. */
+export function lastBackupLabel(record: LastBackup | null): string {
+  if (!record) return 'Cadangan terakhir: belum ada';
+  const at = new Date(record.at);
+  if (Number.isNaN(at.getTime())) return 'Cadangan terakhir: belum ada';
+  return `Cadangan terakhir: ${BACKUP_TIME_FORMAT.format(at)}`;
+}
