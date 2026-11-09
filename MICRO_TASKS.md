@@ -151,7 +151,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
 
 ## C. Fitur kecil yang berguna
 
-- [ ] **MW-11 — Ekspor CSV riwayat yang sedang terfilter**
+- [x] **MW-11 — Ekspor CSV riwayat yang sedang terfilter**
   Tombol "Unduh CSV" di halaman Transaksi; isi = baris yang cocok dengan filter
   sekarang (tanggal, dompet, jenis, kategori, nominal, keterangan).
   Butuh MW-17, supaya tombolnya masuk ke `HistoryFilters.tsx`.
