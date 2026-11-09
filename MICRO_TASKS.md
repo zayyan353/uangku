@@ -197,6 +197,17 @@ Aturan: hanya memindahkan kode, perilaku tidak berubah, semua tes tetap hijau
   Kerjakan sebelum MW-11.
 - [x] **MW-18 — Pindahkan halaman Dompet** (grid kartu) ke `src/components/WalletsPage.tsx`.
 
+## D2. Tampilan
+
+- [x] **MW-21 — Keterbacaan: skala teks & tata letak angka di HP**
+  Banyak teks memakai 7–11px sehingga sulit dibaca. Skala dinaikkan merata di
+  `styles.css` (≤9px→11, 10→12, 11→13, 12→14, 13→14, 14→15); judul dan angka
+  besar (`clamp`, ≥15px) tidak berubah. Di HP ≤420px, kartu "Uang masuk/keluar"
+  jadi satu kolom supaya nominal tidak terpotong di tengah angka; input bulan
+  di toolbar mata uang dilebarkan; tombol cadangan di sidebar dirapatkan agar
+  tetap satu baris. Hanya CSS, perilaku tidak berubah.
+  *File:* `src/styles.css`.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).
