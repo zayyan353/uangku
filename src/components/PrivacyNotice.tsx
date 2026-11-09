@@ -1,8 +1,11 @@
 import { Modal } from './Modal';
+import { persistenceLabel, type PersistenceStatus } from '../lib/storagePersistence';
 /** Plain-language boundary disclosure. This component performs no storage writes. */
-export function PrivacyNotice({ onClose }: { onClose: () => void }) {
+export function PrivacyNotice({ onClose, persistence = 'not-requested' }: { onClose: () => void; persistence?: PersistenceStatus }) {
+  const persistenceText = persistenceLabel(persistence);
   return <Modal title="Privasi dan cadangan" subtitle="Pahami tempat catatanmu disimpan" onClose={onClose}>
     <div className="modal-body privacy-notice">
+      <p data-testid="storage-persistence" data-status={persistence}><strong>Penyimpanan persisten: {persistenceText.answer}.</strong> {persistenceText.detail}</p>
       <p><strong>Catatan lokal mengikuti origin dan profil browser.</strong> Origin adalah gabungan protokol, nama host, dan port. Path berbeda pada origin yang sama berbagi penyimpanan; misalnya dua halaman di zayyan353.github.io tidak otomatis terpisah.</p>
       <p>Gunakan profil browser dan situs yang kamu percayai. Script lain pada origin yang sama dapat mengakses penyimpanan yang sama. Aplikasi ini tidak menyediakan pemisahan dengan akun atau enkripsi data lokal.</p>
       <p><strong>Cadangan JSON dapat dibaca.</strong> File berisi transaksi dan fakta sumber keuangan. Simpan di tempat pribadi; jangan unggah ke repository publik atau bagikan sembarangan.</p>
