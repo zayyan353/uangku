@@ -350,6 +350,10 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .category-value { font-size: 11px; }
 .category-track { height: 5px; margin-left: 15px; }
 .category-fill { display: block; }
+.category-budget-note { display: block; margin: 6px 0 0 15px; color: #52634f; font-size: 10px; }
+.category-row.over-budget .category-fill { background: #b4583f; }
+.category-row.over-budget :is(.category-value, .category-budget-note) { color: #a24c35; }
+.category-budget-hint { margin: 12px 0 0; }
 .category-legend { font-size: 9px; line-height: 1.7; align-items: center; gap: 6px; }
 .category-legend .status-dot { width: 4px; height: 4px; }
 .pending-banner { width: 100%; text-align: left; border-color: #e8e5c8; }
@@ -960,6 +964,9 @@ html[data-theme="dark"] .badge.unreviewed { color: var(--warning-text); backgrou
 html[data-theme="dark"] .amount-positive { color: var(--success-text) !important; }
 html[data-theme="dark"] .amount-negative { color: var(--error-text) !important; }
 html[data-theme="dark"] .category-track { background: var(--line); }
+html[data-theme="dark"] .category-budget-note { color: var(--text-muted); }
+html[data-theme="dark"] .category-row.over-budget .category-fill { background: var(--error-text); }
+html[data-theme="dark"] .category-row.over-budget :is(.category-value, .category-budget-note) { color: var(--error-text); }
 html[data-theme="dark"] .currency-tab.active { color: var(--text); background: var(--surface-raised); border-color: var(--control-border); }
 html[data-theme="dark"] .quick-wallet-action { color: var(--success-text); background: var(--success-surface); border-color: var(--success-border); }
 html[data-theme="dark"] .add-wallet-card { color: var(--text-muted); background: #16231b; border-color: var(--control-border); }

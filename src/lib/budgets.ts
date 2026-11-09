@@ -127,3 +127,40 @@ export function applyBudgetInputs(budgets: BudgetMap, currency: Currency, inputs
   else delete next[currency];
   return validateBudgets(next);
 }
+
+export interface CategoryBudgetRow {
+  name: string;
+  /** Confirmed spending in minor units for the shown month. */
+  spent: number;
+  /** Monthly limit in minor units; absent when the category has no budget. */
+  limit?: number;
+  /** limit - spent; negative when the budget is exceeded. */
+  remaining?: number;
+  over: boolean;
+}
+
+/**
+ * Rows for the confirmed-category summary. Every budgeted category is shown,
+ * including ones with no spending yet; other categories fill up to
+ * `unbudgetedSlots` by spending. `hidden` counts the categories left out.
+ */
+export function categoryBudgetRows(totals: ReadonlyArray<readonly [string, number]>, limits: Readonly<Record<string, number>> | undefined,
+  unbudgetedSlots = 4): { rows: CategoryBudgetRow[]; hidden: number } {
+  const section = limits ?? {};
+  const rows: CategoryBudgetRow[] = [];
+  let plain = 0, hidden = 0;
+  for (const [name, spent] of totals) {
+    if (Object.hasOwn(section, name)) {
+      const limit = section[name];
+      rows.push({ name, spent, limit, remaining: limit - spent, over: spent > limit });
+    } else if (plain < unbudgetedSlots) {
+      plain += 1;
+      rows.push({ name, spent, over: false });
+    } else hidden += 1;
+  }
+  const listed = new Set(totals.map(([name]) => name));
+  for (const name of Object.keys(section).sort((a, b) => a.localeCompare(b, 'id-ID'))) {
+    if (!listed.has(name)) rows.push({ name, spent: 0, limit: section[name], remaining: section[name], over: false });
+  }
+  return { rows, hidden };
+}

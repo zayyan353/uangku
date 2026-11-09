@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBudgetInputs, BUDGETS_LIMIT, budgetInputs, isEmptyBudgets, parseStoredBudgets, serializeBudgets, validateBudgets } from './budgets';
+import { applyBudgetInputs, BUDGETS_LIMIT, budgetInputs, categoryBudgetRows, isEmptyBudgets, parseStoredBudgets, serializeBudgets, validateBudgets } from './budgets';
 
 describe('validateBudgets', () => {
   it('accepts per-currency monthly limits in minor units', () => {
@@ -106,5 +106,33 @@ describe('budget form inputs (MW-12b)', () => {
   it('still enforces the stored map limits', () => {
     const many = Object.fromEntries(Array.from({ length: 101 }, (_, i) => [`K${i}`, '1']));
     expect(() => applyBudgetInputs({}, 'IDR', many)).toThrow(/maksimal 100/);
+  });
+});
+
+describe('categoryBudgetRows (MW-12c)', () => {
+  const totals: Array<[string, number]> = [['A', 900], ['B', 800], ['C', 700], ['D', 600], ['E', 500], ['F', 400]];
+
+  it('keeps the earlier top-four view when there are no budgets', () => {
+    const { rows, hidden } = categoryBudgetRows(totals, undefined);
+    expect(rows.map(row => row.name)).toEqual(['A', 'B', 'C', 'D']);
+    expect(rows.every(row => row.limit === undefined && !row.over)).toBe(true);
+    expect(hidden).toBe(2);
+  });
+
+  it('shows used, limit, remaining and over for budgeted categories', () => {
+    const { rows } = categoryBudgetRows([['A', 900], ['B', 800]], { A: 1000, B: 500 });
+    expect(rows).toEqual([
+      { name: 'A', spent: 900, limit: 1000, remaining: 100, over: false },
+      { name: 'B', spent: 800, limit: 500, remaining: -300, over: true },
+    ]);
+    expect(categoryBudgetRows([['A', 1000]], { A: 1000 }).rows[0].over).toBe(false);
+  });
+
+  it('always shows budgeted categories, even outside the top four or without spending', () => {
+    const { rows, hidden } = categoryBudgetRows(totals, { F: 300, Zebra: 100, Apel: 50 });
+    expect(rows.map(row => row.name)).toEqual(['A', 'B', 'C', 'D', 'F', 'Apel', 'Zebra']);
+    expect(rows.find(row => row.name === 'F')).toMatchObject({ over: true, remaining: -100 });
+    expect(rows.find(row => row.name === 'Apel')).toMatchObject({ spent: 0, remaining: 50, over: false });
+    expect(hidden).toBe(1);
   });
 });

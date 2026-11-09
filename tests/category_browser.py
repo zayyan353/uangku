@@ -275,6 +275,41 @@ def budget_limits(case):
     case.unchanged()
 
 
+def budget_progress(case):
+    """MW-12c: monthly budget progress in the confirmed-category summary."""
+    p = case.page
+    p.evaluate('([key,value])=>localStorage.setItem(key,value)',
+               [BUDGETS, compact({'TRY': {'Kesehatan': 5000, 'Pendidikan': 1500}})])
+    p.reload(wait_until='networkidle')
+    nav(p, 'Ringkasan')
+    panel = p.locator('.category-panel')
+    over = panel.get_by_role('progressbar', name='Anggaran Pendidikan', exact=True)
+    expect(over).to_have_attribute('aria-valuenow', '100')
+    row = panel.locator('.category-row').filter(has_text='Pendidikan')
+    expect(row).to_have_class(re.compile('over-budget'))
+    expect(row).to_contain_text('Lewat')
+    expect(row.locator('.category-value')).to_contain_text('/')
+    # Budgeted categories show up even with no spending this month.
+    spare = panel.locator('.category-row').filter(has_text='Kesehatan')
+    expect(spare).to_contain_text('Sisa')
+    expect(panel.get_by_role('progressbar', name='Anggaran Kesehatan', exact=True)).to_have_attribute('aria-valuenow', '0')
+    unbudgeted = panel.locator('.category-row').filter(has_text='Kategori lama')
+    expect(unbudgeted).to_have_count(1)
+    assert unbudgeted.get_by_role('progressbar').count() == 0
+    for kind, script in [('text', TEXT_CONTRAST_JS), ('controls', CONTROL_CONTRAST_JS)]:
+        report = p.evaluate(script)
+        report.update({'state': 'budget-progress', 'kind': kind})
+        case.contrasts.append(report)
+        assert not report['failures'], report['failures'][:10]
+    assert not p.evaluate('document.documentElement.scrollWidth>innerWidth+1'), 'page overflow'
+    panel.screenshot(path=str(case.args.output / f'{case.name}-panel.png'))
+    # Monthly limits are not compared with all-time totals.
+    p.get_by_label('Periode arus rekening', exact=True).select_option('all')
+    expect(panel.get_by_role('progressbar')).to_have_count(0)
+    expect(panel.get_by_text('Anggaran bulanan tampil saat periode bulanan', exact=False)).to_be_visible()
+    case.unchanged()
+
+
 def history_automation(case):
     p = case.page
     before = stored_document(p)
@@ -665,6 +700,8 @@ def main():
              ('full-backup-mobile', {'width': 390, 'theme': 'dark'}, category_suite_case),
              ('budget-limits-desktop', {}, budget_limits),
              ('budget-limits-mobile-dark', {'width': 390, 'theme': 'dark'}, budget_limits),
+             ('budget-progress-desktop', {}, budget_progress),
+             ('budget-progress-mobile-dark', {'width': 390, 'theme': 'dark'}, budget_progress),
              ('history-auto-suggest-conflict-pending', {}, history_automation),
              ('source-import-desktop', {'empty': True}, source_import),
              ('source-import-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, source_import),
