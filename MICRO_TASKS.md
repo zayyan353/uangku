@@ -208,6 +208,48 @@ Aturan: hanya memindahkan kode, perilaku tidak berubah, semua tes tetap hijau
   tetap satu baris. Hanya CSS, perilaku tidak berubah.
   *File:* `src/styles.css`.
 
+Audit UI (9 November 2026, build `f243309`, 1440px & 390px, terang & gelap).
+Fokus tampilan dulu; perilaku/alur (UX) menyusul. Kerjakan berurutan, satu MW
+per PR, perilaku tidak berubah kecuali disebut.
+
+- [ ] **MW-22 — Rapikan tumpukan banner di atas halaman**
+  Tiap halaman diawali tiga kotak: "Versi pengembangan lokal", "Belum
+  tersimpan", dan "Kenalan dulu pakai data contoh" (±200px). Di HP layar
+  pertama halaman Dompet tidak menampilkan dompet sama sekali. Gabungkan jadi
+  satu banner ringkas; status simpan jadi label kecil di topbar, bukan kotak.
+  Teks status dan tombol "Mulai pakai data sendiri" tetap ada (dipakai tes).
+- [ ] **MW-23 — Pilihan jenis di modal transaksi tidak pecah baris**
+  Lima pilihan (Pengeluaran … Cek saldo) pecah dua baris: "Perpindahan dana"
+  terlipat, "Cek saldo" sendirian di baris kedua, di desktop maupun HP.
+  Jadikan satu baris yang bisa digeser, atau grid rata.
+- [ ] **MW-24 — Satu gaya tab**
+  Tab mata uang (pill putih), Aktif/Arsip (pill hijau gelap), dan
+  Ziraat/CSV (blok) berbeda-beda. Samakan jadi satu komponen gaya.
+- [ ] **MW-25 — Filter halaman Transaksi**
+  Placeholder pencarian terpotong ("Cari keterangan atau d…"), tombol Kelola
+  kategori bercampur dengan filter, "6 transaksi" + "Rapikan 1 catatan"
+  mengambang di kanan. Susun ulang jadi dua baris yang jelas.
+- [ ] **MW-26 — Tabel transaksi lebih bersih**
+  Kolom Dompet mengulang "IDR" di setiap baris; "Rincian nominal" di setiap
+  baris; jarak ⋯ dan 🗑 terlalu jauh; di HP judul transaksi terlipat dua baris.
+- [ ] **MW-27 — Halaman Impor mutasi**
+  "Kelola mata uang" mengambang sendiri, toolbar kategori tampil padahal tidak
+  relevan, tombol header "Pindah uang/Catat transaksi" tidak nyambung.
+- [ ] **MW-28 — Ringkasan desktop**
+  Kolom tabel "Rincian arus rekening" terlalu lebar, panel Dompetmu kosong di
+  bawah, penjelasan "Perhitungan saldo" berupa tiga paragraf panjang.
+- [ ] **MW-29 — Topbar**
+  Pemilih tema masih `<select>` bawaan, "Lokal & pribadi" terlalu kecil,
+  breadcrumb di HP tanpa pemisah ("Ruang pribadi Dompet").
+- [ ] **MW-30 — Eyebrow halaman** "SEDIKIT DICATAT, BANYAK TERBANTU" sama di
+  semua halaman; ganti per halaman atau hapus.
+- [ ] **MW-31 — Modal Pindah uang** "Tanggal kredit" sendirian di satu baris.
+- [ ] **MW-32 — Footer** teks "Nggak harus rapi sekaligus…" kecil dan pudar.
+
+Dicatat untuk tahap UX (belum dikerjakan): modal Pindah uang menampilkan
+"Pilih dompet tujuan yang berbeda" padahal BCA → Bank Jago sudah berbeda
+(perlu dicek: bug logika atau pesan); format tanggal form mengikuti bahasa browser.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).
