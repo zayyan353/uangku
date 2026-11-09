@@ -4,6 +4,7 @@ import { CATEGORY_SETTINGS_KEY, validateCategorySettings, type CategorySettings 
 import { effectiveCategorySettings } from './categorySettingsUpgrade';
 import { serializeFullBackup } from './fullBackup';
 import { BUDGETS_KEY, parseStoredBudgets, serializeBudgets, type BudgetMap } from './budgets';
+import { parseStoredTemplates, serializeTemplates, TEMPLATES_KEY, type TransactionTemplate } from './transactionTemplates';
 import { LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, recoverProfile, restorePending, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
 
 export { LEDGER_LOCK };
@@ -27,8 +28,8 @@ export interface CandidateOptions {
   replaceBlocked?: boolean;
   expectedData?: StoredData;
   expectedToken?: string | null;
-  /** budgets: from a full backup; undefined keeps the browser's current budgets. */
-  restoreCategories?: { settings: CategorySettings; expectedRaw: string | null; budgets?: BudgetMap };
+  /** budgets/templates: from a full backup; undefined keeps the browser's current ones. */
+  restoreCategories?: { settings: CategorySettings; expectedRaw: string | null; budgets?: BudgetMap; templates?: TransactionTemplate[] };
 }
 export interface PersistenceSnapshot {
   data: StoredData;
@@ -196,7 +197,10 @@ export class LedgerPersistenceController {
     let nextBudgets: string | undefined;
     try { if (categories.budgets) nextBudgets = serializeBudgets(categories.budgets); }
     catch (error) { this.update({ error: error instanceof Error ? error.message : 'Anggaran pada cadangan tidak valid.' }); return false; }
-    let budgetsNotSaved = false;
+    let nextTemplates: string | undefined;
+    try { if (categories.templates) nextTemplates = serializeTemplates(categories.templates); }
+    catch (error) { this.update({ error: error instanceof Error ? error.message : 'Template pada cadangan tidak valid.' }); return false; }
+    let budgetsNotSaved = false, templatesNotSaved = false;
     const expectedSettings = categories.expectedRaw;
     this.update({ pending: true, status: 'saving', error: '' });
     try {
@@ -213,12 +217,16 @@ export class LedgerPersistenceController {
         if (nextBudgets !== undefined && storage.getItem(BUDGETS_KEY) !== nextBudgets) {
           try { storage.setItem(BUDGETS_KEY, nextBudgets); } catch { budgetsNotSaved = true; }
         }
+        if (nextTemplates !== undefined && storage.getItem(TEMPLATES_KEY) !== nextTemplates) {
+          try { storage.setItem(TEMPLATES_KEY, nextTemplates); } catch { templatesNotSaved = true; }
+        }
       });
       this.baseToken = nextLedger;
       this.blockedRaw = null;
       this.knownTokens.set(candidate.data, nextLedger);
       this.update({ data: candidate.data, blocked: false, status: 'saved', pending: false, remoteChanged: false,
-        error: budgetsNotSaved ? 'Catatan dan kategori sudah dipulihkan, tetapi anggaran dari cadangan belum tersimpan. Periksa ruang penyimpanan browser.' : '' });
+        error: budgetsNotSaved || templatesNotSaved
+          ? `Catatan dan kategori sudah dipulihkan, tetapi ${budgetsNotSaved && templatesNotSaved ? 'anggaran dan template' : budgetsNotSaved ? 'anggaran' : 'template'} dari cadangan belum tersimpan. Periksa ruang penyimpanan browser.` : '' });
       this.ports.profileChanged?.();
       this.checkRemote();
       return true;
@@ -244,7 +252,8 @@ export class LedgerPersistenceController {
     };
     const exportCurrent = () => {
       verify();
-      const file = serializeFullBackup(ledger, effectiveCategorySettings(expectedCategoryRaw).settings, parseStoredBudgets(storage.getItem(BUDGETS_KEY)));
+      const file = serializeFullBackup(ledger, effectiveCategorySettings(expectedCategoryRaw).settings, parseStoredBudgets(storage.getItem(BUDGETS_KEY)),
+        parseStoredTemplates(storage.getItem(TEMPLATES_KEY)));
       verify();
       return file;
     };

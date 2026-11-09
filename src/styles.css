@@ -1175,3 +1175,9 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 
 .import-format-picker { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
 @media (max-width: 600px) { .import-format-picker .button { flex: 1; white-space: normal; } }
+
+.template-save { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
+.template-save-panel { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
+.template-save-panel .field { margin-bottom: 9px; }
+.template-save-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.template-save .notice { margin: 0; width: 100%; font-size: 12px; line-height: 1.7; }

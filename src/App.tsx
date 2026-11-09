@@ -18,6 +18,7 @@ import { carryDemo } from './lib/demoTransition';
 import type { CandidateOptions } from './lib/persistence';
 import { categoryBudgetRows, type BudgetMap } from './lib/budgets';
 import { useLedgerStorage } from './hooks/useLedgerStorage';
+import { useTransactionTemplates } from './hooks/useTransactionTemplates';
 import RecoveryImportView from './components/RecoveryImportView';
 import { preferredWallet, readPreferences, writePreferences } from './lib/preferences';
 import { canCategorize, categorizeEntries, transferCandidates } from './lib/review';
@@ -77,6 +78,7 @@ export default function App() {
   const [categoryAutomation, setCategoryAutomation] = useState<{ data: StoredData; token: string | null } | null>(null);
   const [preferences, setPreferences] = useState(readPreferences);
   const data = ledger.data;
+  const transactionTemplates = useTransactionTemplates();
   const visibleCurrencies = useMemo(() => visibleCurrencyCodes(data), [data.metadata, data.state.wallets]);
   const [currencyManager, setCurrencyManager] = useState<{ data: StoredData; token: string | null } | null>(null);
   const storageError = ledger.error;
@@ -502,7 +504,7 @@ export default function App() {
           label: 'Pulihkan semuanya',
           action: async () => {
             const saved = await persistCandidate(restored, {
-              ...options, restoreCategories: { settings, expectedRaw: categoryPreferences.raw, ...(backup.budgets ? { budgets: backup.budgets } : {}) },
+              ...options, restoreCategories: { settings, expectedRaw: categoryPreferences.raw, ...(backup.budgets ? { budgets: backup.budgets } : {}), ...(backup.templates ? { templates: backup.templates } : {}) },
             });
             if (saved) notify('Cadangan lengkap dipulihkan. Transaksi dan pengaturan kategori sudah tersimpan.');
             else notify('Cadangan lengkap belum dipulihkan. Periksa status penyimpanan sebelum mencoba lagi.');
@@ -579,7 +581,7 @@ export default function App() {
     <MobileNav page={page} onNavigate={navigate} />
     <input ref={restoreRef} type="file" accept=".json,application/json" aria-label="File cadangan Uangku" hidden onChange={e => void restore(e.target.files?.[0])} />
     {walletModal && <WalletEditor key={walletModal === 'new' ? 'new' : walletModal.id} existing={walletModal === 'new' ? undefined : walletModal} defaultCurrency={visibleCurrencies.includes(currency) ? currency : visibleCurrencies[0]} currencies={visibleCurrencies} usage={walletModal === 'new' || !state.wallets.some(wallet => wallet.id === walletModal.id) ? undefined : walletUsage(data, walletModal.id)} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported || walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id))} disabledReason={ledger.dirty || blocked || !ledger.supported ? 'Penyimpanan belum siap. Selesaikan pemulihan atau konflik pada status penyimpanan dahulu; isian tetap dipertahankan.' : walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id)) ? 'Dompet berubah, dihapus, atau diarsipkan di tab lain. Tutup untuk membuka daftar terbaru.' : ''} onSave={saveWallet} onClose={() => { if (!mutationInFlight.current) setWalletModal(null); }} onArchive={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'archive', walletEditorBase.current!)} onDelete={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'delete', walletEditorBase.current!)} />}
-    {txModal && <TransactionModal data={data} state={state} undatedWallets={undatedWallets} initialMode={txModal.type} initialWallet={txModal.walletId} existing={txModal.existing} disabled={ledger.pending} onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined} onSave={saveEntry} onClose={() => { if (!mutationInFlight.current) setTxModal(null); }} onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined} />}
+    {txModal && <TransactionModal data={data} state={state} onSaveTemplate={transactionTemplates.add} undatedWallets={undatedWallets} initialMode={txModal.type} initialWallet={txModal.walletId} existing={txModal.existing} disabled={ledger.pending} onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined} onSave={saveEntry} onClose={() => { if (!mutationInFlight.current) setTxModal(null); }} onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined} />}
     {amountDetail && <AmountDetailModal entry={amountDetail} state={state} data={data} onClose={() => setAmountDetail(null)} />}
     {currencyManager && <CurrencyManager data={currencyManager.data} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported} onSave={saveCurrencyList} onView={code => { setCurrency(code); setCurrencyManager(null); navigate('overview'); }} onClose={() => { if (!mutationInFlight.current) setCurrencyManager(null); }} />}
     {categoryManager && <CategoryManager settings={categoryManager.settings} budgets={categoryManager.budgets} budgetsError={categoryManager.budgetsError} currencies={visibleCurrencies} currency={currency} notice={categoryPreferences.error || (categoryPreferences.packAdded || categoryPreferences.packUpdated ? `${categoryPreferences.packAdded} kata kunci tambahan aktif dan ${categoryPreferences.packUpdated} pemetaan bawaan disesuaikan. Kategori dan aturan pribadi dipertahankan.` : undefined)} onSave={saveCategorySettings} onClose={() => setCategoryManager(null)} />}

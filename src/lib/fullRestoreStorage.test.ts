@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, type CategorySettings } from './categorySettings';
 import { CATEGORY_LOCK, finishInterruptedRestore, RESTORE_JOURNAL } from './fullRestoreStorage';
 import { BUDGETS_KEY, serializeBudgets } from './budgets';
+import { serializeTemplates, TEMPLATES_KEY } from './transactionTemplates';
 import { LedgerPersistenceController, type PersistenceLocks, type PersistenceStorage } from './persistence';
 import { createEmptyState, parseBackupText, serializeBackup, STORAGE_KEY, type StoredData } from './storage';
 
@@ -211,6 +212,56 @@ describe('budgets travel with full export and restore (MW-12a)', () => {
     const raw = store.getItem(STORAGE_KEY);
     expect(await controller.setCandidate(updated, '', { expectedToken: raw,
       restoreCategories: { settings, expectedRaw: previousRaw, budgets: { IDR: { Belanja: -5 } } } })).toBe(false);
+    expect(store.map).toEqual(before);
+  });
+});
+
+describe('templates travel with full export and restore (MW-13a)', () => {
+  const templates = [{ id: 't1', name: 'Kopi', type: 'expense' as const, walletId: 'w1', currency: 'TRY' as const, category: 'Belanja', note: '' }];
+
+  it('exports stored templates and omits the section when none are stored', async () => {
+    const plain = environment(nextRaw);
+    expect(JSON.parse(await plain.controller.exportFullBackup(nextRaw))).not.toHaveProperty('templates');
+    const withTemplates = environment(nextRaw);
+    withTemplates.store.map.set(TEMPLATES_KEY, serializeTemplates(templates));
+    expect(JSON.parse(await withTemplates.controller.exportFullBackup(nextRaw)).templates).toEqual(templates);
+  });
+
+  it('refuses to export when stored templates are unreadable instead of dropping them', async () => {
+    const corrupt = environment(nextRaw);
+    corrupt.store.map.set(TEMPLATES_KEY, '{bad');
+    await expect(corrupt.controller.exportFullBackup(nextRaw)).rejects.toThrow(/Template/);
+    expect(corrupt.store.map.get(TEMPLATES_KEY)).toBe('{bad');
+  });
+
+  it('writes restored templates after the ledger and keeps them when the backup has none', async () => {
+    const { store, controller } = environment();
+    const raw = store.getItem(STORAGE_KEY);
+    expect(await controller.setCandidate(updated, '', { expectedToken: raw, restoreCategories: { settings, expectedRaw: previousRaw, templates } })).toBe(true);
+    expect(store.map.get(TEMPLATES_KEY)).toBe(serializeTemplates(templates));
+    expect(store.writes.indexOf(TEMPLATES_KEY)).toBeGreaterThan(store.writes.lastIndexOf(STORAGE_KEY));
+    const other = environment();
+    other.store.map.set(TEMPLATES_KEY, serializeTemplates(templates));
+    expect(await other.restore()).toBe(true);
+    expect(other.store.writes).not.toContain(TEMPLATES_KEY);
+  });
+
+  it('reports a failed template write without undoing the restore', async () => {
+    const { store, controller } = environment();
+    store.fault = key => key === TEMPLATES_KEY;
+    const raw = store.getItem(STORAGE_KEY);
+    expect(await controller.setCandidate(updated, '', { expectedToken: raw, restoreCategories: { settings, expectedRaw: previousRaw, templates } })).toBe(true);
+    expect(parseBackupText(store.getItem(STORAGE_KEY)!)).toEqual(updated);
+    expect(store.map.has(TEMPLATES_KEY)).toBe(false);
+    expect(controller.getSnapshot().error).toMatch(/template dari cadangan belum tersimpan/);
+  });
+
+  it('rejects invalid templates before writing anything', async () => {
+    const { store, controller } = environment();
+    const before = new Map(store.map);
+    const raw = store.getItem(STORAGE_KEY);
+    expect(await controller.setCandidate(updated, '', { expectedToken: raw,
+      restoreCategories: { settings, expectedRaw: previousRaw, templates: [{ ...templates[0], amount: -1 }] } })).toBe(false);
     expect(store.map).toEqual(before);
   });
 });
