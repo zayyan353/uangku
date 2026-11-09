@@ -1168,3 +1168,9 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .template-save-panel .field { margin-bottom: 9px; }
 .template-save-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 .template-save .notice { margin: 0; width: 100%; font-size: 12px; line-height: 1.7; }
+.template-quick { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
+.template-quick > .field-label { display: inline-flex; align-items: center; gap: 6px; }
+.template-quick-list { display: flex; flex-wrap: wrap; gap: 7px; max-height: 128px; overflow-y: auto; }
+.template-quick-list .button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.template-quick .notice { margin: 0; font-size: 12px; line-height: 1.7; }
+.template-fill-warning { display: block; margin-top: 4px; }

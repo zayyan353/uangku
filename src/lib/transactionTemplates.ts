@@ -118,3 +118,36 @@ export function appendTemplate(raw: string | null, template: TransactionTemplate
   const templates = validateTemplates([...parseStoredTemplates(raw), template]);
   return { raw: JSON.stringify(templates), templates };
 }
+
+export interface TemplateFill {
+  type: TransactionTemplate['type'];
+  /** '' when the template's wallet is no longer active; the form keeps its own choice. */
+  walletId: string;
+  /** Minor units, or null when the template has no amount or the currency no longer matches. */
+  amount: number | null;
+  category: string;
+  note: string;
+  date: string;
+  warnings: string[];
+}
+
+/**
+ * What a template puts into a new transaction form. The date is always the
+ * given day. Nothing is guessed: an archived or missing wallet, a changed
+ * currency or a removed category is left for the user and reported.
+ */
+export function templateFill(template: TransactionTemplate, wallets: ReadonlyArray<{ id: string; currency: Currency }>,
+  categories: readonly string[], day: string, uncategorized = 'Belum dikategorikan'): TemplateFill {
+  const warnings: string[] = [];
+  const wallet = wallets.find(item => item.id === template.walletId);
+  if (!wallet) warnings.push('Dompet template sudah tidak aktif. Pilih dompet sebelum menyimpan.');
+  let amount = template.amount ?? null;
+  if (amount !== null && wallet && wallet.currency !== template.currency) {
+    amount = null;
+    warnings.push(`Mata uang dompet berubah dari ${template.currency} ke ${wallet.currency}. Isi nominal lagi.`);
+  }
+  if (amount !== null && !wallet) amount = null;
+  const category = categories.includes(template.category) ? template.category : uncategorized;
+  if (category !== template.category) warnings.push(`Kategori “${template.category}” sudah tidak aktif, jadi kategori dikosongkan.`);
+  return { type: template.type, walletId: wallet?.id ?? '', amount, category, note: template.note, date: day, warnings };
+}

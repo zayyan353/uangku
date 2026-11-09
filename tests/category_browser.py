@@ -514,6 +514,66 @@ def transaction_templates(case):
     case.unchanged()
 
 
+def template_quick_fill(case):
+    """MW-13b: a saved template fills a new transaction form, dated today."""
+    p = case.page
+    templates = [
+        {'id': 'kopi', 'name': 'Kopi pagi', 'type': 'expense', 'walletId': 'bank', 'currency': 'TRY',
+         'category': 'Makan & minum', 'amount': 4500, 'note': 'Kopi dekat kampus'},
+        {'id': 'gaji', 'name': 'Gaji bulanan', 'type': 'income', 'walletId': 'bank', 'currency': 'TRY',
+         'category': 'Gaji', 'note': 'Gaji'},
+        {'id': 'lama', 'name': 'Dompet lama', 'type': 'expense', 'walletId': 'gone', 'currency': 'TRY',
+         'category': 'Transportasi', 'amount': 100, 'note': ''},
+    ]
+    raw = compact(templates)
+    p.evaluate('([key,value])=>localStorage.setItem(key,value)', [TEMPLATES, raw])
+    p.reload(wait_until='networkidle')
+    nav(p, 'Transaksi')
+    p.get_by_role('button', name='Catat transaksi', exact=True).click()
+    dialog = p.get_by_role('dialog')
+    quick = dialog.get_by_role('group', name='Template transaksi', exact=True)
+    expect(quick.get_by_role('button')).to_have_count(3)
+    dialog.locator('input[type=date]').fill('2026-10-01')
+    quick.get_by_role('button', name='Isi dari template Kopi pagi', exact=True).click()
+    expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('45')
+    expect(dialog.get_by_label(re.compile('^Kategori'))).to_have_value('Makan & minum')
+    expect(dialog.get_by_label(re.compile('^Keterangan'))).to_have_value('Kopi dekat kampus')
+    expect(dialog.locator('input[type=date]')).to_have_value('2026-10-31')
+    expect(quick.get_by_role('status')).to_contain_text('Kopi pagi')
+    case.unchanged()  # Filling the form is not a write.
+    dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+    expect(p.get_by_role('dialog')).to_have_count(0)
+    document = stored_document(p)
+    added = [entry for entry in document['state']['entries'] if entry['note'] == 'Kopi dekat kampus']
+    assert len(added) == 1, added
+    assert {k: added[0][k] for k in ['type', 'walletId', 'amount', 'category', 'date']} == {
+        'type': 'expense', 'walletId': 'bank', 'amount': 4500, 'category': 'Makan & minum', 'date': '2026-10-31'}, added
+    assert p.evaluate('(key)=>localStorage.getItem(key)', TEMPLATES) == raw
+    case.raw = p.evaluate('(key)=>localStorage.getItem(key)', FINANCE)
+    # Income template without amount and with a category that is not active here.
+    p.get_by_role('button', name='Catat transaksi', exact=True).click()
+    dialog = p.get_by_role('dialog')
+    quick = dialog.get_by_role('group', name='Template transaksi', exact=True)
+    quick.get_by_role('button', name='Isi dari template Gaji bulanan', exact=True).click()
+    expect(dialog.get_by_role('button', name='Pemasukan', exact=True)).to_have_class(re.compile('active'))
+    expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('')
+    expect(dialog.get_by_label(re.compile('^Kategori'))).to_have_value(UNCAT)
+    expect(quick.get_by_role('status')).to_contain_text('sudah tidak aktif')
+    # A template whose wallet no longer exists leaves wallet and amount for the user.
+    quick.get_by_role('button', name='Isi dari template Dompet lama', exact=True).click()
+    expect(quick.get_by_role('status')).to_contain_text('Dompet template sudah tidak aktif')
+    expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('')
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    dialog.get_by_role('button', name='Buang isian', exact=True).click()
+    expect(p.get_by_role('dialog')).to_have_count(0)
+    case.unchanged()
+    # Editing an existing entry offers no template list.
+    p.get_by_role('button', name='Ubah Historical category retained', exact=True).click()
+    expect(p.get_by_role('dialog').get_by_role('group', name='Template transaksi')).to_have_count(0)
+    p.get_by_role('dialog').get_by_role('button', name='Batal', exact=True).click()
+    case.unchanged()
+
+
 def visuals(case):
     dialog = case.manager()
     case.capture('manager')
@@ -547,7 +607,9 @@ def main():
              ('financial-quota-draft-and-retry', {}, financial_quota),
              ('financial-stale-category-conflict', {}, financial_conflict),
              ('transaction-templates-desktop', {}, transaction_templates),
-             ('transaction-templates-mobile-dark', {'width': 390, 'theme': 'dark'}, transaction_templates)]
+             ('transaction-templates-mobile-dark', {'width': 390, 'theme': 'dark'}, transaction_templates),
+             ('template-quick-fill-desktop', {}, template_quick_fill),
+             ('template-quick-fill-mobile-dark', {'width': 390, 'theme': 'dark'}, template_quick_fill)]
     for width, theme in [(1440, 'light'), (1440, 'dark'), (390, 'light'), (390, 'dark'), (320, 'dark')]:
         cases.append((f'visual-{width}-{theme}', {'width': width, 'theme': theme}, visuals))
     with sync_playwright() as pw:
