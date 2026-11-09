@@ -101,7 +101,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
 
 ## B. Keamanan data (paling penting — data cuma ada di browser)
 
-- [ ] **MW-05 — Minta penyimpanan persisten**
+- [x] **MW-05 — Minta penyimpanan persisten**
   Panggil `navigator.storage.persist()` sekali setelah pengguna mulai pakai data
   sendiri (bukan demo). Aman kalau API tidak ada. Tampilkan hasilnya (ya/tidak)
   di jendela Privasi. Di Safari hasilnya ditentukan heuristik browser, jadi

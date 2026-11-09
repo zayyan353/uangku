@@ -37,6 +37,7 @@ import { currencyInfo } from './lib/currencyCatalog';
 import { visibleCurrencyCodes, setVisibleCurrencies } from './lib/currencySettings';
 import { archiveWallet, restoreWallet, createWallet, editWallet, deleteUnusedWallet, walletUsage, isWalletArchived, isArchivedLinkedEntry, archivedReadOnlyEntryIds, assertArchivedWalletsUnchanged } from './lib/walletLifecycle';
 import { PrivacyNotice } from './components/PrivacyNotice';
+import { requestPersistentStorage, type PersistenceStatus } from './lib/storagePersistence';
 import ThemePicker from './components/ThemePicker';
 import CategoryManager from './components/CategoryManager';
 import CategoryAutomation from './components/CategoryAutomation';
@@ -165,6 +166,15 @@ export default function App() {
   }, [page]);
   const [amountDetail, setAmountDetail] = useState<Entry | null>(null);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [persistence, setPersistence] = useState<PersistenceStatus>('not-requested');
+  const persistenceRequested = useRef(false);
+  useEffect(() => {
+    // Ask once per session, only for the user's own data (never for the demo).
+    if (data.demo || persistenceRequested.current) return;
+    persistenceRequested.current = true;
+    setPersistence('checking');
+    void requestPersistentStorage().then(setPersistence);
+  }, [data.demo]);
   const [cashArchiveOpen, setCashArchiveOpen] = useState(false);
   const cashCleanupAttempt = useRef<StoredData | null>(null);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
@@ -589,7 +599,7 @@ export default function App() {
     {categoryManager && <CategoryManager settings={categoryManager} notice={categoryPreferences.error || (categoryPreferences.packAdded || categoryPreferences.packUpdated ? `${categoryPreferences.packAdded} kata kunci tambahan aktif dan ${categoryPreferences.packUpdated} pemetaan bawaan disesuaikan. Kategori dan aturan pribadi dipertahankan.` : undefined)} onSave={saveCategorySettings} onClose={() => setCategoryManager(null)} />}
     {categoryAutomation && <CategoryAutomation data={categoryAutomation.data} disabled={ledger.dirty || blocked || !ledger.supported} onApply={applyAutomaticCategories} onClose={() => { if (!mutationInFlight.current) setCategoryAutomation(null); }} />}
     {cashArchiveOpen && <CashArchive data={data} onClose={() => setCashArchiveOpen(false)} />}
-    {privacyOpen && <PrivacyNotice onClose={() => setPrivacyOpen(false)} />}
+    {privacyOpen && <PrivacyNotice persistence={persistence} onClose={() => setPrivacyOpen(false)} />}
     {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={() => void finishStartOwn(demoReview)} />}
     {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua fakta bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button><button className={`button ${confirm.label.startsWith('Hapus') ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button></div></Modal>}
     {toast && <div className="toast" role="status"><CheckCircle2 size={19} /><span>{toast}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast('')}><X size={15} /></button></div>}
