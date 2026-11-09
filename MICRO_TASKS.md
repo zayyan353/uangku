@@ -1,25 +1,22 @@
 # Uangku — Daftar Micro-Work
 
-Dicek: 9 November 2026, commit `b0ddda1` (main). Revisi 1: hasil diskusi review.
+Dicek: 9 November 2026, commit `b0ddda1` (main). Revisi 2: keputusan alur, lingkup MW-03, dan urutan sudah diambil.
 
 **Kondisi sekarang:** sehat menurut catatan terakhir (48 file tes / 1.533 tes unit,
 build lulus, situs publik melayani `b0ddda1`). Angka tes belum dijalankan ulang
 sejak revisi ini; jalankan `npm test` sebagai baseline sebelum MW pertama.
 
-## Keputusan yang masih terbuka
+## Keputusan (9 November 2026)
 
-Bagian yang ditandai **(usulan)** di bawah bergantung pada keputusan ini.
-Kalau keputusannya beda, ubah bagian itu dulu sebelum mulai MW terkait.
-
-1. **Alur rilis:** satu PR per MW (usulan) atau push langsung ke `main`?
-2. **Lingkup MW-03:** versi diperluas (usulan) atau cukup hapus tes ganda di job `build`?
-3. **Urutan:** refactor MW-16 sebelum MW-07/08 dan MW-17 sebelum MW-11 (usulan)?
+1. **Alur rilis:** satu PR per MW. Tidak ada push langsung ke `main`.
+2. **Lingkup MW-03:** versi diperluas (hapus run CI ganda, plus MW-03b).
+3. **Urutan:** refactor dulu. MW-16 sebelum MW-07/08, MW-17 sebelum MW-11.
 
 ## Cara pakai daftar ini
 
 - Kerjakan **satu MW per sesi AI**. Jangan gabung.
-- Setiap MW: ubah → `npm test` → `npm run build` → commit → masuk ke `main`.
-- **(usulan) Masuk ke `main` lewat PR**, bukan push langsung. Alasannya: push ke
+- Setiap MW: branch baru → ubah → `npm test` → `npm run build` → commit → PR ke `main`.
+- **Masuk ke `main` lewat PR**, bukan push langsung. Alasannya: push ke
   `main` = auto-deploy, dan CI menjalankan 16 tes browser Playwright yang tidak
   ikut di `npm test`. `ci.yml` jalan di `pull_request`, jadi kegagalan ketahuan
   sebelum masuk `main`. Merge hanya kalau CI hijau.
@@ -62,7 +59,7 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   Pastikan tidak ada skrip/tes yang membaca path lama.
   *Selesai kalau:* README menautkan STATUS.md, tidak ada file yang dihapus.
 
-- [ ] **MW-03 — Rapikan duplikasi CI (usulan: versi diperluas)**
+- [ ] **MW-03 — Rapikan duplikasi CI**
   Kondisi sekarang, setiap push ke `main`:
   - `ci.yml` jalan **dua kali**: sekali dari trigger `push`, sekali lagi sebagai
     job `verify` di `pages.yml`. Keduanya menjalankan semua tes browser.
@@ -115,8 +112,9 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
 
 - [ ] **MW-07 — Tampilkan "Cadangan terakhir: …"**
   Teks kecil di sidebar & footer HP, di dekat tombol cadangan.
-  Butuh MW-06, **(usulan)** dan MW-16 supaya sidebar sudah di komponen sendiri.
-  *File:* `AppNavigation.tsx` (setelah MW-16) atau `App.tsx`.
+  Butuh MW-06 dan MW-16 (sidebar sudah di komponen sendiri).
+  *File:* `src/components/AppNavigation.tsx`, plus `App.tsx` kalau footer HP
+  (`bottom-note`) tidak ikut dipindah di MW-16.
 
 - [ ] **MW-08 — Banner pengingat cadangan**
   Muncul kalau belum pernah backup, atau backup > 7 hari **dan** `fingerprint`
@@ -143,9 +141,9 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
 - [ ] **MW-11 — Ekspor CSV riwayat yang sedang terfilter**
   Tombol "Unduh CSV" di halaman Transaksi; isi = baris yang cocok dengan filter
   sekarang (tanggal, dompet, jenis, kategori, nominal, keterangan).
-  **(usulan)** Kerjakan setelah MW-17, supaya tombolnya masuk ke `HistoryFilters.tsx`.
+  Butuh MW-17, supaya tombolnya masuk ke `HistoryFilters.tsx`.
   *File:* modul baru `src/lib/csvExport.ts` + test (escape koma/kutip/baris baru,
-  digit pecahan per mata uang), tombol di `HistoryFilters.tsx` atau `App.tsx`
+  digit pecahan per mata uang), tombol di `HistoryFilters.tsx`
   (pakai `downloadText` yang sudah ada, dengan type `text/csv`).
 
 - [ ] **MW-12a — Anggaran: model & penyimpanan**
@@ -179,9 +177,9 @@ Aturan: hanya memindahkan kode, perilaku tidak berubah, semua tes tetap hijau
 - [ ] **MW-14 — Pindahkan `TransactionTable`** ke `src/components/TransactionTable.tsx`.
 - [ ] **MW-15 — Pindahkan `AmountDetailModal`** ke `src/components/AmountDetailModal.tsx`.
 - [ ] **MW-16 — Pindahkan sidebar + navigasi HP** ke `src/components/AppNavigation.tsx`.
-  **(usulan)** Kerjakan sebelum MW-07/08.
+  Kerjakan sebelum MW-07/08.
 - [ ] **MW-17 — Pindahkan filter bar riwayat** ke `src/components/HistoryFilters.tsx`.
-  **(usulan)** Kerjakan sebelum MW-11.
+  Kerjakan sebelum MW-11.
 - [ ] **MW-18 — Pindahkan halaman Dompet** (grid kartu) ke `src/components/WalletsPage.tsx`.
 
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
@@ -192,9 +190,6 @@ Aturan: hanya memindahkan kode, perilaku tidak berubah, semua tes tetap hijau
 
 ---
 
-**Urutan disarankan (usulan):**
+**Urutan:**
 MW-01 → 02 → 03 → 03b → 04 → 05 → 06 → 16 → 07 → 08 → 09 → 10 → 17 → 11,
 lalu sisa C (12a–13b) atau D (14, 15, 18) sesuai kebutuhan.
-
-Kalau keputusan nomor 3 ditolak, kembali ke urutan asli:
-MW-01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10 → 11.
