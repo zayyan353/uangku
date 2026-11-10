@@ -302,7 +302,7 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
         {templatesError ? <p className="notice warning">{templatesError}</p> : <div className="template-quick-list">{templates.map(template => <button key={template.id} type="button" className={`button secondary small${template.type === 'income' ? ' template-income' : ''}`} aria-label={`Isi dari template ${template.name}`} title={`${template.type === 'income' ? 'Pemasukan' : 'Pengeluaran'} · ${template.category}${template.amount ? ` · ${formatMoney(template.amount, template.currency)}` : ''}`} onClick={() => useTemplate(template)}>{template.name}</button>)}</div>}
         {fillNotice && <div className={`notice ${fillNotice.warnings.length ? 'warning' : 'success'}`} role="status">Formulir diisi dari template “{fillNotice.name}” dengan tanggal hari ini. Periksa lalu simpan.{fillNotice.warnings.map(warning => <span key={warning} className="template-fill-warning">{warning}</span>)}</div>}
       </div>}
-      <div className="segmented-control" aria-label="Jenis transaksi">{options.map(t => <button key={t} type="button" className={type === t ? 'active' : ''} onClick={() => changeType(t)}>{t === 'adjustment' ? 'Cek saldo' : typeLabels[t]}</button>)}</div>
+      <TypeChoices options={options} type={type} onChange={changeType} />
       {suggestedPairs.length > 0 && <div className="transfer-suggestion"><strong>Mungkin pasangan transfer</strong><p>Nominal sama, arah berlawanan, di dompet lain. Pilih pasangan yang benar lalu simpan hasil cek.</p>{suggestedPairs.map(candidate => {
         const pair = state.entries.find(e => e.id === candidate.id)!;
         const pairWallet = state.wallets.find(w => w.id === pair.walletId)!;
@@ -345,3 +345,27 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   </Modal>;
 }
 
+/** Jenis transaksi dalam satu baris; bila tidak muat, baris bisa digeser dan pilihan aktif selalu terlihat. */
+function TypeChoices({ options, type, onChange }: { options: TxMode[]; type: TxMode; onChange: (type: TxMode) => void }) {
+  const row = useRef<HTMLDivElement>(null);
+  const [edges, setEdges] = useState({ before: false, after: false });
+  useLayoutEffect(() => {
+    const el = row.current;
+    if (!el) return;
+    const active = el.querySelector<HTMLElement>('button.active');
+    if (active) {
+      const start = active.offsetLeft, end = start + active.offsetWidth;
+      if (start < el.scrollLeft) el.scrollLeft = start - 4;
+      else if (end > el.scrollLeft + el.clientWidth) el.scrollLeft = end - el.clientWidth + 4;
+    }
+    const update = () => setEdges(current => {
+      const before = el.scrollLeft > 2, after = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
+      return current.before === before && current.after === after ? current : { before, after };
+    });
+    update();
+    el.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => { el.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
+  }, [type, options.length]);
+  return <div ref={row} className="segmented-control" aria-label="Jenis transaksi" data-more-before={edges.before || undefined} data-more-after={edges.after || undefined}>{options.map(t => <button key={t} type="button" className={type === t ? 'active' : ''} onClick={() => onChange(t)}>{t === 'adjustment' ? 'Cek saldo' : typeLabels[t]}</button>)}</div>;
+}

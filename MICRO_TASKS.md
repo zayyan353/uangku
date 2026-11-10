@@ -218,7 +218,7 @@ per PR, perilaku tidak berubah kecuali disebut.
   pertama halaman Dompet tidak menampilkan dompet sama sekali. Gabungkan jadi
   satu banner ringkas; status simpan jadi label kecil di topbar, bukan kotak.
   Teks status dan tombol "Mulai pakai data sendiri" tetap ada (dipakai tes).
-- [ ] **MW-23 — Pilihan jenis di modal transaksi tidak pecah baris**
+- [x] **MW-23 — Pilihan jenis di modal transaksi tidak pecah baris**
   Lima pilihan (Pengeluaran … Cek saldo) pecah dua baris: "Perpindahan dana"
   terlipat, "Cek saldo" sendirian di baris kedua, di desktop maupun HP.
   Jadikan satu baris yang bisa digeser, atau grid rata.
