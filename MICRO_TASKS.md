@@ -222,7 +222,7 @@ per PR, perilaku tidak berubah kecuali disebut.
   Lima pilihan (Pengeluaran … Cek saldo) pecah dua baris: "Perpindahan dana"
   terlipat, "Cek saldo" sendirian di baris kedua, di desktop maupun HP.
   Jadikan satu baris yang bisa digeser, atau grid rata.
-- [ ] **MW-24 — Satu gaya tab**
+- [x] **MW-24 — Satu gaya tab**
   Tab mata uang (pill putih), Aktif/Arsip (pill hijau gelap), dan
   Ziraat/CSV (blok) berbeda-beda. Samakan jadi satu komponen gaya.
 - [ ] **MW-25 — Filter halaman Transaksi**
