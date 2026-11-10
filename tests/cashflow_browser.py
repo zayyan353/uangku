@@ -138,7 +138,14 @@ class Case:
         assert self.page.evaluate('(key)=>localStorage.getItem(key)', FINANCE) == self.raw, 'Read/filter action changed financial bytes'
         self.byte_checks += 1
 
+    def unfold(self):
+        # Phones start with the reconciliation and breakdown panels folded.
+        toggles = self.page.locator('[data-cashflow-fold][aria-expanded="false"]')
+        while toggles.count():
+            toggles.first.click()
+
     def amount(self, field, value):
+        self.unfold()
         node = self.page.get_by_test_id('cashflow-' + field)
         expect(node).to_be_visible()
         actual = node.inner_text().replace('\u2212', '-').replace('\xa0', '').replace(' ', '')
@@ -362,6 +369,7 @@ def visual(case):
         node.focus(); expect(node).to_be_focused()
     assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), 'Horizontal page overflow'
     page.get_by_test_id('cashflow-inflow').scroll_into_view_if_needed()
+    case.unfold()
     page.screenshot(path=str(case.args.output / f'{case.name}-overview.png'), full_page=True)
     samples = [('headline', page.get_by_test_id('cashflow-inflow'), TEXT_CONTRAST_JS),
                ('reconciliation-equation', page.locator('.cashflow-equation'), TEXT_CONTRAST_JS),

@@ -308,7 +308,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-41 — Paginasi Transaksi lebih ringkas**
   Tombol halaman disembunyikan bila hanya 1 halaman; label tidak pecah dua baris di HP.
 
-- [ ] **MW-42 — Ringkasan HP lebih pendek**
+- [x] **MW-42 — Ringkasan HP lebih pendek**
   Uang masuk/keluar sebelahan di HP; Perhitungan saldo dan Rincian arus bisa dilipat (tertutup bawaan di HP).
 
 - [ ] **MW-43 — Panel Ringkasan desktop tanpa ruang kosong**

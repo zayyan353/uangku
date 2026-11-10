@@ -620,10 +620,11 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .currency-label { display: none; }
   .currency-tab { padding: 9px 13px; gap: 8px; }
   .currency-code { font-size: 13px; }
-  .stats-stack { grid-template-columns: 1fr; }
-  .stat-card { padding: 17px; min-height: 0; }
+  .stats-stack { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card { padding: 14px; min-height: 0; }
   .stat-icon { margin-bottom: 9px; }
-  .stat-value { font-size: 22px; }
+  .stat-value { font-size: 18px; letter-spacing: -.3px; }
+  .cashflow-overview .stat-foot { font-size: 11px; line-height: 1.5; }
   .balance-number { font-size: 33px; }
   .wallet-grid { grid-template-columns: 1fr; }
   .wallet-card-top { margin-bottom: 20px; }
@@ -748,6 +749,7 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .currency-toolbar .date-pill { padding: 7px 6px; }
   .currency-toolbar .date-pill > svg { display: none; }
   .currency-toolbar .date-pill input { width: 120px; max-width: 120px; }
+  .stats-stack { grid-template-columns: 1fr; }
   .stat-value { font-size: 19px; }
   .balance-number { font-size: 30px; }
   .balance-card { padding: 22px; }
@@ -1181,6 +1183,16 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-notes ul { margin: 8px 0 0; padding-left: 20px; }
 .cashflow-notes li + li { margin-top: 4px; }
 .cashflow-table-wrap { padding: 0 24px 18px; }
+.fold-header { margin: 0; font: inherit; }
+.fold-text { display: flex; flex-direction: column; min-width: 0; }
+.fold-title { font-size: 15px; font-weight: 630; letter-spacing: -.2px; color: var(--text); }
+.fold-desc { color: var(--text-muted); font-size: 13px; font-weight: 400; margin-top: 5px; line-height: 1.5; }
+.fold-toggle { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 0 0 18px; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: 8px; }
+.fold-toggle:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+.fold-toggle[aria-expanded="false"] { padding-bottom: 0; }
+.fold-chevron { flex: none; color: var(--text-muted); transition: transform .18s ease; }
+.fold-toggle[aria-expanded="true"] .fold-chevron { transform: rotate(180deg); }
+.fold-body[hidden] { display: none; }
 .cashflow-table { width: 100%; max-width: 760px; border-collapse: collapse; table-layout: fixed; }
 .cashflow-table th, .cashflow-table td { padding: 12px 8px; border-bottom: 1px solid var(--line); text-align: right; font-size: 14px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
 .cashflow-table th:first-child { text-align: left; width: 40%; }

@@ -1,5 +1,5 @@
-import { ArrowDownLeft, ArrowUpRight, Wallet as WalletIcon } from 'lucide-react';
-import { useSyncExternalStore, type ReactNode } from 'react';
+import { ArrowDownLeft, ArrowUpRight, ChevronDown, Wallet as WalletIcon } from 'lucide-react';
+import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { formatDate, formatMoney, type Currency, type Wallet } from '../lib/finance';
 import { monthLabel } from '../lib/historyView';
 import type { CashflowReport } from '../lib/cashflowReport';
@@ -26,6 +26,11 @@ function subscribeLayout(listener: () => void) {
 }
 export function useMobileOverview() {
   return useSyncExternalStore(subscribeLayout, () => window.matchMedia(phoneLayout).matches);
+}
+
+/** Panel header that folds its body; on phones the body starts folded. */
+function FoldHeader({ title, description, summary, open, controls, onToggle }: { title: string; description: string; summary?: string; open: boolean; controls: string; onToggle: () => void }) {
+  return <h2 className="fold-header"><button type="button" className="fold-toggle" aria-expanded={open} aria-controls={controls} data-cashflow-fold onClick={onToggle}><span className="fold-text"><span className="fold-title">{title}</span><span className="fold-desc">{open || !summary ? description : summary}</span></span><ChevronDown className="fold-chevron" size={18} aria-hidden="true" /></button></h2>;
 }
 
 function periodCaption(report: CashflowReport | undefined, month: string, period: Props['period']) {
@@ -56,6 +61,12 @@ export default function CashflowOverview({ report, error, currency, month, perio
   const warning = error || report?.balanceWarning || (report?.notStarted ? 'Periode belum dimulai. Transaksi bertanggal masa depan tidak masuk arus rekening aktual.' : '');
   const amount = (value: number | null | undefined, id?: string) => <span data-testid={id ? `cashflow-${id}` : undefined} data-amount={value ?? undefined}>{value === null || value === undefined ? '—' : formatMoney(value, currency)}</span>;
   const caption = periodCaption(report, month, period);
+  const mobile = useMobileOverview();
+  const [folds, setFolds] = useState<{ reconciliation?: boolean; breakdown?: boolean }>({});
+  const reconciliationOpen = folds.reconciliation ?? !mobile, breakdownOpen = folds.breakdown ?? !mobile;
+  const reconciliationId = useId(), breakdownId = useId();
+  const matched = !!report?.isComplete && report.difference === 0;
+  const breakdownCount = report?.breakdown.length ?? 0;
   return <div className="cashflow-overview">
     <div className="cashflow-controls">
       <label><span className="field-label">Cakupan arus rekening</span><select className="select-input" aria-label="Cakupan arus rekening" value={walletId} onChange={event => onWalletChange(event.target.value)}><option value="all">Semua rekening & e-wallet {currency}</option>{wallets.map(wallet => <option key={wallet.id} value={wallet.id}>{wallet.name}{archivedWalletIds?.has(wallet.id) ? ' (arsip)' : ''}</option>)}</select></label>
@@ -69,9 +80,10 @@ export default function CashflowOverview({ report, error, currency, month, perio
       <div className="stats-stack"><section className="stat-card"><span className="stat-icon income"><ArrowDownLeft size={22} /></span><div><span className="stat-label">Uang masuk rekening</span><strong className="stat-value">{amount(report?.inflow, 'inflow')}</strong><span className="stat-foot">Termasuk transfer masuk dan catatan belum dikategorikan</span></div></section><section className="stat-card"><span className="stat-icon expense"><ArrowUpRight size={22} /></span><div><span className="stat-label">Uang keluar rekening</span><strong className="stat-value">{amount(report?.outflow, 'outflow')}</strong><span className="stat-foot">Termasuk transfer keluar, tarik tunai, dan biaya</span></div></section></div>
     </div>
     <section className="panel cashflow-reconciliation" data-testid="cashflow-reconciliation" data-complete={report?.isComplete ? 'true' : 'false'} aria-label="Perhitungan saldo periode">
-      <div className="panel-header"><div><h2>Perhitungan saldo periode</h2><p>{period === 'all' ? 'Saldo awal catatan, bukan bukti kelengkapan seluruh histori bank.' : 'Saldo awal sebelum periode dipilih, hingga batas tanggal laporan.'}</p></div></div>
+      <FoldHeader title="Perhitungan saldo periode" description={period === 'all' ? 'Saldo awal catatan, bukan bukti kelengkapan seluruh histori bank.' : 'Saldo awal sebelum periode dipilih, hingga batas tanggal laporan.'} summary={matched ? 'Cocok · ketuk untuk melihat hitungan' : 'Belum dapat dipastikan · ketuk untuk detail'} open={reconciliationOpen} controls={reconciliationId} onToggle={() => setFolds(f => ({ ...f, reconciliation: !reconciliationOpen }))} />
+      <div className="fold-body" id={reconciliationId} hidden={!reconciliationOpen}>
       <dl className="cashflow-equation"><div><dt>Saldo awal{period === 'all' ? ' catatan' : ' periode'}</dt><dd>{amount(report?.openingBalance, 'opening')}</dd></div><div><dt>+ Uang masuk</dt><dd>{amount(report?.inflow)}</dd></div><div><dt>− Uang keluar</dt><dd>{amount(report?.outflow)}</dd></div><div><dt>± Transfer antardompet</dt><dd>{amount(report?.internalNet, 'internal-net')}</dd></div><div><dt>± Penyesuaian saldo</dt><dd>{amount(report?.adjustment, 'adjustment')}</dd></div><div><dt>= Saldo akhir</dt><dd>{amount(report?.closingBalance)}</dd></div></dl>
-      <p className="cashflow-explanation">{report?.isComplete && report.difference === 0 ? 'Perhitungan saldo periode cocok. Ini mencocokkan catatan aplikasi, belum membuktikan mutasi bank sudah lengkap.' : 'Saldo periode belum dapat dipastikan. Angka arus hanya mencakup posting dengan tanggal yang diketahui.'}</p>
+      <p className="cashflow-explanation">{matched ? 'Perhitungan saldo periode cocok. Ini mencocokkan catatan aplikasi, belum membuktikan mutasi bank sudah lengkap.' : 'Saldo periode belum dapat dipastikan. Angka arus hanya mencakup posting dengan tanggal yang diketahui.'}</p>
       <details className="cashflow-notes"><summary>Cara membaca angka ini</summary>
         <ul>
           <li>Uang masuk belum tentu penghasilan baru; uang keluar belum tentu belanja.</li>
@@ -80,7 +92,8 @@ export default function CashflowOverview({ report, error, currency, month, perio
           <li>Penyesuaian saldo bukan transaksi bank.</li>
         </ul>
       </details>
+      </div>
     </section>
-    <section className="panel cashflow-breakdown-panel"><div className="panel-header"><div><h2>Rincian arus rekening</h2><p>Jenis operasi mengikuti keterangan mutasi; tujuan belanjanya bisa tetap belum diketahui.</p></div></div><div className="cashflow-table-wrap"><table className="cashflow-table" data-testid="cashflow-breakdown"><thead><tr><th>Jenis operasi</th><th>Uang masuk</th><th>Uang keluar</th></tr></thead><tbody>{report?.breakdown.map(row => <tr key={row.id}><th scope="row">{row.label}</th><td>{amount(row.inflow)}</td><td>{amount(row.outflow)}</td></tr>)}</tbody></table></div></section>
+    <section className="panel cashflow-breakdown-panel"><FoldHeader title="Rincian arus rekening" description="Jenis operasi mengikuti keterangan mutasi; tujuan belanjanya bisa tetap belum diketahui." summary={breakdownCount ? `${breakdownCount} jenis operasi · ketuk untuk melihat` : 'Belum ada arus · ketuk untuk melihat'} open={breakdownOpen} controls={breakdownId} onToggle={() => setFolds(f => ({ ...f, breakdown: !breakdownOpen }))} /><div className="cashflow-table-wrap fold-body" id={breakdownId} hidden={!breakdownOpen}><table className="cashflow-table" data-testid="cashflow-breakdown"><thead><tr><th>Jenis operasi</th><th>Uang masuk</th><th>Uang keluar</th></tr></thead><tbody>{report?.breakdown.map(row => <tr key={row.id}><th scope="row">{row.label}</th><td>{amount(row.inflow)}</td><td>{amount(row.outflow)}</td></tr>)}</tbody></table></div></section>
   </div>;
 }
