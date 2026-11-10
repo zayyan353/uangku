@@ -355,7 +355,7 @@ Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
 - [x] **MW-55 — Tombol footer modal tidak terpotong di HP**
   Di Kelola kategori, "Simpan pengaturan" mepet sampai tepi tombol pada 390px. Tombol footer modal boleh membungkus/menyesuaikan lebar.
 
-- [ ] **MW-56 — Modal Privasi selaras tipografi**
+- [x] **MW-56 — Modal Privasi selaras tipografi**
   Isi modal Privasi 16px dan padat, beda dari modal lain. Samakan ukuran, warna, dan jarak paragraf.
 
 - [ ] **MW-57 — Tombol modal "Mulai dengan uangmu sendiri" rapi di HP**

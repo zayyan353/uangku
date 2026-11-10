@@ -1348,3 +1348,10 @@ html[data-theme="dark"] .category-manager-rules .select-input.select-input { bac
 html[data-theme="dark"] .select-input.select-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23afc2af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-size: 16px; background-position: right 12px center; }
 html[data-theme="dark"] .import-table .select-input.select-input { background-size: 14px; background-position: right 6px center; }
 @media (max-width: 760px) { html[data-theme="dark"] .filter-bar .select-input.select-input { background-position: right 8px center; } }
+
+/* MW-56: isi modal Privasi selaras dengan modal lain. */
+.privacy-notice p { margin: 0 0 14px; font-size: 14px; line-height: 1.7; color: var(--text-muted); }
+.privacy-notice p:last-child { margin-bottom: 0; }
+.privacy-notice p > strong { color: var(--text); font-weight: 620; }
+.privacy-notice p > strong:first-child { display: block; margin-bottom: 2px; }
+@media (max-width: 420px) { .privacy-notice p { font-size: 13px; } }
