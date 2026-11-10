@@ -74,7 +74,10 @@ CONTROL_CONTRAST_JS = r'''() => {
    if(!r.width||!r.height||r.bottom<0||r.top>innerHeight||cs.visibility==='hidden'||cs.display==='none'){excluded.invisible++;continue;}
    if(el.matches(':disabled,[aria-disabled=true]')){excluded.disabled++;continue;}
    const ancestors=[];for(let a=el;a;a=a.parentElement)ancestors.unshift(a);
-   if(ancestors.some(a=>getComputedStyle(a).backgroundImage!=='none')){excluded.gradient++;continue;}
+   // A small no-repeat icon on the control itself (the select chevron) sits beside the
+   // text, not under it; any other background image still makes the colour unknown.
+   const iconOnly=a=>{const s=getComputedStyle(a);return a===el&&s.backgroundRepeat==='no-repeat'&&parseFloat(s.backgroundSize)<=16;};
+   if(ancestors.some(a=>getComputedStyle(a).backgroundImage!=='none'&&!iconOnly(a))){excluded.gradient++;continue;}
    let bg=[255,255,255];for(const a of ancestors)bg=over(parse(getComputedStyle(a).backgroundColor),bg);
    const placeholder=!el.value&&!!el.placeholder;
    const style=placeholder?getComputedStyle(el,'::placeholder'):cs;
