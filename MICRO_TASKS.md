@@ -299,7 +299,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-38 — Titik nyasar di kartu Kategori pengeluaran**
   Catatan kaki kartu "Kategori pengeluaran terkonfirmasi" menampilkan "•" kosong di atasnya (desktop dan HP). Buang penanda kosong itu.
 
-- [ ] **MW-39 — Angka tabel Rincian arus tidak pecah baris di HP**
+- [x] **MW-39 — Angka tabel Rincian arus tidak pecah baris di HP**
   Di 390px "Rp 8.000.000" terbelah jadi "Rp 8.000.00 / 0". Nominal harus utuh satu baris.
 
 - [ ] **MW-40 — Tab jenis di modal transaksi terlihat bisa digeser di HP**
