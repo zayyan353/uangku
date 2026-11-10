@@ -367,7 +367,7 @@ Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
 - [x] **MW-59 — Rincian arus kosong punya pesan**
   Tanpa arus, tabel hanya menampilkan header. Tampilkan baris "Belum ada arus pada periode ini".
 
-- [ ] **MW-60 — Paginasi disembunyikan saat 0 transaksi**
+- [x] **MW-60 — Paginasi disembunyikan saat 0 transaksi**
   "0–0 dari 0 · Halaman 1 dari 1" tampil di riwayat kosong. Sembunyikan baris paginasi bila total 0.
 
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
