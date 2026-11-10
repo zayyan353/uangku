@@ -225,7 +225,7 @@ per PR, perilaku tidak berubah kecuali disebut.
 - [x] **MW-24 — Satu gaya tab**
   Tab mata uang (pill putih), Aktif/Arsip (pill hijau gelap), dan
   Ziraat/CSV (blok) berbeda-beda. Samakan jadi satu komponen gaya.
-- [ ] **MW-25 — Filter halaman Transaksi**
+- [x] **MW-25 — Filter halaman Transaksi**
   Placeholder pencarian terpotong ("Cari keterangan atau d…"), tombol Kelola
   kategori bercampur dengan filter, "6 transaksi" + "Rapikan 1 catatan"
   mengambang di kanan. Susun ulang jadi dua baris yang jelas.

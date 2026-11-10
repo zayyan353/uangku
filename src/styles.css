@@ -188,7 +188,14 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .wallet-card-balance { color: #3a5138; font-weight: 600; font-size: 27px; letter-spacing: -.8px; margin: 0 0 17px; overflow-wrap: anywhere; }
 .wallet-card-balance small { display: block; color: #52634f; font-size: 12px; font-weight: 400; letter-spacing: 0; margin-bottom: 8px; }
 .wallet-card-footer { border-top: 1px solid #f0f2e9; padding-top: 13px; display: flex; justify-content: space-between; align-items: center; color: #52634f; font-size: 11px; gap: 10px; }
-.filter-bar { display: flex; align-items: center; gap: 11px; margin: 0 0 19px; flex-wrap: wrap; }
+.filter-bar { display: flex; flex-direction: column; gap: 12px; margin: 0 0 19px; }
+.filter-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
+.filter-fields > .search-input { flex: 2 1 300px; }
+.filter-fields > .select-input { flex: 1 1 150px; min-width: 0; }
+.filter-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.filter-summary-count, .filter-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.filter-summary .transaction-count { margin-left: 0; }
+.transactions-panel > .category-toolbar { padding-bottom: 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
 .review-scope { display: flex; align-items: flex-start; gap: 10px; margin: 0 0 18px; padding: 13px 15px; border: 1px solid #dfe8d5; border-radius: 12px; background: #f1f6e9; color: #52634f; font-size: 13px; line-height: 1.7; }
 .review-scope > svg { color: #52634f; width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px; }
 .review-scope > div { min-width: 0; flex: 1; }
@@ -557,9 +564,9 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .wallet-card .wallet-detail { font-size: 11px; }
   .wallet-card .icon-button { min-width: 25px; padding: 4px; }
   .wallet-card-footer { font-size: 11px; }
-  .filter-bar { gap: 8px; }
+  .filter-fields { gap: 8px; }
   .search-input { width: 100%; flex-basis: 100%; }
-  .filter-bar > .select-input { flex: 1; min-width: 0; font-size: 12px; }
+  .filter-fields > .select-input { flex: 1; min-width: 0; font-size: 12px; }
   .import-steps { gap: 12px; grid-template-columns: 1fr; }
   .import-step { font-size: 12px; }
   .import-dropzone { padding: 30px 18px; }
@@ -760,8 +767,8 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
 .amount-detail dd { margin: 0; color: #263c33; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; white-space: normal; }
 .field-input[aria-invalid="true"] { border: 2px solid #8b3f2b; }
 @media (max-width: 760px) {
-  .filter-bar { display: grid; grid-template-columns: minmax(0,1fr); align-items: stretch; gap: 10px; }
-  .filter-bar > .search-input, .filter-bar > .select-input, .filter-bar > .history-period { width: 100%; min-width: 0; }
+  .filter-fields { display: grid; grid-template-columns: minmax(0,1fr); align-items: stretch; gap: 10px; }
+  .filter-fields > .search-input, .filter-fields > .select-input, .filter-fields > .history-period { width: 100%; min-width: 0; }
   .filter-bar .select-input { min-width: 0; min-height: 44px; width: 100%; font-size: 14px; }
   .filter-bar .search-input input { min-height: 44px; }
   .history-period { display: grid; grid-template-columns: 55px minmax(0,1fr); }
