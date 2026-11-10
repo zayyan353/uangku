@@ -332,7 +332,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-49 — Menu akun: cadangan, privasi, tema**
   Avatar jadi tombol "Menu akun" berisi Cadangkan semuanya, Cadangkan transaksi saja, Pulihkan cadangan, Privasi, dan catatan cadangan terakhir. Link cadangan di footer HP dibuang. Pemilih tema tetap di topbar (tes browser menuntut "Tema tampilan" terlihat); sidebar desktop tetap punya tombol cadangan.
 
-- [ ] **MW-50 — Tombol header Impor punya hierarki**
+- [x] **MW-50 — Tombol header Impor punya hierarki**
   "Catat transaksi" jadi tombol utama; Kelola mata uang & Kelola kategori sekunder kecil.
 
 - [ ] **MW-51 — Dropdown bergaya seragam**

@@ -1331,3 +1331,9 @@ html[data-theme="dark"] .tab-group > button.active { color: var(--lime); backgro
 .account-panel > button svg { color: var(--text-muted); flex-shrink: 0; }
 .account-panel .backup-last { margin: 4px 0 0; padding: 8px 10px 4px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: 12px; }
 html[data-theme="dark"] .account-panel { box-shadow: 0 12px 32px #0008; }
+
+/* MW-50: header Impor — Catat transaksi utama, pengaturan sekunder kecil. */
+.page-actions .import-setting { border: 1px solid var(--line); align-self: center; }
+@media (max-width: 760px) {
+  .page-actions .button.primary:has(~ .import-setting), .page-actions .import-setting ~ .button.primary { order: -1; flex-basis: 100%; }
+}
