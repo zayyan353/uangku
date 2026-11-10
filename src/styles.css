@@ -1154,9 +1154,8 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .wallet-view-tabs, .wallet-lifecycle-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
 .wallet-lifecycle-actions { padding: 14px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 0; }
 .wallet-lifecycle-actions > p { flex-basis: 100%; margin: 0; }
-.wallet-view-tabs .button { min-height: 42px; }
 .wallet-card-actions { flex-wrap: wrap; justify-content: flex-end; }
-@media (max-width: 600px) { .wallet-view-tabs .button { flex: 1; } .wallet-lifecycle-actions .button { flex: 1; white-space: normal; } }
+@media (max-width: 600px) { .wallet-lifecycle-actions .button { flex: 1; white-space: normal; } }
 
 .currency-toolbar { flex-wrap: wrap; }
 .currency-toolbar .currency-tabs { flex: 1 1 340px; }
@@ -1180,7 +1179,7 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 }
 
 .import-format-picker { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-@media (max-width: 600px) { .import-format-picker .button { flex: 1; white-space: normal; } }
+
 
 .template-save { display: flex; flex-direction: column; align-items: flex-start; gap: 9px; }
 .template-save-panel { width: 100%; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
@@ -1213,4 +1212,22 @@ html[data-theme="dark"] .dev-note { color: var(--text-muted); }
   .save-pill { padding: 0; width: 22px; height: 22px; justify-content: center; flex-shrink: 0; }
   .save-pill .status-dot { width: 7px; height: 7px; }
   .save-pill-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+
+/* MW-24: satu gaya tab (mata uang, Aktif/Arsip, format impor) */
+.tab-group { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; width: fit-content; max-width: 100%; padding: 4px; border-radius: 12px; background: #eef2e6; }
+.tab-group > button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 36px; padding: 8px 14px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: #52634f; font-size: 13px; font-weight: 550; line-height: 1.3; cursor: pointer; transition: background .15s, color .15s; }
+.tab-group > button:hover:not(:disabled):not(.active) { background: #f8faf3; color: #2e4a34; }
+.tab-group > button.active { background: #fff; border-color: #dfe6d9; color: #2e4a34; box-shadow: 0 1px 4px #2036190f; }
+.tab-group > button:disabled { opacity: .55; cursor: not-allowed; }
+.currency-toolbar .currency-tabs.tab-group { flex: 0 1 auto; margin-right: auto; }
+.wallet-view-tabs.tab-group { gap: 4px; margin-bottom: 20px; }
+.import-format-picker.tab-group { gap: 4px; }
+html[data-theme="dark"] .tab-group { background: #111d16; }
+html[data-theme="dark"] .tab-group > button { color: var(--text-muted); }
+html[data-theme="dark"] .tab-group > button:hover:not(:disabled):not(.active) { background: var(--surface-hover); color: var(--text); }
+html[data-theme="dark"] .tab-group > button.active { color: var(--lime); background: var(--surface-raised); border-color: var(--control-border); }
+@media (max-width: 600px) {
+  .wallet-view-tabs.tab-group, .import-format-picker.tab-group { width: 100%; }
+  .wallet-view-tabs.tab-group > button, .import-format-picker.tab-group > button { flex: 1; white-space: normal; }
 }
