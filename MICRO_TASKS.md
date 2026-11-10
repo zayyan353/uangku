@@ -346,7 +346,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
 (desktop 1440px, HP 390px). Tiap MW satu commit.
 
-- [ ] **MW-53 — Transaksi terbaru lebih atas di Ringkasan HP**
+- [x] **MW-53 — Transaksi terbaru lebih atas di Ringkasan HP**
   Di HP "Transaksi terbaru" ada di paling bawah, setelah Dompetmu dan Kategori. Naikkan tepat setelah kartu arus dan panel lipat; urutan desktop tetap.
 
 - [ ] **MW-54 — Tab aktif tidak tertutup panah geser**
