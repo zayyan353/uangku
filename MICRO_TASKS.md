@@ -243,7 +243,7 @@ per PR, perilaku tidak berubah kecuali disebut.
   breadcrumb di HP tanpa pemisah ("Ruang pribadi Dompet").
 - [x] **MW-30 — Eyebrow halaman** "SEDIKIT DICATAT, BANYAK TERBANTU" sama di
   semua halaman; ganti per halaman atau hapus.
-- [ ] **MW-31 — Modal Pindah uang** "Tanggal kredit" sendirian di satu baris.
+- [x] **MW-31 — Modal Pindah uang** "Tanggal kredit" sendirian di satu baris.
 - [ ] **MW-32 — Footer** teks "Nggak harus rapi sekaligus…" kecil dan pudar.
 
 Dicatat untuk tahap UX (belum dikerjakan): modal Pindah uang menampilkan
