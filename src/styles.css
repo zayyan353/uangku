@@ -625,7 +625,9 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .currency-label { display: none; }
   .currency-tab { padding: 9px 13px; gap: 8px; }
   .currency-code { font-size: 13px; }
-  .stats-stack { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stats-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .stats-stack .stat-card { min-width: 0; }
+  .stats-stack .stat-value { overflow-wrap: anywhere; }
   .stat-card { padding: 14px; min-height: 0; }
   .stat-icon { margin-bottom: 9px; }
   .stat-value { font-size: 18px; letter-spacing: -.3px; }
@@ -791,11 +793,17 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
 .amount-detail dd { margin: 0; color: #263c33; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; white-space: normal; }
 .field-input[aria-invalid="true"] { border: 2px solid #8b3f2b; }
 @media (max-width: 760px) {
-  .filter-fields { display: grid; grid-template-columns: minmax(0,1fr); align-items: stretch; gap: 10px; }
+  .filter-fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); align-items: stretch; gap: 8px; }
+  .filter-fields > .search-input, .filter-fields > :nth-child(even):last-child { grid-column: 1 / -1; }
   .filter-fields > .search-input, .filter-fields > .select-input, .filter-fields > .history-period { width: 100%; min-width: 0; }
-  .filter-bar .select-input { min-width: 0; min-height: 44px; width: 100%; font-size: 14px; }
+  .filter-bar .select-input { min-width: 0; min-height: 44px; width: 100%; font-size: 13px; padding-left: 10px; padding-right: 22px; text-overflow: ellipsis; }
   .filter-bar .search-input input { min-height: 44px; }
-  .history-period { display: grid; grid-template-columns: 55px minmax(0,1fr); }
+  .history-period { display: block; min-width: 0; }
+  .history-period .select-input { min-width: 0; }
+  .history-period .field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .filter-bar { gap: 10px; }
+  .filter-summary { gap: 8px; }
+  .filter-actions { margin-left: auto; gap: 8px; }
   .filter-bar .transaction-count { margin-left: 0; white-space: normal; }
   .history-pagination > div { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
   .history-pagination .button { min-height: 44px; white-space: nowrap; justify-content: center; }

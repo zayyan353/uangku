@@ -314,8 +314,8 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-43 — Panel Ringkasan desktop tanpa ruang kosong**
   Isi Perhitungan saldo & Rincian arus memakai lebar penuh; kartu Dompetmu dan Kategori sama tinggi.
 
-- [ ] **MW-44 — Filter Transaksi di HP dilipat**
-  Di HP hanya kolom cari + tombol "Filter"; periode, dompet, jenis, reset, CSV muncul saat dibuka.
+- [x] **MW-44 — Filter Transaksi di HP lebih padat**
+  Rencana awal (melipat filter di balik tombol "Filter") batal: banyak tes browser HP memilih filter langsung dan `ux_browser.py` menuntut tiap filter utuh di layar. Gantinya grid dua kolom: cari selebar penuh, periode + dompet sebaris, jenis (dan alasan) di bawahnya, label "Periode" hanya untuk pembaca layar.
 
 - [ ] **MW-45 — Hapus transaksi masuk menu baris**
   Ikon hapus per baris pindah ke menu "…" (Ubah / Hapus).
