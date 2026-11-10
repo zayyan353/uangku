@@ -246,9 +246,8 @@ per PR, perilaku tidak berubah kecuali disebut.
 - [x] **MW-31 — Modal Pindah uang** "Tanggal kredit" sendirian di satu baris.
 - [x] **MW-32 — Footer** teks "Nggak harus rapi sekaligus…" kecil dan pudar.
 
-Dicatat untuk tahap UX (belum dikerjakan): modal Pindah uang menampilkan
-"Pilih dompet tujuan yang berbeda" padahal BCA → Bank Jago sudah berbeda
-(perlu dicek: bug logika atau pesan); format tanggal form mengikuti bahasa browser.
+Dicatat untuk tahap UX (belum dikerjakan): format tanggal form mengikuti bahasa
+browser. (Pesan "Pilih dompet tujuan yang berbeda" sudah dibereskan di MW-34.)
 
 ## D3. Tindak lanjut (10 November 2026)
 
@@ -259,6 +258,14 @@ Sisa catatan dari MW-26, MW-27, dan tahap UX. Satu MW per commit.
   butuh ~3 detik tanpa beban dan 7–8 detik saat CPU penuh, sehingga melewati
   batas bawaan 5 detik. Diberi batas 20 detik seperti tes berat lain
   (`bankDecisions`, `categoryCommands`). Isi tes tidak berubah.
+
+- [x] **MW-34 — Pesan modal Pindah uang saat nominal kosong**
+  Bug logika, bukan pesan: kotak info memakai satu syarat (`nominal valid &&
+  tujuan ada`), jadi nominal kosong jatuh ke "Pilih dompet tujuan yang
+  berbeda" walau BCA → Bank Jago sudah berbeda. Sekarang tujuan sama/kosong →
+  "Pilih dompet tujuan yang berbeda"; nominal kosong/nol → "Isi nominal untuk
+  melihat jumlah yang masuk ke …"; selain itu "Rp … masuk ke …". Tes di
+  `browser_smoke.py` (gagal di kode lama, lulus sekarang).
 
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
