@@ -341,6 +341,35 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-52 — Chip mata uang ganda di kartu dompet**
   Chip "IDR" di kaki kartu dompet dibuang karena tab mata uang sudah menyebutnya.
 
+## D5. Polesan UI lanjutan (10 November 2026)
+
+Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
+(desktop 1440px, HP 390px). Tiap MW satu commit.
+
+- [ ] **MW-53 — Transaksi terbaru lebih atas di Ringkasan HP**
+  Di HP "Transaksi terbaru" ada di paling bawah, setelah Dompetmu dan Kategori. Naikkan tepat setelah kartu arus dan panel lipat; urutan desktop tetap.
+
+- [ ] **MW-54 — Tab aktif tidak tertutup panah geser**
+  Di modal Pindah uang (HP) tab aktif "Transfer" tertutup tombol panah MW-40. Gulir tab aktif ke dalam area yang tidak tertutup panah.
+
+- [ ] **MW-55 — Tombol footer modal tidak terpotong di HP**
+  Di Kelola kategori, "Simpan pengaturan" mepet sampai tepi tombol pada 390px. Tombol footer modal boleh membungkus/menyesuaikan lebar.
+
+- [ ] **MW-56 — Modal Privasi selaras tipografi**
+  Isi modal Privasi 16px dan padat, beda dari modal lain. Samakan ukuran, warna, dan jarak paragraf.
+
+- [ ] **MW-57 — Tombol modal "Mulai dengan uangmu sendiri" rapi di HP**
+  Tiga tombol pecah dua baris tidak rata. Di HP susun penuh-lebar dengan aksi utama di atas.
+
+- [ ] **MW-58 — Impor CSV umum: jarak paragraf ke field**
+  Label "Pemisah CSV" menempel pada paragraf di atasnya. Beri jarak.
+
+- [ ] **MW-59 — Rincian arus kosong punya pesan**
+  Tanpa arus, tabel hanya menampilkan header. Tampilkan baris "Belum ada arus pada periode ini".
+
+- [ ] **MW-60 — Paginasi disembunyikan saat 0 transaksi**
+  "0–0 dari 0 · Halaman 1 dari 1" tampil di riwayat kosong. Sembunyikan baris paginasi bila total 0.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).
