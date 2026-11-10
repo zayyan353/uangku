@@ -361,7 +361,7 @@ Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
 - [x] **MW-57 — Tombol modal "Mulai dengan uangmu sendiri" rapi di HP**
   Tiga tombol pecah dua baris tidak rata. Di HP susun penuh-lebar dengan aksi utama di atas.
 
-- [ ] **MW-58 — Impor CSV umum: jarak paragraf ke field**
+- [x] **MW-58 — Impor CSV umum: jarak paragraf ke field**
   Label "Pemisah CSV" menempel pada paragraf di atasnya. Beri jarak.
 
 - [ ] **MW-59 — Rincian arus kosong punya pesan**
