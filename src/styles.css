@@ -457,7 +457,6 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .page-content > .bottom-note > span:first-child svg { width: 15px; height: 15px; color: #547b3e; }
 html[data-theme="dark"] .page-content > .bottom-note > span:first-child { color: var(--text); }
 html[data-theme="dark"] .page-content > .bottom-note > span:first-child svg { color: var(--lime); }
-.mobile-backup { display: none; }
 .toast button { display: grid; place-items: center; background: transparent; border: 0; color: #a5c198; margin-left: 8px; padding: 2px; }
 
 /* Import review and deferred categorization. */
@@ -712,9 +711,6 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .transactions-table:not(.import-table) .badge { max-width: 100%; font-size: 11px; padding: 4px 5px; }
   .bottom-note { justify-content: center; flex-direction: column; gap: 7px; font-size: 11px; }
   .bottom-note > span { justify-content: center; }
-  .mobile-backup { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 17px; margin-top: 4px; }
-  .mobile-backup .text-link { font-size: 12px; min-height: 40px; }
-  .mobile-backup .backup-last { flex-basis: 100%; font-size: 12px; }
   .import-info .import-steps { grid-template-columns: 1fr; gap: 18px; }
   .import-info h3 { font-size: 20px; }
   .import-info { padding: 23px; }
@@ -1320,3 +1316,18 @@ html[data-theme="dark"] .tab-group > button.active { color: var(--lime); backgro
   .wallet-view-tabs.tab-group, .import-format-picker.tab-group { width: 100%; }
   .wallet-view-tabs.tab-group > button, .import-format-picker.tab-group > button { flex: 1; white-space: normal; }
 }
+
+/* MW-49: menu akun di avatar topbar. */
+.account-menu { position: relative; }
+.account-trigger { cursor: pointer; padding: 0; font: inherit; font-size: 14px; font-weight: 600; }
+.account-trigger:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+.account-trigger[aria-expanded="true"] { border-color: var(--text-muted); }
+.account-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: 260px; max-width: calc(100vw - 32px); padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 12px 32px #1f361a24; display: flex; flex-direction: column; }
+.account-heading { display: flex; flex-direction: column; margin: 0; padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 13px; color: var(--text); }
+.account-heading span { color: var(--text-muted); font-size: 12px; }
+.account-panel > button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
+.account-panel > button:hover { background: var(--surface-raised); }
+.account-panel > button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.account-panel > button svg { color: var(--text-muted); flex-shrink: 0; }
+.account-panel .backup-last { margin: 4px 0 0; padding: 8px 10px 4px; border-top: 1px solid var(--line); color: var(--text-muted); font-size: 12px; }
+html[data-theme="dark"] .account-panel { box-shadow: 0 12px 32px #0008; }

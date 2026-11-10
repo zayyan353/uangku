@@ -21,7 +21,7 @@ from urllib.parse import urlsplit
 from xml.sax.saxutils import escape
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from browser_support import (SCHEMAS, assert_production_url, install_playwright_path,
+from browser_support import (backup_action, SCHEMAS, assert_production_url, install_playwright_path,
     launch_browser, new_page, read_document, stored_document)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
@@ -299,7 +299,7 @@ def hide_unused_last(case):
 
 def backup_archive(case):
     p=case.page;before=stored_document(p);file=case.args.output/f'{case.name}.json'
-    with p.expect_download() as task:p.get_by_role('button',name='Cadangkan transaksi saja',exact=True).click()
+    with p.expect_download() as task:backup_action(p, 'Cadangkan transaksi saja').click()
     task.value.save_as(file);assert read_document(file)==before
     assert json.loads(file.read_text(encoding='utf-8'))['codec']=='table-tuples-v6'
     case.unchanged();p.get_by_label('File cadangan Uangku',exact=True).set_input_files(file)

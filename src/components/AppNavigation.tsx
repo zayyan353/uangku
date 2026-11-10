@@ -1,4 +1,5 @@
 import { ArrowLeftRight, ChevronRight, Download, History, LayoutDashboard, Leaf, ShieldCheck, Upload, Wallet as WalletIcon } from 'lucide-react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 export type Page = 'overview' | 'wallets' | 'transactions' | 'import';
 
@@ -23,11 +24,37 @@ export function AppSidebar({ page, pendingCount, lastBackupText, onNavigate, onB
   </aside>;
 }
 
-/** Mobile footer note with backup, restore and privacy links. */
-export function MobileFooter({ lastBackupText, onBackupAll, onBackupCurrent, onRestore, onPrivacy }: BackupActions & {
-  onPrivacy: () => void;
-}) {
-  return <footer className="bottom-note"><span><Leaf size={14} /> Nggak harus rapi sekaligus. Yang penting mulai.</span><span>Cadangkan secara berkala</span><div className="mobile-backup"><button className="text-link" onClick={onBackupAll}><Download size={14} /> Cadangkan semuanya</button><button className="text-link" onClick={onBackupCurrent}><Download size={14} /> Cadangkan transaksi saja</button><button className="text-link" onClick={onRestore}><History size={14} /> Pulihkan</button><button className="text-link" onClick={onPrivacy}><ShieldCheck size={14} /> Privasi</button><span className="backup-last" data-testid="last-backup-mobile">{lastBackupText}</span></div></footer>;
+/** Mobile footer note. Backup and privacy live in the account menu. */
+export function MobileFooter() {
+  return <footer className="bottom-note"><span><Leaf size={14} /> Nggak harus rapi sekaligus. Yang penting mulai.</span><span>Cadangkan secara berkala</span></footer>;
+}
+
+/** Avatar button in the topbar that opens backup, restore and privacy actions. */
+export function AccountMenu({ lastBackupText, onBackupAll, onBackupCurrent, onRestore, onPrivacy }: BackupActions & { onPrivacy: () => void }) {
+  const [open, setOpen] = useState(false);
+  const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  const panelId = useId();
+  useEffect(() => {
+    if (!open) return;
+    const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) setOpen(false); };
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { setOpen(false); trigger.current?.focus(); } };
+    document.addEventListener('pointerdown', outside);
+    document.addEventListener('keydown', escape);
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); };
+  }, [open]);
+  const run = (action: () => void) => () => { setOpen(false); action(); };
+  return <div className="account-menu" ref={root}>
+    <button ref={trigger} type="button" className="avatar small account-trigger" aria-label="Menu akun" aria-expanded={open} aria-controls={panelId} onClick={() => setOpen(value => !value)}>Z</button>
+    {open && <div className="account-panel" id={panelId}>
+      <p className="account-heading"><strong>Ruang pribadi</strong><span>Data di browser ini</span></p>
+      <button type="button" onClick={run(onBackupAll)}><Download size={16} /> Cadangkan semuanya</button>
+      <button type="button" onClick={run(onBackupCurrent)}><Download size={16} /> Cadangkan transaksi saja</button>
+      <button type="button" onClick={run(onRestore)}><History size={16} /> Pulihkan cadangan</button>
+      <button type="button" onClick={run(onPrivacy)}><ShieldCheck size={16} /> Privasi</button>
+      <p className="backup-last" data-testid="last-backup-menu">{lastBackupText}</p>
+    </div>}
+  </div>;
 }
 
 /** Bottom tab bar on small screens. */

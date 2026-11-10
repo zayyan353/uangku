@@ -17,7 +17,7 @@ from urllib.parse import urlsplit
 from xml.sax.saxutils import escape
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from browser_support import (assert_production_url, install_playwright_path,
+from browser_support import (backup_action, assert_production_url, install_playwright_path,
                              launch_browser, read_document, stored_document)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
@@ -159,7 +159,7 @@ def direct_categories(case):
     assert json.loads(p.evaluate('(key)=>localStorage.getItem(key)', FINANCE))['version'] == 3
     backup_path = case.args.output / f'{case.name}-plain-v3.json'
     with p.expect_download() as download:
-        p.get_by_role('button', name='Cadangkan transaksi saja', exact=True).click()
+        backup_action(p, 'Cadangkan transaksi saja').click()
     download.value.save_as(backup_path)
     assert json.loads(backup_path.read_text(encoding='utf-8'))['version'] == 3
     assert read_document(backup_path) == after
@@ -244,7 +244,7 @@ def source_flow(case):
     expect(p.get_by_test_id('cashflow-outflow')).to_contain_text('141,01')
     backup_path = case.args.output / f'{case.name}-source-v4.json'
     with p.expect_download() as download:
-        p.get_by_role('button', name='Cadangkan transaksi saja', exact=True).click()
+        backup_action(p, 'Cadangkan transaksi saja').click()
     download.value.save_as(backup_path)
     assert json.loads(backup_path.read_text(encoding='utf-8'))['codec'] == 'table-tuples-v4'
     assert read_document(backup_path) == data
@@ -384,7 +384,7 @@ def legacy_cash_archive(case):
     dialog.get_by_role('button', name='Batal', exact=True).click()
     path = case.args.output / 'legacy-cash-preserved.json'
     with p.expect_download() as download:
-        p.get_by_role('button', name='Cadangkan transaksi saja', exact=True).click()
+        backup_action(p, 'Cadangkan transaksi saja').click()
     download.value.save_as(path); assert read_document(path) == expected
     p.reload(wait_until='networkidle'); assert stored_document(p) == expected
     assert p.evaluate('(key)=>localStorage.getItem(key)', FINANCE) == saved_raw

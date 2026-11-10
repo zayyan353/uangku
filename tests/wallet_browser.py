@@ -17,7 +17,7 @@ import time
 import traceback
 from urllib.parse import urlsplit
 
-from browser_support import (assert_production_url, install_playwright_path,
+from browser_support import (backup_action, assert_production_url, install_playwright_path,
     launch_browser, new_page, read_document, stored_document)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
@@ -306,7 +306,7 @@ def archive_last_active_newrecord(case):
 
 def archive_export_restore(case):
     p=case.page;before=stored_document(p);archived=case.archive();path=case.args.output/f'{case.name}-synthetic-backup.json'
-    with p.expect_download() as download:p.get_by_role('button',name='Cadangkan transaksi saja',exact=True).click()
+    with p.expect_download() as download:backup_action(p, 'Cadangkan transaksi saja').click()
     download.value.save_as(path)
     wire=json.loads(path.read_text(encoding='utf-8'))
     assert wire['version']==2 and wire['codec']=='table-tuples-v5'

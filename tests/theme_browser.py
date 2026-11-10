@@ -16,7 +16,7 @@ import time
 import traceback
 from urllib.parse import urlsplit
 
-from browser_support import (assert_production_url, install_playwright_path,
+from browser_support import (backup_action, assert_production_url, install_playwright_path,
                              launch_browser, new_page, read_document, stored_document)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
@@ -369,7 +369,7 @@ def visual_case(case, theme):
     case.capture('read-only-transfer-detail')
     dialog.get_by_role('button', name='Tutup rincian', exact=True).click()
     privacy = page.get_by_role('button', name='Privasi dan cadangan', exact=True)
-    (privacy if privacy.is_visible() else page.get_by_role('button', name='Privasi', exact=True)).click()
+    (privacy if privacy.is_visible() else backup_action(page, 'Privasi')).click()
     case.capture('privacy-modal')
     page.get_by_role('button', name='Tutup penjelasan privasi', exact=True).click()
     case.choose('light' if theme == 'dark' else 'dark')
@@ -383,7 +383,7 @@ def visual_case(case, theme):
 def download_backup(case, name):
     button = 'Cadangkan transaksi saja'
     with case.page.expect_download() as download:
-        case.page.get_by_role('button', name=button, exact=True).click()
+        backup_action(case.page, button).click()
     path = case.args.output / name
     download.value.save_as(path)
     return path

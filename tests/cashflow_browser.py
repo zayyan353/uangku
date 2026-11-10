@@ -17,7 +17,7 @@ import time
 import traceback
 from urllib.parse import urlsplit
 
-from browser_support import (assert_production_url, install_playwright_path,
+from browser_support import (backup_action, assert_production_url, install_playwright_path,
                              launch_browser, new_page, read_document,
                              stored_document)
 install_playwright_path()
@@ -347,7 +347,7 @@ def source_read_and_backup(case):
     nav(case.page, 'Ringkasan')
     file = case.args.output / f'{case.name}-synthetic-backup.json'
     with case.page.expect_download() as download:
-        case.page.get_by_role('button', name='Cadangkan transaksi saja', exact=True).click()
+        backup_action(case.page, 'Cadangkan transaksi saja').click()
     download.value.save_as(file)
     assert read_document(file) == before
     case.semantic_checks += 1

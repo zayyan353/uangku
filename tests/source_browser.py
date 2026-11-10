@@ -4,7 +4,7 @@ import argparse,json,os,re,time,traceback
 from pathlib import Path
 from xml.sax.saxutils import escape
 from zipfile import ZipFile,ZIP_DEFLATED
-from browser_support import assert_production_url,install_playwright_path,launch_browser,new_page,stored_document,read_document
+from browser_support import backup_action,assert_production_url,install_playwright_path,launch_browser,new_page,stored_document,read_document
 install_playwright_path()
 from playwright.sync_api import sync_playwright,expect
 from recovery_browser import write_statement,saldo
@@ -140,7 +140,7 @@ def metadata_backup_roundtrip(browser,out,initial):
     context,page,errors=context_page(browser,initial)
     path=out/'source-backup.json'
     try:
-        with page.expect_download()as download:page.get_by_role('button',name='Cadangkan transaksi saja',exact=True).click()
+        with page.expect_download()as download:backup_action(page, 'Cadangkan transaksi saja').click()
         download.value.save_as(path)
         assert read_document(path)==initial
         wire=json.loads(path.read_text(encoding='utf-8'))
