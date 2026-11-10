@@ -323,7 +323,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-46 — Nominal tanpa garis putus-putus**
   Garis bawah putus-putus di nominal diganti tanda yang lebih halus; nominal tetap bisa diklik.
 
-- [ ] **MW-47 — Banner data contoh ringkas**
+- [x] **MW-47 — Banner data contoh ringkas**
   Teks "Versi pengembangan lokal…" dibuang, banner jadi satu baris. Di Impor tidak dobel dengan banner "Mode contoh masih aktif".
 
 - [ ] **MW-48 — Status simpan cukup di topbar**
