@@ -244,7 +244,7 @@ per PR, perilaku tidak berubah kecuali disebut.
 - [x] **MW-30 — Eyebrow halaman** "SEDIKIT DICATAT, BANYAK TERBANTU" sama di
   semua halaman; ganti per halaman atau hapus.
 - [x] **MW-31 — Modal Pindah uang** "Tanggal kredit" sendirian di satu baris.
-- [ ] **MW-32 — Footer** teks "Nggak harus rapi sekaligus…" kecil dan pudar.
+- [x] **MW-32 — Footer** teks "Nggak harus rapi sekaligus…" kecil dan pudar.
 
 Dicatat untuk tahap UX (belum dikerjakan): modal Pindah uang menampilkan
 "Pilih dompet tujuan yang berbeda" padahal BCA → Bank Jago sudah berbeda

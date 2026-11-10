@@ -442,6 +442,14 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .confirm-copy { color: #52634f; font-size: 14px; line-height: 1.9; margin: 0; }
 .bottom-note { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-top: 25px; font-size: 11px; }
 .bottom-note > span:first-child { display: inline-flex; align-items: center; gap: 5px; }
+/* MW-32: footer lebih terbaca — ukuran teks normal, motto tidak pudar, dipisah garis tipis.
+   Selektor .page-content > .bottom-note sengaja lebih spesifik agar menang atas aturan ukuran lama di media query. */
+.page-content > .bottom-note, .page-content > .bottom-note > span { font-size: 13px; }
+.page-content > .bottom-note { padding-top: 18px; border-top: 1px solid var(--line); }
+.page-content > .bottom-note > span:first-child { color: var(--text); font-weight: 550; gap: 7px; }
+.page-content > .bottom-note > span:first-child svg { width: 15px; height: 15px; color: #547b3e; }
+html[data-theme="dark"] .page-content > .bottom-note > span:first-child { color: var(--text); }
+html[data-theme="dark"] .page-content > .bottom-note > span:first-child svg { color: var(--lime); }
 .mobile-backup { display: none; }
 .toast button { display: grid; place-items: center; background: transparent; border: 0; color: #a5c198; margin-left: 8px; padding: 2px; }
 
