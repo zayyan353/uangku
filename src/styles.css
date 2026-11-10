@@ -191,7 +191,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .wallet-card-top .icon-button { margin-left: auto; border: none; background: transparent; }
 .wallet-card-balance { color: #3a5138; font-weight: 600; font-size: 27px; letter-spacing: -.8px; margin: 0 0 17px; overflow-wrap: anywhere; }
 .wallet-card-balance small { display: block; color: #52634f; font-size: 12px; font-weight: 400; letter-spacing: 0; margin-bottom: 8px; }
-.wallet-card-footer { border-top: 1px solid #f0f2e9; padding-top: 13px; display: flex; justify-content: space-between; align-items: center; color: #52634f; font-size: 11px; gap: 10px; }
+.wallet-card-footer { border-top: 1px solid #f0f2e9; padding-top: 13px; display: flex; justify-content: flex-end; align-items: center; color: #52634f; font-size: 11px; gap: 10px; }
 .filter-bar { display: flex; flex-direction: column; gap: 12px; margin: 0 0 19px; }
 .filter-fields { display: flex; flex-wrap: wrap; align-items: center; gap: 11px; }
 .filter-fields > .search-input { flex: 2 1 300px; }

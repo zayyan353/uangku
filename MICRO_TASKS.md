@@ -338,7 +338,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-51 — Dropdown bergaya seragam**
   `select` memakai panah, tinggi, dan radius yang sama dengan input lain.
 
-- [ ] **MW-52 — Chip mata uang ganda di kartu dompet**
+- [x] **MW-52 — Chip mata uang ganda di kartu dompet**
   Chip "IDR" di kaki kartu dompet dibuang karena tab mata uang sudah menyebutnya.
 
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
