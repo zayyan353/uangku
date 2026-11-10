@@ -760,6 +760,12 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
 .amount-detail-button { border: 0; padding: 3px 0; margin: 0; background: transparent; color: #354738; text-align: inherit; max-width: 100%; min-height: 44px; display: inline-flex; flex-direction: column; align-items: flex-end; }
 .amount-detail-button strong { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 4px; }
 .amount-detail-hint { display: block; color: #52634f; font-size: 12px; margin-top: 5px; }
+/* MW-26: petunjuk "Rincian nominal" hanya saat baris disorot/difokus; ruangnya tetap supaya baris tidak bergeser. */
+.transactions-table:not(.import-table) .amount-detail-hint { visibility: hidden; }
+.transactions-table:not(.import-table) tbody tr:hover .amount-detail-hint,
+.transactions-table:not(.import-table) .amount-detail-button:focus-visible .amount-detail-hint { visibility: visible; }
+@media (min-width: 761px) { .transactions-table:not(.import-table) th:last-child { width: 1%; } }
+.transactions-table:not(.import-table) .row-actions { gap: 0; }
 .amount-detail h3, .amount-detail dl { margin-top: 0; }
 .amount-detail h3 { overflow-wrap: anywhere; font-size: 15px; }
 .amount-detail dl { display: grid; grid-template-columns: minmax(100px,.8fr) minmax(0,1.2fr); column-gap: 16px; row-gap: 12px; font-size: 14px; }
@@ -1153,6 +1159,10 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .bank-wording p { margin: 7px 0 0; line-height: 1.8; overflow-wrap: anywhere; white-space: pre-wrap; }
 .review-reason { display: block; white-space: normal; line-height: 1.7; }
 .transactions-table:not(.import-table) .transaction-title { white-space: normal; line-height: 1.65; overflow-wrap: anywhere; }
+@media (max-width: 760px) {
+  .transactions-table:not(.import-table) .transaction-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .transactions-table:not(.import-table) .amount-detail-hint { display: none; }
+}
 .import-preview .field-help { line-height: 1.8; }
 @media (max-width: 600px) { .bank-wording { max-width: 100%; font-size: 12px; } }
 

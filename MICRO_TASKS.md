@@ -229,7 +229,7 @@ per PR, perilaku tidak berubah kecuali disebut.
   Placeholder pencarian terpotong ("Cari keterangan atau d…"), tombol Kelola
   kategori bercampur dengan filter, "6 transaksi" + "Rapikan 1 catatan"
   mengambang di kanan. Susun ulang jadi dua baris yang jelas.
-- [ ] **MW-26 — Tabel transaksi lebih bersih**
+- [x] **MW-26 — Tabel transaksi lebih bersih**
   Kolom Dompet mengulang "IDR" di setiap baris; "Rincian nominal" di setiap
   baris; jarak ⋯ dan 🗑 terlalu jauh; di HP judul transaksi terlipat dua baris.
 - [ ] **MW-27 — Halaman Impor mutasi**
