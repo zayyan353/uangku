@@ -265,8 +265,12 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .segmented-control button { border: none; border-radius: 8px; padding: 9px 10px; font-size: 13px; font-weight: 550; flex: 1; background: transparent; color: #52634f; display: inline-flex; justify-content: center; align-items: center; gap: 6px; }
 .segmented-control button.active { background: #fff; color: #547b3e; box-shadow: 0 1px 5px #2036190c; }
 .segmented-control button svg { width: 14px; height: 14px; }
-.segmented-control[aria-label="Jenis transaksi"] { flex-wrap: wrap; }
-.segmented-control[aria-label="Jenis transaksi"] button { flex-basis: 90px; }
+.segmented-control[aria-label="Jenis transaksi"] { position: relative; flex-wrap: nowrap; gap: 3px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
+.segmented-control[aria-label="Jenis transaksi"]::-webkit-scrollbar { display: none; }
+.segmented-control[aria-label="Jenis transaksi"] button { flex: 1 0 auto; white-space: nowrap; padding-inline: 6px; }
+.segmented-control[aria-label="Jenis transaksi"][data-more-after] { --fade-end: 32px; }
+.segmented-control[aria-label="Jenis transaksi"][data-more-before] { --fade-start: 32px; }
+.segmented-control[aria-label="Jenis transaksi"]:is([data-more-before], [data-more-after]) { -webkit-mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent); mask-image: linear-gradient(to right, transparent, #000 var(--fade-start, 0px), #000 calc(100% - var(--fade-end, 0px)), transparent); }
 .amount-input { position: relative; }
 .amount-input > span { position: absolute; left: 13px; top: 12px; color: #52634f; font-size: 14px; }
 .amount-input input { padding-left: 42px; font-size: 19px; font-weight: 550; letter-spacing: -.3px; min-height: 49px; }
