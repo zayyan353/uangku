@@ -26,7 +26,7 @@ describe('bank category settings version3 upgrade', () => {
     const current = defaultCategorySettings();
     expect(current.keywordPackVersion).toBe(7);
     expect(current.names).toHaveLength(30); expect(current.rules).toHaveLength(63 + bankPackRules.length);
-    expect(BANK_CATEGORY_RULES).toHaveLength(14); expect(bankPackRules).toHaveLength(26);
+    expect(BANK_CATEGORY_RULES).toHaveLength(14); expect(bankPackRules).toHaveLength(28);
     expect(current.rules.slice(-bankPackRules.length)).toEqual(bankPackRules);
     expect(validateCategorySettings(current)).toEqual(current);
     for (const rule of CURRENT_BANK_CATEGORY_RULES) expect(current.rules.find(candidate => candidate.id === rule.id)).toEqual(rule);

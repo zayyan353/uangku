@@ -122,7 +122,7 @@ def fresh_preview(case):
     before = stored_document(p)
     dialog = case.manager()
     expect(dialog.locator('.category-manager-names li')).to_have_count(30)
-    expect(dialog.locator('.category-manager-rules li')).to_have_count(89)
+    expect(dialog.locator('.category-manager-rules li')).to_have_count(91)
     dialog.get_by_role('button', name='Batal', exact=True).click()
     dialog = case.automation()
     expect(dialog.locator('.category-automation-row')).to_have_count(len(AUTO) + len(PENDING) + 2)

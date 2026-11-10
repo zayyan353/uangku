@@ -140,7 +140,7 @@ def fresh_defaults(case):
     before = stored_document(p)
     case.unchanged()
     dialog = case.manager()
-    expect(dialog.locator('.category-manager-rules li')).to_have_count(89)
+    expect(dialog.locator('.category-manager-rules li')).to_have_count(91)
     case.screenshot('manager')
     dialog.get_by_role('button', name='Batal', exact=True).click()
     dialog = case.automation()

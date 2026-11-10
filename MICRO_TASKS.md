@@ -570,11 +570,23 @@ Sisa dari uji yang sama. Pemilik menyerahkan keputusannya ke pelaksana
   `categorySettings.ts`, `categorySettingsUpgrade.ts`, tes unit terkait,
   `tests/*_browser.py`.
 
+- [x] **MW-85 — Refund pembelian kartu menjadi Pengembalian dana**
+  Kredit `SATIŞ IADE` / `SATIŞ YD IADE` (merchant mengembalikan pembelian
+  kartu; YD = merchant luar negeri) tetap "Perlu dicek". Keputusan: ikuti
+  preseden refund ATM, yaitu pemasukan kategori **Pengembalian dana**, bukan
+  penghasilan baru. Hanya berlaku bila frasa itu muncul bersama nomor kartu
+  (`KARTNO`) dan nominalnya kredit; debit, pembatalan (`IPTAL`, `REVERSAL`),
+  atau keterangan pembelian tetap ditinjau, dan `IADE` lain tetap belum
+  dipastikan. Nama merchant boleh memuat kata apa pun. Aturan merchant bawaan
+  (mis. tiket kereta → Transportasi) mengalah pada kategori refund; aturan
+  pribadi tetap berlaku dan menjadi saran bila berbeda. Dua aturan bawaan
+  ditambahkan ke paket v7 dari MW-84 (dirilis bersamaan, jadi penanda tidak
+  naik lagi). Catatan lama: **Transaksi → Isi kategori otomatis**.
+  *File:* `bankDescription.ts`, `categorization.ts`, `categoryBankMappings.ts`,
+  `CategoryAutomation.tsx`, tes unit terkait, `tests/*_browser.py`, `README.md`.
+
 Dicatat dari uji yang sama, **belum dikerjakan**:
 
-- Refund pembelian kartu (`SATIŞ IADE`, `SATIŞ YD IADE`) sengaja tetap "Perlu
-  dicek". Perlu keputusan apakah kredit ini boleh otomatis menjadi
-  Pengembalian dana.
 - Keterangan transfer yang dipotong bank sebelum kata `Havale` (nama penerima
   panjang) tidak dikenali sebagai transfer dan jatuh ke pengeluaran tanpa
   kategori.

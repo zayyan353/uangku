@@ -4,7 +4,7 @@ import type { SourceFact } from './sourceModel';
  * categories and financial postings. No wallet ownership or pairing is inferred.
  */
 export type BankDescriptionKind = 'atm-withdrawal' | 'atm-deposit' | 'transfer-fee' | 'atm-fee'
-  | 'bank-transfer' | 'cashback' | 'online-purchase' | 'card-purchase' | 'atm-refund' | 'none';
+  | 'bank-transfer' | 'cashback' | 'online-purchase' | 'card-purchase' | 'atm-refund' | 'card-refund' | 'none';
 
 export interface BankDescriptionInterpretation {
   kind: BankDescriptionKind;
@@ -107,6 +107,18 @@ export function interpretBankDescription(description: string, context: BankDescr
         : 'Setor tunai ATM dikenali. Periksa arah nominal kredit atau keterangan pembatalan sebelum mengonfirmasi pemasukan.' };
   }
 
+  // SATIŞ IADE beside a card number is the bank's wording for a merchant
+  // returning a card sale (YD: a foreign merchant). The merchant's name may
+  // hold any word, so only purchase or cancellation wording contradicts it.
+  // Any other IADE remains unresolved.
+  if ((contains(text, 'satis iade') || contains(text, 'satis yd iade')) && (contains(text, 'kartno') || contains(text, 'kart no'))) {
+    const conflict = includesAny(text, ['pos alisveris', 'pos harcama', 'reversal', 'iptal', 'iptali']);
+    const confirmed = Number.isSafeInteger(context.signedAmount) && context.signedAmount! > 0 && !conflict;
+    return { kind: 'card-refund', label: 'Pengembalian pembelian kartu', category: 'Pengembalian dana', pending: !confirmed,
+      warning: confirmed ? 'Merchant mengembalikan dana pembelian kartu. Dicatat sebagai pemasukan Pengembalian dana, bukan penghasilan baru.'
+        : 'Keterangan pengembalian pembelian kartu ditemukan. Periksa nominal kredit positif dan keterangan pembatalan sebelum mengonfirmasi.' };
+  }
+
   const purchase = contains(text, 'pos alisveris') || contains(text, 'pos harcama');
   const bankRail = ['havale', 'eft', 'fast', 'transfer', 'virman'].some(phrase => contains(text, phrase));
   // An operation suffix identifies a fee even if the preceding text names a
@@ -145,7 +157,7 @@ export function confirmedBankEntryType(description: string, signedAmount: number
   const operation = interpretBankDescription(description, { signedAmount, fingerprintVersion });
   if (operation.kind === 'none') return undefined;
   if (operation.kind === 'cashback' && signedAmount > 0) return 'income';
-  if (operation.kind === 'atm-refund') return !operation.pending && signedAmount > 0 ? 'income' : undefined;
+  if (operation.kind === 'atm-refund' || operation.kind === 'card-refund') return !operation.pending && signedAmount > 0 ? 'income' : undefined;
   if (operation.kind === 'card-purchase') return !operation.pending && signedAmount < 0 ? 'expense' : undefined;
   const text = normalizeBankDescription(description);
   if (['iade','iadesi','refund','reversal','iptal','iptali'].some(phrase => contains(text,phrase))) return undefined;

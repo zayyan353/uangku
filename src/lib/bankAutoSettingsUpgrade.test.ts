@@ -38,7 +38,7 @@ describe('version4 automatic bank mapping settings migration', () => {
     for (const update of BANK_AUTOMATIC_RULE_UPDATES) expect(source.rules.find(rule => rule.id === update.previous.id)).toEqual(update.previous);
     expect(source.rules.some(rule => rule.id === BANK_PREPAID_CREDIT_RULE.id)).toBe(false);
     const current = defaultCategorySettings();
-    expect(laterPackRules).toBe(12);
+    expect(laterPackRules).toBe(14);
     expect(current.keywordPackVersion).toBe(7); expect(current.rules).toHaveLength(77 + laterPackRules);
     expect(current.names).toHaveLength(30);
   });

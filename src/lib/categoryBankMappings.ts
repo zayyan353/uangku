@@ -92,7 +92,13 @@ export const BANK_BILL_PAYMENT_RULES: readonly CategoryRule[] = [
   { id: 'bank-v7-bill-esgaz', keyword: 'ESGAZ', category: 'Tagihan', mode: 'auto' },
   { id: 'bank-v7-bill-osmangazi-electricity', keyword: 'OSMANGAZİ SÖZLEŞME NO', category: 'Tagihan', mode: 'auto' },
 ];
-export const BANK_KEYWORD_PACK_7_RULES: readonly CategoryRule[] = [...BANK_BILL_PAYMENT_RULES];
+/** A card sale returned by its merchant; YD marks a foreign merchant. These
+ * apply only to a credit the bank interpretation confirms as that refund. */
+export const BANK_CARD_REFUND_RULES: readonly CategoryRule[] = [
+  { id: 'bank-v7-card-refund', keyword: 'SATIŞ IADE', category: 'Pengembalian dana', mode: 'auto' },
+  { id: 'bank-v7-card-refund-foreign', keyword: 'SATIŞ YD IADE', category: 'Pengembalian dana', mode: 'auto' },
+];
+export const BANK_KEYWORD_PACK_7_RULES: readonly CategoryRule[] = [...BANK_BILL_PAYMENT_RULES, ...BANK_CARD_REFUND_RULES];
 
 // Keep this definition independent of the matcher: the matcher may import the
 // exact builtin identities below. Tests compare it to the shared normalization.

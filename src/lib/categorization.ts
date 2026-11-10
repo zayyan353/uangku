@@ -1,6 +1,6 @@
 import { BUNDLED_GOOGLE_YOUTUBE_RULE, BUNDLED_GRATIS_RULE, BUNDLED_TRENDYOL_SERVICE_RULES, CONFIRMED_CATEGORY_RULES, KEYWORD_EXPANSION_RULES, equivalentConfirmedCategory } from './categoryKeywordDefinitions';
 import { interpretBankDescription, normalizeBankDescription, type BankDescriptionKind, type BankDescriptionContext } from './bankDescription';
-import { BANK_ATM_DEPOSIT_RULES, BANK_ATM_WITHDRAWAL_RULE, BANK_AUTOMATIC_RULE_UPDATES, BANK_CASHBACK_RULES, BANK_PREPAID_CREDIT_RULE, BANK_ONLINE_FALLBACK_RULE, BANK_TRANSFER_FEE_RULES, BANK_TRANSFER_RULES, BANK_CARD_FALLBACK_RULES, BANK_ATM_REFUND_RULE, BANK_ATM_NETWORK_WITHDRAWAL_RULES, BANK_ATM_FEE_RULES, isBundledBankRule } from './categoryBankMappings';
+import { BANK_ATM_DEPOSIT_RULES, BANK_ATM_WITHDRAWAL_RULE, BANK_AUTOMATIC_RULE_UPDATES, BANK_CASHBACK_RULES, BANK_PREPAID_CREDIT_RULE, BANK_ONLINE_FALLBACK_RULE, BANK_TRANSFER_FEE_RULES, BANK_TRANSFER_RULES, BANK_CARD_FALLBACK_RULES, BANK_ATM_REFUND_RULE, BANK_ATM_NETWORK_WITHDRAWAL_RULES, BANK_ATM_FEE_RULES, BANK_CARD_REFUND_RULES, isBundledBankRule } from './categoryBankMappings';
 export { BUNDLED_GOOGLE_YOUTUBE_RULE, BUNDLED_GRATIS_RULE, BUNDLED_TRENDYOL_SERVICE_RULES } from './categoryKeywordDefinitions';
 
 /** Optional local text rules. A match never changes a transaction's financial type. */
@@ -95,6 +95,7 @@ function bundledBankKind(rule: CategoryRule): BankDescriptionKind | undefined {
   if (isBundledBankRule(rule, BANK_ONLINE_FALLBACK_RULE)) return 'online-purchase';
   if (BANK_CARD_FALLBACK_RULES.some(original => isBundledBankRule(rule, original))) return 'card-purchase';
   if (isBundledBankRule(rule, BANK_ATM_REFUND_RULE)) return 'atm-refund';
+  if (BANK_CARD_REFUND_RULES.some(original => isBundledBankRule(rule, original))) return 'card-refund';
   return undefined;
 }
 
@@ -134,7 +135,7 @@ export function createCategoryMatcher(rules: readonly CategoryRule[], activeCate
       && (!rule.gratisMerchantOnly || input.includes(' isyeri gratis '))
       && (!rule.bankKind || rule.bankKind === bank.kind)
       && (!rule.prepaidCreditOnly || Number.isSafeInteger(context.signedAmount) && context.signedAmount! > 0)
-      && (!['card-purchase', 'atm-refund'].includes(rule.bankKind ?? '') || !bank.pending));
+      && (!['card-purchase', 'atm-refund', 'card-refund'].includes(rule.bankKind ?? '') || !bank.pending));
     if (matched.some(rule => rule.trendyolService)) matched = matched.filter(rule => !rule.originalTrendyol);
     if (matched.some(rule => rule.confirmedUberFood)) matched = matched.filter(rule => !rule.originalUber);
     if (matched.some(rule => rule.originalYouTubePremium)) matched = matched.filter(rule => !rule.genericGoogleYouTube);
@@ -142,6 +143,10 @@ export function createCategoryMatcher(rules: readonly CategoryRule[], activeCate
     if (confirmedPrepaidCredit) {
       matched = matched.filter(rule => rule.bankKind === 'cashback' || !rule.untouchedExpansion && !rule.originalDefault);
     }
+    // A confirmed card refund is returned money. Untouched merchant defaults
+    // describe the original purchase and yield; personal rules still apply.
+    const cardRefund = bank.kind === 'card-refund' && !bank.pending && matched.some(rule => rule.bankKind === 'card-refund');
+    if (cardRefund) matched = matched.filter(rule => rule.bankKind === 'card-refund' || !rule.untouchedExpansion && !rule.originalDefault);
     // Only the untouched builtin is a fallback. A personal rule using the same
     // phrase remains an ordinary literal rule and is never silently discarded.
     const isFallback = (rule: typeof compiled[number]) => rule.bankKind === 'online-purchase' || rule.bankKind === 'card-purchase';
@@ -170,6 +175,8 @@ export function createCategoryMatcher(rules: readonly CategoryRule[], activeCate
       if (purchase && !REFUND_PHRASES.has(phrase)) return false;
       if (bankFee && BANK_RAIL_PHRASES.has(phrase)) return false;
       if (atmFee && phrase === 'atm') return false;
+      // As with a purchase, a refunding merchant's name may contain any word.
+      if (cardRefund && !['refund', 'reversal', 'iptal', 'iptali'].includes(phrase)) return false;
       if (confirmedMovement && movementWords.has(phrase)) return false;
       if (cashback && (phrase === 'iade' || phrase === 'iadesi')) return false;
       return true;

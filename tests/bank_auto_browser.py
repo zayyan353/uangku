@@ -120,7 +120,7 @@ def direct_categories(case):
     before = stored_document(p)
     assert json.loads(case.financial_raw)['version'] == 3
     dialog = case.manager()
-    expect(dialog.locator('.category-manager-rules li')).to_have_count(89)
+    expect(dialog.locator('.category-manager-rules li')).to_have_count(91)
     dialog.get_by_role('button', name='Batal', exact=True).click()
     dialog = case.automation()
     for _, note, _, category in MOVEMENTS:
@@ -323,11 +323,14 @@ def atm_network_flow(case):
 STATEMENT_GAPS = [
     ('gas', 'ESGAZ/Abone No: 0000000000 /Son Ödeme Tarihi: 01/01/2026', -50000, 450000, 'expense', 'Tagihan'),
     ('electricity', 'OSMANGAZİ Sözleşme No: 0000000000 Tah.No: 000000000000SYNTH', -25000, 425000, 'expense', 'Tagihan'),
+    # The refunding merchant has a bundled rule of its own; returned money still wins.
+    ('refund', 'SATIŞ IADE KARTNO:0000 **** **** 0000 UYEISYERI:TCDD TASIMACILIK A.S PROVIZYON:000000', 2500, 427500, 'income', 'Pengembalian dana'),
+    ('refund-foreign', 'KARTNO:0000 **** **** 0000 SATIŞ YD IADE BANKA:000000  MUTABAKAT:0000000', 12000, 439500, 'income', 'Pengembalian dana'),
 ]
 
 
 def statement_gaps_flow(case):
-    """Utility bills are categorised without manual tidying."""
+    """Utility bills and card refunds are confirmed without manual tidying."""
     p = case.page; path = case.args.output / f'{case.name}-synthetic.xlsx'
     write_statement(path, STATEMENT_GAPS)
     import_statement(case, path)

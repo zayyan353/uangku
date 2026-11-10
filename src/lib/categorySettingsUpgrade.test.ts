@@ -177,13 +177,19 @@ describe('legacy category settings keyword pack upgrade', () => {
 
   it('refuses an oversized expanded UTF-8 envelope atomically while keeping a valid old configuration', () => {
     const source = legacy(); source.names.push('界'.repeat(80)); source.rules = [];
-    for (let index = 0; index < 174; index++) {
+    // Leave room for every bundled rule, so the byte limit and not the rule count refuses the expansion.
+    for (let index = 0; index < 200 - addedCount; index++) {
       const rule = custom({ id: `personal-${index}-`.padEnd(120, '界'), keyword: `${index}-`.padEnd(100, '界'), category: '界'.repeat(80) });
       const candidate = { ...source, rules: [...source.rules, rule] };
       if (envelopeBytes(candidate) > CATEGORY_SETTINGS_LIMIT) break;
       source.rules.push(rule);
     }
-    expect(source.rules.length).toBeLessThan(174);
+    for (let index = 0; envelopeBytes(source) <= CATEGORY_SETTINGS_LIMIT - 1_024 && source.names.length < 90; index++) {
+      const name = `${index}-`.padEnd(80, '界');
+      if (envelopeBytes({ ...source, names: [...source.names, name] }) > CATEGORY_SETTINGS_LIMIT) break;
+      source.names.push(name);
+    }
+    expect(source.rules.length).toBeLessThanOrEqual(200 - addedCount);
     expect(envelopeBytes(source)).toBeGreaterThan(CATEGORY_SETTINGS_LIMIT - 1_024);
     expect(validateCategorySettings(source)).toEqual(source);
     const before = categorySettingsExport(source), result = upgradeCategorySettings(source);
