@@ -283,6 +283,14 @@ Sisa catatan dari MW-26, MW-27, dan tahap UX. Satu MW per commit.
   tersimpan di semua periode, jadi hanya di halaman Transaksi. Pesan galat
   pengaturan kategori tetap tampil di halaman Impor.
 
+- [x] **MW-37 — Ikon app lebih bersih**
+  Di ikon PWA (MW-09), titik "koin" ditempel tepat di ujung kaki kanan huruf u,
+  jadi terlihat seperti benjolan di layar utama HP. Dari tiga alternatif,
+  pemilik memilih opsi C: latar hijau tua, huruf u hijau muda lebih tebal,
+  tanpa titik, tetap di dalam zona aman maskable. `icon-192/512.png`,
+  `apple-touch-icon.png`, `favicon.svg`, dan favicon tab di `index.html`
+  diperbarui. Logo sidebar tidak diubah.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).
