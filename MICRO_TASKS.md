@@ -326,7 +326,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-47 — Banner data contoh ringkas**
   Teks "Versi pengembangan lokal…" dibuang, banner jadi satu baris. Di Impor tidak dobel dengan banner "Mode contoh masih aktif".
 
-- [ ] **MW-48 — Status simpan cukup di topbar**
+- [x] **MW-48 — Status simpan cukup di topbar**
   Status simpan di bawah sidebar dan footer dihapus; topbar tetap.
 
 - [ ] **MW-49 — Menu akun: cadangan, privasi, tema**
