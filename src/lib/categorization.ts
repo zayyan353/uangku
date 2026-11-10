@@ -1,6 +1,6 @@
 import { BUNDLED_GOOGLE_YOUTUBE_RULE, BUNDLED_GRATIS_RULE, BUNDLED_TRENDYOL_SERVICE_RULES, CONFIRMED_CATEGORY_RULES, KEYWORD_EXPANSION_RULES, equivalentConfirmedCategory } from './categoryKeywordDefinitions';
 import { interpretBankDescription, normalizeBankDescription, type BankDescriptionKind, type BankDescriptionContext } from './bankDescription';
-import { BANK_ATM_DEPOSIT_RULES, BANK_ATM_WITHDRAWAL_RULE, BANK_AUTOMATIC_RULE_UPDATES, BANK_CASHBACK_RULES, BANK_PREPAID_CREDIT_RULE, BANK_ONLINE_FALLBACK_RULE, BANK_TRANSFER_FEE_RULES, BANK_TRANSFER_RULES, BANK_CARD_FALLBACK_RULES, BANK_ATM_REFUND_RULE, isBundledBankRule } from './categoryBankMappings';
+import { BANK_ATM_DEPOSIT_RULES, BANK_ATM_WITHDRAWAL_RULE, BANK_AUTOMATIC_RULE_UPDATES, BANK_CASHBACK_RULES, BANK_PREPAID_CREDIT_RULE, BANK_ONLINE_FALLBACK_RULE, BANK_TRANSFER_FEE_RULES, BANK_TRANSFER_RULES, BANK_CARD_FALLBACK_RULES, BANK_ATM_REFUND_RULE, BANK_ATM_NETWORK_WITHDRAWAL_RULES, BANK_ATM_FEE_RULES, isBundledBankRule } from './categoryBankMappings';
 export { BUNDLED_GOOGLE_YOUTUBE_RULE, BUNDLED_GRATIS_RULE, BUNDLED_TRENDYOL_SERVICE_RULES } from './categoryKeywordDefinitions';
 
 /** Optional local text rules. A match never changes a transaction's financial type. */
@@ -86,7 +86,8 @@ const REFUND_PHRASES = new Set(['iade', 'iadesi', 'refund', 'reversal', 'iptal',
 function bundledBankKind(rule: CategoryRule): BankDescriptionKind | undefined {
   const currentOrPrevious = (original: CategoryRule): boolean => isBundledBankRule(rule, original)
     || BANK_AUTOMATIC_RULE_UPDATES.some(update => update.previous.id === original.id && isBundledBankRule(rule, update.current));
-  if (currentOrPrevious(BANK_ATM_WITHDRAWAL_RULE)) return 'atm-withdrawal';
+  if (currentOrPrevious(BANK_ATM_WITHDRAWAL_RULE) || BANK_ATM_NETWORK_WITHDRAWAL_RULES.some(original => isBundledBankRule(rule, original))) return 'atm-withdrawal';
+  if (BANK_ATM_FEE_RULES.some(original => isBundledBankRule(rule, original))) return 'atm-fee';
   if (BANK_ATM_DEPOSIT_RULES.some(currentOrPrevious)) return 'atm-deposit';
   if (BANK_TRANSFER_RULES.some(currentOrPrevious)) return 'bank-transfer';
   if (BANK_TRANSFER_FEE_RULES.some(original => isBundledBankRule(rule, original))) return 'transfer-fee';
@@ -148,6 +149,7 @@ export function createCategoryMatcher(rules: readonly CategoryRule[], activeCate
     if (!matched.length) return { kind: 'none', suggestions: [] };
     const purchase = input.includes(' pos alisveris ') || input.includes(' pos harcama ');
     const bankFee = bank.kind === 'transfer-fee' && matched.some(rule => rule.bankKind === 'transfer-fee');
+    const atmFee = bank.kind === 'atm-fee' && matched.some(rule => rule.bankKind === 'atm-fee');
     const cashback = bank.kind === 'cashback' && matched.some(rule => rule.bankKind === 'cashback')
       && (context.signedAmount === undefined || Number.isSafeInteger(context.signedAmount) && context.signedAmount > 0);
     const correctDirection = context.signedAmount === undefined || Number.isSafeInteger(context.signedAmount)
@@ -167,6 +169,7 @@ export function createCategoryMatcher(rules: readonly CategoryRule[], activeCate
       if (atmRefund && (phrase === 'atm' || phrase === 'iade' || phrase === 'iadesi')) return false;
       if (purchase && !REFUND_PHRASES.has(phrase)) return false;
       if (bankFee && BANK_RAIL_PHRASES.has(phrase)) return false;
+      if (atmFee && phrase === 'atm') return false;
       if (confirmedMovement && movementWords.has(phrase)) return false;
       if (cashback && (phrase === 'iade' || phrase === 'iadesi')) return false;
       return true;

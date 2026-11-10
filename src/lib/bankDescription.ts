@@ -3,7 +3,7 @@ import type { SourceFact } from './sourceModel';
 /** Interpretation of the bank's operation wording, separate from merchant
  * categories and financial postings. No wallet ownership or pairing is inferred.
  */
-export type BankDescriptionKind = 'atm-withdrawal' | 'atm-deposit' | 'transfer-fee'
+export type BankDescriptionKind = 'atm-withdrawal' | 'atm-deposit' | 'transfer-fee' | 'atm-fee'
   | 'bank-transfer' | 'cashback' | 'online-purchase' | 'card-purchase' | 'atm-refund' | 'none';
 
 export interface BankDescriptionInterpretation {
@@ -24,6 +24,30 @@ export function normalizeBankDescription(value: string): string {
 }
 
 const contains = (value: string, phrase: string): boolean => (` ${value} `).includes(` ${phrase} `);
+/** P.Ç. (para çekme) and P.Y. (para yatırma) are the bank's wording for another
+ * bank's ATM; the QR phrase is a cardless withdrawal at its own ATM. */
+const ATM_WITHDRAWAL_PHRASES = ['atm para cekme', 'yurtici atm p c', 'atm qr ile para cekme'];
+const ATM_DEPOSIT_PHRASES = ['atm yatan', 'yurtici atm p y', 'atm para yatirma'];
+const ATM_NETWORK_PHRASES = ['yurtici atm p c', 'yurtici atm p y'];
+const ATM_OPERATION_PHRASES = [...ATM_WITHDRAWAL_PHRASES, ...ATM_DEPOSIT_PHRASES];
+const includesAny = (text: string, phrases: readonly string[]): boolean => phrases.some(phrase => contains(text, phrase));
+
+/** Minor units of the Turkish-formatted amount printed after KOMİSYON:, e.g. "4,49". */
+function statedCommission(description: string): number | undefined {
+  const match = /[Kk][Oo][Mm][İIıi]\u0307?[Ss][Yy][Oo][Nn]\s*:\s*(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?(?!\d|[.,]\d)/u.exec(description);
+  if (!match) return undefined;
+  const value = Number(match[1].replace(/\./g, '')) * 100 + Number((match[2] ?? '').padEnd(2, '0'));
+  return Number.isSafeInteger(value) && value > 0 ? value : undefined;
+}
+/** Another bank's ATM books its commission and BSMV as separate debit rows.
+ * The commission row repeats the operation's wording. The stated commission
+ * includes its BSMV, so a debit within that total is the fee, not the principal. */
+function atmFeeRow(description: string, text: string, amount?: number): boolean {
+  if (!includesAny(text, ATM_NETWORK_PHRASES) || contains(text, 'pos alisveris') || contains(text, 'pos harcama')) return false;
+  if (ATM_NETWORK_PHRASES.some(phrase => contains(text, `${phrase} bsmv`))) return true;
+  const commission = statedCommission(description);
+  return commission !== undefined && Number.isSafeInteger(amount) && amount! < 0 && -amount! <= commission;
+}
 /** In a mapped statement the whole memo must identify an operation, and its
  * stated direction must agree with the signed bank amount. */
 function explicitGenericOperation(text: string, amount?: number): boolean {
@@ -37,8 +61,8 @@ function confirmedBankDirection(text: string, kind: BankDescriptionKind, amount?
   if (!Number.isSafeInteger(amount) || amount === 0) return false;
   if (['iade','iadesi','refund','reversal','iptal','iptali'].some(phrase => contains(text,phrase))) return false;
   if (contains(text,'pos alisveris') || contains(text,'pos harcama')) return false;
-  const withdrawal=contains(text,'atm para cekme');
-  const deposit=contains(text,'atm yatan') || contains(text,'yurtici atm p y') || contains(text,'atm para yatirma');
+  const withdrawal=includesAny(text,ATM_WITHDRAWAL_PHRASES);
+  const deposit=includesAny(text,ATM_DEPOSIT_PHRASES);
   if (withdrawal && deposit) return false;
   return kind === 'atm-withdrawal' ? amount! < 0 : kind === 'atm-deposit' ? amount! > 0 : kind === 'bank-transfer';
 }
@@ -59,21 +83,24 @@ export function interpretBankDescription(description: string, context: BankDescr
   // The explicit bank phrase is evidence of returning a failed ATM operation,
   // not a cash deposit or general earnings. Arbitrary IADE remains unresolved.
   if (contains(text, 'tam atm sorunlu islem iadesi')) {
-    const conflict = ['havale', 'eft', 'fast', 'transfer', 'virman', 'pos alisveris', 'pos harcama',
-      'atm para cekme', 'atm yatan', 'atm para yatirma', 'yurtici atm p y', 'reversal', 'iptal', 'iptali']
-      .some(phrase => contains(text, phrase));
+    const conflict = includesAny(text, ['havale', 'eft', 'fast', 'transfer', 'virman', 'pos alisveris', 'pos harcama',
+      ...ATM_OPERATION_PHRASES, 'reversal', 'iptal', 'iptali']);
     const confirmed = Number.isSafeInteger(context.signedAmount) && context.signedAmount! > 0 && !conflict;
     return { kind: 'atm-refund', label: 'Pengembalian transaksi ATM bermasalah', category: 'Pengembalian dana', pending: !confirmed,
       warning: confirmed ? 'Bank mengembalikan dana dari transaksi ATM bermasalah. Dicatat sebagai pemasukan pengembalian dana, bukan setor tunai atau penghasilan baru.'
         : 'Keterangan pengembalian transaksi ATM bermasalah ditemukan. Periksa nominal kredit positif dan keterangan yang bertentangan sebelum mengonfirmasi.' };
   }
-  if (contains(text, 'atm para cekme')) {
+  if (atmFeeRow(description, text, context.signedAmount)) {
+    return { kind: 'atm-fee', label: 'Biaya ATM', category: 'Biaya bank', pending: false,
+      warning: 'Keterangan menunjukkan komisi atau pajak layanan ATM bank lain. Ini biaya terpisah, bukan pokok tarik atau setor tunai.' };
+  }
+  if (includesAny(text, ATM_WITHDRAWAL_PHRASES)) {
     const confirmed=confirmedBankDirection(text,'atm-withdrawal',context.signedAmount);
     return { kind: 'atm-withdrawal', label: 'Tarik tunai ATM', category: 'Tarik tunai', pending: !confirmed,
       warning: confirmed ? 'Tarik tunai ATM dikenali. Pengurangan saldo rekening dicatat sebagai pengeluaran kategori Tarik tunai. Cash tidak dibukukan.'
         : 'Tarik tunai ATM dikenali. Periksa arah nominal debit atau keterangan pembatalan sebelum mengonfirmasi pengeluaran.' };
   }
-  if (contains(text, 'atm yatan') || contains(text, 'yurtici atm p y') || contains(text, 'atm para yatirma')) {
+  if (includesAny(text, ATM_DEPOSIT_PHRASES)) {
     const confirmed=confirmedBankDirection(text,'atm-deposit',context.signedAmount);
     return { kind: 'atm-deposit', label: 'Setor tunai ATM', category: 'Setor tunai', pending: !confirmed,
       warning: confirmed ? 'Setor tunai ATM dikenali. Penambahan saldo rekening dicatat sebagai pemasukan kategori Setor tunai. Cash tidak dibukukan.'
@@ -96,7 +123,7 @@ export function interpretBankDescription(description: string, context: BankDescr
   }
   if (purchase) {
     const reversed = ['iade', 'iadesi', 'refund', 'reversal', 'iptal', 'iptali'].some(phrase => contains(text, phrase));
-    const atmOperation = ['atm para cekme', 'atm yatan', 'atm para yatirma', 'yurtici atm p y'].some(phrase => contains(text, phrase));
+    const atmOperation = includesAny(text, ATM_OPERATION_PHRASES);
     const confirmed = Number.isSafeInteger(context.signedAmount) && context.signedAmount! < 0 && !reversed && !atmOperation;
     return { kind: 'card-purchase', label: 'Pembayaran kartu', category: 'Belanja', pending: !confirmed,
       warning: confirmed ? 'Pembayaran melalui kartu dikenali. Belanja adalah kategori umum; barang atau tujuan pembelian belum diketahui bila merchant tidak cocok dengan aturan.'
@@ -122,7 +149,7 @@ export function confirmedBankEntryType(description: string, signedAmount: number
   if (operation.kind === 'card-purchase') return !operation.pending && signedAmount < 0 ? 'expense' : undefined;
   const text = normalizeBankDescription(description);
   if (['iade','iadesi','refund','reversal','iptal','iptali'].some(phrase => contains(text,phrase))) return undefined;
-  if (operation.kind === 'transfer-fee') return signedAmount < 0 ? 'expense' : undefined;
+  if (operation.kind === 'transfer-fee' || operation.kind === 'atm-fee') return signedAmount < 0 ? 'expense' : undefined;
   if (!confirmedBankDirection(text,operation.kind,signedAmount)) return undefined;
   return operation.kind === 'atm-withdrawal' ? 'expense' : operation.kind === 'atm-deposit' ? 'income' : operation.kind === 'bank-transfer' ? 'movement' : undefined;
 }

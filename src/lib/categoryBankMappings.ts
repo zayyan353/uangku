@@ -64,6 +64,27 @@ export const BANK_ATM_REFUND_RULE: CategoryRule = {
 };
 export const BANK_REVIEW_COMPLETION_RULES: readonly CategoryRule[] = [...BANK_CARD_FALLBACK_RULES, BANK_ATM_REFUND_RULE];
 
+/** v6 adds the wording for another bank's ATM, cardless QR withdrawals and
+ * the fee rows the bank books beside them. Earlier identities are unchanged.
+ */
+export const BANK_ATM_NETWORK_WITHDRAWAL_RULES: readonly CategoryRule[] = [
+  { id: 'bank-v6-atm-domestic-withdrawal', keyword: 'YURTİÇİ ATM P.Ç.', category: 'Tarik tunai', mode: 'auto' },
+  { id: 'bank-v6-atm-qr-withdrawal', keyword: 'ATM QR İLE PARA ÇEKME', category: 'Tarik tunai', mode: 'auto' },
+];
+/** The commission row repeats its principal's wording; these apply only when
+ * the bank interpretation identifies the row itself as an ATM fee. */
+export const BANK_ATM_FEE_RULES: readonly CategoryRule[] = [
+  { id: 'bank-v6-atm-withdrawal-tax', keyword: 'YURTİÇİ ATM P.Ç. BSMV', category: 'Biaya bank', mode: 'auto' },
+  { id: 'bank-v6-atm-deposit-tax', keyword: 'YURTİÇİ ATM P.Y. BSMV', category: 'Biaya bank', mode: 'auto' },
+  { id: 'bank-v6-atm-commission', keyword: 'KOMİSYON', category: 'Biaya bank', mode: 'auto' },
+];
+export const BANK_OPERATION_FEE_RULE: CategoryRule = {
+  id: 'bank-v6-operation-fee', keyword: 'İŞLEM TOPLAM MASRAFI', category: 'Biaya bank', mode: 'auto',
+};
+export const BANK_ATM_NETWORK_RULES: readonly CategoryRule[] = [
+  ...BANK_ATM_NETWORK_WITHDRAWAL_RULES, ...BANK_ATM_FEE_RULES, BANK_OPERATION_FEE_RULE,
+];
+
 // Keep this definition independent of the matcher: the matcher may import the
 // exact builtin identities below. Tests compare it to the shared normalization.
 const normalizedKeyword = (value: string): string => value.normalize('NFKD').toLocaleLowerCase('tr-TR')
@@ -87,7 +108,8 @@ export function resolveBankCategoryName(names: readonly string[], canonical: str
 export function isBundledBankRule(rule: CategoryRule, original?: CategoryRule): boolean {
   const matches = (expected: CategoryRule): boolean => rule.id === expected.id && rule.keyword === expected.keyword
     && rule.mode === expected.mode && equivalentBankCategory(rule.category, expected.category);
-  return original ? matches(original) : [...BANK_CATEGORY_RULES, ...CURRENT_BANK_CATEGORY_RULES, ...BANK_REVIEW_COMPLETION_RULES].some(matches);
+  return original ? matches(original)
+    : [...BANK_CATEGORY_RULES, ...CURRENT_BANK_CATEGORY_RULES, ...BANK_REVIEW_COMPLETION_RULES, ...BANK_ATM_NETWORK_RULES].some(matches);
 }
 
 /** Add missing active-target rules only. Never replace a personal keyword or

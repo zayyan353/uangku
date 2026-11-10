@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CATEGORY_RULES, normalizeCategoryKeyword, type CategoryRule } from './categorization';
 import {
   BANK_AUTOMATIC_RULE_UPDATES, BANK_CATEGORY_NAMES, BANK_CATEGORY_RULES,
+  BANK_ATM_FEE_RULES, BANK_ATM_NETWORK_RULES, BANK_OPERATION_FEE_RULE,
   BANK_PREPAID_CREDIT_RULE, BANK_REVIEW_COMPLETION_RULES, mergeBankCategoryMappings,
 } from './categoryBankMappings';
 import { mergeCurrentAutomaticBankMappings } from './bankAutoMappings';
@@ -25,6 +26,8 @@ function historicalV3(): CategorySettings {
   const confirmed = mergeConfirmedCategoryMappings({ ...expanded, keywordPackVersion: 1 }).settings;
   return { ...mergeBankCategoryMappings(confirmed).settings, keywordPackVersion: 3 };
 }
+/** Later packs are appended to a v3 profile: PREPAID (v4), review completion (v5), ATM network (v6). */
+const laterPackRules = 1 + BANK_REVIEW_COMPLETION_RULES.length + BANK_ATM_NETWORK_RULES.length;
 const envelopeBytes = (settings: CategorySettings) => new TextEncoder().encode(JSON.stringify({ app: 'uangku-category-settings', version: 1, settings })).length;
 
 describe('version4 automatic bank mapping settings migration', () => {
@@ -35,7 +38,8 @@ describe('version4 automatic bank mapping settings migration', () => {
     for (const update of BANK_AUTOMATIC_RULE_UPDATES) expect(source.rules.find(rule => rule.id === update.previous.id)).toEqual(update.previous);
     expect(source.rules.some(rule => rule.id === BANK_PREPAID_CREDIT_RULE.id)).toBe(false);
     const current = defaultCategorySettings();
-    expect(current.keywordPackVersion).toBe(5); expect(current.rules).toHaveLength(81);
+    expect(laterPackRules).toBe(10);
+    expect(current.keywordPackVersion).toBe(6); expect(current.rules).toHaveLength(87);
     expect(current.names).toHaveLength(30);
   });
 
@@ -43,9 +47,9 @@ describe('version4 automatic bank mapping settings migration', () => {
     const source = historicalV3(), before = categorySettingsExport(source);
     Object.freeze(source.names); source.rules.forEach(Object.freeze); Object.freeze(source.rules); Object.freeze(source);
     const result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(4); expect(result.updated).toBe(8);
-    expect(result.settings.keywordPackVersion).toBe(5); expect(result.settings.names).toEqual(source.names);
-    expect(result.settings.rules).toHaveLength(81);
+    expect(result.error).toBe(''); expect(result.added).toBe(laterPackRules); expect(result.updated).toBe(8);
+    expect(result.settings.keywordPackVersion).toBe(6); expect(result.settings.names).toEqual(source.names);
+    expect(result.settings.rules).toHaveLength(87);
     const expected = source.rules.map(rule => BANK_AUTOMATIC_RULE_UPDATES.find(update => update.previous.id === rule.id)?.current ?? rule);
     expect(result.settings.rules.slice(0, source.rules.length)).toEqual(expected);
     expect(result.settings.rules.find(rule => rule.id === BANK_PREPAID_CREDIT_RULE.id)).toEqual(BANK_PREPAID_CREDIT_RULE);
@@ -63,7 +67,7 @@ describe('version4 automatic bank mapping settings migration', () => {
     if (field === 'mode') personal.mode = 'auto';
     source.rules = source.rules.map(rule => rule.id === previous.id ? personal : rule);
     const before = JSON.stringify(personal), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(4); expect(result.updated).toBe(7);
+    expect(result.error).toBe(''); expect(result.added).toBe(laterPackRules); expect(result.updated).toBe(7);
     expect(JSON.stringify(result.settings.rules.find(rule => rule.id === personal.id))).toBe(before);
     expect(JSON.stringify(source.rules.find(rule => rule.id === personal.id))).toBe(before);
     if (field === 'id') expect(result.settings.rules.some(rule => rule.id === previous.id)).toBe(false);
@@ -74,7 +78,7 @@ describe('version4 automatic bank mapping settings migration', () => {
     const deleted = ['bank-v3-atm-deposit', 'bank-v3-fast', 'keyword-pack-hop-scoot', 'confirmed-apple-domain', 'subscription-apple'];
     source.rules = source.rules.filter(rule => !deleted.includes(rule.id));
     const before = categorySettingsExport(source), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(4); expect(result.updated).toBe(6);
+    expect(result.error).toBe(''); expect(result.added).toBe(laterPackRules); expect(result.updated).toBe(6);
     for (const id of deleted) expect(result.settings.rules.some(rule => rule.id === id)).toBe(false);
     expect(categorySettingsExport(source)).toBe(before);
   });
@@ -92,9 +96,12 @@ describe('version4 automatic bank mapping settings migration', () => {
     const source = historicalV3();
     source.names = source.names.filter(name => !['Cashback', 'Scooter', 'Belanja online', 'Pembayaran Apple', 'Tarik tunai'].includes(name));
     const names = [...source.names], before = categorySettingsExport(source), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(3); expect(result.updated).toBe(7);
+    expect(result.error).toBe(''); expect(result.updated).toBe(7);
+    expect(result.added).toBe(BANK_REVIEW_COMPLETION_RULES.length + BANK_ATM_FEE_RULES.length + 1);
     expect(result.settings.names).toEqual(names);
     expect(result.settings.rules.some(rule => rule.id === BANK_PREPAID_CREDIT_RULE.id)).toBe(false);
+    expect(result.settings.rules.some(rule => rule.id.startsWith('bank-v6-') && rule.category === 'Tarik tunai')).toBe(false);
+    expect(result.settings.rules.slice(-4)).toEqual([...BANK_ATM_FEE_RULES, BANK_OPERATION_FEE_RULE]);
     expect(categorySettingsExport(source)).toBe(before);
   });
 
@@ -104,7 +111,7 @@ describe('version4 automatic bank mapping settings migration', () => {
     source.names = source.names.map(name => labels.get(name) ?? name);
     source.rules = source.rules.map(rule => ({ ...rule, category: labels.get(rule.category) ?? rule.category }));
     const result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.updated).toBe(8); expect(result.added).toBe(4);
+    expect(result.error).toBe(''); expect(result.updated).toBe(8); expect(result.added).toBe(laterPackRules);
     expect(result.settings.names).toEqual(source.names);
     for (const previous of BANK_AUTOMATIC_RULE_UPDATES.map(update => update.previous)) {
       const actual = result.settings.rules.find(rule => rule.id === previous.id)!;
@@ -118,7 +125,7 @@ describe('version4 automatic bank mapping settings migration', () => {
     const personal: CategoryRule = { id: 'personal-prepaid', keyword: 'prepaid', category: 'Pilihan pribadi', mode };
     source.rules.splice(4, 0, personal);
     const result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(3); expect(result.updated).toBe(8);
+    expect(result.error).toBe(''); expect(result.added).toBe(laterPackRules - 1); expect(result.updated).toBe(8);
     expect(result.settings.rules.filter(rule => normalizeCategoryKeyword(rule.keyword) === 'prepaid')).toEqual([personal]);
   });
 
@@ -127,15 +134,15 @@ describe('version4 automatic bank mapping settings migration', () => {
     const personal: CategoryRule = { id: BANK_PREPAID_CREDIT_RULE.id, keyword: 'MY PREPAID CHOICE', category: 'Lainnya', mode: 'suggest' };
     source.rules.push(personal);
     const result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(3);
+    expect(result.error).toBe(''); expect(result.added).toBe(laterPackRules - 1);
     expect(result.settings.rules.filter(rule => rule.id === personal.id)).toEqual([personal]);
   });
 
   it('preserves every historical rule deletion when the v3 user previously cleared the complete rule list', () => {
     const source = { ...historicalV3(), rules: [] };
     const result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(4); expect(result.updated ?? 0).toBe(0);
-    expect(result.settings.rules).toEqual([BANK_PREPAID_CREDIT_RULE, ...BANK_REVIEW_COMPLETION_RULES]);
+    expect(result.error).toBe(''); expect(result.added).toBe(laterPackRules); expect(result.updated ?? 0).toBe(0);
+    expect(result.settings.rules).toEqual([BANK_PREPAID_CREDIT_RULE, ...BANK_REVIEW_COMPLETION_RULES, ...BANK_ATM_NETWORK_RULES]);
     expect(result.settings.names).toEqual(source.names);
   });
 
@@ -173,7 +180,7 @@ describe('version4 automatic bank mapping settings migration', () => {
     const result = upgradeCategorySettings(source);
     expect(result.error).toBe(''); expect(result.added).toBe(0);
     expect(result.settings.names).toEqual(source.names); expect(result.settings.names).toHaveLength(100);
-    expect(result.settings.rules).toEqual([]); expect(result.settings.keywordPackVersion).toBe(5);
+    expect(result.settings.rules).toEqual([]); expect(result.settings.keywordPackVersion).toBe(6);
   });
 
   it('rolls back the complete proposal including eight mode changes if the new rule exceeds200 rules', () => {
@@ -208,12 +215,12 @@ describe('version4 automatic bank mapping settings migration', () => {
     expect(categorySettingsExport(source)).toBe(before); expect(source.keywordPackVersion).toBe(3);
   });
 
-  it('supports current and all previous markers in export/import while rejecting future marker6', () => {
-    for (const marker of [1, 2, 3, 4, 5] as const) {
+  it('supports current and all previous markers in export/import while rejecting future marker7', () => {
+    for (const marker of [1, 2, 3, 4, 5, 6] as const) {
       const value = { ...historicalV3(), keywordPackVersion: marker };
       expect(parseCategorySettingsExport(categorySettingsExport(value))).toEqual(value);
     }
-    expect(() => validateCategorySettings({ ...historicalV3(), keywordPackVersion: 6 })).toThrow(/paket/);
+    expect(() => validateCategorySettings({ ...historicalV3(), keywordPackVersion: 7 })).toThrow(/paket/);
   });
 
   it('performs no browser-storage access or financial data writes while computing the current settings proposal', () => {
@@ -229,7 +236,7 @@ describe('version4 automatic bank mapping settings migration', () => {
     const source = historicalV3(), oldIds = new Set(KEYWORD_EXPANSION_RULES.map(rule => rule.id));
     source.rules = source.rules.filter(rule => !oldIds.has(rule.id));
     const before = JSON.stringify(source.rules), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(4);
+    expect(result.error).toBe(''); expect(result.added).toBe(laterPackRules);
     expect(result.settings.rules.some(rule => oldIds.has(rule.id))).toBe(false);
     const expectedPrefix = source.rules.map(rule => BANK_AUTOMATIC_RULE_UPDATES.find(update => update.previous.id === rule.id)?.current ?? rule);
     expect(result.settings.rules.slice(0, source.rules.length)).toEqual(expectedPrefix);

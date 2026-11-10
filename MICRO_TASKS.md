@@ -520,6 +520,55 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
 polesan 72 (setelah keputusan) → 73 → 74 → 75 → 76 → 77 → 78 → 79 → 80; 81–82
 bila diinginkan. MW-78 dan MW-79 kecil dan mandiri, boleh didahulukan.
 
+## D7. Pembaca Ziraat (10 November 2026)
+
+Dari uji baca mutasi Ziraat satu tahun milik pemilik (dibaca di memori dan di
+profil browser sementara; file, nama, nomor rekening, dan nominalnya tidak
+disalin ke repo). File terbaca tanpa galat dan saldo akhirnya cocok dengan
+statement. Yang belum otomatis mengelompok pada beberapa pola keterangan bank.
+
+- [x] **MW-83 — Kenali tarik tunai ATM bank lain/QR dan biaya ATM**
+  Tiga pola belum dikenali, jadi barisnya masuk "Perlu dirapikan" dan salah
+  kelompok di Rincian arus rekening:
+  - `YURTİÇİ ATM P.Ç.` (tarik tunai di ATM bank lain; pasangan `P.Y.` yang
+    sudah dikenali) dan `ATM QR ILE PARA ÇEKME` (tarik tunai tanpa kartu).
+    Sekarang mengikuti kebijakan ATM yang sudah disetujui: debit → pengeluaran
+    **Tarik tunai**; arah berlawanan atau keterangan pembatalan tetap ditinjau.
+  - Baris komisi dan BSMV ATM bank lain yang dicatat bank terpisah
+    (`… P.Ç. BSMV`, `… P.Y. BSMV`, dan baris `KOMİSYON: x,xx`). Baris komisi
+    memakai keterangan yang sama dengan pokoknya, jadi dibedakan dari nominal:
+    angka `KOMİSYON:` adalah total komisi **termasuk** BSMV, sehingga debit
+    yang tidak melebihi angka itu adalah biayanya. Sekarang → pengeluaran
+    **Biaya bank** (jenis operasi baru `atm-fee`, label "Biaya ATM").
+  - `İşlem Toplam Masrafı` → **Biaya bank**.
+
+  Enam aturan bawaan baru (`bank-v6-…`) dan penanda paket kata kunci naik 5 → 6.
+  Upgrade tetap aditif: aturan pribadi, aturan yang dihapus, dan kategori
+  nonaktif tidak disentuh; profil v5 hanya menerima enam aturan baru. Catatan
+  lama tidak diubah saat aplikasi dibuka; pakai **Transaksi → Isi kategori
+  otomatis**. Impor CSV/Excel umum tidak berubah.
+  *Konsekuensi:* cadangan lengkap yang dibuat versi ini memuat penanda paket 6
+  dan ditolak versi aplikasi yang lebih lama (sama seperti kenaikan sebelumnya).
+  *File:* `src/lib/bankDescription.ts`, `categoryBankMappings.ts`,
+  `bankAutoMappings.ts`, `categorization.ts`, `categorySettings.ts`,
+  `categorySettingsUpgrade.ts`, `cashflowReport.ts`, `useCategorySettings.tsx`,
+  `CategoryManager.tsx`, tes unit terkait, `tests/*_browser.py`, `README.md`.
+  *Hasil pada file uji (952 baris):* kategori terisi otomatis 918 → 941, jenis
+  perlu dicek 9 → 4, perlu dirapikan 34 → 11.
+
+Dicatat dari uji yang sama, **belum dikerjakan** (butuh keputusan pemilik):
+
+- Tagihan utilitas (gas, listrik) yang dibayar lewat bank belum punya aturan
+  kategori. Perlu keputusan kategori tujuannya (mis. Tagihan).
+- Refund pembelian kartu (`SATIŞ IADE`, `SATIŞ YD IADE`) sengaja tetap "Perlu
+  dicek". Perlu keputusan apakah kredit ini boleh otomatis menjadi
+  Pengembalian dana.
+- Keterangan transfer yang dipotong bank sebelum kata `Havale` (nama penerima
+  panjang) tidak dikenali sebagai transfer dan jatuh ke pengeluaran tanpa
+  kategori.
+- Pembayaran tagihan lewat `Havale` tercatat sebagai perpindahan dana, sesuai
+  kebijakan transfer sekarang; mengubahnya menjadi pengeluaran tetap manual.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).

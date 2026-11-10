@@ -13,7 +13,7 @@ const updated: StoredData = { ...initial, state: { ...initial.state, entries: [{
 }] } };
 const settings: CategorySettings = { version: 1, names: ['Belum dikategorikan', 'Unused'], rules: [
   { id: 'personal', keyword: 'synthetic', category: 'Unused', mode: 'suggest' },
-], keywordPackVersion: 5 };
+], keywordPackVersion: 6 };
 const nextRaw = JSON.stringify(settings);
 const previousRaw = JSON.stringify({ ...settings, rules: [] });
 

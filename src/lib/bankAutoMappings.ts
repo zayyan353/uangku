@@ -2,7 +2,7 @@ import type { CategorySettings } from './categorySettings';
 import type { CategoryRule } from './categorization';
 import {
   BANK_AUTOMATIC_RULE_UPDATES, BANK_PREPAID_CREDIT_RULE, CURRENT_BANK_CATEGORY_RULES,
-  isBundledBankRule, resolveBankCategoryName, BANK_REVIEW_COMPLETION_RULES,
+  isBundledBankRule, resolveBankCategoryName, BANK_REVIEW_COMPLETION_RULES, BANK_ATM_NETWORK_RULES,
 } from './categoryBankMappings';
 import { normalizeBankDescription } from './bankDescription';
 
@@ -36,7 +36,7 @@ export function mergeCurrentAutomaticBankMappings(settings: CategorySettings): {
   const ids = new Set(rules.map(rule => rule.id));
   const keywords = new Set(rules.map(rule => normalizeBankDescription(rule.keyword)));
   const additions: CategoryRule[] = [];
-  for (const rule of [...CURRENT_BANK_CATEGORY_RULES, ...BANK_REVIEW_COMPLETION_RULES]) {
+  for (const rule of [...CURRENT_BANK_CATEGORY_RULES, ...BANK_REVIEW_COMPLETION_RULES, ...BANK_ATM_NETWORK_RULES]) {
     const category = resolveBankCategoryName(automatic.settings.names, rule.category);
     const keyword = normalizeBankDescription(rule.keyword);
     if (!category || ids.has(rule.id) || keywords.has(keyword)) continue;
@@ -44,17 +44,29 @@ export function mergeCurrentAutomaticBankMappings(settings: CategorySettings): {
   }
   const added = automatic.added + additions.length;
   return { settings: additions.length ? { ...automatic.settings, rules: [...rules, ...additions] } : automatic.settings,
-    added, updated: automatic.updated, skipped: CURRENT_BANK_CATEGORY_RULES.length + BANK_REVIEW_COMPLETION_RULES.length - added };
+    added, updated: automatic.updated,
+    skipped: CURRENT_BANK_CATEGORY_RULES.length + BANK_REVIEW_COMPLETION_RULES.length + BANK_ATM_NETWORK_RULES.length - added };
 }
 
 /** Add only the new v5 identities to profiles predating v5. Existing IDs,
  * keywords, inactive targets and all earlier pack removals remain authoritative.
  */
 export function mergeReviewCompletionMappings(settings: CategorySettings): { settings: CategorySettings; added: number; updated: 0 } {
+  return appendMissingRules(settings, BANK_REVIEW_COMPLETION_RULES);
+}
+
+/** Add only the v6 ATM identities to profiles predating v6, under the same
+ * rules: no revived v5 deletion, replaced personal keyword or inactive target.
+ */
+export function mergeAtmNetworkMappings(settings: CategorySettings): { settings: CategorySettings; added: number; updated: 0 } {
+  return appendMissingRules(settings, BANK_ATM_NETWORK_RULES);
+}
+
+function appendMissingRules(settings: CategorySettings, rules: readonly CategoryRule[]): { settings: CategorySettings; added: number; updated: 0 } {
   const ids = new Set(settings.rules.map(rule => rule.id));
   const keywords = new Set(settings.rules.map(rule => normalizeBankDescription(rule.keyword)));
   const additions: CategoryRule[] = [];
-  for (const rule of BANK_REVIEW_COMPLETION_RULES) {
+  for (const rule of rules) {
     const category = resolveBankCategoryName(settings.names, rule.category);
     const keyword = normalizeBankDescription(rule.keyword);
     if (!category || ids.has(rule.id) || keywords.has(keyword)) continue;

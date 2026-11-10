@@ -1,5 +1,5 @@
 import { createContext, useEffect, useState } from 'react';
-import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
+import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, KEYWORD_PACK_VERSION, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
 import { effectiveCategorySettings } from '../lib/categorySettingsUpgrade';
 import { BUDGETS_KEY, isEmptyBudgets, parseStoredBudgets, serializeBudgets, type BudgetMap } from '../lib/budgets';
 import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
@@ -46,7 +46,7 @@ export function useCategorySettings() {
   async function save(next: CategorySettings, expectedRaw: string | null, budgetChange?: BudgetChange): Promise<void> {
     if (snapshot.error === restorePending) throw Error(restorePending);
     const checked = validateCategorySettings(next);
-    const settings = validateCategorySettings({ ...checked, keywordPackVersion: 5 }), raw = JSON.stringify(settings);
+    const settings = validateCategorySettings({ ...checked, keywordPackVersion: KEYWORD_PACK_VERSION }), raw = JSON.stringify(settings);
     // Validate before the lock; an empty map removes the key instead of storing "{}".
     const budgets = budgetChange ? parseStoredBudgets(serializeBudgets(budgetChange.budgets)) : undefined;
     const budgetsRaw = budgets && !isEmptyBudgets(budgets) ? serializeBudgets(budgets) : null;

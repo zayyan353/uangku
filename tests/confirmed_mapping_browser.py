@@ -124,7 +124,7 @@ def fresh_default(case):
     p = case.page
     before = stored_document(p)
     dialog = case.manager()
-    expect(dialog.locator('.category-manager-rules li')).to_have_count(81)
+    expect(dialog.locator('.category-manager-rules li')).to_have_count(87)
     expect(dialog.locator('.category-manager-names li')).to_have_count(30)
     case.screenshot('manager')
     dialog.get_by_role('button', name='Batal', exact=True).click()
@@ -165,7 +165,7 @@ def migrated_settings(case):
     dialog = case.manager()
     case.save(dialog)
     saved = case.settings_value()
-    assert saved['keywordPackVersion'] == 5
+    assert saved['keywordPackVersion'] == 6
     assert saved['names'][:len(original['names'])] == original['names']
     assert set(saved['names']) - set(original['names']) == {'Belanja online', 'Pembayaran Apple', 'Scooter', 'Tarik tunai', 'Setor tunai', 'Transfer', 'Cashback'}
     by_id = {rule['id']: rule for rule in saved['rules']}
@@ -176,9 +176,10 @@ def migrated_settings(case):
         else:
             assert by_id[rule['id']] == rule
     additions = [rule for rule in saved['rules'] if rule['id'] not in {old['id'] for old in original['rules']}]
-    assert len([rule for rule in additions if not rule['id'].startswith(('bank-v3-', 'bank-v4-', 'bank-v5-'))]) == 7
-    # Three fee rules stay absent because this personal v1 catalog has no Biaya bank.
+    assert len([rule for rule in additions if not rule['id'].startswith(('bank-v3-', 'bank-v4-', 'bank-v5-', 'bank-v6-'))]) == 7
+    # Three v3 and four v6 fee rules stay absent because this personal v1 catalog has no Biaya bank.
     assert len([rule for rule in additions if rule['id'].startswith(('bank-v3-', 'bank-v4-', 'bank-v5-'))]) == 14
+    assert [rule['id'] for rule in additions if rule['id'].startswith('bank-v6-')] == ['bank-v6-atm-domestic-withdrawal', 'bank-v6-atm-qr-withdrawal']
     # The v1 marker records deliberate absence; v2 must not repopulate old packs.
     assert not {'keyword-pack-estram', 'keyword-pack-trendyol-food', 'keyword-pack-cagri-market', 'grocery-bim'} & set(by_id)
     case.unchanged(settings=False)
@@ -199,7 +200,7 @@ def custom_override(case, id_, note, expected_category):
     dialog = case.manager()
     case.save(dialog)
     saved = case.settings_value()
-    assert saved['keywordPackVersion'] == 5
+    assert saved['keywordPackVersion'] == 6
     assert next(rule for rule in saved['rules'] if rule['id'] == id_) == chosen
     assert next(rule for rule in saved['rules'] if rule['id'] == 'my-custom') == next(rule for rule in original['rules'] if rule['id'] == 'my-custom')
     case.page.reload(wait_until='networkidle'); nav(case.page, 'Transaksi')
@@ -217,10 +218,10 @@ def deleted_category(case):
         dialog.get_by_role('button', name='Ekspor pengaturan kategori', exact=True).click()
     download.value.save_as(export_path)
     exported = json.loads(export_path.read_text(encoding='utf-8'))
-    assert exported['settings']['keywordPackVersion'] == 5 and 'Scooter' not in exported['settings']['names']
+    assert exported['settings']['keywordPackVersion'] == 6 and 'Scooter' not in exported['settings']['names']
     case.save(dialog)
     p.reload(wait_until='networkidle'); nav(p, 'Transaksi')
-    assert case.settings_value()['keywordPackVersion'] == 5 and 'Scooter' not in case.settings_value()['names']
+    assert case.settings_value()['keywordPackVersion'] == 6 and 'Scooter' not in case.settings_value()['names']
     dialog = case.automation()
     assert dialog.locator('.category-automation-row').filter(has_text='POS HOP SCOOTER CONF004').count() == 0
     dialog.get_by_role('button', name='Batal', exact=True).click()
@@ -250,7 +251,7 @@ def v1_quota(case):
     assert case.settings_value()['keywordPackVersion'] == 1
     p.evaluate('window.blockConfirmedSave=false')
     case.save(dialog)
-    assert case.settings_value()['keywordPackVersion'] == 5
+    assert case.settings_value()['keywordPackVersion'] == 6
     case.unchanged(settings=False)
 
 
@@ -267,7 +268,7 @@ def v1_cas(case):
     saved_text = case.settings_text()
     second_dialog.get_by_role('button', name='Simpan pengaturan', exact=True).click()
     expect(second_dialog.get_by_role('alert')).to_be_visible()
-    assert case.settings_text() == saved_text and case.settings_value()['keywordPackVersion'] == 5
+    assert case.settings_text() == saved_text and case.settings_value()['keywordPackVersion'] == 6
     assert 'Kategori tab pertama' in case.settings_value()['names'] and 'Kategori tab usang' not in case.settings_value()['names']
     case.unchanged(settings=False)
 

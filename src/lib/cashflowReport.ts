@@ -96,8 +96,8 @@ function operationGroup(entry: Entry, posting: EntryPosting, wording: string, fi
     return operation.pending ? 'other' : operation.kind;
   }
   const purchase = contains(text, 'pos alisveris') || contains(text, 'pos harcama');
-  const fee = operation.kind === 'transfer-fee' || ['komisyon tutari', 'bsmv tutari', 'mesaj ucreti tutari']
-    .some(phrase => contains(text, phrase));
+  const fee = operation.kind === 'transfer-fee' || operation.kind === 'atm-fee'
+    || ['komisyon tutari', 'bsmv tutari', 'mesaj ucreti tutari', 'islem toplam masrafi'].some(phrase => contains(text, phrase));
   if (!purchase && fee) return amount < 0 ? 'fees' : 'other';
   if (operation.kind === 'bank-transfer') return operation.pending ? 'other' : 'transfer';
   if (purchase || operation.kind === 'online-purchase') return amount < 0 ? 'payments' : 'other';

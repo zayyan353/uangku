@@ -4,12 +4,16 @@ import { mergeCategoryKeywordPack } from './categoryKeywordPack';
 import { mergeConfirmedCategoryMappings } from './categoryConfirmedMappings';
 import { CONFIRMED_CATEGORY_NAMES } from './categoryKeywordDefinitions';
 import { BANK_CATEGORY_NAMES, mergeBankCategoryMappings } from './categoryBankMappings';
-import { mergeAutomaticBankMappings, mergeReviewCompletionMappings } from './bankAutoMappings';
+import { mergeAtmNetworkMappings, mergeAutomaticBankMappings, mergeReviewCompletionMappings } from './bankAutoMappings';
 
 export const CATEGORY_SETTINGS_KEY = 'uangku:categories:v1';
 export const UNCATEGORIZED = 'Belum dikategorikan';
 export const CATEGORY_SETTINGS_LIMIT = 128 * 1024;
-export interface CategorySettings { version: 1; names: string[]; rules: CategoryRule[]; keywordPackVersion?: 1 | 2 | 3 | 4 | 5 }
+export const KEYWORD_PACK_VERSION = 6;
+const KEYWORD_PACK_VERSIONS = [1, 2, 3, 4, 5, KEYWORD_PACK_VERSION] as const;
+export type KeywordPackVersion = typeof KEYWORD_PACK_VERSIONS[number];
+const isKeywordPackVersion = (value: unknown): value is KeywordPackVersion => (KEYWORD_PACK_VERSIONS as readonly unknown[]).includes(value);
+export interface CategorySettings { version: 1; names: string[]; rules: CategoryRule[]; keywordPackVersion?: KeywordPackVersion }
 export const DEFAULT_CATEGORY_NAMES = [...CATEGORY_NAMES, 'Bahan makanan', 'Rumah & sewa',
   'Internet & pulsa', 'Langganan', 'Biaya bank', 'Perawatan diri', 'Perjalanan',
   'Hadiah & donasi', 'Kebutuhan rumah', 'Pakaian', 'Gaji', 'Beasiswa', 'Pengembalian dana', ...CONFIRMED_CATEGORY_NAMES, ...BANK_CATEGORY_NAMES];
@@ -18,7 +22,8 @@ export function defaultCategorySettings(): CategorySettings {
   const expanded = mergeCategoryKeywordPack(base).settings;
   const confirmed = mergeConfirmedCategoryMappings(expanded).settings;
   const bank = mergeBankCategoryMappings(confirmed).settings;
-  return { ...mergeReviewCompletionMappings(mergeAutomaticBankMappings(bank).settings).settings, keywordPackVersion: 5 };
+  const completion = mergeReviewCompletionMappings(mergeAutomaticBankMappings(bank).settings).settings;
+  return { ...mergeAtmNetworkMappings(completion).settings, keywordPackVersion: KEYWORD_PACK_VERSION };
 }
 function object(value: unknown, fields: string[], optional: string[] = []): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw Error('Format pengaturan kategori tidak valid.');
@@ -36,7 +41,7 @@ function text(value: unknown, label: string, min: number, max: number): string {
 }
 export function validateCategorySettings(value: unknown): CategorySettings {
   const source = object(value, ['version', 'names', 'rules'], ['keywordPackVersion']);
-  if (Object.hasOwn(source, 'keywordPackVersion') && source.keywordPackVersion !== 1 && source.keywordPackVersion !== 2 && source.keywordPackVersion !== 3 && source.keywordPackVersion !== 4 && source.keywordPackVersion !== 5) throw Error('Versi paket kata kunci belum didukung.');
+  if (Object.hasOwn(source, 'keywordPackVersion') && !isKeywordPackVersion(source.keywordPackVersion)) throw Error('Versi paket kata kunci belum didukung.');
   if (source.version !== 1 || !Array.isArray(source.names) || source.names.length < 1 || source.names.length > 100 || !Array.isArray(source.rules) || source.rules.length > 200) throw Error('Pengaturan maksimal 100 kategori dan 200 aturan, versi 1.');
   const names = source.names.map(name => text(name, 'Nama kategori', 1, 80));
   if (!names.includes(UNCATEGORIZED) || new Set(names.map(name => name.toLocaleLowerCase('id-ID'))).size !== names.length) throw Error('Kategori harus unik dan tetap menyertakan Belum dikategorikan.');
@@ -47,7 +52,7 @@ export function validateCategorySettings(value: unknown): CategorySettings {
       category: text(row.category, 'Kategori aturan', 1, 80), mode: row.mode } as CategoryRule;
   });
   if (new Set(rules.map(rule => rule.id)).size !== rules.length || rules.some(rule => rule.category === UNCATEGORIZED)) throw Error('ID aturan harus unik dan tujuannya harus kategori tertentu.');
-  const result: CategorySettings = { version: 1, names, rules, ...((source.keywordPackVersion === 1 || source.keywordPackVersion === 2 || source.keywordPackVersion === 3 || source.keywordPackVersion === 4 || source.keywordPackVersion === 5) ? { keywordPackVersion: source.keywordPackVersion } : {}) };
+  const result: CategorySettings = { version: 1, names, rules, ...(isKeywordPackVersion(source.keywordPackVersion) ? { keywordPackVersion: source.keywordPackVersion } : {}) };
   if (new TextEncoder().encode(JSON.stringify({ app: 'uangku-category-settings', version: 1, settings: result })).length > CATEGORY_SETTINGS_LIMIT) throw Error('Pengaturan kategori melewati batas 128 KiB.');
   return result;
 }
