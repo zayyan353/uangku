@@ -212,7 +212,7 @@ Audit UI (9 November 2026, build `f243309`, 1440px & 390px, terang & gelap).
 Fokus tampilan dulu; perilaku/alur (UX) menyusul. Kerjakan berurutan, satu MW
 per PR, perilaku tidak berubah kecuali disebut.
 
-- [ ] **MW-22 — Rapikan tumpukan banner di atas halaman**
+- [x] **MW-22 — Rapikan tumpukan banner di atas halaman**
   Tiap halaman diawali tiga kotak: "Versi pengembangan lokal", "Belum
   tersimpan", dan "Kenalan dulu pakai data contoh" (±200px). Di HP layar
   pertama halaman Dompet tidak menampilkan dompet sama sekali. Gabungkan jadi

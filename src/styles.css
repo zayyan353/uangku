@@ -1189,3 +1189,24 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .template-quick-list .button { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .template-quick .notice { margin: 0; font-size: 14px; line-height: 1.7; }
 .template-fill-warning { display: block; margin-top: 4px; }
+
+/* MW-22: status simpan di topbar dan satu banner ringkas */
+.save-pill { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 4px 10px; border: 1px solid #dce5d0; border-radius: 999px; background: #f6f8ef; color: #52634f; font-size: 12px; line-height: 1.4; white-space: nowrap; }
+.save-pill.problem { color: #a55742; border-color: #f0d4c9; background: #fff3ee; }
+.save-pill.problem .status-dot { background: #d0714f; }
+.dev-note { display: block; margin-top: 3px; color: #52634f; font-size: 12px; line-height: 1.5; }
+.dev-note.standalone { margin: 0 0 18px; }
+.notice.save-problem { flex-wrap: wrap; align-items: center; }
+html[data-theme="dark"] .save-pill { color: var(--text-muted); background: var(--surface); border-color: var(--line); }
+html[data-theme="dark"] .save-pill.problem { color: var(--error-text); background: var(--error-surface); border-color: var(--error-border); }
+html[data-theme="dark"] .dev-note { color: var(--text-muted); }
+@media (max-width: 760px) {
+  .demo-banner-copy > .demo-banner-detail { display: none; }
+  .demo-banner { align-items: center; margin-bottom: 18px; }
+  .demo-banner .dev-note { font-size: 11px; }
+}
+@media (max-width: 420px) {
+  .save-pill { padding: 0; width: 22px; height: 22px; justify-content: center; flex-shrink: 0; }
+  .save-pill .status-dot { width: 7px; height: 7px; }
+  .save-pill-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
