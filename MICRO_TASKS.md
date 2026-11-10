@@ -364,7 +364,7 @@ Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
 - [x] **MW-58 — Impor CSV umum: jarak paragraf ke field**
   Label "Pemisah CSV" menempel pada paragraf di atasnya. Beri jarak.
 
-- [ ] **MW-59 — Rincian arus kosong punya pesan**
+- [x] **MW-59 — Rincian arus kosong punya pesan**
   Tanpa arus, tabel hanya menampilkan header. Tampilkan baris "Belum ada arus pada periode ini".
 
 - [ ] **MW-60 — Paginasi disembunyikan saat 0 transaksi**

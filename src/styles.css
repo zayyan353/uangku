@@ -1366,3 +1366,6 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
 
 /* MW-58: paragraf pengantar impor umum tidak menempel ke field di bawahnya. */
 .generic-import-intro { margin: 0 0 16px; line-height: 1.7; }
+
+/* MW-59: tabel Rincian arus tanpa baris. */
+.cashflow-table .cashflow-empty td { text-align: center; color: var(--text-muted); white-space: normal; padding: 18px 0; }
