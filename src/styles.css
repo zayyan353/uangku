@@ -775,7 +775,10 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
 .history-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 12px; color: #52634f; font-size: 13px; }
 .history-pagination > div { display: flex; gap: 8px; }
 .amount-detail-button { border: 0; padding: 3px 0; margin: 0; background: transparent; color: #354738; text-align: inherit; max-width: 100%; min-height: 44px; display: inline-flex; flex-direction: column; align-items: flex-end; }
-.amount-detail-button strong { text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 4px; }
+.amount-detail-button { cursor: pointer; border-radius: 8px; }
+.amount-detail-button strong { text-decoration: underline; text-decoration-color: transparent; text-underline-offset: 4px; transition: text-decoration-color .15s; }
+.amount-detail-button:hover strong, .amount-detail-button:focus-visible strong { text-decoration-color: currentColor; }
+.amount-detail-button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .amount-detail-hint { display: block; color: #52634f; font-size: 12px; margin-top: 5px; }
 /* MW-26: petunjuk "Rincian nominal" hanya saat baris disorot/difokus; ruangnya tetap supaya baris tidak bergeser. */
 .transactions-table:not(.import-table) .amount-detail-hint { visibility: hidden; }

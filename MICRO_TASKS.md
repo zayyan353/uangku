@@ -320,7 +320,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-45 — Hapus transaksi lewat form ubah**
   Ikon hapus per baris dibuang; tombol baris (ikon pensil) membuka form ubah yang sudah punya tombol "Hapus" dengan konfirmasi. Menu "…" tidak dibuat karena "Ubah …" dipakai banyak alur dan tes sebagai pembuka form langsung.
 
-- [ ] **MW-46 — Nominal tanpa garis putus-putus**
+- [x] **MW-46 — Nominal tanpa garis putus-putus**
   Garis bawah putus-putus di nominal diganti tanda yang lebih halus; nominal tetap bisa diklik.
 
 - [ ] **MW-47 — Banner data contoh ringkas**
