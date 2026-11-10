@@ -9,7 +9,7 @@ import {
   parseCategorySettingsExport, validateCategorySettings, type CategorySettings,
 } from './categorySettings';
 import { upgradeCategorySettings } from './categorySettingsUpgrade';
-import { BANK_ATM_NETWORK_RULES, BANK_CATEGORY_NAMES, BANK_CATEGORY_RULES, BANK_REVIEW_COMPLETION_RULES, mergeBankCategoryMappings } from './categoryBankMappings';
+import { BANK_ATM_NETWORK_RULES, BANK_KEYWORD_PACK_7_RULES, BANK_CATEGORY_NAMES, BANK_CATEGORY_RULES, BANK_REVIEW_COMPLETION_RULES, mergeBankCategoryMappings } from './categoryBankMappings';
 import { mergeConfirmedCategoryMappings } from './categoryConfirmedMappings';
 
 const oldNames = () => DEFAULT_CATEGORY_NAMES.filter(name => !([...CONFIRMED_CATEGORY_NAMES, ...BANK_CATEGORY_NAMES] as readonly string[]).includes(name));
@@ -25,13 +25,13 @@ function thirdPack(): CategorySettings {
   return { ...mergeBankCategoryMappings({ ...secondPack(), names: [...secondPack().names, ...BANK_CATEGORY_NAMES] }).settings, keywordPackVersion: 3 };
 }
 const confirmedAndBankAdded = CONFIRMED_ADDITIONAL_RULES.length + BANK_CATEGORY_RULES.length + 1
-  + BANK_REVIEW_COMPLETION_RULES.length + BANK_ATM_NETWORK_RULES.length;
+  + BANK_REVIEW_COMPLETION_RULES.length + BANK_ATM_NETWORK_RULES.length + BANK_KEYWORD_PACK_7_RULES.length;
 
 describe('user-confirmed mapping version2 migration', () => {
   it('upgrades exactly the seven untouched bundled mappings and adds the seven confirmed aliases', () => {
     const source = firstPack(), before = categorySettingsExport(source);
     const result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.settings.keywordPackVersion).toBe(6);
+    expect(result.error).toBe(''); expect(result.settings.keywordPackVersion).toBe(7);
     expect(result.added).toBe(confirmedAndBankAdded); expect(result.updated).toBe(15);
     const byId = new Map(result.settings.rules.map(rule => [rule.id, rule]));
     expect(byId.get('shopping-trendyol')).toEqual({ id: 'shopping-trendyol', keyword: 'TRENDYOL', category: 'Belanja online', mode: 'auto' });
@@ -41,7 +41,7 @@ describe('user-confirmed mapping version2 migration', () => {
     expect(byId.get('keyword-pack-composite-delivery')?.mode).toBe('auto');
     expect(byId.get('keyword-pack-youtube-generic')).toEqual({ id: 'keyword-pack-youtube-generic', keyword: 'GOOGLE YOUTUBE', category: 'Langganan', mode: 'auto' });
     for (const rule of CONFIRMED_ADDITIONAL_RULES) expect(byId.get(rule.id)).toEqual(rule);
-    expect(result.settings.rules).toHaveLength(87);
+    expect(result.settings.rules).toHaveLength(source.rules.length + confirmedAndBankAdded);
     expect(categorySettingsExport(source)).toBe(before);
   });
 
@@ -50,7 +50,7 @@ describe('user-confirmed mapping version2 migration', () => {
     const deleted = ['keyword-pack-hop-scoot', 'keyword-pack-a101-alias', 'keyword-pack-avea-bill'];
     source.rules = source.rules.filter(rule => !deleted.includes(rule.id));
     const before = categorySettingsExport(source), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.settings.keywordPackVersion).toBe(6);
+    expect(result.error).toBe(''); expect(result.settings.keywordPackVersion).toBe(7);
     expect(result.added).toBe(confirmedAndBankAdded); expect(result.updated).toBe(14);
     for (const id of deleted) expect(result.settings.rules.some(rule => rule.id === id)).toBe(false);
     expect(categorySettingsExport(source)).toBe(before);
@@ -123,7 +123,7 @@ describe('user-confirmed mapping version2 migration', () => {
 
   it('does not fill absent v1 rules after an imported old configuration is explicitly declared current', () => {
     const imported = parseCategorySettingsExport(categorySettingsExport({ version: 1, names: oldNames(), rules: [] }));
-    const saved = validateCategorySettings({ ...imported, keywordPackVersion: 6 });
+    const saved = validateCategorySettings({ ...imported, keywordPackVersion: 7 });
     const result = upgradeCategorySettings(saved);
     expect(result.settings).toBe(saved); expect(result.added).toBe(0);
     expect(result.settings.rules).toEqual([]);
@@ -159,7 +159,7 @@ describe('user-confirmed mapping version2 migration', () => {
     const oldExpansionIds = new Set(KEYWORD_EXPANSION_RULES.map(rule => rule.id));
     source.rules = source.rules.filter(rule => !oldExpansionIds.has(rule.id));
     const result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.settings.keywordPackVersion).toBe(6);
+    expect(result.error).toBe(''); expect(result.settings.keywordPackVersion).toBe(7);
     expect(result.settings.rules.some(rule => oldExpansionIds.has(rule.id))).toBe(false);
     expect(result.added).toBe(confirmedAndBankAdded); expect(result.updated).toBe(10);
   });

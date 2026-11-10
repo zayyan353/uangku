@@ -4,13 +4,13 @@ import { mergeCategoryKeywordPack } from './categoryKeywordPack';
 import { mergeConfirmedCategoryMappings } from './categoryConfirmedMappings';
 import { CONFIRMED_CATEGORY_NAMES } from './categoryKeywordDefinitions';
 import { BANK_CATEGORY_NAMES, mergeBankCategoryMappings } from './categoryBankMappings';
-import { mergeAtmNetworkMappings, mergeAutomaticBankMappings, mergeReviewCompletionMappings } from './bankAutoMappings';
+import { mergeAtmNetworkMappings, mergeAutomaticBankMappings, mergeKeywordPack7Mappings, mergeReviewCompletionMappings } from './bankAutoMappings';
 
 export const CATEGORY_SETTINGS_KEY = 'uangku:categories:v1';
 export const UNCATEGORIZED = 'Belum dikategorikan';
 export const CATEGORY_SETTINGS_LIMIT = 128 * 1024;
-export const KEYWORD_PACK_VERSION = 6;
-const KEYWORD_PACK_VERSIONS = [1, 2, 3, 4, 5, KEYWORD_PACK_VERSION] as const;
+export const KEYWORD_PACK_VERSION = 7;
+const KEYWORD_PACK_VERSIONS = [1, 2, 3, 4, 5, 6, KEYWORD_PACK_VERSION] as const;
 export type KeywordPackVersion = typeof KEYWORD_PACK_VERSIONS[number];
 const isKeywordPackVersion = (value: unknown): value is KeywordPackVersion => (KEYWORD_PACK_VERSIONS as readonly unknown[]).includes(value);
 export interface CategorySettings { version: 1; names: string[]; rules: CategoryRule[]; keywordPackVersion?: KeywordPackVersion }
@@ -23,7 +23,7 @@ export function defaultCategorySettings(): CategorySettings {
   const confirmed = mergeConfirmedCategoryMappings(expanded).settings;
   const bank = mergeBankCategoryMappings(confirmed).settings;
   const completion = mergeReviewCompletionMappings(mergeAutomaticBankMappings(bank).settings).settings;
-  return { ...mergeAtmNetworkMappings(completion).settings, keywordPackVersion: KEYWORD_PACK_VERSION };
+  return { ...mergeKeywordPack7Mappings(mergeAtmNetworkMappings(completion).settings).settings, keywordPackVersion: KEYWORD_PACK_VERSION };
 }
 function object(value: unknown, fields: string[], optional: string[] = []): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value) || ![Object.prototype, null].includes(Object.getPrototypeOf(value))) throw Error('Format pengaturan kategori tidak valid.');

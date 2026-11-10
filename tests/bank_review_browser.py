@@ -302,10 +302,13 @@ def deleted_rule(case):
     p.get_by_role('button',name='Batalkan pratinjau',exact=True).click()
     nav(p,'Transaksi');p.get_by_role('button',name='Kelola kategori',exact=True).click()
     dialog=p.get_by_role('dialog',name='Kelola kategori',exact=True)
-    expect(dialog.locator('.category-manager-rules li')).to_have_count(0)
+    # No deleted v5 rule returns. Only the later card-refund identities, new to
+    # this profile and aimed at its active Pengembalian dana, are offered.
+    later=[{'id':'bank-v7-card-refund','keyword':'SATIŞ IADE','category':'Pengembalian dana','mode':'auto'},
+        {'id':'bank-v7-card-refund-foreign','keyword':'SATIŞ YD IADE','category':'Pengembalian dana','mode':'auto'}]
+    expect(dialog.locator('.category-manager-rules li')).to_have_count(len(later))
     dialog.get_by_role('button',name='Simpan pengaturan',exact=True).click();expect(dialog).to_have_count(0)
-    # Saving records the current pack marker; no v5 or later rule is restored.
-    assert json.loads(p.evaluate('(key)=>localStorage.getItem(key)',SETTINGS))=={**json.loads(case.settings_raw),'keywordPackVersion':6}
+    assert json.loads(p.evaluate('(key)=>localStorage.getItem(key)',SETTINGS))=={**json.loads(case.settings_raw),'rules':later,'keywordPackVersion':7}
     case.unchanged(settings=False)
 
 

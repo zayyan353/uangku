@@ -556,16 +556,57 @@ statement. Yang belum otomatis mengelompok pada beberapa pola keterangan bank.
   *Hasil pada file uji (952 baris):* kategori terisi otomatis 918 → 941, jenis
   perlu dicek 9 → 4, perlu dirapikan 34 → 11.
 
-Dicatat dari uji yang sama, **belum dikerjakan** (butuh keputusan pemilik):
+Sisa dari uji yang sama. Pemilik menyerahkan keputusannya ke pelaksana
+(10 November 2026); tiap MW satu commit.
 
-- Tagihan utilitas (gas, listrik) yang dibayar lewat bank belum punya aturan
-  kategori. Perlu keputusan kategori tujuannya (mis. Tagihan).
-- Refund pembelian kartu (`SATIŞ IADE`, `SATIŞ YD IADE`) sengaja tetap "Perlu
-  dicek". Perlu keputusan apakah kredit ini boleh otomatis menjadi
-  Pengembalian dana.
-- Keterangan transfer yang dipotong bank sebelum kata `Havale` (nama penerima
-  panjang) tidak dikenali sebagai transfer dan jatuh ke pengeluaran tanpa
-  kategori.
+- [x] **MW-84 — Tagihan utilitas masuk kategori Tagihan**
+  Pembayaran tagihan gas dan listrik lewat bank (`ESGAZ/Abone No …`,
+  `OSMANGAZİ Sözleşme No …`) tercatat sebagai pengeluaran tanpa kategori.
+  Keputusan: kategori **Tagihan** (sudah ada di bawaan). Dua aturan literal
+  bawaan, nama publik saja: `ESGAZ` dan `OSMANGAZİ SÖZLEŞME NO` (frasa lengkap,
+  karena "Osmangazi" sendiri juga nama kampus dan daerah). Penanda paket kata
+  kunci naik 6 → 7; upgrade tetap aditif seperti MW-83.
+  *File:* `categoryBankMappings.ts`, `bankAutoMappings.ts`,
+  `categorySettings.ts`, `categorySettingsUpgrade.ts`, tes unit terkait,
+  `tests/*_browser.py`.
+
+- [x] **MW-85 — Refund pembelian kartu menjadi Pengembalian dana**
+  Kredit `SATIŞ IADE` / `SATIŞ YD IADE` (merchant mengembalikan pembelian
+  kartu; YD = merchant luar negeri) tetap "Perlu dicek". Keputusan: ikuti
+  preseden refund ATM, yaitu pemasukan kategori **Pengembalian dana**, bukan
+  penghasilan baru. Hanya berlaku bila frasa itu muncul bersama nomor kartu
+  (`KARTNO`) dan nominalnya kredit; debit, pembatalan (`IPTAL`, `REVERSAL`),
+  atau keterangan pembelian tetap ditinjau, dan `IADE` lain tetap belum
+  dipastikan. Nama merchant boleh memuat kata apa pun. Aturan merchant bawaan
+  (mis. tiket kereta → Transportasi) mengalah pada kategori refund; aturan
+  pribadi tetap berlaku dan menjadi saran bila berbeda. Dua aturan bawaan
+  ditambahkan ke paket v7 dari MW-84 (dirilis bersamaan, jadi penanda tidak
+  naik lagi). Catatan lama: **Transaksi → Isi kategori otomatis**.
+  *File:* `bankDescription.ts`, `categorization.ts`, `categoryBankMappings.ts`,
+  `CategoryAutomation.tsx`, tes unit terkait, `tests/*_browser.py`, `README.md`.
+
+- [x] **MW-86 — Pokok transfer yang keterangannya terpotong bank**
+  Bila nama pengirim/penerima panjang, bank memotong keterangan sebelum
+  `Ziraat Mobil Havale`, sehingga pokok transfer terbaca sebagai debit tak
+  dikenal dan dihitung sebagai pengeluaran. Panjang potongannya tidak tetap,
+  jadi sisa teks tidak bisa diandalkan. Keputusan: pakai bukti dari bank
+  sendiri. Baris biaya transfer (`… Havale Komisyonu/BSMV Tahsilatı`) memakai
+  nomor fiş dan tanggal yang sama dengan pokoknya; bila pada fiş dan tanggal
+  itu tepat satu baris lain, baris itu debit, dan keterangannya tidak dikenali,
+  ia dicatat sebagai **perpindahan dana**. Pratinjau impor menampilkan
+  alasannya dan jenisnya tetap bisa diubah. Tanpa baris biaya, lebih dari satu
+  kandidat, kredit, atau baris yang sudah "Perlu dicek" tidak disentuh.
+  Batasan: hanya berlaku saat impor; di Rincian arus baris ini masuk "Mutasi
+  lain" (sama seperti perpindahan dana lain yang keterangannya tak dikenali)
+  dan kategorinya dibiarkan kosong karena perpindahan dana tidak wajib
+  berkategori.
+  *File:* `importer.ts`, `RecoveryImportView.tsx`, tes unit baru,
+  `tests/bank_auto_browser.py`, `README.md`.
+  *Hasil pada file uji (952 baris) setelah MW-84–86:* kategori terisi otomatis
+  941 → 951 dan tidak ada lagi yang perlu dirapikan (11 → 0).
+
+Dicatat dari uji yang sama, **belum dikerjakan**:
+
 - Pembayaran tagihan lewat `Havale` tercatat sebagai perpindahan dana, sesuai
   kebijakan transfer sekarang; mengubahnya menjadi pengeluaran tetap manual.
 

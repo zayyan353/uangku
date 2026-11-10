@@ -3,7 +3,7 @@ import { interpretBankDescription, confirmedBankEntryType } from './bankDescript
 import { defaultCategorySettings, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { categorySuggestion, entryCategorySuggestions } from './categorySuggestions';
 import { upgradeCategorySettings } from './categorySettingsUpgrade';
-import { BANK_ATM_NETWORK_RULES, BANK_REVIEW_COMPLETION_RULES } from './categoryBankMappings';
+import { BANK_ATM_NETWORK_RULES, BANK_BILL_PAYMENT_RULES, BANK_KEYWORD_PACK_7_RULES, BANK_REVIEW_COMPLETION_RULES } from './categoryBankMappings';
 import { applyBankDecisions } from './bankDecisions';
 import { entrySignedAmount, walletBalance } from './finance';
 import { SOURCE_POLICY, type SourceDocument } from './sourceModel';
@@ -15,7 +15,7 @@ const settings = () => defaultCategorySettings();
 const match = (text: string, amount: number, value = settings()) => categorySuggestion(text, amount < 0 ? 'expense' : 'unreviewed', value, amount);
 function v4(): CategorySettings {
   const value = settings();
-  return { ...value, keywordPackVersion: 4, rules: value.rules.filter(rule => !rule.id.startsWith('bank-v5-') && !rule.id.startsWith('bank-v6-')) };
+  return { ...value, keywordPackVersion: 4, rules: value.rules.filter(rule => !/^bank-v[5-9]-/.test(rule.id)) };
 }
 function document(description = refund): SourceDocument {
   return { app: 'uangku', version: 1, demo: false, state: { version: 1,
@@ -81,13 +81,13 @@ describe('physical card operation fallback with unknown purpose', () => {
 });
 
 describe('v5 non-destructive review completion pack', () => {
-  it('adds only the three v5 rules and the later ATM pack to a v4 catalog, retaining old deleted rules and names', () => {
+  it('adds only the three v5 rules and the later packs to a v4 catalog, retaining old deleted rules and names', () => {
     const source = v4(); source.rules = source.rules.filter(rule => !['bank-v4-prepaid-credit', 'bank-v3-atm-deposit'].includes(rule.id));
     const before = JSON.stringify(source), result = upgradeCategorySettings(source);
-    expect(result.added).toBe(3 + BANK_ATM_NETWORK_RULES.length); expect(result.updated ?? 0).toBe(0); expect(result.settings.keywordPackVersion).toBe(6);
+    expect(result.added).toBe(3 + BANK_ATM_NETWORK_RULES.length + BANK_KEYWORD_PACK_7_RULES.length); expect(result.updated ?? 0).toBe(0); expect(result.settings.keywordPackVersion).toBe(7);
     expect(result.settings.names).toEqual(source.names);
     expect(result.settings.rules.slice(0, source.rules.length)).toEqual(source.rules);
-    expect(result.settings.rules.slice(source.rules.length)).toEqual([...BANK_REVIEW_COMPLETION_RULES, ...BANK_ATM_NETWORK_RULES]);
+    expect(result.settings.rules.slice(source.rules.length)).toEqual([...BANK_REVIEW_COMPLETION_RULES, ...BANK_ATM_NETWORK_RULES, ...BANK_KEYWORD_PACK_7_RULES]);
     expect(result.settings.rules.some(rule => rule.id === 'bank-v4-prepaid-credit')).toBe(false);
     expect(result.settings.rules.some(rule => rule.id === 'bank-v3-atm-deposit')).toBe(false);
     expect(JSON.stringify(source)).toBe(before);
@@ -103,10 +103,11 @@ describe('v5 non-destructive review completion pack', () => {
     source.rules.push({ id: 'bank-v5-card-harcama', keyword: 'PERSONAL DIFFERENT', category: 'Belanja', mode: 'suggest' });
     source.names = source.names.filter(name => name !== 'Pengembalian dana');
     const before = JSON.stringify(source.rules), result = upgradeCategorySettings(source);
-    // No v5 identity is admitted; only the unrelated later ATM pack is appended.
-    expect(result.added).toBe(BANK_ATM_NETWORK_RULES.length);
+    // No v5 identity is admitted; only unrelated later rules with an active target are appended.
+    const later = [...BANK_ATM_NETWORK_RULES, ...BANK_BILL_PAYMENT_RULES];
+    expect(result.added).toBe(later.length);
     expect(JSON.stringify(result.settings.rules.slice(0, source.rules.length))).toBe(before);
-    expect(result.settings.rules.slice(source.rules.length)).toEqual(BANK_ATM_NETWORK_RULES);
+    expect(result.settings.rules.slice(source.rules.length)).toEqual(later);
     expect(result.settings.names).toEqual(source.names);
   });
   it('rolls back the entire proposal if the rule limit cannot admit it', () => {
@@ -116,8 +117,8 @@ describe('v5 non-destructive review completion pack', () => {
     expect(result.error).toMatch(/200/); expect(result.settings).toBe(source); expect(JSON.stringify(source)).toBe(before);
   });
   it('preserves all historical markers in the strict schema and rejects a future version', () => {
-    for(const marker of [1,2,3,4,5,6] as const) expect(validateCategorySettings({ ...v4(), keywordPackVersion: marker }).keywordPackVersion).toBe(marker);
-    expect(() => validateCategorySettings({ ...v4(), keywordPackVersion: 7 })).toThrow();
+    for(const marker of [1,2,3,4,5,6,7] as const) expect(validateCategorySettings({ ...v4(), keywordPackVersion: marker }).keywordPackVersion).toBe(marker);
+    expect(() => validateCategorySettings({ ...v4(), keywordPackVersion: 8 })).toThrow();
   });
 });
 

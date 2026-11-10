@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CATEGORY_RULES, normalizeCategoryKeyword, type CategoryRule } from './categorization';
-import { BANK_ATM_NETWORK_RULES, BANK_CATEGORY_NAMES, BANK_CATEGORY_RULES, CURRENT_BANK_CATEGORY_RULES, BANK_REVIEW_COMPLETION_RULES } from './categoryBankMappings';
+import { BANK_ATM_NETWORK_RULES, BANK_KEYWORD_PACK_7_RULES, BANK_CATEGORY_NAMES, BANK_CATEGORY_RULES, CURRENT_BANK_CATEGORY_RULES, BANK_REVIEW_COMPLETION_RULES } from './categoryBankMappings';
 import { mergeCategoryKeywordPack } from './categoryKeywordPack';
 import { mergeConfirmedCategoryMappings, mergeCurrentCategoryKeywordPack } from './categoryConfirmedMappings';
 import { CONFIRMED_ADDITIONAL_RULES, CONFIRMED_CATEGORY_NAMES, CONFIRMED_RULE_UPDATES, KEYWORD_EXPANSION_RULES } from './categoryKeywordDefinitions';
@@ -17,29 +17,29 @@ function historicalV2(): CategorySettings {
   const previous = mergeCategoryKeywordPack({ version: 1, names, rules: DEFAULT_CATEGORY_RULES.map(rule => ({ ...rule })) }).settings;
   return { ...mergeConfirmedCategoryMappings({ ...previous, keywordPackVersion: 1 }).settings, keywordPackVersion: 2 };
 }
-/** Everything a v2 profile receives: bank operations (v3/v4), review completion (v5), ATM network (v6). */
-const bankPackRules = [...CURRENT_BANK_CATEGORY_RULES, ...BANK_REVIEW_COMPLETION_RULES, ...BANK_ATM_NETWORK_RULES];
+/** Everything a v2 profile receives: bank operations (v3/v4), review completion (v5), ATM network (v6), pack 7. */
+const bankPackRules = [...CURRENT_BANK_CATEGORY_RULES, ...BANK_REVIEW_COMPLETION_RULES, ...BANK_ATM_NETWORK_RULES, ...BANK_KEYWORD_PACK_7_RULES];
 const envelopeBytes = (settings: CategorySettings) => new TextEncoder().encode(JSON.stringify({ app: 'uangku-category-settings', version: 1, settings })).length;
 
 describe('bank category settings version3 upgrade', () => {
-  it('creates current defaults with30 categories/87 rules and24 bank annotation rules', () => {
+  it('creates current defaults with30 categories and all bundled bank annotation rules', () => {
     const current = defaultCategorySettings();
-    expect(current.keywordPackVersion).toBe(6);
-    expect(current.names).toHaveLength(30); expect(current.rules).toHaveLength(87);
-    expect(BANK_CATEGORY_RULES).toHaveLength(14); expect(bankPackRules).toHaveLength(24);
+    expect(current.keywordPackVersion).toBe(7);
+    expect(current.names).toHaveLength(30); expect(current.rules).toHaveLength(63 + bankPackRules.length);
+    expect(BANK_CATEGORY_RULES).toHaveLength(14); expect(bankPackRules).toHaveLength(28);
     expect(current.rules.slice(-bankPackRules.length)).toEqual(bankPackRules);
     expect(validateCategorySettings(current)).toEqual(current);
     for (const rule of CURRENT_BANK_CATEGORY_RULES) expect(current.rules.find(candidate => candidate.id === rule.id)).toEqual(rule);
     expect(current.rules.every(rule => current.names.includes(rule.category))).toBe(true);
   });
 
-  it('adds only the24 current bank rules and4 labels to a genuine v2 profile, preserving its entire existing array order', () => {
+  it('adds only the current bank rules and4 labels to a genuine v2 profile, preserving its entire existing array order', () => {
     const source = historicalV2(); expect(source.names).toHaveLength(26); expect(source.rules).toHaveLength(63);
     const before = categorySettingsExport(source), rulesBefore = JSON.stringify(source.rules);
     Object.freeze(source.names); source.rules.forEach(Object.freeze); Object.freeze(source.rules); Object.freeze(source);
     const result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.settings.keywordPackVersion).toBe(6);
-    expect(result.added).toBe(24); expect(result.updated ?? 0).toBe(8);
+    expect(result.error).toBe(''); expect(result.settings.keywordPackVersion).toBe(7);
+    expect(result.added).toBe(bankPackRules.length); expect(result.updated ?? 0).toBe(8);
     expect(result.settings.names).toEqual([...source.names, ...BANK_CATEGORY_NAMES]);
     expect(JSON.stringify(result.settings.rules.slice(0, source.rules.length))).toBe(rulesBefore);
     expect(result.settings.rules.slice(source.rules.length)).toEqual(bankPackRules);
@@ -62,7 +62,7 @@ describe('bank category settings version3 upgrade', () => {
     source.rules = source.rules.filter(rule => !deletedIds.includes(rule.id));
     source.names = source.names.filter(name => !(CONFIRMED_CATEGORY_NAMES as readonly string[]).includes(name));
     const before = categorySettingsExport(source), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(23); // online fallback target deliberately inactive
+    expect(result.error).toBe(''); expect(result.added).toBe(bankPackRules.length - 1); // online fallback target deliberately inactive
     expect(result.settings.names).toEqual([...source.names, ...BANK_CATEGORY_NAMES]);
     for (const name of CONFIRMED_CATEGORY_NAMES) expect(result.settings.names).not.toContain(name);
     for (const id of deletedIds) expect(result.settings.rules.some(rule => rule.id === id)).toBe(false);
@@ -75,7 +75,7 @@ describe('bank category settings version3 upgrade', () => {
     const personal: CategoryRule = { id: `personal-${original.id}`, keyword: original.keyword.toLocaleLowerCase('tr-TR'), category: 'Pilihan pribadi', mode: original.mode === 'auto' ? 'suggest' : 'auto' };
     source.rules.splice(3, 0, personal);
     const before = JSON.stringify(source.rules), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(23);
+    expect(result.error).toBe(''); expect(result.added).toBe(bankPackRules.length - 1);
     expect(JSON.stringify(result.settings.rules.slice(0, source.rules.length))).toBe(before);
     expect(result.settings.rules.filter(rule => normalizeCategoryKeyword(rule.keyword) === normalizeCategoryKeyword(original.keyword))).toEqual([personal]);
   });
@@ -85,7 +85,7 @@ describe('bank category settings version3 upgrade', () => {
     const personal: CategoryRule = { id: BANK_CATEGORY_RULES[0].id, keyword: 'PERSONAL CASH LABEL', category: 'Lainnya', mode: 'auto' };
     source.rules.push(personal);
     const result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(23);
+    expect(result.error).toBe(''); expect(result.added).toBe(bankPackRules.length - 1);
     expect(result.settings.rules.filter(rule => rule.id === personal.id)).toEqual([personal]);
   });
 
@@ -94,7 +94,7 @@ describe('bank category settings version3 upgrade', () => {
     const labels = ['tarik TUNAI', 'SETOR TUNAI', 'transfer', 'cashback'];
     source.names.splice(2, 0, ...labels);
     const before = [...source.names], result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(24);
+    expect(result.error).toBe(''); expect(result.added).toBe(bankPackRules.length);
     expect(result.settings.names).toEqual(before);
     for (const original of [...BANK_CATEGORY_RULES, ...BANK_ATM_NETWORK_RULES]) {
       const labelIndex = (BANK_CATEGORY_NAMES as readonly string[]).indexOf(original.category);
@@ -107,7 +107,7 @@ describe('bank category settings version3 upgrade', () => {
     source.names = source.names.map(name => name === 'Belanja online' ? 'BELANJA ONLINE' : name);
     source.rules = source.rules.map(rule => rule.category === 'Belanja online' ? { ...rule, category: 'BELANJA ONLINE' } : rule);
     const before = JSON.stringify(source.rules), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(24);
+    expect(result.error).toBe(''); expect(result.added).toBe(bankPackRules.length);
     expect(result.settings.names).not.toContain('Belanja online');
     expect(result.settings.rules.find(rule => rule.id === 'bank-v3-online-fallback')?.category).toBe('BELANJA ONLINE');
     expect(JSON.stringify(result.settings.rules.slice(0, source.rules.length))).toBe(before);
@@ -126,7 +126,7 @@ describe('bank category settings version3 upgrade', () => {
   });
 
   it('preserves an explicitly current empty rule list without silently restoring any older pack', () => {
-    const current: CategorySettings = { version: 1, names: [UNCATEGORIZED, 'Kategori pribadi'], rules: [], keywordPackVersion: 6 };
+    const current: CategorySettings = { version: 1, names: [UNCATEGORIZED, 'Kategori pribadi'], rules: [], keywordPackVersion: 7 };
     const result = upgradeCategorySettings(current);
     expect(result.settings).toBe(current); expect(result.settings.rules).toEqual([]);
     expect(result.settings.names).toEqual(current.names); expect(result.added).toBe(0);
@@ -175,12 +175,12 @@ describe('bank category settings version3 upgrade', () => {
     expect(categorySettingsExport(source)).toBe(before); expect(source.keywordPackVersion).toBe(2);
   });
 
-  it('preserves each supported historical marker in export/import and rejects marker7', () => {
-    for (const marker of [1, 2, 3, 4, 5, 6] as const) {
+  it('preserves each supported historical marker in export/import and rejects marker8', () => {
+    for (const marker of [1, 2, 3, 4, 5, 6, 7] as const) {
       const source = { ...historicalV2(), keywordPackVersion: marker };
       expect(parseCategorySettingsExport(categorySettingsExport(source))).toEqual(source);
     }
-    expect(() => validateCategorySettings({ ...historicalV2(), keywordPackVersion: 7 })).toThrow(/paket/);
+    expect(() => validateCategorySettings({ ...historicalV2(), keywordPackVersion: 8 })).toThrow(/paket/);
   });
 
   it('never reads or writes local storage while proposing a bank settings upgrade', () => {
@@ -188,7 +188,7 @@ describe('bank category settings version3 upgrade', () => {
     const setItem = vi.fn(() => { throw Error('Unexpected storage mutation'); });
     vi.stubGlobal('localStorage', { getItem, setItem });
     const result = upgradeCategorySettings(historicalV2());
-    expect(result.error).toBe(''); expect(result.added).toBe(24);
+    expect(result.error).toBe(''); expect(result.added).toBe(bankPackRules.length);
     expect(getItem).not.toHaveBeenCalled(); expect(setItem).not.toHaveBeenCalled();
   });
 
@@ -197,7 +197,7 @@ describe('bank category settings version3 upgrade', () => {
     const deletedIds = new Set([...KEYWORD_EXPANSION_RULES, ...CONFIRMED_ADDITIONAL_RULES].map(rule => rule.id));
     source.rules = source.rules.filter(rule => !deletedIds.has(rule.id));
     const before = JSON.stringify(source.rules), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(24);
+    expect(result.error).toBe(''); expect(result.added).toBe(bankPackRules.length);
     expect(result.settings.rules.some(rule => deletedIds.has(rule.id))).toBe(false);
     expect(JSON.stringify(result.settings.rules.slice(0, source.rules.length))).toBe(before);
   });

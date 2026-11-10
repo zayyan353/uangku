@@ -5,7 +5,7 @@ import { confirmedBankEntryType, interpretBankDescription } from './bankDescript
 import { mergeCurrentAutomaticBankMappings } from './bankAutoMappings';
 import { buildCashflowReport } from './cashflowReport';
 import {
-  BANK_ATM_FEE_RULES, BANK_ATM_NETWORK_RULES, BANK_ATM_NETWORK_WITHDRAWAL_RULES, BANK_OPERATION_FEE_RULE,
+  BANK_ATM_FEE_RULES, BANK_ATM_NETWORK_RULES, BANK_ATM_NETWORK_WITHDRAWAL_RULES, BANK_KEYWORD_PACK_7_RULES, BANK_OPERATION_FEE_RULE,
 } from './categoryBankMappings';
 import { defaultCategorySettings, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { upgradeCategorySettings } from './categorySettingsUpgrade';
@@ -30,7 +30,7 @@ const match = (text: string, amount: number, value = settings()) =>
   categorySuggestion(text, amount < 0 ? 'expense' : 'unreviewed', value, amount);
 function v5(): CategorySettings {
   const value = settings();
-  return { ...value, keywordPackVersion: 5, rules: value.rules.filter(rule => !rule.id.startsWith('bank-v6-')) };
+  return { ...value, keywordPackVersion: 5, rules: value.rules.filter(rule => !/^bank-v[6-9]-/.test(rule.id)) };
 }
 
 describe('withdrawals at another bank\'s ATM and by QR', () => {
@@ -150,17 +150,17 @@ describe('v6 non-destructive ATM pack', () => {
     expect(BANK_ATM_NETWORK_RULES).toEqual([...BANK_ATM_NETWORK_WITHDRAWAL_RULES, ...BANK_ATM_FEE_RULES, BANK_OPERATION_FEE_RULE]);
     expect(BANK_ATM_NETWORK_RULES).toHaveLength(6);
     expect(BANK_ATM_NETWORK_RULES.every(rule => rule.id.startsWith('bank-v6-') && rule.mode === 'auto')).toBe(true);
-    expect(settings().rules.slice(-6)).toEqual(BANK_ATM_NETWORK_RULES);
-    expect(settings().keywordPackVersion).toBe(6);
+    expect(settings().rules.filter(rule => rule.id.startsWith('bank-v6-'))).toEqual(BANK_ATM_NETWORK_RULES);
+    expect(settings().keywordPackVersion).toBeGreaterThanOrEqual(6);
   });
-  it('adds only the six rules to a v5 catalog, retaining v5 deletions, edits, names and order', () => {
+  it('adds only the six rules and later packs to a v5 catalog, retaining v5 deletions, edits, names and order', () => {
     const source = v5(); source.rules = source.rules.filter(rule => rule.id !== 'bank-v5-atm-problem-refund');
     source.rules.find(rule => rule.id === 'bank-v5-card-purchase')!.mode = 'suggest';
     const before = JSON.stringify(source), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(6); expect(result.updated ?? 0).toBe(0);
-    expect(result.settings.keywordPackVersion).toBe(6); expect(result.settings.names).toEqual(source.names);
+    expect(result.error).toBe(''); expect(result.added).toBe(6 + BANK_KEYWORD_PACK_7_RULES.length); expect(result.updated ?? 0).toBe(0);
+    expect(result.settings.keywordPackVersion).toBe(7); expect(result.settings.names).toEqual(source.names);
     expect(result.settings.rules.slice(0, source.rules.length)).toEqual(source.rules);
-    expect(result.settings.rules.slice(source.rules.length)).toEqual(BANK_ATM_NETWORK_RULES);
+    expect(result.settings.rules.slice(source.rules.length)).toEqual([...BANK_ATM_NETWORK_RULES, ...BANK_KEYWORD_PACK_7_RULES]);
     expect(result.settings.rules.some(rule => rule.id === 'bank-v5-atm-problem-refund')).toBe(false);
     expect(JSON.stringify(source)).toBe(before);
   });
@@ -175,9 +175,10 @@ describe('v6 non-destructive ATM pack', () => {
     source.rules.push({ id: 'my-commission', keyword: 'komisyon', category: 'Biaya bank', mode: 'suggest' });
     source.rules.push({ id: 'bank-v6-operation-fee', keyword: 'PERSONAL DIFFERENT', category: 'Biaya bank', mode: 'suggest' });
     const before = JSON.stringify(source.rules), result = upgradeCategorySettings(source);
-    expect(result.error).toBe(''); expect(result.added).toBe(2);
+    expect(result.error).toBe(''); expect(result.added).toBe(2 + BANK_KEYWORD_PACK_7_RULES.length);
     expect(JSON.stringify(result.settings.rules.slice(0, source.rules.length))).toBe(before);
-    expect(result.settings.rules.slice(source.rules.length).map(rule => rule.id)).toEqual(['bank-v6-atm-withdrawal-tax', 'bank-v6-atm-deposit-tax']);
+    expect(result.settings.rules.slice(source.rules.length).map(rule => rule.id)).toEqual(['bank-v6-atm-withdrawal-tax', 'bank-v6-atm-deposit-tax',
+      ...BANK_KEYWORD_PACK_7_RULES.map(rule => rule.id)]);
     expect(result.settings.names).toEqual(source.names);
   });
   it('uses a personal display-case label as the rule target', () => {
@@ -199,7 +200,7 @@ describe('v6 non-destructive ATM pack', () => {
     const source: CategorySettings = { version: 1, keywordPackVersion: 5, names: ['Belum dikategorikan', 'Kategori pribadi'], rules: [] };
     const result = upgradeCategorySettings(source);
     expect(result).toMatchObject({ added: 0, error: '' });
-    expect(result.settings).toEqual({ ...source, keywordPackVersion: 6 });
+    expect(result.settings).toEqual({ ...source, keywordPackVersion: 7 });
   });
   it('re-adds missing ATM defaults only on the explicit action, keeping personal edits', () => {
     const source = settings(); source.rules = source.rules.filter(rule => rule.id !== 'bank-v6-atm-qr-withdrawal');
@@ -210,8 +211,8 @@ describe('v6 non-destructive ATM pack', () => {
     expect(result.settings.rules.at(-1)).toEqual(BANK_ATM_NETWORK_WITHDRAWAL_RULES[1]);
   });
   it('accepts every historical marker and rejects a future one', () => {
-    for (const marker of [1, 2, 3, 4, 5, 6] as const) expect(validateCategorySettings({ ...v5(), keywordPackVersion: marker }).keywordPackVersion).toBe(marker);
-    expect(() => validateCategorySettings({ ...v5(), keywordPackVersion: 7 })).toThrow(/paket/);
+    for (const marker of [1, 2, 3, 4, 5, 6, 7] as const) expect(validateCategorySettings({ ...v5(), keywordPackVersion: marker }).keywordPackVersion).toBe(marker);
+    expect(() => validateCategorySettings({ ...v5(), keywordPackVersion: 8 })).toThrow(/paket/);
   });
 });
 

@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CATEGORY_RULES, normalizeCategoryKeyword, type CategoryRule } from './categorization';
 import { KEYWORD_EXPANSION_RULES } from './categoryKeywordPack';
 import { CONFIRMED_ADDITIONAL_RULES, CONFIRMED_CATEGORY_NAMES, CONFIRMED_RULE_UPDATES } from './categoryKeywordDefinitions';
-import { BANK_ATM_NETWORK_RULES, BANK_CATEGORY_NAMES, BANK_CATEGORY_RULES, BANK_REVIEW_COMPLETION_RULES } from './categoryBankMappings';
+import { BANK_ATM_NETWORK_RULES, BANK_KEYWORD_PACK_7_RULES, BANK_CATEGORY_NAMES, BANK_CATEGORY_RULES, BANK_REVIEW_COMPLETION_RULES } from './categoryBankMappings';
 import {
   CATEGORY_SETTINGS_LIMIT, DEFAULT_CATEGORY_NAMES, UNCATEGORIZED,
   categorySettingsExport, parseCategorySettingsExport, validateCategorySettings, type CategorySettings,
@@ -15,7 +15,7 @@ const newNames = [...CONFIRMED_CATEGORY_NAMES, ...BANK_CATEGORY_NAMES];
 const legacy = (): CategorySettings => ({ version: 1, names: DEFAULT_CATEGORY_NAMES.filter(name => !(newNames as readonly string[]).includes(name)),
   rules: DEFAULT_CATEGORY_RULES.map(rule => ({ ...rule })) });
 const addedCount = KEYWORD_EXPANSION_RULES.length + CONFIRMED_ADDITIONAL_RULES.length + BANK_CATEGORY_RULES.length + 1
-  + BANK_REVIEW_COMPLETION_RULES.length + BANK_ATM_NETWORK_RULES.length;
+  + BANK_REVIEW_COMPLETION_RULES.length + BANK_ATM_NETWORK_RULES.length + BANK_KEYWORD_PACK_7_RULES.length;
 function expectedExistingRules(source: CategorySettings) {
   return source.rules.map(rule => CONFIRMED_RULE_UPDATES.find(update =>
     Object.keys(update.previous).every(key => rule[key as keyof CategoryRule] === update.previous[key as keyof CategoryRule]))?.current ?? rule);
@@ -33,7 +33,7 @@ describe('legacy category settings keyword pack upgrade', () => {
     const result = upgradeCategorySettings(source);
     expect(result.error).toBe('');
     expect(result.added).toBe(addedCount);
-    expect(result.settings.keywordPackVersion).toBe(6);
+    expect(result.settings.keywordPackVersion).toBe(7);
     expect(result.settings.names).toEqual([...source.names, ...newNames]);
     expect(result.settings.rules.slice(0, source.rules.length)).toEqual(expectedExistingRules(source));
     expect(result.settings.rules).toHaveLength(source.rules.length + addedCount);
@@ -105,7 +105,7 @@ describe('legacy category settings keyword pack upgrade', () => {
     const source: CategorySettings = { version: 1, names: [UNCATEGORIZED, 'Kategori pribadi'], rules: [custom()] };
     const result = upgradeCategorySettings(source);
     expect(result.error).toBe('');
-    expect(result.settings.keywordPackVersion).toBe(6);
+    expect(result.settings.keywordPackVersion).toBe(7);
     expect(result.settings.names).toEqual([...source.names, ...newNames]);
     expect(result.settings.rules[0]).toEqual(source.rules[0]);
     expect(result.settings.rules.slice(1).every(rule => (newNames as readonly string[]).includes(rule.category))).toBe(true);
@@ -134,7 +134,7 @@ describe('legacy category settings keyword pack upgrade', () => {
     const first = upgradeCategorySettings(legacy()).settings;
     const edited = { ...first, rules: [] };
     const restored = parseCategorySettingsExport(categorySettingsExport(edited));
-    expect(restored.keywordPackVersion).toBe(6);
+    expect(restored.keywordPackVersion).toBe(7);
     const result = upgradeCategorySettings(restored);
     expect(result.settings.rules).toEqual([]); expect(result.added).toBe(0);
   });
@@ -143,10 +143,10 @@ describe('legacy category settings keyword pack upgrade', () => {
     const source = legacy(), raw = categorySettingsExport(source);
     const parsed = parseCategorySettingsExport(raw);
     expect(parsed).toEqual(source); expect(parsed).not.toHaveProperty('keywordPackVersion');
-    expect(upgradeCategorySettings(parsed).settings.keywordPackVersion).toBe(6);
+    expect(upgradeCategorySettings(parsed).settings.keywordPackVersion).toBe(7);
   });
 
-  it.each([0, 7, '1', null])('rejects unsupported or malformed explicit pack markers: %j', marker => {
+  it.each([0, 8, '1', null])('rejects unsupported or malformed explicit pack markers: %j', marker => {
     const source = { ...legacy(), keywordPackVersion: marker };
     expect(() => validateCategorySettings(source)).toThrow(/paket|didukung/);
     expect(() => parseCategorySettingsExport(JSON.stringify({ app: 'uangku-category-settings', version: 1, settings: source }))).toThrow();
@@ -158,7 +158,7 @@ describe('legacy category settings keyword pack upgrade', () => {
   });
 
   it('rejects upgrade of a future marker instead of falling back to a replacement default catalog', () => {
-    const source = { ...legacy(), keywordPackVersion: 7 };
+    const source = { ...legacy(), keywordPackVersion: 8 };
     const before = JSON.stringify(source);
     expect(() => upgradeCategorySettings(source as unknown as CategorySettings)).toThrow(/paket|didukung/);
     expect(JSON.stringify(source)).toBe(before);
@@ -177,13 +177,19 @@ describe('legacy category settings keyword pack upgrade', () => {
 
   it('refuses an oversized expanded UTF-8 envelope atomically while keeping a valid old configuration', () => {
     const source = legacy(); source.names.push('界'.repeat(80)); source.rules = [];
-    for (let index = 0; index < 174; index++) {
+    // Leave room for every bundled rule, so the byte limit and not the rule count refuses the expansion.
+    for (let index = 0; index < 200 - addedCount; index++) {
       const rule = custom({ id: `personal-${index}-`.padEnd(120, '界'), keyword: `${index}-`.padEnd(100, '界'), category: '界'.repeat(80) });
       const candidate = { ...source, rules: [...source.rules, rule] };
       if (envelopeBytes(candidate) > CATEGORY_SETTINGS_LIMIT) break;
       source.rules.push(rule);
     }
-    expect(source.rules.length).toBeLessThan(174);
+    for (let index = 0; envelopeBytes(source) <= CATEGORY_SETTINGS_LIMIT - 1_024 && source.names.length < 90; index++) {
+      const name = `${index}-`.padEnd(80, '界');
+      if (envelopeBytes({ ...source, names: [...source.names, name] }) > CATEGORY_SETTINGS_LIMIT) break;
+      source.names.push(name);
+    }
+    expect(source.rules.length).toBeLessThanOrEqual(200 - addedCount);
     expect(envelopeBytes(source)).toBeGreaterThan(CATEGORY_SETTINGS_LIMIT - 1_024);
     expect(validateCategorySettings(source)).toEqual(source);
     const before = categorySettingsExport(source), result = upgradeCategorySettings(source);
