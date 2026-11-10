@@ -1,4 +1,4 @@
-import { Monitor, Moon, Sun } from 'lucide-react';
+import { ChevronDown, Monitor, Moon, Sun } from 'lucide-react';
 import { useTheme } from '../hooks/useTheme';
 import type { ThemePreference } from '../lib/theme';
 
@@ -13,5 +13,6 @@ export default function ThemePicker({ onNotice }: { onNotice?: (message: string)
       <option value="light">Terang</option>
       <option value="dark">Gelap</option>
     </select>
+    <ChevronDown className="theme-picker-chevron" size={15} aria-hidden="true" />
   </label>;
 }

@@ -1046,6 +1046,34 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
   .theme-picker select { font-size: 13px; }
 }
 
+/* MW-29: topbar — pemilih tema tidak lagi tampak seperti <select> bawaan, indikator lebih terbaca, breadcrumb HP rapi */
+.theme-picker { position: relative; border-radius: 999px; padding-left: 12px; }
+.theme-picker select { appearance: none; -webkit-appearance: none; min-height: 38px; padding: 8px 30px 8px 0; font-weight: 550; }
+.theme-picker-chevron { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; color: var(--text-muted); }
+.topbar .local-indicator { font-size: 13px; }
+.topbar .save-pill { font-size: 13px; }
+.breadcrumb { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.breadcrumb strong { white-space: nowrap; }
+.breadcrumb-root { white-space: nowrap; }
+.topbar .local-indicator { white-space: nowrap; }
+.topbar .breadcrumb { flex: 1 1 auto; overflow: hidden; }
+.topbar .breadcrumb strong { overflow: hidden; text-overflow: ellipsis; }
+.topbar-tools { flex-shrink: 0; }
+@media (max-width: 760px) {
+  .theme-picker { padding-left: 10px; }
+  .theme-picker select { min-height: 40px; min-width: 70px; padding-right: 28px; }
+}
+@media (max-width: 1190px) {
+  .topbar .local-indicator { display: none; }
+  .topbar .save-pill { padding: 0; width: 22px; height: 22px; justify-content: center; flex-shrink: 0; }
+  .topbar .save-pill .status-dot { width: 7px; height: 7px; }
+  .topbar .save-pill-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+}
+@media (max-width: 420px) {
+  .topbar .breadcrumb-root, .topbar .breadcrumb-separator { display: none; }
+  .topbar .breadcrumb strong { font-size: 14px; letter-spacing: 0; }
+}
+
 /* Category configuration is optional UI data; financial facts stay unchanged. */
 .category-manager { display: flex; flex-direction: column; min-height: 0; overflow: hidden; color: var(--text); }
 .category-manager fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
