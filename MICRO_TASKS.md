@@ -296,7 +296,7 @@ Sisa catatan dari MW-26, MW-27, dan tahap UX. Satu MW per commit.
 Dari tinjauan tampilan build produksi (desktop 1440px, HP 390px, data contoh).
 Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 
-- [ ] **MW-38 — Titik nyasar di kartu Kategori pengeluaran**
+- [x] **MW-38 — Titik nyasar di kartu Kategori pengeluaran**
   Catatan kaki kartu "Kategori pengeluaran terkonfirmasi" menampilkan "•" kosong di atasnya (desktop dan HP). Buang penanda kosong itu.
 
 - [ ] **MW-39 — Angka tabel Rincian arus tidak pecah baris di HP**
