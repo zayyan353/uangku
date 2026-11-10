@@ -238,7 +238,7 @@ per PR, perilaku tidak berubah kecuali disebut.
 - [x] **MW-28 — Ringkasan desktop**
   Kolom tabel "Rincian arus rekening" terlalu lebar, panel Dompetmu kosong di
   bawah, penjelasan "Perhitungan saldo" berupa tiga paragraf panjang.
-- [ ] **MW-29 — Topbar**
+- [x] **MW-29 — Topbar**
   Pemilih tema masih `<select>` bawaan, "Lokal & pribadi" terlalu kecil,
   breadcrumb di HP tanpa pemisah ("Ruang pribadi Dompet").
 - [ ] **MW-30 — Eyebrow halaman** "SEDIKIT DICATAT, BANYAK TERBANTU" sama di
