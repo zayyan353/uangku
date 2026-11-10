@@ -267,6 +267,14 @@ Sisa catatan dari MW-26, MW-27, dan tahap UX. Satu MW per commit.
   melihat jumlah yang masuk ke …"; selain itu "Rp … masuk ke …". Tes di
   `browser_smoke.py` (gagal di kode lama, lulus sekarang).
 
+- [x] **MW-35 — Judul transaksi di HP mendapat sisa lebar baris**
+  Lanjutan MW-26. Kolom tabel HP sebelumnya persentase tetap (judul 47%,
+  nominal 39%), jadi judul hanya ±100px di layar 360px walau nominalnya pendek.
+  Sekarang kolom nominal dan aksi selebar isinya (nominal tetap utuh, tanpa
+  pemotongan) dan judul mengambil sisanya: 100→116px di 360px, 115→146px di
+  390px (data contoh). Judul tetap satu baris dengan "…"; judul lengkap tetap di
+  atribut `title` dan modal ubah. Hanya CSS.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).

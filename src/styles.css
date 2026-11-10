@@ -1203,6 +1203,15 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 @media (max-width: 760px) {
   .transactions-table:not(.import-table) .transaction-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .transactions-table:not(.import-table) .amount-detail-hint { display: none; }
+  /* MW-35: kolom nominal & aksi selebar isinya (nominal tidak pernah terpotong);
+     sisa lebar baris untuk judul. Blok judul diberi width 0 supaya teks nowrap
+     tidak ikut menentukan lebar kolom. */
+  .transactions-table:not(.import-table) { table-layout: auto; }
+  .transactions-table:not(.import-table) th:first-child { width: 100%; }
+  .transactions-table:not(.import-table) th:nth-child(4),
+  .transactions-table:not(.import-table) th:nth-child(5) { width: 1%; }
+  .transactions-table:not(.import-table) td.amount-cell { white-space: nowrap; }
+  .transactions-table:not(.import-table) .transaction-cell > div { width: 0; }
 }
 .import-preview .field-help { line-height: 1.8; }
 @media (max-width: 600px) { .bank-wording { max-width: 100%; font-size: 12px; } }
