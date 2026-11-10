@@ -153,7 +153,12 @@ def check_desktop(browser, tmp):
     page.get_by_role("button", name="Pindah uang", exact=True).click()
     dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
     dialog(page).get_by_label("Dompet tujuan", exact=True).select_option("bca-digital-idr")
+    # Empty amount asks for an amount, not for a different destination.
+    transfer_hint = dialog(page).locator(".notice.full")
+    expect(transfer_hint).to_contain_text("Isi nominal untuk melihat jumlah yang masuk ke")
+    expect(transfer_hint).not_to_contain_text("dompet tujuan yang berbeda")
     dialog(page).get_by_label("Nominal", exact=True).fill("100000")
+    expect(transfer_hint).to_contain_text("100.000 masuk ke")
     dialog(page).get_by_label(re.compile("Biaya tambahan")).fill("2500")
     dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
     assert balance(state(page), "bca-idr") == 37_250_000

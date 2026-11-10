@@ -246,9 +246,42 @@ per PR, perilaku tidak berubah kecuali disebut.
 - [x] **MW-31 — Modal Pindah uang** "Tanggal kredit" sendirian di satu baris.
 - [x] **MW-32 — Footer** teks "Nggak harus rapi sekaligus…" kecil dan pudar.
 
-Dicatat untuk tahap UX (belum dikerjakan): modal Pindah uang menampilkan
-"Pilih dompet tujuan yang berbeda" padahal BCA → Bank Jago sudah berbeda
-(perlu dicek: bug logika atau pesan); format tanggal form mengikuti bahasa browser.
+Dicatat untuk tahap UX (belum dikerjakan): format tanggal form mengikuti bahasa
+browser. (Pesan "Pilih dompet tujuan yang berbeda" sudah dibereskan di MW-34.)
+
+## D3. Tindak lanjut (10 November 2026)
+
+Sisa catatan dari MW-26, MW-27, dan tahap UX. Satu MW per commit.
+
+- [x] **MW-33 — Tes kapasitas 8 MiB tidak timeout saat CPU penuh**
+  Dua tes "near8MiB" (`currencySettings.test.ts`, `walletArchiveCodec.test.ts`)
+  butuh ~3 detik tanpa beban dan 7–8 detik saat CPU penuh, sehingga melewati
+  batas bawaan 5 detik. Diberi batas 20 detik seperti tes berat lain
+  (`bankDecisions`, `categoryCommands`). Isi tes tidak berubah.
+
+- [x] **MW-34 — Pesan modal Pindah uang saat nominal kosong**
+  Bug logika, bukan pesan: kotak info memakai satu syarat (`nominal valid &&
+  tujuan ada`), jadi nominal kosong jatuh ke "Pilih dompet tujuan yang
+  berbeda" walau BCA → Bank Jago sudah berbeda. Sekarang tujuan sama/kosong →
+  "Pilih dompet tujuan yang berbeda"; nominal kosong/nol → "Isi nominal untuk
+  melihat jumlah yang masuk ke …"; selain itu "Rp … masuk ke …". Tes di
+  `browser_smoke.py` (gagal di kode lama, lulus sekarang).
+
+- [x] **MW-35 — Judul transaksi di HP mendapat sisa lebar baris**
+  Lanjutan MW-26. Kolom tabel HP sebelumnya persentase tetap (judul 47%,
+  nominal 39%), jadi judul hanya ±100px di layar 360px walau nominalnya pendek.
+  Sekarang kolom nominal dan aksi selebar isinya (nominal tetap utuh, tanpa
+  pemotongan) dan judul mengambil sisanya: 100→116px di 360px, 115→146px di
+  390px (data contoh). Judul tetap satu baris dengan "…"; judul lengkap tetap di
+  atribut `title` dan modal ubah. Hanya CSS.
+
+- [x] **MW-36 — Halaman Impor tanpa toolbar kategori**
+  Lanjutan MW-27. Keputusan alur: kategori per baris diatur langsung di tabel
+  pratinjau impor (sudah ada). "Kelola kategori" (tambah kategori/aturan saat
+  meninjau) pindah ke header halaman Impor, di samping "Kelola mata uang" dan
+  "Catat transaksi". "Isi kategori otomatis" bekerja pada catatan yang sudah
+  tersimpan di semua periode, jadi hanya di halaman Transaksi. Pesan galat
+  pengaturan kategori tetap tampil di halaman Impor.
 
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
