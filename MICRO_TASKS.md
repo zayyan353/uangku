@@ -370,6 +370,156 @@ Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
 - [x] **MW-60 — Paginasi disembunyikan saat 0 transaksi**
   "0–0 dari 0 · Halaman 1 dari 1" tampil di riwayat kosong. Sembunyikan baris paginasi bila total 0.
 
+## D6. Penyempurnaan CSS (10 November 2026) — daftar saja, belum dikerjakan
+
+Dari audit `src/styles.css` (1.371 baris, commit `b0ddda1` + D5). Angka di bawah
+hasil hitung langsung di file: 243 warna hex unik (430 pemakaian; `#52634f`
+ditulis literal 120 kali), 97 aturan `html[data-theme="dark"]`, 30 blok `@media`
+(760px muncul 9 kali), 18 nilai radius, 17 nilai `font-weight`, 7 `!important`,
+16 `style={}` inline di TSX.
+
+Aturan main bagian ini: satu MW per PR. MW "fondasi" tidak boleh mengubah
+tampilan (bandingkan tangkapan layar 1440px & 390px, terang & gelap, sebelum dan
+sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
+`tests/ux_browser.py` (keduanya memeriksa kontras) terhadap `npm run preview`.
+
+### Fondasi (tampilan tidak berubah)
+
+- [ ] **MW-61 — Warna literal → token yang sudah ada**
+  Ganti hex yang nilainya sama persis dengan token yang ada (`#52634f` →
+  `var(--text-muted)`, `#fff` → `var(--surface)`, `#173b31` → `var(--forest)`,
+  `#d5ee96` → `var(--lime)`, dst.). Murni cari-ganti nilai identik.
+  *Selesai kalau:* nilai terhitung (computed) tidak berubah di kedua tema.
+
+- [ ] **MW-62 — Token status untuk tema terang**
+  `--success-*`, `--warning-*`, `--error-*`, `--info-*`, `--purple-*`, dan
+  `--surface-hover` hanya didefinisikan di tema gelap; tema terang menulis
+  hex langsung di tiap komponen (notice, badge, save-pill, banner). Definisikan
+  token yang sama di `:root` dengan nilai terang yang sekarang dipakai.
+  Prasyarat MW-63.
+
+- [ ] **MW-63 — Tema gelap lewat token, bukan daftar override**
+  Tema gelap sekarang 97 aturan dengan daftar `:is(...)` panjang; komponen baru
+  yang lupa didaftarkan otomatis rusak di gelap. Setelah MW-61/62, aturan dasar
+  memakai token sehingga tema gelap cukup mengganti nilai variabel. Kerjakan
+  bertahap, satu kelompok per PR: (a) permukaan & garis, (b) teks,
+  (c) kontrol form, (d) status/badge/banner.
+  *Selesai kalau:* blok override gelap tinggal pengecualian yang memang beda
+  struktur (mis. tombol utama lime), dan kontras tetap lulus.
+
+- [ ] **MW-64 — Satu definisi per selektor**
+  Blok "Application-specific structure", "Local F", dan blok MW lama menimpa
+  aturan di atasnya (`.breadcrumb`, `.button`, `.stat-label`, `.category-row`,
+  `.wallet-row`, `.search-input input`, `.notice`, `.bottom-note`,
+  `.theme-picker`, `.transactions-table:not(.import-table) …`). Gabungkan jadi
+  satu definisi akhir per selektor dan satu blok per breakpoint. Pecah per area
+  (topbar, ringkasan, tabel, impor) bila diff terlalu besar.
+
+- [ ] **MW-65 — Buang CSS mati**
+  Kandidat (tidak ditemukan di `src/`, verifikasi ulang sebelum menghapus):
+  `.balance-separator`, `.description-cell`, `.fee-row`, `.nav-icon`,
+  `.toast-icon`, `.selected-row`, `.quick-wallet-action` (+ `.wallet-row-wrap`),
+  `.wallet-icon.blue/.green/.orange`, `.form-grid .full-width`. Cek juga token
+  yang tidak dipakai (`--forest-light`, `--readable-*`).
+
+- [ ] **MW-66 — Skala radius, ukuran teks, dan z-index**
+  18 nilai radius (3–23px), ukuran teks 11–35px tersebar, z-index 30/40/60/100/150
+  ditulis langsung. Jadikan token (`--radius-sm/md/lg`, `--text-xs…`, `--z-nav`,
+  `--z-modal`, `--z-toast`) dan bulatkan nilai yang selisih 1px. Lebar sidebar
+  (232/205px) juga jadi `--sidebar-width` supaya posisi toast
+  (`left: calc(50% + 116px)`) tidak lagi angka ajaib.
+
+- [ ] **MW-67 — Breakpoint konsisten**
+  Dipakai 370/420/540/600/760/1000/1190/1550px. Tetapkan set resmi (usul:
+  420, 600, 760, 1000, 1190), lebur 540 → 600, dan tulis di komentar atas file.
+
+- [ ] **MW-68 — Selektor rapuh → class**
+  `.segmented-control[aria-label="Jenis transaksi"]` (gaya ikut teks label),
+  `.pending-banner > span:nth-child(2)`, dan penyembunyian kolom tabel HP lewat
+  `th/td:nth-child(2|3|4|5)`. Beri class sendiri di TSX. Menyentuh
+  `TransactionModal.tsx`, `TransactionTable.tsx`, `App.tsx`.
+
+- [ ] **MW-69 — Inline style → class**
+  16 `style={}` di `GenericImportMapper.tsx`, `StatementReview.tsx`,
+  `SourceDetails.tsx`, `WalletEditor.tsx`, `TransactionModal.tsx`. Juga
+  `--wallet-color` di `WalletsPage.tsx:8` diset tapi tidak dipakai CSS mana pun:
+  putuskan dipakai (ikon dompet berwarna per mata uang) atau dibuang.
+
+- [ ] **MW-70 — Hilangkan `!important` pada nominal**
+  `.amount-positive/.amount-negative` memakai `!important` (terang & gelap)
+  untuk mengalahkan `.amount-cell strong`. Perbaiki lewat urutan/spesifisitas.
+  Sisakan hanya di `prefers-reduced-motion`.
+
+- [ ] **MW-71 — Pecah `styles.css` per area**
+  Setelah MW-64/65: `base.css`, `layout.css`, `components.css`, halaman
+  (ringkasan, transaksi, impor, dompet), `theme.css`; aturan panjang satu baris
+  diformat multi-baris. Urutan impor menjaga cascade. Kerjakan paling akhir di
+  kelompok fondasi.
+
+### Polesan yang terlihat
+
+- [ ] **MW-72 — Putuskan font: muat Inter atau rapikan berat**
+  `font-family: Inter` dideklarasikan tapi font tidak pernah dimuat, jadi yang
+  tampil font sistem; berat seperti 550/560/590/620/630/670 dibulatkan beda-beda
+  per OS. Pilih: (a) self-host Inter variable (woff2, tetap offline) atau
+  (b) pakai 400/500/600/700 saja. *Butuh keputusan pemilik.*
+
+- [ ] **MW-73 — Warna semantik badge & ikon di tema terang**
+  Di terang, teks semua badge/ikon (masuk, keluar, transfer, penyesuaian, belum
+  dirapikan) sama `#52634f`; hanya latar pucatnya yang beda, sulit dibedakan
+  sekilas. Tema gelap sudah punya warna berbeda. Beri warna teks semantik di
+  terang (kontras ≥ 4,5:1).
+
+- [ ] **MW-74 — Satukan warna teks tema terang**
+  ±20 hijau tua yang hampir sama untuk judul/nilai (`#203c2f`, `#2e4534`,
+  `#334b38`, `#3a5138`, `#41543f`, `#43563f`, `#48613c`, `#4a5d43`, `#4c6540`…).
+  Ringkas jadi `--text` dan `--text-strong`. Ada pergeseran warna kecil.
+
+- [ ] **MW-75 — State hover/aktif tombol**
+  Hover global hanya `filter: brightness(.985)` (nyaris tak terlihat);
+  `.button.secondary/.ghost/.danger`, `.icon-button`, `.text-link` tidak punya
+  hover sendiri di terang; `.nav-item` hanya mentransisikan `transform` sehingga
+  warna latar berganti mendadak.
+
+- [ ] **MW-76 — Cincin fokus seragam**
+  Campuran 3px/offset 3px, 2px/offset 2px, 2px/offset −2px, dan
+  `:focus-within` di pemilih tema. Satu gaya lewat token `--focus`.
+
+- [ ] **MW-77 — Target sentuh ≥ 44px di HP**
+  `.button.small` 32px, `.icon-button` 34px, `.modal-close` 30px, tombol baris
+  27px (desktop) / 40×35px (HP), tab 36px, pemilih tema 38–40px, checkbox 15px.
+  Naikkan area sentuh di ≤760px tanpa membesarkan ikon.
+
+- [ ] **MW-78 — Angka tabular di semua nominal**
+  `tabular-nums` baru ada di `.stat-value`, `.cashflow-table td`,
+  `.amount-detail dd`. Tambahkan ke `.wallet-amount`, `.amount-cell`,
+  `.balance-number`, `.wallet-card-balance`, `.category-value`,
+  `.cashflow-equation dd` supaya digit sejajar antarbaris.
+
+- [ ] **MW-79 — Sidebar di layar pendek + `100dvh`**
+  `.sidebar` `position: fixed` tanpa `overflow-y`: di jendela pendek tombol
+  cadangan di bawah terpotong dan tidak bisa digulir. `.app-shell` memakai
+  `100vh` (melompat di browser HP); ganti `100dvh` dengan fallback.
+
+- [ ] **MW-80 — Irama jarak**
+  Padding/gap ganjil (17, 19, 21, 23, 27px) antar kartu dan panel. Rapikan ke
+  kelipatan 4px lewat token jarak. Mengubah tata letak beberapa piksel; kerjakan
+  per halaman dan cek tangkapan layar.
+
+- [ ] **MW-81 — Modal di HP** *(opsional, butuh keputusan)*
+  Animasi buka 0,08–0,1 detik nyaris tak terasa; di ≤600px modal tetap kotak
+  tengah. Opsi: lembar bawah (bottom sheet) dengan footer menempel, animasi
+  ±0,18 detik, tetap hormati `prefers-reduced-motion`.
+
+- [ ] **MW-82 — Cetak & kontras tinggi** *(opsional)*
+  Belum ada `@media print` (sidebar/nav ikut tercetak, tabel terpotong) dan
+  belum ada penyesuaian `forced-colors`/`prefers-contrast` (badge dan cincin
+  fokus bergantung warna latar).
+
+**Urutan usul:** 61 → 62 → 63a–d → 65 → 64 → 66 → 67 → 70 → 68 → 69 → 71, lalu
+polesan 72 (setelah keputusan) → 73 → 74 → 75 → 76 → 77 → 78 → 79 → 80; 81–82
+bila diinginkan. MW-78 dan MW-79 kecil dan mandiri, boleh didahulukan.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).
