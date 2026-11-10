@@ -349,7 +349,7 @@ Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
 - [x] **MW-53 — Transaksi terbaru lebih atas di Ringkasan HP**
   Di HP "Transaksi terbaru" ada di paling bawah, setelah Dompetmu dan Kategori. Naikkan tepat setelah kartu arus dan panel lipat; urutan desktop tetap.
 
-- [ ] **MW-54 — Tab aktif tidak tertutup panah geser**
+- [x] **MW-54 — Tab aktif tidak tertutup panah geser**
   Di modal Pindah uang (HP) tab aktif "Transfer" tertutup tombol panah MW-40. Gulir tab aktif ke dalam area yang tidak tertutup panah.
 
 - [ ] **MW-55 — Tombol footer modal tidak terpotong di HP**
