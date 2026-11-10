@@ -241,7 +241,7 @@ per PR, perilaku tidak berubah kecuali disebut.
 - [x] **MW-29 — Topbar**
   Pemilih tema masih `<select>` bawaan, "Lokal & pribadi" terlalu kecil,
   breadcrumb di HP tanpa pemisah ("Ruang pribadi Dompet").
-- [ ] **MW-30 — Eyebrow halaman** "SEDIKIT DICATAT, BANYAK TERBANTU" sama di
+- [x] **MW-30 — Eyebrow halaman** "SEDIKIT DICATAT, BANYAK TERBANTU" sama di
   semua halaman; ganti per halaman atau hapus.
 - [ ] **MW-31 — Modal Pindah uang** "Tanggal kredit" sendirian di satu baris.
 - [ ] **MW-32 — Footer** teks "Nggak harus rapi sekaligus…" kecil dan pudar.
