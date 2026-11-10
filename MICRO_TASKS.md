@@ -275,6 +275,14 @@ Sisa catatan dari MW-26, MW-27, dan tahap UX. Satu MW per commit.
   390px (data contoh). Judul tetap satu baris dengan "…"; judul lengkap tetap di
   atribut `title` dan modal ubah. Hanya CSS.
 
+- [x] **MW-36 — Halaman Impor tanpa toolbar kategori**
+  Lanjutan MW-27. Keputusan alur: kategori per baris diatur langsung di tabel
+  pratinjau impor (sudah ada). "Kelola kategori" (tambah kategori/aturan saat
+  meninjau) pindah ke header halaman Impor, di samping "Kelola mata uang" dan
+  "Catat transaksi". "Isi kategori otomatis" bekerja pada catatan yang sudah
+  tersimpan di semua periode, jadi hanya di halaman Transaksi. Pesan galat
+  pengaturan kategori tetap tampil di halaman Impor.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).
