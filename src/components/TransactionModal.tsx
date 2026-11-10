@@ -355,8 +355,10 @@ function TypeChoices({ options, type, onChange }: { options: TxMode[]; type: TxM
     const active = el.querySelector<HTMLElement>('button.active');
     if (active) {
       const start = active.offsetLeft, end = start + active.offsetWidth;
-      if (start < el.scrollLeft) el.scrollLeft = start - 4;
-      else if (end > el.scrollLeft + el.clientWidth) el.scrollLeft = end - el.clientWidth + 4;
+      // Keep the active choice clear of the edge fade and the scroll arrows (MW-40).
+      const edge = el.scrollWidth > el.clientWidth ? 34 : 4;
+      if (start - edge < el.scrollLeft) el.scrollLeft = start - edge;
+      else if (end + edge > el.scrollLeft + el.clientWidth) el.scrollLeft = end - el.clientWidth + edge;
     }
     const update = () => setEdges(current => {
       const before = el.scrollLeft > 2, after = el.scrollLeft + el.clientWidth < el.scrollWidth - 2;
