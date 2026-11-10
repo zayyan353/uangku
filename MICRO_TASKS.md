@@ -305,7 +305,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-40 — Tab jenis di modal transaksi terlihat bisa digeser di HP**
   "Transfer" dan "Cek saldo" terpotong tanpa tanda. Beri tanda geser/fade dan pastikan tab aktif terlihat.
 
-- [ ] **MW-41 — Paginasi Transaksi lebih ringkas**
+- [x] **MW-41 — Paginasi Transaksi lebih ringkas**
   Tombol halaman disembunyikan bila hanya 1 halaman; label tidak pecah dua baris di HP.
 
 - [ ] **MW-42 — Ringkasan HP lebih pendek**

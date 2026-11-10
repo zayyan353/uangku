@@ -791,7 +791,7 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
   .history-period { display: grid; grid-template-columns: 55px minmax(0,1fr); }
   .filter-bar .transaction-count { margin-left: 0; white-space: normal; }
   .history-pagination > div { display: grid; grid-template-columns: 1fr 1fr; width: 100%; }
-  .history-pagination .button { min-height: 44px; white-space: normal; }
+  .history-pagination .button { min-height: 44px; white-space: nowrap; justify-content: center; }
   .transactions-table:not(.import-table) .amount-detail-button { display: flex; width: 100%; }
   .transactions-table:not(.import-table) .amount-detail-hint { font-size: 11px; white-space: normal; }
   .transactions-table:not(.import-table) .delete-action { display: inline-grid; }
