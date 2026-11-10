@@ -122,7 +122,7 @@ def fresh_preview(case):
     before = stored_document(p)
     dialog = case.manager()
     expect(dialog.locator('.category-manager-names li')).to_have_count(30)
-    expect(dialog.locator('.category-manager-rules li')).to_have_count(87)
+    expect(dialog.locator('.category-manager-rules li')).to_have_count(89)
     dialog.get_by_role('button', name='Batal', exact=True).click()
     dialog = case.automation()
     expect(dialog.locator('.category-automation-row')).to_have_count(len(AUTO) + len(PENDING) + 2)
@@ -279,7 +279,7 @@ def migration(case):
     case.unchanged()
     dialog = case.manager(); case.save(dialog)
     saved = case.settings_value()
-    assert saved['keywordPackVersion'] == 6
+    assert saved['keywordPackVersion'] == 7
     assert saved['names'][:len(original['names'])] == original['names']
     assert set(saved['names']) - set(original['names']) == {'Tarik tunai', 'Setor tunai', 'Transfer', 'Cashback'}
     by_id = {rule['id']: rule for rule in saved['rules']}
@@ -298,7 +298,7 @@ def archived_bank_fee(case):
     assert dialog.locator('.category-manager-names li').filter(has_text='Biaya bank').count() == 0
     case.save(dialog)
     saved = case.settings_value()
-    assert saved['keywordPackVersion'] == 6 and 'Biaya bank' not in saved['names']
+    assert saved['keywordPackVersion'] == 7 and 'Biaya bank' not in saved['names']
     assert not any(rule['id'] in ['bank-v3-havale-tax', 'bank-v3-havale-commission'] for rule in saved['rules'])
     original = json.loads(case.settings_raw)
     by_id = {rule['id']: rule for rule in saved['rules']}
@@ -315,7 +315,7 @@ def delete_movement_category(case):
         dialog.get_by_role('button', name='Ekspor pengaturan kategori', exact=True).click()
     download.value.save_as(path)
     exported = json.loads(path.read_text(encoding='utf-8'))
-    assert exported['settings']['keywordPackVersion'] == 6 and 'Tarik tunai' not in exported['settings']['names']
+    assert exported['settings']['keywordPackVersion'] == 7 and 'Tarik tunai' not in exported['settings']['names']
     case.save(dialog)
     p.reload(wait_until='networkidle'); nav(p, 'Transaksi')
     dialog = case.automation()
@@ -354,7 +354,7 @@ def migration_quota(case):
     assert case.settings_value()['keywordPackVersion'] == 2
     p.evaluate('window.rejectBankSettings=false')
     case.save(dialog)
-    assert case.settings_value()['keywordPackVersion'] == 6
+    assert case.settings_value()['keywordPackVersion'] == 7
     by_id = {rule['id']: rule for rule in case.settings_value()['rules']}
     assert all(by_id[rule['id']] == rule for rule in v2_settings()['rules'])
     case.unchanged(settings=False)

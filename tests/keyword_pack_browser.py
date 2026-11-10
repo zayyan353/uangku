@@ -140,7 +140,7 @@ def fresh_defaults(case):
     before = stored_document(p)
     case.unchanged()
     dialog = case.manager()
-    expect(dialog.locator('.category-manager-rules li')).to_have_count(87)
+    expect(dialog.locator('.category-manager-rules li')).to_have_count(89)
     case.screenshot('manager')
     dialog.get_by_role('button', name='Batal', exact=True).click()
     dialog = case.automation()
@@ -180,7 +180,7 @@ def legacy_overlay(case):
     case.unchanged()
     case.save(dialog)
     saved = case.settings_value()
-    assert saved['keywordPackVersion'] == 6 and saved['names'][:len(original['names'])] == original['names']
+    assert saved['keywordPackVersion'] == 7 and saved['names'][:len(original['names'])] == original['names']
     assert set(saved['names']) - set(original['names']) == {'Belanja online', 'Pembayaran Apple', 'Scooter', 'Tarik tunai', 'Setor tunai', 'Transfer', 'Cashback'}
     assert_manual_rules(saved, original)
     assert any(rule['id'] == 'keyword-pack-hop-scooter' for rule in saved['rules'])
@@ -276,7 +276,7 @@ def deleted_rule(case):
         dialog.get_by_role('button', name='Ekspor pengaturan kategori', exact=True).click()
     download.value.save_as(path)
     exported = json.loads(path.read_text(encoding='utf-8'))
-    assert exported['settings']['keywordPackVersion'] == 6
+    assert exported['settings']['keywordPackVersion'] == 7
     case.save(dialog)
     assert not any(rule['id'] == 'keyword-pack-hop-scooter' for rule in case.settings_value()['rules'])
     p.reload(wait_until='networkidle'); nav(p, 'Transaksi')
@@ -320,7 +320,7 @@ def legacy_quota(case):
     assert 'keywordPackVersion' not in case.settings_value()
     p.evaluate('window.rejectPackSave=false')
     case.save(dialog)
-    assert case.settings_value()['keywordPackVersion'] == 6
+    assert case.settings_value()['keywordPackVersion'] == 7
     assert_manual_rules(case.settings_value(), legacy_settings())
     case.unchanged(settings=False)
 
@@ -339,7 +339,7 @@ def legacy_cas(case):
     second_dialog.get_by_role('button', name='Simpan pengaturan', exact=True).click()
     expect(second_dialog.get_by_role('alert')).to_be_visible()
     assert case.settings_text() == saved_text
-    assert case.settings_value()['keywordPackVersion'] == 6
+    assert case.settings_value()['keywordPackVersion'] == 7
     assert 'Kategori tab pertama' in case.settings_value()['names'] and 'Kategori tab usang' not in case.settings_value()['names']
     assert_manual_rules(case.settings_value(), legacy_settings())
     case.unchanged(settings=False)

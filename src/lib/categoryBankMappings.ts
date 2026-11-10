@@ -85,6 +85,15 @@ export const BANK_ATM_NETWORK_RULES: readonly CategoryRule[] = [
   ...BANK_ATM_NETWORK_WITHDRAWAL_RULES, ...BANK_ATM_FEE_RULES, BANK_OPERATION_FEE_RULE,
 ];
 
+/** v7 adds institution bill collections seen in real statements. Like the
+ * merchant aliases these are public names only, and plain literal rules.
+ */
+export const BANK_BILL_PAYMENT_RULES: readonly CategoryRule[] = [
+  { id: 'bank-v7-bill-esgaz', keyword: 'ESGAZ', category: 'Tagihan', mode: 'auto' },
+  { id: 'bank-v7-bill-osmangazi-electricity', keyword: 'OSMANGAZİ SÖZLEŞME NO', category: 'Tagihan', mode: 'auto' },
+];
+export const BANK_KEYWORD_PACK_7_RULES: readonly CategoryRule[] = [...BANK_BILL_PAYMENT_RULES];
+
 // Keep this definition independent of the matcher: the matcher may import the
 // exact builtin identities below. Tests compare it to the shared normalization.
 const normalizedKeyword = (value: string): string => value.normalize('NFKD').toLocaleLowerCase('tr-TR')
@@ -109,7 +118,8 @@ export function isBundledBankRule(rule: CategoryRule, original?: CategoryRule): 
   const matches = (expected: CategoryRule): boolean => rule.id === expected.id && rule.keyword === expected.keyword
     && rule.mode === expected.mode && equivalentBankCategory(rule.category, expected.category);
   return original ? matches(original)
-    : [...BANK_CATEGORY_RULES, ...CURRENT_BANK_CATEGORY_RULES, ...BANK_REVIEW_COMPLETION_RULES, ...BANK_ATM_NETWORK_RULES].some(matches);
+    : [...BANK_CATEGORY_RULES, ...CURRENT_BANK_CATEGORY_RULES, ...BANK_REVIEW_COMPLETION_RULES, ...BANK_ATM_NETWORK_RULES,
+      ...BANK_KEYWORD_PACK_7_RULES].some(matches);
 }
 
 /** Add missing active-target rules only. Never replace a personal keyword or

@@ -556,10 +556,22 @@ statement. Yang belum otomatis mengelompok pada beberapa pola keterangan bank.
   *Hasil pada file uji (952 baris):* kategori terisi otomatis 918 → 941, jenis
   perlu dicek 9 → 4, perlu dirapikan 34 → 11.
 
-Dicatat dari uji yang sama, **belum dikerjakan** (butuh keputusan pemilik):
+Sisa dari uji yang sama. Pemilik menyerahkan keputusannya ke pelaksana
+(10 November 2026); tiap MW satu commit.
 
-- Tagihan utilitas (gas, listrik) yang dibayar lewat bank belum punya aturan
-  kategori. Perlu keputusan kategori tujuannya (mis. Tagihan).
+- [x] **MW-84 — Tagihan utilitas masuk kategori Tagihan**
+  Pembayaran tagihan gas dan listrik lewat bank (`ESGAZ/Abone No …`,
+  `OSMANGAZİ Sözleşme No …`) tercatat sebagai pengeluaran tanpa kategori.
+  Keputusan: kategori **Tagihan** (sudah ada di bawaan). Dua aturan literal
+  bawaan, nama publik saja: `ESGAZ` dan `OSMANGAZİ SÖZLEŞME NO` (frasa lengkap,
+  karena "Osmangazi" sendiri juga nama kampus dan daerah). Penanda paket kata
+  kunci naik 6 → 7; upgrade tetap aditif seperti MW-83.
+  *File:* `categoryBankMappings.ts`, `bankAutoMappings.ts`,
+  `categorySettings.ts`, `categorySettingsUpgrade.ts`, tes unit terkait,
+  `tests/*_browser.py`.
+
+Dicatat dari uji yang sama, **belum dikerjakan**:
+
 - Refund pembelian kartu (`SATIŞ IADE`, `SATIŞ YD IADE`) sengaja tetap "Perlu
   dicek". Perlu keputusan apakah kredit ini boleh otomatis menjadi
   Pengembalian dana.

@@ -120,7 +120,7 @@ def direct_categories(case):
     before = stored_document(p)
     assert json.loads(case.financial_raw)['version'] == 3
     dialog = case.manager()
-    expect(dialog.locator('.category-manager-rules li')).to_have_count(87)
+    expect(dialog.locator('.category-manager-rules li')).to_have_count(89)
     dialog.get_by_role('button', name='Batal', exact=True).click()
     dialog = case.automation()
     for _, note, _, category in MOVEMENTS:
@@ -318,10 +318,51 @@ def atm_network_flow(case):
     case.semantic_checks += 4
 
 
+# Rows the reader used to leave for manual tidying. Oldest first:
+# id, bank wording, signed amount, balance after, expected type, expected category.
+STATEMENT_GAPS = [
+    ('gas', 'ESGAZ/Abone No: 0000000000 /Son Ödeme Tarihi: 01/01/2026', -50000, 450000, 'expense', 'Tagihan'),
+    ('electricity', 'OSMANGAZİ Sözleşme No: 0000000000 Tah.No: 000000000000SYNTH', -25000, 425000, 'expense', 'Tagihan'),
+]
+
+
+def statement_gaps_flow(case):
+    """Utility bills are categorised without manual tidying."""
+    p = case.page; path = case.args.output / f'{case.name}-synthetic.xlsx'
+    write_statement(path, STATEMENT_GAPS)
+    import_statement(case, path)
+    for test_id in ['import-review-total', 'import-review-types', 'import-review-categories']:
+        expect(p.get_by_test_id(test_id)).to_have_attribute('data-count', '0')
+    rows = p.locator('.import-table tbody tr'); expect(rows).to_have_count(len(STATEMENT_GAPS))
+    for index, (_, note, _, _, type_, category) in enumerate(STATEMENT_GAPS):
+        row = rows.nth(index)
+        expect(row).to_contain_text(note)
+        expect(row.locator('select').first).to_have_value(type_)
+        expect(row.locator('.import-row-category')).to_have_value(category)
+    p.get_by_role('button', name=f'Simpan {len(STATEMENT_GAPS)} transaksi', exact=True).click()
+    expect(p.get_by_role('heading', name='Periksa sebelum disimpan', exact=True)).to_have_count(0)
+    data = stored_document(p)
+    facts = {fact['id']: fact for fact in data['metadata']['facts']}
+    entries = {entry['id']: entry for entry in data['state']['entries']}
+    saved = {(facts[link['source']]['reference'], facts[link['source']]['signedAmount']): entries[link['entryId']] for link in data['metadata']['links']}
+    assert len(entries) == len(facts) == len(saved) == len(STATEMENT_GAPS)
+    for id_, note, amount, _, type_, category in STATEMENT_GAPS:
+        entry = saved[(f'SYNTH-{id_}', amount)]
+        assert (entry['note'], entry['type'], entry['category']) == (note, type_, category)
+        assert entry['amount'] == (abs(amount) if type_ in ['expense', 'income'] else amount)
+        assert not set(entry) & {'toWalletId', 'toAmount', 'rate', 'fee'}
+    assert bank_balances(data)['bank'] == STATEMENT_GAPS[-1][3]
+    p.reload(wait_until='networkidle'); assert stored_document(p) == data
+    import_statement(case, path)
+    expect(p.get_by_role('button', name='Simpan 0 transaksi', exact=True)).to_be_disabled()
+    assert stored_document(p) == data
+    case.semantic_checks += 3
+
+
 def migration(case):
     original = v3_settings(); case.unchanged()
     dialog = case.manager(); case.save(dialog)
-    saved = case.settings_value(); assert saved['keywordPackVersion'] == 6
+    saved = case.settings_value(); assert saved['keywordPackVersion'] == 7
     assert saved['names'] == original['names']
     by_id = {rule['id']: rule for rule in saved['rules']}
     for rule in original['rules']:
@@ -338,7 +379,7 @@ def migration(case):
 
 def deleted_rule(case):
     dialog = case.manager(); case.save(dialog)
-    saved = case.settings_value(); assert saved['keywordPackVersion'] == 6
+    saved = case.settings_value(); assert saved['keywordPackVersion'] == 7
     assert not any(rule['id'] == 'bank-v3-fast' for rule in saved['rules'])
     case.page.reload(wait_until='networkidle'); nav(case.page, 'Transaksi')
     dialog = case.automation()
@@ -632,6 +673,8 @@ def main():
              ('bank-auto-source-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, source_flow),
              ('atm-network-fees-desktop', {'empty': True}, atm_network_flow),
              ('atm-network-fees-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, atm_network_flow),
+             ('statement-gaps-desktop', {'empty': True}, statement_gaps_flow),
+             ('statement-gaps-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, statement_gaps_flow),
              ('v3-v4-exact-eight-updates', {'settings': v3_settings()}, migration),
              ('v3-deleted-fast-rule-not-readded', {'settings': removed}, deleted_rule),
              ('v3-custom-suggestion-preserved', {'settings': custom}, custom_suggestion),

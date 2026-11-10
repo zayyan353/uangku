@@ -3,7 +3,7 @@ import { defaultCategorySettings, KEYWORD_PACK_VERSION, validateCategorySettings
 import { CONFIRMED_CATEGORY_NAMES } from './categoryKeywordDefinitions';
 import { mergeConfirmedCategoryMappings } from './categoryConfirmedMappings';
 import { BANK_CATEGORY_NAMES, mergeBankCategoryMappings } from './categoryBankMappings';
-import { mergeAtmNetworkMappings, mergeAutomaticBankMappings, mergeReviewCompletionMappings } from './bankAutoMappings';
+import { mergeAtmNetworkMappings, mergeAutomaticBankMappings, mergeKeywordPack7Mappings, mergeReviewCompletionMappings } from './bankAutoMappings';
 
 /** Only successful durable reads belong here. An absent key means the shipped defaults. */
 export function effectiveCategorySettings(raw: string | null) {
@@ -30,12 +30,14 @@ export function upgradeCategorySettings(value: CategorySettings): { settings: Ca
     const confirmed = version < 2 ? mergeConfirmedCategoryMappings(named) : { settings: named, added: 0, updated: 0 };
     const bank = version < 3 ? mergeBankCategoryMappings(confirmed.settings) : { settings: confirmed.settings, added: 0 };
     const automatic = version < 4 ? mergeAutomaticBankMappings(bank.settings) : { settings: bank.settings, added: 0, updated: 0 };
-    // A saved v5 profile may deliberately omit v5 rules; only older ones receive them.
+    // A saved v5 or v6 profile may deliberately omit that pack's rules; only older ones receive them.
     const completion = version < 5 ? mergeReviewCompletionMappings(automatic.settings) : { settings: automatic.settings, added: 0 };
-    const atm = mergeAtmNetworkMappings(completion.settings);
-    const settings = validateCategorySettings({ ...atm.settings, keywordPackVersion: KEYWORD_PACK_VERSION });
+    const atm = version < 6 ? mergeAtmNetworkMappings(completion.settings) : { settings: completion.settings, added: 0 };
+    const pack7 = mergeKeywordPack7Mappings(atm.settings);
+    const settings = validateCategorySettings({ ...pack7.settings, keywordPackVersion: KEYWORD_PACK_VERSION });
     const updated = confirmed.updated + automatic.updated;
-    return { settings, added: previous.added + confirmed.added + bank.added + automatic.added + completion.added + atm.added, error: '', ...(updated ? { updated } : {}) };
+    const added = previous.added + confirmed.added + bank.added + automatic.added + completion.added + atm.added + pack7.added;
+    return { settings, added, error: '', ...(updated ? { updated } : {}) };
   } catch (error) {
     return { settings: value, added: 0, error: `Kata kunci tambahan belum diaktifkan: ${error instanceof Error ? error.message : 'batas pengaturan tercapai'}. Pengaturan lama tetap dipakai.` };
   }
