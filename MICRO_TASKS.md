@@ -232,7 +232,7 @@ per PR, perilaku tidak berubah kecuali disebut.
 - [x] **MW-26 — Tabel transaksi lebih bersih**
   Kolom Dompet mengulang "IDR" di setiap baris; "Rincian nominal" di setiap
   baris; jarak ⋯ dan 🗑 terlalu jauh; di HP judul transaksi terlipat dua baris.
-- [ ] **MW-27 — Halaman Impor mutasi**
+- [x] **MW-27 — Halaman Impor mutasi**
   "Kelola mata uang" mengambang sendiri, toolbar kategori tampil padahal tidak
   relevan, tombol header "Pindah uang/Catat transaksi" tidak nyambung.
 - [ ] **MW-28 — Ringkasan desktop**
