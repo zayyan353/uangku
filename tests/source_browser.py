@@ -4,7 +4,7 @@ import argparse,json,os,re,time,traceback
 from pathlib import Path
 from xml.sax.saxutils import escape
 from zipfile import ZipFile,ZIP_DEFLATED
-from browser_support import assert_production_url,install_playwright_path,launch_browser,new_page,stored_document,read_document
+from browser_support import backup_action,assert_production_url,install_playwright_path,launch_browser,new_page,stored_document,read_document
 install_playwright_path()
 from playwright.sync_api import sync_playwright,expect
 from recovery_browser import write_statement,saldo
@@ -114,7 +114,8 @@ def transfer_lifecycle(browser,out):
         page.get_by_label('Filter jenis transaksi',exact=True).select_option('all')
         page.get_by_label('Periode transaksi',exact=True).select_option('all')
         note=paired['state']['entries'][0]['note']
-        page.get_by_role('button',name='Hapus '+(note or 'transaksi'),exact=True).click()
+        page.get_by_role('button',name='Ubah '+(note or 'transaksi'),exact=True).click()
+        page.get_by_role('dialog').get_by_role('button',name='Hapus',exact=True).click()
         dlg=page.get_by_role('dialog');dlg.get_by_label('Alasan tindakan',exact=True).fill('Uji penghapusan grup sintetis')
         dlg.get_by_role('button',name='Hapus transaksi',exact=True).click()
         deleted=wait_doc(page,lambda d:len(d['state']['entries'])==0)
@@ -139,7 +140,7 @@ def metadata_backup_roundtrip(browser,out,initial):
     context,page,errors=context_page(browser,initial)
     path=out/'source-backup.json'
     try:
-        with page.expect_download()as download:page.get_by_role('button',name='Cadangkan transaksi saja',exact=True).click()
+        with page.expect_download()as download:backup_action(page, 'Cadangkan transaksi saja').click()
         download.value.save_as(path)
         assert read_document(path)==initial
         wire=json.loads(path.read_text(encoding='utf-8'))

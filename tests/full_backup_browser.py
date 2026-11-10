@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 import json
 import re
 
-from browser_support import new_page, semantic_document, stored_document
+from browser_support import backup_action, new_page, semantic_document, stored_document
 from playwright.sync_api import expect
 
 FINANCE = 'uangku:v1'
@@ -63,9 +63,8 @@ def raw_pair(page):
 
 def pick_backup(page, filename, value):
     # Choosing a JSON file uses the local backup reader; it does not upload a statement.
-    mobile = not page.locator('.sidebar').is_visible()
     with page.expect_file_chooser() as pending:
-        page.get_by_role('button', name='Pulihkan' if mobile else 'Pulihkan cadangan', exact=True).click()
+        backup_action(page, 'Pulihkan cadangan').click()
     pending.value.set_files({'name': filename, 'mimeType': 'application/json', 'buffer': value})
 
 
@@ -85,7 +84,7 @@ def round_trip(destination, url, width, *, route=None, verify=None):
         downloads = []
         source.on('download', lambda item: downloads.append(item))
         with source.expect_download() as pending:
-            source.get_by_role('button', name='Cadangkan semuanya', exact=True).click()
+            backup_action(source, 'Cadangkan semuanya').click()
         with TemporaryDirectory(prefix='uangku-full-qa-') as temp:
             path = Path(temp) / 'synthetic.json'
             pending.value.save_as(path)

@@ -1,5 +1,5 @@
 import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeftRight, BookmarkPlus, Check, Trash2, Zap } from 'lucide-react';
+import { ArrowLeftRight, BookmarkPlus, Check, ChevronLeft, ChevronRight, Trash2, Zap } from 'lucide-react';
 import { entrySignedAmount, formatDate, formatMoney, makeId, parseMoney, validateEntry, walletBalanceAt, type Entry, type State } from '../lib/finance';
 import { CategorySettingsContext } from '../hooks/useCategorySettings';
 import { categoryChoices } from '../lib/categorySettings';
@@ -367,5 +367,10 @@ function TypeChoices({ options, type, onChange }: { options: TxMode[]; type: TxM
     window.addEventListener('resize', update);
     return () => { el.removeEventListener('scroll', update); window.removeEventListener('resize', update); };
   }, [type, options.length]);
-  return <div ref={row} className="segmented-control" aria-label="Jenis transaksi" data-more-before={edges.before || undefined} data-more-after={edges.after || undefined}>{options.map(t => <button key={t} type="button" className={type === t ? 'active' : ''} onClick={() => onChange(t)}>{t === 'adjustment' ? 'Cek saldo' : typeLabels[t]}</button>)}</div>;
+  const nudge = (direction: 1 | -1) => { const el = row.current; if (el) el.scrollBy({ left: direction * el.clientWidth * 0.6, behavior: 'smooth' }); };
+  return <div className="type-choices">
+    {edges.before && <button type="button" className="type-scroll before" tabIndex={-1} aria-hidden="true" onClick={() => nudge(-1)}><ChevronLeft size={16} /></button>}
+    <div ref={row} className="segmented-control" aria-label="Jenis transaksi" data-more-before={edges.before || undefined} data-more-after={edges.after || undefined}>{options.map(t => <button key={t} type="button" className={type === t ? 'active' : ''} onClick={() => onChange(t)}>{t === 'adjustment' ? 'Cek saldo' : typeLabels[t]}</button>)}</div>
+    {edges.after && <button type="button" className="type-scroll after" tabIndex={-1} aria-hidden="true" onClick={() => nudge(1)}><ChevronRight size={16} /></button>}
+  </div>;
 }

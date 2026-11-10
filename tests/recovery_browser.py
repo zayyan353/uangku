@@ -23,7 +23,7 @@ from xml.sax.saxutils import escape
 from zipfile import ZipFile, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parents[1]
-from browser_support import (install_playwright_path, launch_browser,
+from browser_support import (backup_action, install_playwright_path, launch_browser,
                              read_document, stored_document, assert_production_url)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
@@ -373,7 +373,7 @@ def test_denied_storage_backup(browser, output):
         downloads = []
         page.on('download', lambda item: downloads.append(item.suggested_filename))
         for label in ['Cadangkan semuanya', 'Cadangkan transaksi saja', 'Unduh pekerjaan yang belum tersimpan']:
-            page.get_by_role('button', name=label, exact=True).click()
+            backup_action(page, label).click()
             expect(page.locator('.toast')).to_contain_text(re.compile('penyimpanan|akses', re.I))
         page.evaluate("sessionStorage.removeItem('deny-access')")
         page.reload(wait_until='networkidle')

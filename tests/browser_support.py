@@ -41,6 +41,14 @@ def launch_browser(playwright):
     return playwright.chromium.launch(**options)
 
 
+def backup_action(page, name):
+    """Backup, restore and privacy buttons; on phones they sit in the account menu."""
+    button = page.get_by_role('button', name=name, exact=True)
+    if not button.count():
+        page.get_by_role('button', name='Menu akun', exact=True).click()
+    return page.get_by_role('button', name=name, exact=True)
+
+
 def new_page(context):
     page = context.new_page()
     page.clock.install(time=FIXED_TIME)

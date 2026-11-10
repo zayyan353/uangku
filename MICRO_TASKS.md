@@ -291,6 +291,56 @@ Sisa catatan dari MW-26, MW-27, dan tahap UX. Satu MW per commit.
   `apple-touch-icon.png`, `favicon.svg`, dan favicon tab di `index.html`
   diperbarui. Logo sidebar tidak diubah.
 
+## D4. Polesan UI (10 November 2026)
+
+Dari tinjauan tampilan build produksi (desktop 1440px, HP 390px, data contoh).
+Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
+
+- [x] **MW-38 — Titik nyasar di kartu Kategori pengeluaran**
+  Catatan kaki kartu "Kategori pengeluaran terkonfirmasi" menampilkan "•" kosong di atasnya (desktop dan HP). Buang penanda kosong itu.
+
+- [x] **MW-39 — Angka tabel Rincian arus tidak pecah baris di HP**
+  Di 390px "Rp 8.000.000" terbelah jadi "Rp 8.000.00 / 0". Nominal harus utuh satu baris.
+
+- [x] **MW-40 — Tab jenis di modal transaksi terlihat bisa digeser di HP**
+  "Transfer" dan "Cek saldo" terpotong tanpa tanda. Beri tanda geser/fade dan pastikan tab aktif terlihat.
+
+- [x] **MW-41 — Paginasi Transaksi lebih ringkas**
+  Tombol halaman disembunyikan bila hanya 1 halaman; label tidak pecah dua baris di HP.
+
+- [x] **MW-42 — Ringkasan HP lebih pendek**
+  Uang masuk/keluar sebelahan di HP; Perhitungan saldo dan Rincian arus bisa dilipat (tertutup bawaan di HP).
+
+- [x] **MW-43 — Panel Ringkasan desktop tanpa ruang kosong**
+  Isi Perhitungan saldo & Rincian arus memakai lebar penuh; kartu Dompetmu dan Kategori sama tinggi.
+
+- [x] **MW-44 — Filter Transaksi di HP lebih padat**
+  Rencana awal (melipat filter di balik tombol "Filter") batal: banyak tes browser HP memilih filter langsung dan `ux_browser.py` menuntut tiap filter utuh di layar. Gantinya grid dua kolom: cari selebar penuh, periode + dompet sebaris, jenis (dan alasan) di bawahnya, label "Periode" hanya untuk pembaca layar.
+
+- [x] **MW-45 — Hapus transaksi lewat form ubah**
+  Ikon hapus per baris dibuang; tombol baris (ikon pensil) membuka form ubah yang sudah punya tombol "Hapus" dengan konfirmasi. Menu "…" tidak dibuat karena "Ubah …" dipakai banyak alur dan tes sebagai pembuka form langsung.
+
+- [x] **MW-46 — Nominal tanpa garis putus-putus**
+  Garis bawah putus-putus di nominal diganti tanda yang lebih halus; nominal tetap bisa diklik.
+
+- [x] **MW-47 — Banner data contoh ringkas**
+  Teks "Versi pengembangan lokal…" dibuang, banner jadi satu baris. Di Impor tidak dobel dengan banner "Mode contoh masih aktif".
+
+- [x] **MW-48 — Status simpan cukup di topbar**
+  Status simpan di bawah sidebar dan footer dihapus; topbar tetap.
+
+- [x] **MW-49 — Menu akun: cadangan, privasi, tema**
+  Avatar jadi tombol "Menu akun" berisi Cadangkan semuanya, Cadangkan transaksi saja, Pulihkan cadangan, Privasi, dan catatan cadangan terakhir. Link cadangan di footer HP dibuang. Pemilih tema tetap di topbar (tes browser menuntut "Tema tampilan" terlihat); sidebar desktop tetap punya tombol cadangan.
+
+- [x] **MW-50 — Tombol header Impor punya hierarki**
+  "Catat transaksi" jadi tombol utama; Kelola mata uang & Kelola kategori sekunder kecil.
+
+- [x] **MW-51 — Dropdown bergaya seragam**
+  `select` memakai panah, tinggi, dan radius yang sama dengan input lain.
+
+- [x] **MW-52 — Chip mata uang ganda di kartu dompet**
+  Chip "IDR" di kaki kartu dompet dibuang karena tab mata uang sudah menyebutnya.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).

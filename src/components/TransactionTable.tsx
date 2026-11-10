@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Coffee, History, MoreHorizontal, SlidersHorizontal, Trash2 } from 'lucide-react';
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Coffee, History, Pencil, SlidersHorizontal } from 'lucide-react';
 import { formatDate, formatMoney, type Entry, type State } from '../lib/finance';
 import type { StoredData } from '../lib/storage';
 import { canCategorize } from '../lib/review';
@@ -11,8 +11,8 @@ import { entryReviewStatus } from '../lib/reviewStatus';
 import { typeLabels } from '../lib/entryTypeLabels';
 
 /** Transaction rows for the overview and history pages. */
-export default function TransactionTable({ entries, state, data, onEdit, onDelete, onDetail, selection }: {
-  entries: Entry[]; state: State; data: StoredData; onEdit: (entry: Entry) => void; onDelete: (entry: Entry) => void; onDetail: (entry: Entry) => void;
+export default function TransactionTable({ entries, state, data, onEdit, onDetail, selection }: {
+  entries: Entry[]; state: State; data: StoredData; onEdit: (entry: Entry) => void; onDetail: (entry: Entry) => void;
   selection?: { ids: Set<string>; toggle: (id: string) => void; toggleAll: () => void };
 }) {
   const readOnlyEntryIds = useMemo(() => archivedReadOnlyEntryIds(data), [data]);
@@ -41,7 +41,7 @@ export default function TransactionTable({ entries, state, data, onEdit, onDelet
       </div></td>
       <td><span className="wallet-table-name">{wallet.name}</span>{mixedCurrencies && <span className="transaction-note">{wallet.currency}</span>}</td><td className="date-cell">{dates ? <><span>Debit: {dates.source ? formatDate(dates.source) : 'Belum diketahui'}</span><span className="transaction-note">Kredit: {dates.destination ? formatDate(dates.destination) : 'Belum diketahui'}</span>{dates.basis === 'legacy-assumed' && <small className="field-help">Tanggal legacy belum dibuktikan terpisah</small>}</> : formatDate(entry.date)}</td>
       <td className="amount-cell"><button type="button" className="amount-detail-button" aria-label={`Rincian nominal ${entry.note || typeLabels[entry.type]}`} onClick={() => onDetail(entry)}><strong className={entry.type === 'transfer' ? '' : positive ? 'amount-positive' : 'amount-negative'}>{entry.type === 'transfer' ? '' : positive ? '+' : '−'}{formatMoney(Math.abs(entry.amount), wallet.currency)}</strong>{entry.type === 'transfer' && destination && <span className="transaction-note">→ {formatMoney(entry.toAmount ?? 0, destination.currency)}</span>}{entry.fee ? <span className="transaction-note">Biaya {formatMoney(entry.fee, wallet.currency)}</span> : null}<span className="amount-detail-hint">Rincian nominal</span></button>{entry.type === 'unreviewed' && <span className="badge unreviewed">Perlu dicek</span>}</td>
-      <td>{archived ? <span className="field-help">Arsip · baca saja</span> : <div className="row-actions"><button className={entry.type === 'unreviewed' ? 'button secondary small' : 'icon-button'} aria-label={`${entry.type === 'unreviewed' ? 'Cek' : 'Ubah'} ${entry.note || 'transaksi'}`} onClick={() => onEdit(entry)}>{entry.type === 'unreviewed' ? 'Cek' : <MoreHorizontal size={18} />}</button><button className="icon-button delete-action" aria-label={`Hapus ${entry.note || 'transaksi'}`} onClick={() => onDelete(entry)}><Trash2 size={15} /></button></div>}</td>
+      <td>{archived ? <span className="field-help">Arsip · baca saja</span> : <div className="row-actions"><button className={entry.type === 'unreviewed' ? 'button secondary small' : 'icon-button'} aria-label={`${entry.type === 'unreviewed' ? 'Cek' : 'Ubah'} ${entry.note || 'transaksi'}`} onClick={() => onEdit(entry)}>{entry.type === 'unreviewed' ? 'Cek' : <Pencil size={16} />}</button></div>}</td>
     </tr>;
   })}</tbody></table></div>;
 }
