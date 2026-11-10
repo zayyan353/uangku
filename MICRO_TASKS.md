@@ -352,7 +352,7 @@ Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
 - [x] **MW-54 — Tab aktif tidak tertutup panah geser**
   Di modal Pindah uang (HP) tab aktif "Transfer" tertutup tombol panah MW-40. Gulir tab aktif ke dalam area yang tidak tertutup panah.
 
-- [ ] **MW-55 — Tombol footer modal tidak terpotong di HP**
+- [x] **MW-55 — Tombol footer modal tidak terpotong di HP**
   Di Kelola kategori, "Simpan pengaturan" mepet sampai tepi tombol pada 390px. Tombol footer modal boleh membungkus/menyesuaikan lebar.
 
 - [ ] **MW-56 — Modal Privasi selaras tipografi**
