@@ -311,7 +311,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-42 — Ringkasan HP lebih pendek**
   Uang masuk/keluar sebelahan di HP; Perhitungan saldo dan Rincian arus bisa dilipat (tertutup bawaan di HP).
 
-- [ ] **MW-43 — Panel Ringkasan desktop tanpa ruang kosong**
+- [x] **MW-43 — Panel Ringkasan desktop tanpa ruang kosong**
   Isi Perhitungan saldo & Rincian arus memakai lebar penuh; kartu Dompetmu dan Kategori sama tinggi.
 
 - [ ] **MW-44 — Filter Transaksi di HP dilipat**

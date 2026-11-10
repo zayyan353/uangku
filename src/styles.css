@@ -117,7 +117,12 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .section-description { color: #52634f; font-size: 12px; margin: 5px 0 0; line-height: 1.6; }
 .text-link { display: inline-flex; align-items: center; gap: 5px; color: #52634f; border: 0; background: transparent; padding: 4px 0; font-size: 12px; font-weight: 550; text-decoration: none; white-space: nowrap; }
 .text-link svg { width: 13px; height: 13px; }
-.dashboard-columns { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 21px; margin-bottom: 25px; align-items: start; }
+.dashboard-columns { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 21px; margin-bottom: 25px; align-items: stretch; }
+.wallet-panel { display: flex; flex-direction: column; }
+.wallet-panel .wallet-list { margin-bottom: 16px; }
+.wallet-panel-add { align-self: stretch; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; margin-top: auto; border: 1px dashed var(--line); border-radius: 12px; background: transparent; color: var(--text-muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.wallet-panel-add:hover { color: var(--text); border-color: var(--text-muted); }
+.wallet-panel-add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .panel { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 23px; min-width: 0; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 18px; }
 .panel-header h2, .panel-header h3 { margin: 0; font-size: 15px; font-weight: 630; letter-spacing: -.2px; }
@@ -1172,17 +1177,17 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-overview .balance-meta { line-height: 1.6; }
 .cashflow-overview .stat-foot { white-space: normal; line-height: 1.65; }
 .cashflow-reconciliation, .cashflow-breakdown-panel { margin-bottom: 22px; min-width: 0; }
-.cashflow-equation { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0 24px; margin: 0 0 16px; }
+.cashflow-equation { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 0 0 16px; }
 .cashflow-equation > div { padding: 13px; background: var(--surface-raised); border-radius: 10px; min-width: 0; }
 .cashflow-equation dt { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
 .cashflow-equation dd { margin: 5px 0 0; font-size: 15px; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
-.cashflow-explanation { margin: 10px 24px 18px; font-size: 14px; color: var(--text-muted); line-height: 1.8; }
-.cashflow-notes { margin: 0 24px 18px; font-size: 14px; color: var(--text-muted); line-height: 1.8; }
+.cashflow-explanation { margin: 10px 0 18px; font-size: 14px; color: var(--text-muted); line-height: 1.8; }
+.cashflow-notes { margin: 0 0 4px; font-size: 14px; color: var(--text-muted); line-height: 1.8; }
 .cashflow-notes summary { cursor: pointer; width: fit-content; border-radius: 4px; color: var(--text); font-weight: 550; }
 .cashflow-notes summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .cashflow-notes ul { margin: 8px 0 0; padding-left: 20px; }
 .cashflow-notes li + li { margin-top: 4px; }
-.cashflow-table-wrap { padding: 0 24px 18px; }
+.cashflow-table-wrap { padding: 0; }
 .fold-header { margin: 0; font: inherit; }
 .fold-text { display: flex; flex-direction: column; min-width: 0; }
 .fold-title { font-size: 15px; font-weight: 630; letter-spacing: -.2px; color: var(--text); }
@@ -1193,8 +1198,8 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .fold-chevron { flex: none; color: var(--text-muted); transition: transform .18s ease; }
 .fold-toggle[aria-expanded="true"] .fold-chevron { transform: rotate(180deg); }
 .fold-body[hidden] { display: none; }
-.cashflow-table { width: 100%; max-width: 760px; border-collapse: collapse; table-layout: fixed; }
-.cashflow-table th, .cashflow-table td { padding: 12px 8px; border-bottom: 1px solid var(--line); text-align: right; font-size: 14px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
+.cashflow-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.cashflow-table th, .cashflow-table td { padding: 12px 0; border-bottom: 1px solid var(--line); text-align: right; font-size: 14px; line-height: 1.7; color: var(--text); overflow-wrap: anywhere; }
 .cashflow-table th:first-child { text-align: left; width: 40%; }
 .cashflow-table thead th { color: var(--text-muted); font-size: 13px; }
 .cashflow-table td { white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums; }
@@ -1202,14 +1207,12 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
   .cashflow-controls { gap: 12px; }
   .cashflow-controls label { flex-basis: 100%; max-width: none; }
   .cashflow-period { flex-basis: 100%; margin-bottom: 0; }
-  .cashflow-equation { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 0 16px; gap: 9px; }
+  .cashflow-equation { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .cashflow-equation > div { padding: 10px; }
   .cashflow-equation dd { font-size: 14px; }
-  .cashflow-explanation, .cashflow-notes { margin-left: 16px; margin-right: 16px; }
-  .cashflow-table-wrap { padding: 0 12px 16px; }
   .cashflow-table { table-layout: auto; }
   .cashflow-table th:first-child { width: auto; }
-  .cashflow-table th, .cashflow-table td { padding: 10px 4px; font-size: 13px; }
+  .cashflow-table th, .cashflow-table td { padding: 10px 0; font-size: 13px; }
   .cashflow-table td { padding-left: 10px; }
 }
 
