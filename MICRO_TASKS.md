@@ -235,7 +235,7 @@ per PR, perilaku tidak berubah kecuali disebut.
 - [x] **MW-27 — Halaman Impor mutasi**
   "Kelola mata uang" mengambang sendiri, toolbar kategori tampil padahal tidak
   relevan, tombol header "Pindah uang/Catat transaksi" tidak nyambung.
-- [ ] **MW-28 — Ringkasan desktop**
+- [x] **MW-28 — Ringkasan desktop**
   Kolom tabel "Rincian arus rekening" terlalu lebar, panel Dompetmu kosong di
   bawah, penjelasan "Perhitungan saldo" berupa tiga paragraf panjang.
 - [ ] **MW-29 — Topbar**

@@ -72,8 +72,14 @@ export default function CashflowOverview({ report, error, currency, month, perio
       <div className="panel-header"><div><h2>Perhitungan saldo periode</h2><p>{period === 'all' ? 'Saldo awal catatan, bukan bukti kelengkapan seluruh histori bank.' : 'Saldo awal sebelum periode dipilih, hingga batas tanggal laporan.'}</p></div></div>
       <dl className="cashflow-equation"><div><dt>Saldo awal{period === 'all' ? ' catatan' : ' periode'}</dt><dd>{amount(report?.openingBalance, 'opening')}</dd></div><div><dt>+ Uang masuk</dt><dd>{amount(report?.inflow)}</dd></div><div><dt>− Uang keluar</dt><dd>{amount(report?.outflow)}</dd></div><div><dt>± Transfer antardompet</dt><dd>{amount(report?.internalNet, 'internal-net')}</dd></div><div><dt>± Penyesuaian saldo</dt><dd>{amount(report?.adjustment, 'adjustment')}</dd></div><div><dt>= Saldo akhir</dt><dd>{amount(report?.closingBalance)}</dd></div></dl>
       <p className="cashflow-explanation">{report?.isComplete && report.difference === 0 ? 'Perhitungan saldo periode cocok. Ini mencocokkan catatan aplikasi, belum membuktikan mutasi bank sudah lengkap.' : 'Saldo periode belum dapat dipastikan. Angka arus hanya mencakup posting dengan tanggal yang diketahui.'}</p>
-      <p className="cashflow-explanation">Uang masuk belum tentu penghasilan baru; uang keluar belum tentu belanja. Transfer yang sudah dipasangkan antara dua dompet dalam cakupan ini dipisahkan dari arus utama; biaya tetap dihitung. Selisih tanggal debit dan kredit masuk pada dampak transfer antardompet.</p>
-      {report && (report.internalInflow !== 0 || report.internalOutflow !== 0) && <p className="cashflow-explanation">Transfer antardompet: masuk {amount(report.internalInflow)}, keluar {amount(report.internalOutflow)}. Penyesuaian saldo bukan transaksi bank.</p>}
+      <details className="cashflow-notes"><summary>Cara membaca angka ini</summary>
+        <ul>
+          <li>Uang masuk belum tentu penghasilan baru; uang keluar belum tentu belanja.</li>
+          <li>Transfer yang sudah dipasangkan antara dua dompet dalam cakupan ini dipisahkan dari arus utama; biaya tetap dihitung. Selisih tanggal debit dan kredit masuk pada dampak transfer antardompet.</li>
+          {report && (report.internalInflow !== 0 || report.internalOutflow !== 0) && <li>Transfer antardompet: masuk {amount(report.internalInflow)}, keluar {amount(report.internalOutflow)}.</li>}
+          <li>Penyesuaian saldo bukan transaksi bank.</li>
+        </ul>
+      </details>
     </section>
     <section className="panel cashflow-breakdown-panel"><div className="panel-header"><div><h2>Rincian arus rekening</h2><p>Jenis operasi mengikuti keterangan mutasi; tujuan belanjanya bisa tetap belum diketahui.</p></div></div><div className="cashflow-table-wrap"><table className="cashflow-table" data-testid="cashflow-breakdown"><thead><tr><th>Jenis operasi</th><th>Uang masuk</th><th>Uang keluar</th></tr></thead><tbody>{report?.breakdown.map(row => <tr key={row.id}><th scope="row">{row.label}</th><td>{amount(row.inflow)}</td><td>{amount(row.outflow)}</td></tr>)}</tbody></table></div></section>
   </div>;
