@@ -793,7 +793,7 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
   .filter-fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); align-items: stretch; gap: 8px; }
   .filter-fields > .search-input, .filter-fields > :nth-child(even):last-child { grid-column: 1 / -1; }
   .filter-fields > .search-input, .filter-fields > .select-input, .filter-fields > .history-period { width: 100%; min-width: 0; }
-  .filter-bar .select-input { min-width: 0; min-height: 44px; width: 100%; font-size: 13px; padding-left: 10px; padding-right: 22px; text-overflow: ellipsis; }
+  .filter-bar .select-input { min-width: 0; min-height: 44px; width: 100%; font-size: 13px; padding-left: 10px; padding-right: 28px; background-position: right 8px center; text-overflow: ellipsis; }
   .filter-bar .search-input input { min-height: 44px; }
   .history-period { display: block; min-width: 0; }
   .history-period .select-input { min-width: 0; }
@@ -1337,3 +1337,12 @@ html[data-theme="dark"] .account-panel { box-shadow: 0 12px 32px #0008; }
 @media (max-width: 760px) {
   .page-actions .button.primary:has(~ .import-setting), .page-actions .import-setting ~ .button.primary { order: -1; flex-basis: 100%; }
 }
+
+/* MW-51: dropdown memakai panah sendiri supaya sama di semua browser dan tema. */
+.select-input { appearance: none; -webkit-appearance: none; padding-right: 36px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2352634f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; cursor: pointer; }
+.select-input:disabled { cursor: not-allowed; }
+.import-table .select-input, .category-manager-rules .select-input { padding-right: 26px; background-position: right 6px center; background-size: 14px; }
+html[data-theme="dark"] .category-manager-rules .select-input.select-input { background-size: 14px; background-position: right 6px center; }
+html[data-theme="dark"] .select-input.select-input { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23afc2af' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-size: 16px; background-position: right 12px center; }
+html[data-theme="dark"] .import-table .select-input.select-input { background-size: 14px; background-position: right 6px center; }
+@media (max-width: 760px) { html[data-theme="dark"] .filter-bar .select-input.select-input { background-position: right 8px center; } }

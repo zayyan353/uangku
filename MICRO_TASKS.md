@@ -335,7 +335,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-50 — Tombol header Impor punya hierarki**
   "Catat transaksi" jadi tombol utama; Kelola mata uang & Kelola kategori sekunder kecil.
 
-- [ ] **MW-51 — Dropdown bergaya seragam**
+- [x] **MW-51 — Dropdown bergaya seragam**
   `select` memakai panah, tinggi, dan radius yang sama dengan input lain.
 
 - [ ] **MW-52 — Chip mata uang ganda di kartu dompet**
