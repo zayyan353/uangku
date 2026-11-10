@@ -302,7 +302,7 @@ Pemilik minta semua dikerjakan dalam satu sesi; tiap MW tetap satu commit.
 - [x] **MW-39 — Angka tabel Rincian arus tidak pecah baris di HP**
   Di 390px "Rp 8.000.000" terbelah jadi "Rp 8.000.00 / 0". Nominal harus utuh satu baris.
 
-- [ ] **MW-40 — Tab jenis di modal transaksi terlihat bisa digeser di HP**
+- [x] **MW-40 — Tab jenis di modal transaksi terlihat bisa digeser di HP**
   "Transfer" dan "Cek saldo" terpotong tanpa tanda. Beri tanda geser/fade dan pastikan tab aktif terlihat.
 
 - [ ] **MW-41 — Paginasi Transaksi lebih ringkas**

@@ -271,6 +271,11 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .segmented-control button { border: none; border-radius: 8px; padding: 9px 10px; font-size: 13px; font-weight: 550; flex: 1; background: transparent; color: #52634f; display: inline-flex; justify-content: center; align-items: center; gap: 6px; }
 .segmented-control button.active { background: #fff; color: #547b3e; box-shadow: 0 1px 5px #2036190c; }
 .segmented-control button svg { width: 14px; height: 14px; }
+.type-choices { position: relative; margin-bottom: 22px; }
+.type-choices > .segmented-control { margin-bottom: 0; }
+.type-scroll { position: absolute; top: 50%; transform: translateY(-50%); z-index: 1; width: 26px; height: 26px; border-radius: 999px; border: 1px solid var(--line, #dfe5d6); background: var(--surface, #fff); color: var(--text, #1f3a2a); display: inline-flex; align-items: center; justify-content: center; padding: 0; box-shadow: 0 2px 8px #20361922; cursor: pointer; }
+.type-scroll.before { left: -6px; }
+.type-scroll.after { right: -6px; }
 .segmented-control[aria-label="Jenis transaksi"] { position: relative; flex-wrap: nowrap; gap: 3px; overflow-x: auto; scrollbar-width: none; overscroll-behavior-x: contain; }
 .segmented-control[aria-label="Jenis transaksi"]::-webkit-scrollbar { display: none; }
 .segmented-control[aria-label="Jenis transaksi"] button { flex: 1 0 auto; white-space: nowrap; padding-inline: 6px; }
