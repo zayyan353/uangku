@@ -15,7 +15,7 @@ CATEGORIES = 'uangku:categories:v1'
 
 def personal_settings():
     return {
-        'version': 1, 'keywordPackVersion': 5,
+        'version': 1, 'keywordPackVersion': 6,
         'names': ['Belum dikategorikan', 'Pendidikan', 'Unused QA label'],
         'rules': [
             {'id': 'z-qa', 'keyword': 'SYNTHETIC Z', 'category': 'Unused QA label', 'mode': 'suggest'},

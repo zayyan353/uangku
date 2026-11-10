@@ -304,7 +304,8 @@ def deleted_rule(case):
     dialog=p.get_by_role('dialog',name='Kelola kategori',exact=True)
     expect(dialog.locator('.category-manager-rules li')).to_have_count(0)
     dialog.get_by_role('button',name='Simpan pengaturan',exact=True).click();expect(dialog).to_have_count(0)
-    assert json.loads(p.evaluate('(key)=>localStorage.getItem(key)',SETTINGS))==json.loads(case.settings_raw)
+    # Saving records the current pack marker; no v5 or later rule is restored.
+    assert json.loads(p.evaluate('(key)=>localStorage.getItem(key)',SETTINGS))=={**json.loads(case.settings_raw),'keywordPackVersion':6}
     case.unchanged(settings=False)
 
 

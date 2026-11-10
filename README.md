@@ -94,6 +94,9 @@ Pada pembaca Ziraat otomatis, penanda bank yang dikenali mengikuti pemetaan
 yang ditetapkan. Setor ATM menjadi pemasukan, tarik ATM menjadi pengeluaran,
 PREPAID masuk menjadi Cashback, dan pokok transfer menjadi perpindahan dana.
 Pembayaran kartu yang tujuannya belum diketahui memakai kategori Belanja.
+Tarik tunai di ATM bank lain (`YURTİÇİ ATM P.Ç.`) dan tanpa kartu lewat QR
+(`ATM QR ILE PARA ÇEKME`) ikut dikenali. Komisi dan BSMV ATM bank lain, yang
+dicatat bank sebagai baris terpisah, menjadi pengeluaran Biaya bank.
 
 Filter dan kategori massal pada pratinjau berlaku untuk baris yang terlihat.
 Tombol **Simpan** menyertakan semua baris yang masih dipilih, termasuk yang

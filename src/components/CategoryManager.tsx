@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Check, Download, Plus, Trash2, Upload } from 'lucide-react';
 import Modal from './Modal';
 import { makeId } from '../lib/finance';
-import { CATEGORY_SETTINGS_LIMIT, categorySettingsExport, parseCategorySettingsExport, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
+import { CATEGORY_SETTINGS_LIMIT, KEYWORD_PACK_VERSION, categorySettingsExport, parseCategorySettingsExport, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
 import type { CategoryRule } from '../lib/categorization';
 import { mergeCurrentCategoryKeywordPack } from '../lib/categoryConfirmedMappings';
 import { mergeCurrentAutomaticBankMappings } from '../lib/bankAutoMappings';
@@ -85,7 +85,7 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
     try {
       const merged = mergeCurrentCategoryKeywordPack(validateCategorySettings(draft));
       const bank = mergeCurrentAutomaticBankMappings(merged.settings);
-      update({ ...bank.settings, keywordPackVersion: 5 }, `${merged.added + bank.added} kata kunci ditambahkan dan ${merged.updated + bank.updated} pemetaan bawaan disesuaikan di formulir. Aturan pribadi dipertahankan. Klik Simpan pengaturan untuk menyimpan.`);
+      update({ ...bank.settings, keywordPackVersion: KEYWORD_PACK_VERSION }, `${merged.added + bank.added} kata kunci ditambahkan dan ${merged.updated + bank.updated} pemetaan bawaan disesuaikan di formulir. Aturan pribadi dipertahankan. Klik Simpan pengaturan untuk menyimpan.`);
     } catch (error) { setError(errorMessage(error)); }
   }
   function changeBudget(name: string, text: string) {

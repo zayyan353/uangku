@@ -120,7 +120,7 @@ def direct_categories(case):
     before = stored_document(p)
     assert json.loads(case.financial_raw)['version'] == 3
     dialog = case.manager()
-    expect(dialog.locator('.category-manager-rules li')).to_have_count(81)
+    expect(dialog.locator('.category-manager-rules li')).to_have_count(87)
     dialog.get_by_role('button', name='Batal', exact=True).click()
     dialog = case.automation()
     for _, note, _, category in MOVEMENTS:
@@ -251,23 +251,94 @@ def source_flow(case):
     case.semantic_checks += 5
 
 
+ATM_NETWORK_RULE_IDS = ['bank-v6-atm-domestic-withdrawal', 'bank-v6-atm-qr-withdrawal', 'bank-v6-atm-withdrawal-tax',
+                        'bank-v6-atm-deposit-tax', 'bank-v6-atm-commission', 'bank-v6-operation-fee']
+ATM_CARD = 'KART NO:0000 **** **** 0000'
+ATM_WITHDRAWAL = f'YURTİÇİ ATM P.Ç. {ATM_CARD} BANKA : 0000000000 PROVIZYON KODU: 000000 MUTABAKAT: 0000000'
+ATM_DEPOSIT = f'YURTİÇİ ATM P.Y. {ATM_CARD} BANKA : 0000000000 MUTABAKAT: 0000000 KOMİSYON: 18,90'
+# Oldest first. The bank repeats the operation wording on its commission row;
+# only the debited amount within the stated commission (which includes BSMV)
+# tells the two apart. Last field: expected data-bank-operation, if any.
+ATM_NETWORK = [
+    ('withdrawal', ATM_WITHDRAWAL, -40000, 60000, 'expense', 'Tarik tunai', 'atm-withdrawal'),
+    ('withdrawal-commission', ATM_WITHDRAWAL + ' KOMİSYON: 6,30', -625, 59375, 'expense', 'Biaya bank', 'atm-fee'),
+    ('withdrawal-tax', 'YURTİÇİ ATM P.Ç. BSMV', -5, 59370, 'expense', 'Biaya bank', 'atm-fee'),
+    ('deposit', ATM_DEPOSIT, 150000, 209370, 'income', 'Setor tunai', 'atm-deposit'),
+    ('deposit-commission', ATM_DEPOSIT, -1875, 207495, 'expense', 'Biaya bank', 'atm-fee'),
+    ('deposit-tax', 'YURTİÇİ ATM P.Y. BSMV', -15, 207480, 'expense', 'Biaya bank', 'atm-fee'),
+    ('operation-fee', 'İşlem Toplam Masrafı', -7500, 199980, 'expense', 'Biaya bank', None),
+    ('qr', 'ATM QR ILE PARA ÇEKME HESAP NO:0000 **** **** 0000 ATM: Z0000000 JOURNAL NO:00', -25000, 174980, 'expense', 'Tarik tunai', 'atm-withdrawal'),
+]
+
+
+def atm_network_flow(case):
+    """Another bank's ATM, QR withdrawal and their fee rows need no manual tidying."""
+    p = case.page; path = case.args.output / f'{case.name}-synthetic.xlsx'
+    write_statement(path, [record[:6] for record in ATM_NETWORK])
+    import_statement(case, path)
+    for test_id in ['import-review-total', 'import-review-types', 'import-review-categories']:
+        expect(p.get_by_test_id(test_id)).to_have_attribute('data-count', '0')
+    rows = p.locator('.import-table tbody tr'); expect(rows).to_have_count(len(ATM_NETWORK))
+    for index, (_, note, _, _, type_, category, operation) in enumerate(ATM_NETWORK):
+        row = rows.nth(index)
+        expect(row).to_contain_text(note)
+        expect(row.locator('select').first).to_have_value(type_)
+        expect(row.locator('.import-row-category')).to_have_value(category)
+        hint = row.locator('.bank-operation-hint')
+        if operation: expect(hint).to_have_attribute('data-bank-operation', operation)
+        else: expect(hint).to_have_count(0)
+    p.get_by_role('button', name=f'Simpan {len(ATM_NETWORK)} transaksi', exact=True).click()
+    expect(p.get_by_role('heading', name='Periksa sebelum disimpan', exact=True)).to_have_count(0)
+    data = stored_document(p)
+    facts = {fact['id']: fact for fact in data['metadata']['facts']}
+    by_reference = {facts[link['source']]['reference']: next(entry for entry in data['state']['entries'] if entry['id'] == link['entryId'])
+                    for link in data['metadata']['links']}
+    assert len(data['state']['entries']) == len(facts) == len(by_reference) == len(ATM_NETWORK)
+    for id_, note, amount, balance, type_, category, _ in ATM_NETWORK:
+        entry = by_reference[f'SYNTH-{id_}']
+        assert (entry['note'], entry['type'], entry['category'], entry['amount']) == (note, type_, category, abs(amount))
+        assert not set(entry) & {'toWalletId', 'toAmount', 'rate', 'fee'}
+        fact = next(fact for fact in facts.values() if fact['reference'] == f'SYNTH-{id_}')
+        assert (fact['description'], fact['signedAmount'], fact['balanceAfter']) == (note, amount, balance)
+    assert bank_balances(data)['bank'] == 174980
+    assert sum(entry['amount'] for entry in data['state']['entries'] if entry['type'] == 'income') == 150000
+    assert sum(entry['amount'] for entry in data['state']['entries'] if entry['type'] == 'expense') == 75020
+    p.reload(wait_until='networkidle'); assert stored_document(p) == data
+    import_statement(case, path)
+    expect(p.get_by_role('button', name='Simpan 0 transaksi', exact=True)).to_be_disabled()
+    assert stored_document(p) == data
+    nav(p, 'Ringkasan')
+    breakdown = p.get_by_test_id('cashflow-breakdown').locator('tbody tr')
+    expect(breakdown).to_have_count(3)
+    for label, inflow, outflow in [('Setor tunai', '1.500', '₺0'), ('Tarik tunai', '₺0', '650'), ('Biaya bank', '₺0', '100,20')]:
+        cells = breakdown.filter(has=p.locator('th', has_text=label)).locator('td')
+        expect(cells.nth(0)).to_contain_text(inflow); expect(cells.nth(1)).to_contain_text(outflow)
+    nav(p, 'Transaksi')
+    expect(p.locator('.bank-operation-hint[data-bank-operation="atm-fee"]').first).to_contain_text('Biaya ATM')
+    case.semantic_checks += 4
+
+
 def migration(case):
     original = v3_settings(); case.unchanged()
     dialog = case.manager(); case.save(dialog)
-    saved = case.settings_value(); assert saved['keywordPackVersion'] == 5
+    saved = case.settings_value(); assert saved['keywordPackVersion'] == 6
     assert saved['names'] == original['names']
     by_id = {rule['id']: rule for rule in saved['rules']}
     for rule in original['rules']:
         assert by_id[rule['id']] == ({**rule, 'mode': 'auto'} if rule['id'].startswith('bank-v3-') else rule)
-    assert len(saved['rules']) == len(original['rules']) + 1
+    # v4 adds PREPAID; v5 targets (Belanja, Pengembalian dana) are absent here;
+    # v6 adds two ATM withdrawal wordings and four fee rules for existing labels.
+    assert len(saved['rules']) == len(original['rules']) + 7
+    assert [rule['id'] for rule in saved['rules'][len(original['rules']):]] == ['bank-v4-prepaid-credit', *ATM_NETWORK_RULE_IDS]
     assert by_id['bank-v4-prepaid-credit']['keyword'] == 'PREPAID' and by_id['bank-v4-prepaid-credit']['category'] == 'Cashback'
+    assert by_id['bank-v6-atm-domestic-withdrawal'] == {'id': 'bank-v6-atm-domestic-withdrawal', 'keyword': 'YURTİÇİ ATM P.Ç.', 'category': 'Tarik tunai', 'mode': 'auto'}
     assert not {'bank-v3-prepaid-cashback', 'shopping-trendyol', 'keyword-pack-hop-scooter'} & set(by_id)
     case.unchanged(settings=False)
 
 
 def deleted_rule(case):
     dialog = case.manager(); case.save(dialog)
-    saved = case.settings_value(); assert saved['keywordPackVersion'] == 5
+    saved = case.settings_value(); assert saved['keywordPackVersion'] == 6
     assert not any(rule['id'] == 'bank-v3-fast' for rule in saved['rules'])
     case.page.reload(wait_until='networkidle'); nav(case.page, 'Transaksi')
     dialog = case.automation()
@@ -559,6 +630,8 @@ def main():
              ('bank-auto-plain-mobile-dark', {'width': 390, 'theme': 'dark'}, direct_categories),
              ('bank-auto-source-desktop', {'empty': True}, source_flow),
              ('bank-auto-source-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, source_flow),
+             ('atm-network-fees-desktop', {'empty': True}, atm_network_flow),
+             ('atm-network-fees-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, atm_network_flow),
              ('v3-v4-exact-eight-updates', {'settings': v3_settings()}, migration),
              ('v3-deleted-fast-rule-not-readded', {'settings': removed}, deleted_rule),
              ('v3-custom-suggestion-preserved', {'settings': custom}, custom_suggestion),

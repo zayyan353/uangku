@@ -1,9 +1,9 @@
 import { mergeCategoryKeywordPack } from './categoryKeywordPack';
-import { defaultCategorySettings, validateCategorySettings, type CategorySettings } from './categorySettings';
+import { defaultCategorySettings, KEYWORD_PACK_VERSION, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { CONFIRMED_CATEGORY_NAMES } from './categoryKeywordDefinitions';
 import { mergeConfirmedCategoryMappings } from './categoryConfirmedMappings';
 import { BANK_CATEGORY_NAMES, mergeBankCategoryMappings } from './categoryBankMappings';
-import { mergeAutomaticBankMappings, mergeReviewCompletionMappings } from './bankAutoMappings';
+import { mergeAtmNetworkMappings, mergeAutomaticBankMappings, mergeReviewCompletionMappings } from './bankAutoMappings';
 
 /** Only successful durable reads belong here. An absent key means the shipped defaults. */
 export function effectiveCategorySettings(raw: string | null) {
@@ -16,7 +16,7 @@ export function effectiveCategorySettings(raw: string | null) {
  */
 export function upgradeCategorySettings(value: CategorySettings): { settings: CategorySettings; added: number; error: string; updated?: number } {
   const checked = validateCategorySettings(value);
-  if (checked.keywordPackVersion === 5) return { settings: value, added: 0, error: '' };
+  if (checked.keywordPackVersion === KEYWORD_PACK_VERSION) return { settings: value, added: 0, error: '' };
   try {
     // A saved v1 profile may deliberately omit rules from the previous pack.
     // Only profiles predating that pack receive its original additions.
@@ -30,10 +30,12 @@ export function upgradeCategorySettings(value: CategorySettings): { settings: Ca
     const confirmed = version < 2 ? mergeConfirmedCategoryMappings(named) : { settings: named, added: 0, updated: 0 };
     const bank = version < 3 ? mergeBankCategoryMappings(confirmed.settings) : { settings: confirmed.settings, added: 0 };
     const automatic = version < 4 ? mergeAutomaticBankMappings(bank.settings) : { settings: bank.settings, added: 0, updated: 0 };
-    const completion = mergeReviewCompletionMappings(automatic.settings);
-    const settings = validateCategorySettings({ ...completion.settings, keywordPackVersion: 5 });
+    // A saved v5 profile may deliberately omit v5 rules; only older ones receive them.
+    const completion = version < 5 ? mergeReviewCompletionMappings(automatic.settings) : { settings: automatic.settings, added: 0 };
+    const atm = mergeAtmNetworkMappings(completion.settings);
+    const settings = validateCategorySettings({ ...atm.settings, keywordPackVersion: KEYWORD_PACK_VERSION });
     const updated = confirmed.updated + automatic.updated;
-    return { settings, added: previous.added + confirmed.added + bank.added + automatic.added + completion.added, error: '', ...(updated ? { updated } : {}) };
+    return { settings, added: previous.added + confirmed.added + bank.added + automatic.added + completion.added + atm.added, error: '', ...(updated ? { updated } : {}) };
   } catch (error) {
     return { settings: value, added: 0, error: `Kata kunci tambahan belum diaktifkan: ${error instanceof Error ? error.message : 'batas pengaturan tercapai'}. Pengaturan lama tetap dipakai.` };
   }
