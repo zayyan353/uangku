@@ -250,6 +250,16 @@ Dicatat untuk tahap UX (belum dikerjakan): modal Pindah uang menampilkan
 "Pilih dompet tujuan yang berbeda" padahal BCA → Bank Jago sudah berbeda
 (perlu dicek: bug logika atau pesan); format tanggal form mengikuti bahasa browser.
 
+## D3. Tindak lanjut (10 November 2026)
+
+Sisa catatan dari MW-26, MW-27, dan tahap UX. Satu MW per commit.
+
+- [x] **MW-33 — Tes kapasitas 8 MiB tidak timeout saat CPU penuh**
+  Dua tes "near8MiB" (`currencySettings.test.ts`, `walletArchiveCodec.test.ts`)
+  butuh ~3 detik tanpa beban dan 7–8 detik saat CPU penuh, sehingga melewati
+  batas bawaan 5 detik. Diberi batas 20 detik seperti tes berat lain
+  (`bankDecisions`, `categoryCommands`). Isi tes tidak berubah.
+
 ## E. Butuh bahan dari kamu dulu (jangan dimulai tanpa ini)
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).

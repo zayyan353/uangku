@@ -232,5 +232,6 @@ describe('persisted wallet archives and strict codec compatibility', () => {
     expect(serializeBackup(data)).toBe(durable);
     expect(parseBackupText(durable)).toEqual(data);
     expect(data.metadata.walletArchives).toBeUndefined();
-  });
+    // Tes kapasitas berat: ~3 detik tanpa beban, bisa >5 detik saat CPU penuh.
+  }, 20_000);
 });

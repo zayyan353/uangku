@@ -245,5 +245,6 @@ describe('strict multicurrency and generic-source codec feature gate', () => {
     expect(serializeBackup(data)).toBe(durable);
     expect(parseBackupText(durable)).toEqual(data);
     expect(data.metadata.currencies).toBeUndefined();
-  });
+    // Tes kapasitas berat: ~3 detik tanpa beban, bisa >5 detik saat CPU penuh.
+  }, 20_000);
 });
