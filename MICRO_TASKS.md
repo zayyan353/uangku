@@ -358,7 +358,7 @@ Dari tinjauan modal, antrean rapikan, pratinjau impor, dan tampilan data kosong
 - [x] **MW-56 — Modal Privasi selaras tipografi**
   Isi modal Privasi 16px dan padat, beda dari modal lain. Samakan ukuran, warna, dan jarak paragraf.
 
-- [ ] **MW-57 — Tombol modal "Mulai dengan uangmu sendiri" rapi di HP**
+- [x] **MW-57 — Tombol modal "Mulai dengan uangmu sendiri" rapi di HP**
   Tiga tombol pecah dua baris tidak rata. Di HP susun penuh-lebar dengan aksi utama di atas.
 
 - [ ] **MW-58 — Impor CSV umum: jarak paragraf ke field**
