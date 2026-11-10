@@ -114,7 +114,8 @@ def transfer_lifecycle(browser,out):
         page.get_by_label('Filter jenis transaksi',exact=True).select_option('all')
         page.get_by_label('Periode transaksi',exact=True).select_option('all')
         note=paired['state']['entries'][0]['note']
-        page.get_by_role('button',name='Hapus '+(note or 'transaksi'),exact=True).click()
+        page.get_by_role('button',name='Ubah '+(note or 'transaksi'),exact=True).click()
+        page.get_by_role('dialog').get_by_role('button',name='Hapus',exact=True).click()
         dlg=page.get_by_role('dialog');dlg.get_by_label('Alasan tindakan',exact=True).fill('Uji penghapusan grup sintetis')
         dlg.get_by_role('button',name='Hapus transaksi',exact=True).click()
         deleted=wait_doc(page,lambda d:len(d['state']['entries'])==0)

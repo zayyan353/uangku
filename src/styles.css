@@ -393,8 +393,6 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .amount-cell .badge { margin-top: 5px; }
 .row-actions { display: flex; align-items: center; justify-content: flex-end; gap: 5px; }
 .row-actions .icon-button { min-height: 27px; min-width: 27px; background: transparent; border: 0; padding: 5px; }
-.row-actions .delete-action { color: #52634f; }
-.row-actions .delete-action:hover { background: #fff2ec; color: #52634f; }
 .wallet-card-label { display: block; font-size: 13px; color: #52634f; margin-bottom: 8px; }
 .wallet-card-balance { display: block; }
 .wallet-card-top .wallet-info > strong { display: block; font-size: 14px; font-weight: 600; color: #4c6540; }
@@ -709,7 +707,6 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .transactions-table:not(.import-table) .transaction-mobile-meta { display: block; font-size: 11px; color: #52634f; line-height: 1.6; margin-top: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .transactions-table:not(.import-table) .amount-cell strong { display: block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; font-size: 13px; letter-spacing: -.15px; }
   .transactions-table:not(.import-table) .row-actions { gap: 0; }
-  .transactions-table:not(.import-table) .delete-action { display: none; }
   .transactions-table:not(.import-table) .row-actions .button.small { font-size: 11px; padding: 7px 8px; min-height: 29px; }
   .transactions-table:not(.import-table) .badge { max-width: 100%; font-size: 11px; padding: 4px 5px; }
   .bottom-note { justify-content: center; flex-direction: column; gap: 7px; font-size: 11px; }
@@ -809,8 +806,6 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
   .history-pagination .button { min-height: 44px; white-space: nowrap; justify-content: center; }
   .transactions-table:not(.import-table) .amount-detail-button { display: flex; width: 100%; }
   .transactions-table:not(.import-table) .amount-detail-hint { font-size: 11px; white-space: normal; }
-  .transactions-table:not(.import-table) .delete-action { display: inline-grid; }
-  .transactions-table:not(.import-table) .row-actions { flex-direction: column; align-items: center; gap: 4px; }
   .transactions-table:not(.import-table) .row-actions .icon-button { min-height: 40px; min-width: 35px; }
   .amount-detail dl { grid-template-columns: minmax(0,1fr); row-gap: 5px; }
   .amount-detail dd { margin-bottom: 12px; }
@@ -1017,8 +1012,6 @@ html[data-theme="dark"] .quick-wallet-action { color: var(--success-text); backg
 html[data-theme="dark"] .add-wallet-card { color: var(--text-muted); background: #16231b; border-color: var(--control-border); }
 html[data-theme="dark"] .add-wallet-card > strong { color: var(--text); }
 html[data-theme="dark"] .row-actions .icon-button { background: transparent; }
-html[data-theme="dark"] .row-actions .delete-action { color: var(--error-text); }
-html[data-theme="dark"] .row-actions .delete-action:hover { color: var(--error-text); background: var(--error-surface); }
 html[data-theme="dark"] .wallet-card-top .icon-button { background: transparent; }
 
 html[data-theme="dark"] :is(.notice, .review-scope, .bulk-review-panel, .transfer-suggestion,
