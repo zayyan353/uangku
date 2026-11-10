@@ -2,7 +2,7 @@ import { unzipSync, strFromU8 } from 'fflate';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { xlsxEntityDecoder } from './xmlCharacterReferences';
 import type { Currency, Entry, Wallet } from './finance';
-import { confirmedBankEntryType, interpretBankDescription, normalizeBankDescription } from './bankDescription';
+import { confirmedBankEntryType, interpretBankDescription, normalizeBankDescription, type BankDescriptionKind } from './bankDescription';
 
 export interface ImportRow {
   id: string;
@@ -22,6 +22,8 @@ export interface ImportRow {
   selected: boolean;
   duplicate: boolean;
   warning?: string;
+  /** Why the type follows from other rows of the statement when this row's own wording cannot say. */
+  inference?: string;
 }
 
 export interface ImportPreview {
@@ -268,6 +270,7 @@ export function parseZiraatWorkbook(data: ArrayBuffer, wallet: Wallet, existing:
   const knownKeys = new Set(existing.flatMap(entry => [entry.sourceKey, entry.toSourceKey]).filter((key): key is string => Boolean(key)));
   const seen = new Set<string>();
   const rows: ImportRow[] = [];
+  const kinds: BankDescriptionKind[] = [];
   const date1904 = workbook.date1904;
   const [dateColumn, referenceColumn, descriptionColumn, amountColumn, balanceColumn] = columns;
 
@@ -307,6 +310,7 @@ export function parseZiraatWorkbook(data: ArrayBuffer, wallet: Wallet, existing:
     const legacyTransferHint = /\b(?:HAVALE|EFT|FAST|TRANSFER|VIRMAN|NAKIT|DOVIZ|KAMBIYO)\b|PARA CEK/.test(text);
     const transferHint = operation.kind !== 'transfer-fee' && (operation.pending && operation.kind !== 'cashback' || !posPurchase && legacyTransferHint);
     const uncertain = amount > 0 || transferHint || operation.kind === 'cashback';
+    kinds.push(operation.kind);
     rows.push({
       id: `${sourceKey}:${index}`,
       date,
@@ -332,6 +336,7 @@ export function parseZiraatWorkbook(data: ArrayBuffer, wallet: Wallet, existing:
   }
   if (!rows.length) return error('Tidak ada transaksi yang bisa diimpor dari file ini.');
   if (rows.length > 50000) return error('Terlalu banyak transaksi. Pilih periode mutasi yang lebih singkat.');
+  confirmTransfersNamedByTheirFees(rows, kinds);
 
   const newestFirstDates = rows.every((row, i) => i === 0 || rows[i - 1].date >= row.date);
   const oldestFirstDates = rows.every((row, i) => i === 0 || rows[i - 1].date <= row.date);
@@ -355,6 +360,29 @@ export function parseZiraatWorkbook(data: ArrayBuffer, wallet: Wallet, existing:
   if (pendingCount) warnings.push(`${pendingCount} transaksi disimpan sebagai Perlu ditinjau agar saldo tetap benar tanpa menebak pemasukan atau transfer.`);
   warnings.push('Impor mencatat rekening ini saja. Setor tunai dihitung sebagai pemasukan dan tarik tunai sebagai pengeluaran. Pokok transfer bank tetap perpindahan dana; pasangan rekening lain dapat dicocokkan bila tersedia.');
   return { rows, currency: 'TRY', openingBalance, closingBalance: newest.balance, warnings, period: { start: oldest.date, end: newest.date } };
+}
+
+/** The bank cuts a long transfer wording before its operation word, leaving
+ * the principal an unknown debit that would count as spending. Its fee rows
+ * still name the transfer and carry the principal's voucher number and date.
+ * Exactly one other row on that voucher is therefore the transfer itself; any
+ * less certain grouping is left as it was.
+ */
+function confirmTransfersNamedByTheirFees(rows: ImportRow[], kinds: readonly BankDescriptionKind[]): void {
+  const vouchers = new Map<string, number[]>();
+  rows.forEach((row, index) => {
+    const key = `${row.date}\n${row.reference}`;
+    const group = vouchers.get(key);
+    if (group) group.push(index); else vouchers.set(key, [index]);
+  });
+  for (const group of vouchers.values()) {
+    const others = group.filter(index => kinds[index] !== 'transfer-fee' || rows[index].amount >= 0);
+    if (others.length !== 1 || others.length === group.length) continue;
+    const row = rows[others[0]];
+    if (kinds[others[0]] !== 'none' || row.amount >= 0 || row.classification !== 'expense') continue;
+    row.classification = 'movement';
+    row.inference = 'Keterangan baris ini tidak menyebut jenis operasinya (bisa terpotong oleh bank). Biaya transfer dengan nomor fiş dan tanggal yang sama menunjukkan ini pokok transfernya, jadi dicatat sebagai perpindahan dana, bukan pengeluaran. Ubah jenisnya bila keliru.';
+  }
 }
 
 export function entriesFromImport(rows: ImportRow[], walletId: string, batchId: string): Entry[] {

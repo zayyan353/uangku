@@ -585,11 +585,28 @@ Sisa dari uji yang sama. Pemilik menyerahkan keputusannya ke pelaksana
   *File:* `bankDescription.ts`, `categorization.ts`, `categoryBankMappings.ts`,
   `CategoryAutomation.tsx`, tes unit terkait, `tests/*_browser.py`, `README.md`.
 
+- [x] **MW-86 — Pokok transfer yang keterangannya terpotong bank**
+  Bila nama pengirim/penerima panjang, bank memotong keterangan sebelum
+  `Ziraat Mobil Havale`, sehingga pokok transfer terbaca sebagai debit tak
+  dikenal dan dihitung sebagai pengeluaran. Panjang potongannya tidak tetap,
+  jadi sisa teks tidak bisa diandalkan. Keputusan: pakai bukti dari bank
+  sendiri. Baris biaya transfer (`… Havale Komisyonu/BSMV Tahsilatı`) memakai
+  nomor fiş dan tanggal yang sama dengan pokoknya; bila pada fiş dan tanggal
+  itu tepat satu baris lain, baris itu debit, dan keterangannya tidak dikenali,
+  ia dicatat sebagai **perpindahan dana**. Pratinjau impor menampilkan
+  alasannya dan jenisnya tetap bisa diubah. Tanpa baris biaya, lebih dari satu
+  kandidat, kredit, atau baris yang sudah "Perlu dicek" tidak disentuh.
+  Batasan: hanya berlaku saat impor; di Rincian arus baris ini masuk "Mutasi
+  lain" (sama seperti perpindahan dana lain yang keterangannya tak dikenali)
+  dan kategorinya dibiarkan kosong karena perpindahan dana tidak wajib
+  berkategori.
+  *File:* `importer.ts`, `RecoveryImportView.tsx`, tes unit baru,
+  `tests/bank_auto_browser.py`, `README.md`.
+  *Hasil pada file uji (952 baris) setelah MW-84–86:* kategori terisi otomatis
+  941 → 951 dan tidak ada lagi yang perlu dirapikan (11 → 0).
+
 Dicatat dari uji yang sama, **belum dikerjakan**:
 
-- Keterangan transfer yang dipotong bank sebelum kata `Havale` (nama penerima
-  panjang) tidak dikenali sebagai transfer dan jatuh ke pengeluaran tanpa
-  kategori.
 - Pembayaran tagihan lewat `Havale` tercatat sebagai perpindahan dana, sesuai
   kebijakan transfer sekarang; mengubahnya menjadi pengeluaran tetap manual.
 
