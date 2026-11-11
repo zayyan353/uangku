@@ -1832,3 +1832,8 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 .category-manager-names li.category-rename { grid-column: 1 / -1; flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; }
 .category-rename .field { margin: 0; }
 .category-rename-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+/* Panel kategori di Ringkasan bisa dilipat seperti Perhitungan saldo dan Rincian arus */
+.category-panel-head { display: flex; align-items: flex-start; gap: 10px; }
+.category-panel-head .fold-header { flex: 1; min-width: 0; }
+.category-panel-head .category-heading-icon { margin-top: 2px; }

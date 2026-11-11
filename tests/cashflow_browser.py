@@ -208,9 +208,19 @@ def reference(case):
 def pending_and_adjustment(case):
     case.totals(7_000, 3_100, 10_000, 14_150, 250)
     panel = case.page.locator('.panel').filter(has=case.page.get_by_role(
-        'heading', name='Kategori pengeluaran terkonfirmasi', exact=True))
+        'heading', name=re.compile('^Kategori pengeluaran terkonfirmasi')))
     expect(panel).to_be_visible()
     expect(panel).to_contain_text('Pendidikan')
+    # The panel folds and opens like the two cashflow panels; folding only hides, it changes no data.
+    fold = panel.locator('[data-category-fold]')
+    expect(fold).to_have_attribute('aria-expanded', 'true')
+    fold.click()
+    expect(fold).to_have_attribute('aria-expanded', 'false')
+    expect(panel.locator('.category-row').first).to_be_hidden()
+    expect(fold).to_contain_text('ketuk untuk melihat')
+    fold.click()
+    expect(panel.locator('.category-row').first).to_be_visible()
+    case.assert_unchanged()
     expect(panel).to_contain_text('21')
     expect(panel).not_to_contain_text('Transfer')
     nav(case.page, 'Transaksi')
