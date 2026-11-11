@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { appendTemplate, templateFill, MAX_TEMPLATES, parseStoredTemplates, serializeTemplates, TEMPLATES_LIMIT, validateTemplates, type TransactionTemplate } from './transactionTemplates';
+import { appendTemplate, removeTemplate, renameTemplate, templateFill, MAX_TEMPLATES, parseStoredTemplates, serializeTemplates, TEMPLATES_LIMIT, validateTemplates, type TransactionTemplate } from './transactionTemplates';
 
 const coffee: TransactionTemplate = { id: 't1', name: 'Kopi pagi', type: 'expense', walletId: 'bank', currency: 'TRY', category: 'Makan & minum', amount: 4500, note: 'Kopi dekat kampus' };
 const salary: TransactionTemplate = { id: 't2', name: 'Gaji', type: 'income', walletId: 'bank', currency: 'IDR', category: 'Gaji', note: '' };
@@ -54,6 +54,16 @@ describe('stored templates', () => {
     expect(appendTemplate(first.raw, salary).templates).toEqual([coffee, salary]);
     expect(() => appendTemplate('{bad', salary)).toThrow(/tidak dapat dibaca/);
     expect(() => appendTemplate(first.raw, { ...salary, name: 'kopi pagi' })).toThrow(/sudah dipakai/);
+  });
+  it('removes and renames one template without touching the others', () => {
+    const both = appendTemplate(appendTemplate(null, coffee).raw, salary);
+    expect(removeTemplate(both.raw, coffee.id).templates).toEqual([salary]);
+    expect(renameTemplate(both.raw, coffee.id, '  Kopi sore ').templates).toEqual([{ ...coffee, name: 'Kopi sore' }, salary]);
+    expect(() => renameTemplate(both.raw, coffee.id, salary.name.toUpperCase())).toThrow(/sudah dipakai/);
+    expect(() => renameTemplate(both.raw, coffee.id, '   ')).toThrow();
+    expect(() => removeTemplate(both.raw, 'tidak-ada')).toThrow(/sudah tidak ada/);
+    expect(() => removeTemplate('{bad', coffee.id)).toThrow(/tidak dapat dibaca/);
+    expect(parseStoredTemplates(removeTemplate(removeTemplate(both.raw, coffee.id).raw, salary.id).raw)).toEqual([]);
   });
 });
 

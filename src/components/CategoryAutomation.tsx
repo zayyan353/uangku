@@ -36,11 +36,11 @@ export default function CategoryAutomation({ data, onApply, onClose, disabled = 
   }
   return <Modal title="Isi kategori otomatis" subtitle="Tinjau kategori dan konfirmasi mutasi bank yang dikenali." onClose={() => { if (!saving.current) onClose(); }}>
     <div className="modal-body">
-    <div className="notice success">{auto} cocok dengan aturan otomatis · {rows.length - auto} perlu pilihan. Catatan tanpa kecocokan tetap belum dikategorikan.</div>
-    <p className="field-help">Semua periode dan mata uang. Kategori manual dipertahankan. Saat Terapkan, mutasi bank yang dikenali juga dikonfirmasi: tarik ATM menjadi pengeluaran, setor ATM menjadi pemasukan, dan transfer bank tetap perpindahan dana rekening; PREPAID masuk menjadi pemasukan Cashback; refund masalah ATM yang jelas menjadi Pengembalian dana. Pembayaran kartu tanpa kecocokan merchant memakai Belanja sebagai kategori umum, tanpa menebak barang yang dibeli. Nominal, saldo rekening, tanggal, dan fakta bank tetap. Mutasi lainnya tetap perlu dicek.</p>
+    {rows.length > 0 && <><div className="notice success">{auto} cocok dengan aturan otomatis · {rows.length - auto} perlu pilihan. Catatan tanpa kecocokan tetap belum dikategorikan.</div>
+    <details className="automation-rules"><summary>Apa yang terjadi saat Terapkan?</summary><p className="field-help">Semua periode dan mata uang. Kategori manual dipertahankan. Saat Terapkan, mutasi bank yang dikenali juga dikonfirmasi: tarik ATM menjadi pengeluaran, setor ATM menjadi pemasukan, dan transfer bank tetap perpindahan dana rekening; PREPAID masuk menjadi pemasukan Cashback; refund masalah ATM yang jelas menjadi Pengembalian dana. Pembayaran kartu tanpa kecocokan merchant memakai Belanja sebagai kategori umum, tanpa menebak barang yang dibeli. Nominal, saldo rekening, tanggal, dan fakta bank tetap. Mutasi lainnya tetap perlu dicek.</p></details></>}
     {settings !== basis.settings && <div className="notice warning">Pengaturan kategori berubah. Tutup lalu buka kembali pratinjau agar memakai aturan terbaru.</div>}
     {error && <div className="notice error" role="alert">{error}</div>}
-    {!rows.length ? <div className="empty-state"><p>Belum ada aturan yang cocok. Tambahkan kata atau frasa merchant lewat Kelola kategori.</p></div> : <>
+    {!rows.length ? <div className="empty-state compact" data-testid="automation-empty"><CheckCheck size={26} /><p>Tidak ada catatan yang cocok dengan aturan saat ini. Tambahkan kata atau frasa merchant lewat Kelola kategori bila ada yang ingin diisi otomatis.</p></div> : <>
       <div className="category-automation-list">{rows.slice((page - 1) * 50, page * 50).map((row, index) => {
         const wallet = wallets.get(row.entry.walletId);
         const view = presentation(row.entry);
@@ -55,8 +55,8 @@ export default function CategoryAutomation({ data, onApply, onClose, disabled = 
           </select></label>
         </section>;
       })}</div>
-      <nav className="history-pagination" aria-label="Halaman saran kategori"><span>Halaman {page} dari {pages} · {rows.length} kecocokan</span><div><button className="button secondary small" disabled={busy || page <= 1} onClick={() => setPage(value => value - 1)}>Sebelumnya</button><button className="button secondary small" disabled={busy || page >= pages} onClick={() => setPage(value => value + 1)}>Berikutnya</button></div></nav>
+      <nav className="history-pagination" aria-label="Halaman saran kategori"><span>{pages > 1 ? `Halaman ${page} dari ${pages} · ` : ''}{rows.length} kecocokan{pages > 1 ? ' · Terapkan berlaku untuk semua halaman' : ''}</span>{pages > 1 && <div><button className="button secondary small" disabled={busy || page <= 1} onClick={() => setPage(value => value - 1)}>Sebelumnya</button><button className="button secondary small" disabled={busy || page >= pages} onClick={() => setPage(value => value + 1)}>Berikutnya</button></div>}</nav>
     </>}
-    </div><div className="modal-footer"><button className="button secondary" disabled={busy} onClick={onClose}>Batal</button><button className="button primary" disabled={disabled || busy || !assignments.length || settings !== basis.settings} onClick={apply}><CheckCheck size={16} /> {busy ? 'Menyimpan…' : `Terapkan ${assignments.length} kategori`}</button></div>
+    </div><div className="modal-footer"><button className="button secondary" disabled={busy} onClick={onClose}>{rows.length ? 'Batal' : 'Tutup'}</button>{rows.length > 0 && <button className="button primary" disabled={disabled || busy || !assignments.length || settings !== basis.settings} onClick={apply}><CheckCheck size={16} /> {busy ? 'Menyimpan…' : `Terapkan ${assignments.length} kategori`}</button>}</div>
   </Modal>;
 }

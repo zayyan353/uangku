@@ -172,6 +172,13 @@ export function formatDate(date: string): string {
     .format(new Date(`${date}T12:00:00Z`));
 }
 
+/** A stored ISO instant as an ordinary date and time ("11 Nov 2026, 14.05") in the device's time zone. Unreadable text is shown as it is. */
+export function formatDateTime(instant: string, timeZone?: string): string {
+  const time = new Date(instant);
+  if (!/^\d{4}-\d{2}-\d{2}T/.test(instant) || Number.isNaN(time.getTime())) return instant;
+  return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', ...(timeZone ? { timeZone } : {}) }).format(time);
+}
+
 function isValidDate(date: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
   const parsed = new Date(`${date}T12:00:00Z`);

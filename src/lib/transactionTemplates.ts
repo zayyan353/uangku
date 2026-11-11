@@ -119,6 +119,22 @@ export function appendTemplate(raw: string | null, template: TransactionTemplate
   return { raw: JSON.stringify(templates), templates };
 }
 
+/** Removes one template from the stored raw value. An unreadable store or an unknown id throws; storage stays as it was. */
+export function removeTemplate(raw: string | null, id: string): { raw: string; templates: TransactionTemplate[] } {
+  const current = parseStoredTemplates(raw);
+  if (!current.some(template => template.id === id)) throw new Error('Template sudah tidak ada. Daftar terbaru dimuat.');
+  const templates = current.filter(template => template.id !== id);
+  return { raw: JSON.stringify(templates), templates };
+}
+
+/** Renames one template in place, keeping its position. A name another template uses is refused. */
+export function renameTemplate(raw: string | null, id: string, name: string): { raw: string; templates: TransactionTemplate[] } {
+  const current = parseStoredTemplates(raw);
+  if (!current.some(template => template.id === id)) throw new Error('Template sudah tidak ada. Daftar terbaru dimuat.');
+  const templates = validateTemplates(current.map(template => template.id === id ? { ...template, name } : template));
+  return { raw: JSON.stringify(templates), templates };
+}
+
 export interface TemplateFill {
   type: TransactionTemplate['type'];
   /** '' when the template's wallet is no longer active; the form keeps its own choice. */

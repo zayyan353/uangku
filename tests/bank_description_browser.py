@@ -309,9 +309,11 @@ def archived_bank_fee(case):
 def delete_movement_category(case):
     p = case.page
     dialog = case.manager()
+    dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     dialog.get_by_role('button', name='Hapus kategori Tarik tunai', exact=True).click()
     path = case.args.output / 'v3-inactive-withdrawal-category.json'
     with p.expect_download() as download:
+        dialog.get_by_role('tab', name=re.compile('^Berkas')).click()
         dialog.get_by_role('button', name='Ekspor pengaturan kategori', exact=True).click()
     download.value.save_as(path)
     exported = json.loads(path.read_text(encoding='utf-8'))
@@ -326,6 +328,7 @@ def delete_movement_category(case):
     # The factual operation hint survives independently from active choices.
     expect_hint(p.locator('.transactions-table tbody tr').filter(has_text='ATM PARA ÇEKME BANK201'), 'atm-withdrawal')
     dialog = case.manager()
+    dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     dialog.get_by_label('Nama kategori baru', exact=True).fill('Tarik tunai')
     dialog.get_by_role('button', name='Tambah kategori', exact=True).click()
     case.save(dialog)

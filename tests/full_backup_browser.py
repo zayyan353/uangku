@@ -135,6 +135,7 @@ def round_trip(destination, url, width, *, route=None, verify=None):
         if verify:
             verify(response)
         manager = open_categories(peer)
+        manager.get_by_role('tab', name=re.compile('^Kategori')).click()
         manager.get_by_label('Nama kategori baru', exact=True).fill('Peer edit QA')
         manager.get_by_role('button', name='Tambah kategori', exact=True).click()
         manager.get_by_role('button', name='Simpan pengaturan', exact=True).click()

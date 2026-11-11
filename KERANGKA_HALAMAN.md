@@ -843,7 +843,7 @@ dan bulan (5.4).
 
 ### 3.7 Form transaksi (Catat / Ubah)
 
-*Bab 3.7–3.8 dikerjakan sebagian pada 11 Nov 2026. Seluruh tes browser CI lulus lokal pada build itu (`npm test` 1.764 lulus; smoke, recovery, dan source diulang sesudah dua penyesuaian terakhir). Belum dikerjakan dan belum dicentang: 3.7.3 (mengelola template), 3.7.6 (urutan dan saran kategori), 3.8.3 (beda mata uang) dan 3.8.6 (pasangan transfer) yang belum dilihat.*
+*Bab 3.7–3.8 dikerjakan sebagian pada 11 Nov 2026; empat butir sisanya (3.7.3, 3.7.6, 3.8.3, 3.8.6) dikerjakan pada hari yang sama di sesi berikutnya bersama 3.9–3.14. Hasil tes ditulis di catatan akhir Bab 3.*
 
 - [x] **3.7.1 Kepala form dan tutup**
   *Isi:* judul per mode, subjudul; bila ada isian, menutup menanyakan "Buang
@@ -863,10 +863,17 @@ dan bulan (5.4).
     uang antara dua dompetmu sendiri. Jumlah seluruh uangmu tidak berubah."
     Label tabnya tidak diganti; penyeragaman nama jenis tetap di 5.11.4.
 
-- [ ] **3.7.3 Isi cepat dari template**
+- [x] **3.7.3 Isi cepat dari template**
   *Isi:* deretan tombol template di atas form baru.
   - Template tidak bisa dihapus atau diganti namanya (hanya ada fungsi tambah).
     Buat cara mengelolanya.
+  - *Dikerjakan 11 Nov 2026.* Tautan "Kelola template" di atas deretan
+    template membuka daftar: tiap template bisa diganti namanya atau
+    dihapus. Nama yang sudah dipakai template lain ditolak dan daftar
+    tersimpan tidak berubah. Penulisan memakai kunci yang sama dengan
+    menyimpan template, dan transaksi yang sudah dicatat tidak tersentuh.
+    `category_browser.py` ditambah untuk ganti nama (termasuk penolakan) dan
+    hapus.
 
 - [x] **3.7.4 Dompet dan tanggal**
   *Isi:* dropdown dompet aktif dan kolom tanggal.
@@ -882,12 +889,20 @@ dan bulan (5.4).
   - *Diperiksa 11 Nov 2026.* Pemisah ribuan dikerjakan di 5.11.3; tidak ada
     perubahan di sini.
 
-- [ ] **3.7.6 Kategori dan keterangan**
+- [x] **3.7.6 Kategori dan keterangan**
   *Isi:* dropdown kategori ("boleh nanti") dan kolom keterangan ("opsional").
   - Daftar kategorinya sama untuk pengeluaran dan pemasukan (±30 pilihan
     datar). Urutkan sesuai jenis atau yang sering dipakai.
   - **[fitur]** Saran kategori dari keterangan saat mencatat manual, memakai
     aturan kata kunci yang sama dengan impor.
+  - *Dikerjakan 11 Nov 2026.* Dropdown kategori kini memisahkan "Sering
+    dipakai untuk pengeluaran/pemasukan/perpindahan dana" (maksimal enam,
+    dihitung dari catatan berjenis sama) dari "Kategori lain"; tanpa
+    riwayat, urutannya tetap seperti pengaturan. **[fitur]** saat keterangan
+    diisi dan kategori masih kosong, muncul "Saran kategori: …" dari aturan
+    kata kunci yang sama dengan impor; saran hanya mengisi dropdown bila
+    diklik, tidak pernah otomatis, dan hanya untuk catatan manual berjenis
+    pengeluaran atau pemasukan.
 
 - [x] **3.7.7 Simpan sebagai template**
   *Isi:* tombol yang membuka kolom nama template.
@@ -928,9 +943,19 @@ dan bulan (5.4).
     berbeda). `browser_smoke.py` diperbarui: tes lama mengharapkan kotak itu
     selalu tampil.
 
-- [ ] **3.8.3 Beda mata uang**
+- [x] **3.8.3 Beda mata uang**
   *Isi:* "Isi kurs" / "Isi jumlah diterima", pratinjau hasil, centang konfirmasi kurs.
   - Belum dilihat. Tinjau saat giliran.
+  - *Ditinjau dan dikerjakan 11 Nov 2026* (BCA IDR → Ziraat TRY, data
+    contoh, desktop dan HP). Tiga hal diperbaiki: (1) galat "Konfirmasi
+    kurs…" muncul di dasar form sementara centangnya di atas dan tidak
+    ditandai; kini baris centang ikut ditandai dan galatnya hilang saat
+    dicentang; (2) kalimat bantuan "…batas angka yang dapat disimpan tepat"
+    diganti kalimat sesuai mode (isi kurs atau isi jumlah diterima); (3)
+    kurs di bawah 1 sulit dibaca ("1 IDR = 0,0025 TRY"), jadi pratinjau
+    menambah baris kebalikannya ("atau 1 TRY ≈ 400 IDR"). Cara menghitung
+    dan pemeriksaan kurs tidak diubah. Belum dilihat: transfer beda mata
+    uang dari catatan impor.
 
 - [x] **3.8.4 Tanggal debit dan tanggal kredit**
   *Isi:* dua kolom tanggal.
@@ -949,10 +974,18 @@ dan bulan (5.4).
   - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Kolom biaya tampil dengan
     keterangannya.
 
-- [ ] **3.8.6 Pasangan transfer**
+- [x] **3.8.6 Pasangan transfer**
   *Isi:* saran "Mungkin pasangan transfer" dan dropdown "Catatan pasangan"
   (saat mengubah catatan impor).
   - Belum dilihat. Tinjau saat giliran.
+  - *Ditinjau dan dikerjakan 11 Nov 2026* dengan dua mutasi sintetis (debit
+    di satu dompet, kredit di dompet lain), desktop dan HP. Saran dan
+    dropdown bekerja: memilih saran mengisi dompet tujuan, nominal, kedua
+    tanggal, dan dropdown pasangan. Polesan: tombol saran yang dipilih kini
+    ditandai (`aria-pressed`, ikon centang di depan) dan memuat potongan
+    keterangan pasangannya supaya dua kandidat senominal bisa dibedakan;
+    kalimatnya menjelaskan bahwa dua catatan digabung. Alur gabungnya
+    sendiri dicakup `bank_auto_browser.py` dan `browser_smoke.py`.
 
 - [x] **3.8.7 Alasan perubahan dan Pisahkan transfer**
   *Isi:* kolom "Alasan perubahan finansial atau tanggal"; tombol Pisahkan
@@ -964,40 +997,67 @@ dan bulan (5.4).
 
 ### 3.9 Jenis lain di form
 
-- [ ] **3.9.1 Perpindahan dana**
+- [x] **3.9.1 Perpindahan dana**
   *Isi:* pilihan arah (keluar dari / masuk ke rekening) dan kategori.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Pilihan arah dan kategori
+    tampil di desktop dan HP (tema terang dan gelap); penjagaan tanda dan
+    nominal nol dicakup `bank_auto_browser.py`.
 
-- [ ] **3.9.2 Cek saldo**
+- [x] **3.9.2 Cek saldo**
   *Isi:* "Saldo yang benar sekarang" dan saldo catatan hari ini.
   - Kolom tanggal tetap bisa diubah padahal hanya hari ini yang diterima;
     galatnya baru muncul saat simpan. Kunci atau sembunyikan.
   - Selisih tidak terlihat sebelum disimpan. Tulis langsung ("Selisih
     −Rp 20.000 akan dicatat").
+  - *Dikerjakan 11 Nov 2026.* Pada Cek saldo baru, kolom tanggal dikunci ke
+    hari ini dengan keterangan "Cek saldo selalu memakai tanggal hari ini"
+    (berpindah ke Cek saldo dari jenis lain juga mengembalikan tanggal ke
+    hari ini). Selisih ditulis langsung di bawah nominal: "Selisih −Rp …
+    akan dicatat sebagai penyesuaian", atau "Sama dengan catatan…" bila nol.
+    Cek saldo lama yang dibuka untuk diubah tetap memakai kolom tanggal yang
+    bisa diubah, seperti sebelumnya, supaya tanggal penyesuaian lama tidak
+    berpindah diam-diam.
 
 ### 3.10 Cek transaksi impor
 
-- [ ] **3.10.1 Mode cek**
+- [x] **3.10.1 Mode cek**
   *Isi:* judul "Cek transaksi ini", pilihan jenis terbatas, dompet/tanggal/nominal terkunci.
   - Subjudulnya masih kalimat umum form catat. Jelaskan tugasnya ("Pilih jenis
     yang benar; nominal dan tanggal mengikuti bank").
+  - *Dikerjakan 11 Nov 2026.* Subjudul mode cek: "Pilih jenis yang benar.
+    Dompet, tanggal, dan nominal mengikuti mutasi bank."
 
-- [ ] **3.10.2 Asal dan fakta transaksi**
+- [x] **3.10.2 Asal dan fakta transaksi**
   *Isi:* kotak fakta bank dan keputusan perubahan.
   - Waktu keputusan ditulis mentah (format ISO). Tulis sebagai tanggal dan jam biasa.
+  - *Dikerjakan 11 Nov 2026.* Waktu keputusan perubahan ditulis sebagai
+    tanggal dan jam biasa ("11 Nov 2026, 18.05", zona waktu perangkat);
+    nilai ISO aslinya tetap ada di atribut `datetime`. Nilai tersimpan tidak
+    diubah.
 
-- [ ] **3.10.3 Alasan perubahan**
+- [x] **3.10.3 Alasan perubahan**
   *Isi:* kolom alasan di bawah fakta.
   - Tampil walau tidak ada nominal atau tanggal yang bisa diubah. Tampilkan
     hanya saat diperlukan.
+  - *Dikerjakan 11 Nov 2026.* Kolom alasan tidak lagi tampil saat mengecek
+    mutasi impor yang dompet, tanggal, dan nominalnya terkunci, dan tidak
+    tampil saat dua mutasi impor hanya digabung menjadi transfer. Tetap
+    tampil di tempat alasan memang bisa diminta: mengubah catatan bersumber
+    bank yang sudah dikonfirmasi, mengubah transfer, dan menjadikan mutasi
+    impor transfer tanpa memilih pasangan.
 
 ### 3.11 Rincian nominal
 
-- [ ] **3.11.1 Jendela rincian**
+- [x] **3.11.1 Jendela rincian**
   *Isi:* jenis, tanggal, dompet, nominal, kategori, keterangan, fakta sumber; baca saja.
   - Judulnya "Rincian nominal" padahal isinya rincian transaksi lengkap. Ganti
     judul (dipakai 3 file tes).
   - Tidak ada jalan ke Ubah dari sini. Tambah tombol "Ubah".
+  - *Dikerjakan 11 Nov 2026.* Judul jendela dan label tombol nominal menjadi
+    "Rincian transaksi" (tiga file tes diperbarui). Tombol "Ubah"
+    ditambahkan di kaki jendela; tidak tampil untuk histori baca saja (cash
+    lama, dompet arsip).
 
 ### 3.12 Kelola kategori
 
@@ -1005,48 +1065,87 @@ dan bulan (5.4).
   *Isi:* tambah dan hapus; maksimal 100.
   - **[keputusan]** Belum bisa ganti nama: hapus + tambah membuat nama baru dan
     catatan lama tetap memakai nama lama.
+  - *Dilewati 11 Nov 2026, belum dicentang.* Butir ini tidak memuat usul
+    yang bisa langsung dikerjakan: ganti nama berarti memilih nasib catatan
+    lama (ikut berganti nama, yang menulis ulang kategori di banyak
+    transaksi sekaligus aturan, anggaran, dan template; atau tetap memakai
+    nama lama). Itu perubahan data lintas dua penyimpanan dan perlu
+    keputusan pemilik lebih dulu.
 
-- [ ] **3.12.2 Anggaran bulanan**
+- [x] **3.12.2 Anggaran bulanan**
   *Isi:* satu kolom isian per kategori, per mata uang.
   - Semua kategori (±30) mendapat kolom isian. Tampilkan yang sudah
     beranggaran + "Tambah anggaran".
+  - *Dikerjakan 11 Nov 2026.* Tab Anggaran hanya menampilkan kategori yang
+    sudah beranggaran; yang lain ditambahkan lewat dropdown "Tambah
+    anggaran". Mengosongkan kolom tetap menghapus batasnya.
+    `category_browser.py` diperbarui.
 
-- [ ] **3.12.3 Aturan kata kunci**
+- [x] **3.12.3 Aturan kata kunci**
   *Isi:* maksimal 200; tiap aturan tiga kolom dan tombol hapus.
   - Belum ada pencarian dan daftarnya bisa sangat panjang. Tambah cari dan
     tampilan satu baris per aturan.
+  - *Dikerjakan 11 Nov 2026.* Kotak "Cari aturan" menyaring menurut kata
+    kunci atau kategori dan menulis "N dari M aturan". Di layar lebar tiap
+    aturan menjadi satu baris (kata kunci, kategori, mode, tombol hapus
+    berikon); di HP tetap bertumpuk. Nomor aturan tetap nomor aslinya walau
+    disaring.
 
-- [ ] **3.12.4 Ekspor dan impor pengaturan**
+- [x] **3.12.4 Ekspor dan impor pengaturan**
   *Isi:* dua tombol berkas JSON, batas 128 KiB.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Ekspor dan impor
+    pengaturan kini berada di tab Berkas; alurnya dicakup
+    `category_browser.py`, `keyword_pack_browser.py`,
+    `confirmed_mapping_browser.py`, dan `bank_description_browser.py`.
 
-- [ ] **3.12.5 Susunan jendela dan simpan**
+- [x] **3.12.5 Susunan jendela dan simpan**
   *Isi:* empat bagian dalam satu gulungan; Batal dan Simpan pengaturan.
   - Pecah jadi tab (Kategori · Anggaran · Aturan · Berkas).
   - Klik di luar jendela atau Escape membuang semua perubahan tanpa bertanya → 5.9.1.
+  - *Dikerjakan 11 Nov 2026.* Jendela dipecah menjadi empat tab: Kategori ·
+    Anggaran · Aturan · Berkas; isian di tab lain tetap dipertahankan sampai
+    disimpan atau dibatalkan. Lima file tes diperbarui untuk membuka tabnya
+    dulu. Pertanyaan sebelum membuang perubahan dikerjakan di 5.9.1.
 
 ### 3.13 Isi kategori otomatis
 
-- [ ] **3.13.1 Ringkasan dan penjelasan**
+- [x] **3.13.1 Ringkasan dan penjelasan**
   *Isi:* kotak "N cocok dengan aturan otomatis · N perlu pilihan" dan satu
   paragraf aturan bank.
   - Saat tidak ada kecocokan tetap tampil kotak hijau "0 cocok…", paragraf
     panjang, dan tombol "Terapkan 0 kategori". Buat keadaan kosong yang ringkas.
   - Lipat paragraf aturan bank di balik "Apa yang terjadi saat Terapkan?".
+  - *Dikerjakan 11 Nov 2026.* Tanpa kecocokan, jendela hanya berisi satu
+    kalimat dan tombol "Tutup" (tanpa kotak hijau "0 cocok", paragraf
+    aturan, dan "Terapkan 0 kategori"). Paragraf aturan bank dilipat di
+    balik "Apa yang terjadi saat Terapkan?". `bank_review_browser.py`
+    diperbarui.
 
-- [ ] **3.13.2 Baris saran**
+- [x] **3.13.2 Baris saran**
   *Isi:* judul, tanggal · dompet · nominal, alasan saran, dropdown "Kategori pilihan".
   - Belum dilihat dengan data yang cocok. Tinjau saat giliran.
+  - *Diperiksa 11 Nov 2026 dengan empat catatan sintetis yang cocok (desktop
+    dan HP), tanpa perubahan kode.* Judul, tanggal · dompet · nominal,
+    alasan saran, dan dropdown tampil utuh; di HP dropdown turun ke bawah
+    teksnya.
 
-- [ ] **3.13.3 Paginasi dan Terapkan**
+- [x] **3.13.3 Paginasi dan Terapkan**
   *Isi:* 50 per halaman; tombol "Terapkan N kategori" berlaku untuk semua halaman.
   - Belum dilihat dengan data yang cocok. Tinjau saat giliran.
+  - *Dikerjakan 11 Nov 2026.* Tombol Sebelumnya/Berikutnya disembunyikan
+    bila hanya satu halaman; bila lebih, barisnya menyebut "Terapkan berlaku
+    untuk semua halaman". Dilihat dengan empat kecocokan (satu halaman);
+    daftar lebih dari 50 kecocokan belum dilihat.
 
 ### 3.14 Hapus transaksi
 
-- [ ] **3.14.1 Konfirmasi hapus**
+- [x] **3.14.1 Konfirmasi hapus**
   *Isi:* dialog; alasan wajib untuk catatan yang bersumber dari bank.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Dialog hapus dan alasan
+    wajib untuk catatan bersumber bank dicakup `source_browser.py` dan
+    `browser_smoke.py`. Warna tombol aksinya dikerjakan di 5.9.2.
 
 ---
 

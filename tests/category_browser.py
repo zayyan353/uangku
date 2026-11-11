@@ -127,11 +127,13 @@ class Case:
         return dialog
 
     def add_name(self, dialog, name):
+        dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
         dialog.get_by_label('Nama kategori baru', exact=True).fill(name)
         dialog.get_by_role('button', name='Tambah kategori', exact=True).click()
         expect(dialog.locator('.category-manager-names li').filter(has_text=name)).to_have_count(1)
 
     def add_rule(self, dialog, keyword, category, mode='auto'):
+        dialog.get_by_role('tab', name=re.compile('^Aturan')).click()
         dialog.get_by_label('Kata kunci aturan baru', exact=True).fill(keyword)
         dialog.get_by_label('Kategori aturan baru', exact=True).select_option(category)
         dialog.get_by_label('Mode aturan baru', exact=True).select_option(mode)
@@ -168,12 +170,16 @@ def manager_lifecycle(case):
     case.add_rule(dialog, 'TEHPRIBADI', 'Kopi pribadi', 'auto')
     count = dialog.locator('.category-manager-rules li').count()
     expect(dialog.get_by_label(f'Mode aturan {count}', exact=True)).to_have_value('auto')
+    dialog.get_by_role('tab', name=re.compile('^Aturan')).click()
     dialog.get_by_label(f'Mode aturan {count}', exact=True).select_option('suggest')
+    dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     dialog.get_by_role('button', name='Hapus kategori Kategori lama', exact=True).click()
+    dialog.get_by_role('tab', name=re.compile('^Aturan')).click()
     expect(dialog.get_by_text('Kategori tidak aktif.', exact=False)).to_be_visible()
     case.unchanged()
     export_path = case.args.output / f'{case.name}-settings.json'
     with p.expect_download() as download:
+        dialog.get_by_role('tab', name=re.compile('^Berkas')).click()
         dialog.get_by_role('button', name='Ekspor pengaturan kategori', exact=True).click()
     download.value.save_as(export_path)
     wrapper = json.loads(export_path.read_text(encoding='utf-8'))
@@ -191,7 +197,9 @@ def manager_lifecycle(case):
     edit.get_by_role('button', name='Batal', exact=True).click()
     case.unchanged()
     dialog = case.manager()
+    dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     dialog.get_by_role('button', name='Hapus kategori Kopi pribadi', exact=True).click()
+    dialog.get_by_role('tab', name=re.compile('^Aturan')).click()
     dialog.get_by_role('button', name=f'Hapus aturan {len(saved["rules"])}: TEHPRIBADI', exact=True).click()
     case.save_manager(dialog)
     assert not any(rule['keyword'] == 'TEHPRIBADI' for rule in p.evaluate('(key)=>JSON.parse(localStorage.getItem(key)).rules', SETTINGS))
@@ -213,6 +221,16 @@ def manager_lifecycle(case):
     case.unchanged()
 
 
+def budget_field(dialog, name):
+    """The Anggaran tab lists only categories that have a limit; others are added from "Tambah anggaran"."""
+    dialog.get_by_role('tab', name=re.compile('^Anggaran')).click()
+    field = dialog.get_by_label(f'Anggaran {name} (TRY)', exact=True)
+    if not field.count():
+        dialog.get_by_label('Tambah anggaran untuk kategori', exact=True).select_option(name)
+    expect(field).to_be_visible()
+    return field
+
+
 def budget_limits(case):
     """MW-12b: monthly limits per category are edited in Kelola kategori."""
     p = case.page
@@ -220,7 +238,12 @@ def budget_limits(case):
     settings_before = p.evaluate('(key)=>localStorage.getItem(key)', SETTINGS)
     assert stored() is None
     dialog = case.manager()
-    limit = dialog.get_by_label('Anggaran Makan & minum (TRY)', exact=True)
+    dialog.get_by_role('tab', name=re.compile('^Anggaran')).click()
+    # Nothing has a limit yet, so no field is offered until a category is picked.
+    expect(dialog.get_by_test_id('budget-empty')).to_be_visible()
+    expect(dialog.get_by_label('Anggaran Makan & minum (TRY)', exact=True)).to_have_count(0)
+    assert UNCAT not in dialog.get_by_label('Tambah anggaran untuk kategori', exact=True).locator('option').all_inner_texts()
+    limit = budget_field(dialog, 'Makan & minum')
     expect(limit).to_have_value('')
     expect(dialog.get_by_label(f'Anggaran {UNCAT} (TRY)', exact=True)).to_have_count(0)
     limit.fill('-5')
@@ -228,7 +251,7 @@ def budget_limits(case):
     expect(dialog.get_by_role('alert')).to_contain_text('nominal positif')
     assert stored() is None, 'Rejected budget input was written'
     limit.fill('1.500,50')
-    dialog.get_by_label('Anggaran Transportasi (TRY)', exact=True).fill('750')
+    budget_field(dialog, 'Transportasi').fill('750')
     case.save_manager(dialog)
     expect(p.get_by_text('anggaran berhasil disimpan', exact=False)).to_be_visible()
     assert json.loads(stored()) == {'TRY': {'Makan & minum': 150050, 'Transportasi': 75000}}
@@ -240,20 +263,22 @@ def budget_limits(case):
     expect(dialog.get_by_label('Anggaran Makan & minum (TRY)', exact=True)).to_have_value('1500,50')
     expect(dialog.get_by_label('Anggaran Transportasi (TRY)', exact=True)).to_have_value('750')
     # Removing a category keeps its stored limit instead of dropping it silently.
+    dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     dialog.get_by_role('button', name='Hapus kategori Transportasi', exact=True).click()
+    dialog.get_by_role('tab', name=re.compile('^Anggaran')).click()
     expect(dialog.get_by_text('1 anggaran TRY untuk kategori yang tidak aktif', exact=False)).to_be_visible()
-    dialog.get_by_label('Anggaran Makan & minum (TRY)', exact=True).fill('')
+    budget_field(dialog, 'Makan & minum').fill('')
     case.save_manager(dialog)
     assert json.loads(stored()) == {'TRY': {'Transportasi': 75000}}
     dialog = case.manager()
     case.add_name(dialog, 'Transportasi')
     expect(dialog.get_by_label('Anggaran Transportasi (TRY)', exact=True)).to_have_value('750')
-    dialog.get_by_label('Anggaran Transportasi (TRY)', exact=True).fill('')
+    budget_field(dialog, 'Transportasi').fill('')
     case.save_manager(dialog)
     assert stored() is None, 'Clearing every limit should remove the key'
     # A stale tab must not overwrite budgets saved elsewhere.
     dialog = case.manager()
-    dialog.get_by_label('Anggaran Kesehatan (TRY)', exact=True).fill('100')
+    budget_field(dialog, 'Kesehatan').fill('100')
     other = compact({'TRY': {'Pendidikan': 900}})
     p.evaluate('([key,value])=>localStorage.setItem(key,value)', [BUDGETS, other])
     dialog.get_by_role('button', name='Simpan pengaturan', exact=True).click()
@@ -267,6 +292,7 @@ def budget_limits(case):
     p.reload(wait_until='networkidle')
     nav(p, 'Transaksi')
     dialog = case.manager()
+    dialog.get_by_role('tab', name=re.compile('^Anggaran')).click()
     expect(dialog.get_by_text('Anggaran tersimpan tidak dapat dibaca', exact=False)).to_be_visible()
     expect(dialog.get_by_label('Anggaran Kesehatan (TRY)', exact=True)).to_have_count(0)
     case.add_name(dialog, 'Kopi anggaran')
@@ -632,7 +658,7 @@ def template_quick_fill(case):
     p.get_by_role('button', name='Catat transaksi', exact=True).click()
     dialog = p.get_by_role('dialog')
     quick = dialog.get_by_role('group', name='Template transaksi', exact=True)
-    expect(quick.get_by_role('button')).to_have_count(3)
+    expect(quick.get_by_role('button', name=re.compile('^Isi dari template '))).to_have_count(3)
     dialog.locator('input[type=date]').fill('2026-10-01')
     quick.get_by_role('button', name='Isi dari template Kopi pagi', exact=True).click()
     expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('45')
@@ -671,6 +697,32 @@ def template_quick_fill(case):
     p.get_by_role('button', name='Ubah Historical category retained', exact=True).click()
     expect(p.get_by_role('dialog').get_by_role('group', name='Template transaksi')).to_have_count(0)
     p.get_by_role('dialog').get_by_role('button', name='Batal', exact=True).click()
+    case.unchanged()
+    # Kerangka 3.7.3: templates can be renamed and removed; neither touches the ledger.
+    p.get_by_role('button', name='Catat transaksi', exact=True).click()
+    dialog = p.get_by_role('dialog')
+    quick = dialog.get_by_role('group', name='Template transaksi', exact=True)
+    quick.get_by_role('button', name='Kelola template', exact=True).click()
+    quick.get_by_role('button', name='Ganti nama template Kopi pagi', exact=True).click()
+    rename = quick.get_by_label('Nama baru untuk template Kopi pagi', exact=True)
+    rename.fill('gaji BULANAN')  # Another template already uses this name.
+    quick.get_by_role('button', name='Simpan nama', exact=True).click()
+    expect(quick.get_by_role('alert')).to_contain_text('sudah dipakai')
+    assert p.evaluate('(key)=>localStorage.getItem(key)', TEMPLATES) == raw, 'Refused rename was written'
+    rename.fill('Kopi sore')
+    rename.press('Enter')
+    expect(quick.get_by_role('button', name='Ganti nama template Kopi sore', exact=True)).to_be_visible()
+    renamed = json.loads(p.evaluate('(key)=>localStorage.getItem(key)', TEMPLATES))
+    before = json.loads(raw)
+    assert [row['name'] for row in renamed] == ['Kopi sore' if row['name'] == 'Kopi pagi' else row['name'] for row in before]
+    assert [{k: v for k, v in row.items() if k != 'name'} for row in renamed] == [{k: v for k, v in row.items() if k != 'name'} for row in before]
+    quick.get_by_role('button', name='Hapus template Dompet lama', exact=True).click()
+    expect(quick.get_by_role('button', name='Hapus template Dompet lama', exact=True)).to_have_count(0)
+    assert [row['name'] for row in json.loads(p.evaluate('(key)=>localStorage.getItem(key)', TEMPLATES))] == [row['name'] for row in renamed if row['name'] != 'Dompet lama']
+    quick.get_by_role('button', name='Selesai', exact=True).click()
+    expect(quick.get_by_role('button', name=re.compile('^Isi dari template '))).to_have_count(2)
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    expect(p.get_by_role('dialog')).to_have_count(0)  # Template upkeep is not an unsaved transaction.
     case.unchanged()
 
 

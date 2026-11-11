@@ -1,4 +1,4 @@
-import { formatDate, formatMoney, transferPostingDates, type Entry } from '../lib/finance';
+import { formatDate, formatDateTime, formatMoney, transferPostingDates, type Entry } from '../lib/finance';
 import { sourceEntryComparison } from '../lib/sourceCommands';
 import type { StoredData } from '../lib/storage';
 
@@ -19,7 +19,7 @@ export default function SourceDetails({ data, entry }: { data: StoredData; entry
       <p className="field-help">Referensi: {fact.reference || 'Tidak tersedia'} · Saldo setelah mutasi: {formatMoney(fact.balanceAfter, fact.currency)}</p>
       <p className="field-help">{represented ? 'Tanggal, dompet, dan nominal catatan cocok dengan fakta ini.' : 'Interpretasi catatan berbeda dari fakta bank yang tetap dipertahankan.'}</p>
     </div>)}
-    {comparison.override && <div className="notice warning" style={{ display: 'block' }}><strong>Keputusan perubahan</strong><p>{comparison.override.reason}</p><small>{comparison.override.at}</small></div>}
+    {comparison.override && <div className="notice warning" style={{ display: 'block' }}><strong>Keputusan perubahan</strong><p>{comparison.override.reason}</p><small><time dateTime={comparison.override.at}>{formatDateTime(comparison.override.at)}</time></small></div>}
     {dates && <p className="field-help">Tanggal debit: {dates.source ? formatDate(dates.source) : 'Belum diketahui'} · tanggal kredit: {dates.destination ? formatDate(dates.destination) : 'Belum diketahui'}. {dates.basis === 'legacy-assumed' ? 'Tanggal dua sisi lama belum dibuktikan secara terpisah.' : 'Tanggal tiap sisi dipakai untuk saldo dan laporan periodenya.'}</p>}
   </section>;
 }

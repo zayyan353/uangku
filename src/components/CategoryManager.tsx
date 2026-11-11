@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Check, Download, Plus, Trash2, Upload } from 'lucide-react';
+import { Check, Download, Plus, Search, Trash2, Upload } from 'lucide-react';
 import Modal from './Modal';
 import { makeId } from '../lib/finance';
 import { CATEGORY_SETTINGS_LIMIT, KEYWORD_PACK_VERSION, categorySettingsExport, parseCategorySettingsExport, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
@@ -10,6 +10,8 @@ import { applyBudgetInputs, budgetInputs, type BudgetMap } from '../lib/budgets'
 import { currencyInfo, type Currency } from '../lib/finance';
 
 const UNCATEGORIZED = 'Belum dikategorikan';
+type ManagerTab = 'names' | 'budgets' | 'rules' | 'files';
+const TABS: Array<{ id: ManagerTab; label: string }> = [{ id: 'names', label: 'Kategori' }, { id: 'budgets', label: 'Anggaran' }, { id: 'rules', label: 'Aturan' }, { id: 'files', label: 'Berkas' }];
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Pengaturan belum dapat diproses.';
@@ -32,6 +34,10 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
   const [budgetCurrency, setBudgetCurrency] = useState<Currency | undefined>(budgetCurrencies[0]);
   // Edited text per currency; untouched currencies keep their stored limits.
   const [budgetDraft, setBudgetDraft] = useState<Partial<Record<Currency, Record<string, string>>>>({});
+  const [tab, setTab] = useState<ManagerTab>('names');
+  /** Categories given a budget field in this form before any amount is typed, per currency. */
+  const [budgetAdded, setBudgetAdded] = useState<Partial<Record<Currency, string[]>>>({});
+  const [ruleQuery, setRuleQuery] = useState('');
   const [newName, setNewName] = useState('');
   const [keyword, setKeyword] = useState('');
   const [ruleCategory, setRuleCategory] = useState(settings.names.find(name => name !== UNCATEGORIZED) ?? '');
@@ -45,6 +51,12 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
   const ruleNames = draft.names.filter(name => name !== UNCATEGORIZED);
   const budgetLocked = Boolean(budgetsError) || !budgetCurrency;
   const budgetTexts = budgetCurrency ? { ...budgetInputs(budgets, budgetCurrency, ruleNames), ...budgetDraft[budgetCurrency] } : {};
+  // Only categories that have, or are being given, a limit get a field; the rest wait in "Tambah anggaran".
+  const budgetShown = budgetCurrency ? ruleNames.filter(name => Object.hasOwn(budgets[budgetCurrency] ?? {}, name) || Object.hasOwn(budgetDraft[budgetCurrency] ?? {}, name) || budgetAdded[budgetCurrency]?.includes(name)) : [];
+  const budgetAvailable = ruleNames.filter(name => !budgetShown.includes(name));
+  const ruleNeedle = ruleQuery.trim().toLocaleLowerCase('id-ID');
+  const ruleMatches = (rule: CategoryRule) => !ruleNeedle || rule.keyword.toLocaleLowerCase('id-ID').includes(ruleNeedle) || rule.category.toLocaleLowerCase('id-ID').includes(ruleNeedle);
+  const shownRuleCount = ruleNeedle ? draft.rules.filter(ruleMatches).length : draft.rules.length;
   const hiddenBudgets = budgetCurrency ? Object.keys(budgets[budgetCurrency] ?? {}).filter(name => !ruleNames.includes(name)).length : 0;
 
   useEffect(() => {
@@ -87,6 +99,11 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
       const bank = mergeCurrentAutomaticBankMappings(merged.settings);
       update({ ...bank.settings, keywordPackVersion: KEYWORD_PACK_VERSION }, `${merged.added + bank.added} kata kunci ditambahkan dan ${merged.updated + bank.updated} pemetaan bawaan disesuaikan di formulir. Aturan pribadi dipertahankan. Klik Simpan pengaturan untuk menyimpan.`);
     } catch (error) { setError(errorMessage(error)); }
+  }
+  function addBudget(name: string) {
+    if (busyRef.current || budgetLocked || !budgetCurrency || !name) return;
+    setBudgetAdded(current => ({ ...current, [budgetCurrency]: [...current[budgetCurrency] ?? [], name] }));
+    requestAnimationFrame(() => document.querySelector<HTMLInputElement>(`.category-budget-list input[data-budget="${CSS.escape(name)}"]`)?.focus());
   }
   function changeBudget(name: string, text: string) {
     if (busyRef.current || budgetLocked || !budgetCurrency) return;
@@ -145,8 +162,9 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
         <p className="category-manager-intro">Pengaturan ini mengatur pilihan kategori dan pencocokan keterangan. Nominal, tanggal, jenis transaksi, dan fakta bank tidak diubah di sini.</p>
         {notice && <p className="notice warning">{notice}</p>}
         {message && <p className="notice success" role="status">{message}</p>}
+        <div className="tab-group category-manager-tabs" role="tablist" aria-label="Bagian pengaturan kategori">{TABS.map(item => <button key={item.id} type="button" role="tab" id={`category-tab-${item.id}`} aria-selected={tab === item.id} aria-controls={`category-panel-${item.id}`} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}{item.id === 'names' ? <span>{draft.names.length}</span> : item.id === 'rules' ? <span>{draft.rules.length}</span> : null}</button>)}</div>
         <fieldset disabled={pending !== null}>
-          <section className="category-manager-section" aria-label="Daftar kategori">
+          <section className="category-manager-section" role="tabpanel" id="category-panel-names" aria-labelledby="category-tab-names" hidden={tab !== 'names'} aria-label="Daftar kategori">
             <h3>Kategori aktif <span>{draft.names.length}/100</span></h3>
             <p className="field-help">Hapus untuk mengurangi pilihan. Nama pada catatan lama tetap disimpan. Tambahkan nama yang sama untuk mengaktifkannya kembali.</p>
             <div className="category-manager-add">
@@ -155,16 +173,18 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
             </div>
             <ul className="category-manager-names">{draft.names.map(name => <li key={name}><span>{name}</span>{name === UNCATEGORIZED ? <small>Kategori dasar</small> : <button type="button" className="icon-button" aria-label={`Hapus kategori ${name}`} title="Hapus dari pilihan; catatan lama tetap disimpan" onClick={() => removeName(name)}><Trash2 size={16} /></button>}</li>)}</ul>
           </section>
-          <section className="category-manager-section" aria-label="Anggaran bulanan">
+          <section className="category-manager-section" role="tabpanel" id="category-panel-budgets" hidden={tab !== 'budgets'} aria-label="Anggaran bulanan">
             <h3>Anggaran bulanan</h3>
-            <p className="field-help">Batas pengeluaran per bulan untuk setiap kategori, per mata uang. Kosongkan untuk tanpa batas. Anggaran disimpan bersama pengaturan ini dan ikut Cadangkan semuanya; transaksi tidak diubah.</p>
+            <p className="field-help">Batas pengeluaran per bulan untuk kategori yang kamu pilih, per mata uang. Kosongkan kolomnya untuk menghapus batas. Anggaran disimpan bersama pengaturan ini dan ikut Cadangkan semuanya; transaksi tidak diubah.</p>
             {budgetsError ? <p className="notice warning">{budgetsError}</p> : !budgetCurrency ? <p className="field-help">Tambahkan mata uang lebih dulu untuk mengatur anggaran.</p> : <>
               {budgetCurrencies.length > 1 && <label className="field category-budget-currency"><span className="field-label">Mata uang anggaran</span><select className="select-input" aria-label="Mata uang anggaran" value={budgetCurrency} onChange={event => setBudgetCurrency(event.target.value as Currency)}>{budgetCurrencies.map(code => <option key={code} value={code}>{code} · {currencyInfo(code).label}</option>)}</select></label>}
-              <ul className="category-budget-list">{ruleNames.map(name => <li key={name}><label className="field"><span className="field-label">{name}</span><input className="field-input" aria-label={`Anggaran ${name} (${budgetCurrency})`} inputMode="decimal" autoComplete="off" maxLength={24} placeholder="Tanpa batas" value={budgetTexts[name] ?? ''} onChange={event => changeBudget(name, event.target.value)} /></label></li>)}</ul>
+              {budgetShown.length === 0 && <p className="field-help" data-testid="budget-empty">Belum ada anggaran {budgetCurrency}. Pilih kategori di bawah untuk memberinya batas.</p>}
+              <ul className="category-budget-list">{budgetShown.map(name => <li key={name}><label className="field"><span className="field-label">{name}</span><input className="field-input" data-budget={name} aria-label={`Anggaran ${name} (${budgetCurrency})`} inputMode="decimal" autoComplete="off" maxLength={24} placeholder="Tanpa batas" value={budgetTexts[name] ?? ''} onChange={event => changeBudget(name, event.target.value)} /></label></li>)}</ul>
+              {budgetAvailable.length > 0 && <label className="field category-budget-add"><span className="field-label">Tambah anggaran</span><select className="select-input" aria-label="Tambah anggaran untuk kategori" value="" onChange={event => addBudget(event.target.value)}><option value="">Pilih kategori…</option>{budgetAvailable.map(name => <option key={name}>{name}</option>)}</select></label>}
               {hiddenBudgets > 0 && <p className="field-help">{hiddenBudgets} anggaran {budgetCurrency} untuk kategori yang tidak aktif tetap disimpan dan aktif kembali bila kategorinya ditambahkan lagi.</p>}
             </>}
           </section>
-          <section className="category-manager-section" aria-label="Aturan kategori">
+          <section className="category-manager-section" role="tabpanel" id="category-panel-rules" hidden={tab !== 'rules'} aria-label="Aturan kategori">
             <h3>Aturan kata kunci <span>{draft.rules.length}/200</span></h3>
             <button type="button" className="button secondary small" onClick={addBundledKeywords}>Tambahkan kata kunci bawaan</button>
             <p className="field-help">Aturan memakai kata atau frasa, bukan kode. Mode Otomatis boleh mengisi kategori jika cocok dengan jelas; kecocokan yang bertentangan tetap menjadi saran. Pilihan kategori manual dipertahankan.</p>
@@ -174,18 +194,21 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
               <label className="field"><span className="field-label">Cara menerapkan</span><select className="select-input" aria-label="Mode aturan baru" value={ruleMode} onChange={event => setRuleMode(event.target.value as CategoryRule['mode'])}><option value="auto">Otomatis jika cocok jelas</option><option value="suggest">Saran saja</option></select></label>
               <button type="button" className="button secondary" disabled={draft.rules.length >= 200 || keyword.trim().length < 3 || !ruleCategory} onClick={addRule}><Plus size={16} /> Tambah aturan</button>
             </div>
+            {draft.rules.length > 0 && <div className="category-rule-search"><label className="search-input"><Search size={16} aria-hidden="true" /><input type="search" aria-label="Cari aturan" placeholder="Cari kata kunci atau kategori" value={ruleQuery} onChange={event => setRuleQuery(event.target.value)} /></label>{ruleNeedle && <span className="field-help" role="status">{shownRuleCount} dari {draft.rules.length} aturan</span>}</div>}
+            {draft.rules.length > 0 && shownRuleCount === 0 && <p className="field-help">Tidak ada aturan yang cocok dengan pencarian ini.</p>}
             {draft.rules.length ? <ol className="category-manager-rules">{draft.rules.map((rule, index) => {
               const inactive = !draft.names.includes(rule.category);
+              if (!ruleMatches(rule)) return null;
               return <li key={rule.id}>
                 <label className="field"><span className="field-label">Kata kunci {index + 1}</span><input className="field-input" aria-label={`Kata kunci aturan ${index + 1}`} maxLength={100} value={rule.keyword} onChange={event => changeRule(rule.id, { keyword: event.target.value })} /></label>
                 <label className="field"><span className="field-label">Kategori</span><select className="select-input" aria-label={`Kategori aturan ${index + 1}`} value={rule.category} onChange={event => changeRule(rule.id, { category: event.target.value })}>{inactive && <option value={rule.category}>{rule.category} (tidak aktif)</option>}{ruleNames.map(name => <option key={name}>{name}</option>)}</select></label>
                 <label className="field"><span className="field-label">Mode</span><select className="select-input" aria-label={`Mode aturan ${index + 1}`} value={rule.mode} onChange={event => changeRule(rule.id, { mode: event.target.value as CategoryRule['mode'] })}><option value="auto">Otomatis jika cocok jelas</option><option value="suggest">Saran saja</option></select></label>
-                <button type="button" className="button danger small category-rule-delete" aria-label={`Hapus aturan ${index + 1}: ${rule.keyword}`} onClick={() => update({ ...draft, rules: draft.rules.filter(item => item.id !== rule.id) })}><Trash2 size={15} /> Hapus aturan</button>
+                <button type="button" className="button danger small category-rule-delete" aria-label={`Hapus aturan ${index + 1}: ${rule.keyword}`} title="Hapus aturan" onClick={() => update({ ...draft, rules: draft.rules.filter(item => item.id !== rule.id) })}><Trash2 size={15} /> <span className="category-rule-delete-text">Hapus aturan</span></button>
                 {inactive && <p className="field-help category-rule-inactive">Kategori tidak aktif. Aturan ini diabaikan sampai kategori diaktifkan kembali atau tujuan aturan diganti.</p>}
               </li>;
             })}</ol> : <p className="field-help">Belum ada aturan. Tambahkan kata kunci dan kategori tujuan untuk mengaktifkan pencocokan.</p>}
           </section>
-          <section className="category-manager-section" aria-label="Cadangan pengaturan kategori">
+          <section className="category-manager-section" role="tabpanel" id="category-panel-files" hidden={tab !== 'files'} aria-label="Cadangan pengaturan kategori">
             <h3>Simpan pengaturan terpisah</h3>
             <p className="field-help">Pilih Cadangkan semuanya di menu utama untuk menyimpan transaksi, semua pilihan kategori, dan aturan yang sudah disimpan dalam satu file. Tombol di bawah mengekspor pengaturan dalam formulir ini saja.</p>
             <div className="category-manager-files"><button type="button" className="button secondary" onClick={exportSettings}><Download size={16} /> Ekspor pengaturan kategori</button><button type="button" className="button secondary" onClick={() => fileRef.current?.click()}><Upload size={16} /> Impor pengaturan kategori</button></div>

@@ -1574,3 +1574,57 @@ button.transaction-open:focus-visible { outline: 2px solid var(--focus); outline
 .date-shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; }
 .date-shortcuts .text-link[aria-pressed="true"] { text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
 :is(.field-input, .select-input)[aria-invalid="true"] { border-color: var(--error-text, #a24c35); box-shadow: 0 0 0 1px var(--error-text, #a24c35); }
+
+/* Kerangka 3.7.3 / 3.7.6: kelola template dan saran kategori di form transaksi */
+.template-quick-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.template-quick-head .field-label { display: inline-flex; align-items: center; gap: 6px; }
+.template-manage-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+.template-manage-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
+.template-manage-list li .field-input { flex: 1 1 140px; min-width: 0; }
+.template-manage-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.template-manage-name strong, .template-manage-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.template-manage-name span { font-size: 12px; color: var(--muted, #52634f); }
+.icon-button.danger { color: #a13d2c; }
+html[data-theme="dark"] .icon-button.danger { color: #f0a394; }
+.category-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 6px; font-size: 13px; color: var(--muted, #52634f); }
+.category-suggest .text-link { min-height: 28px; }
+@media (max-width: 640px) {
+  .template-manage-list li { flex-wrap: wrap; }
+  .template-manage-list .icon-button, .category-suggest .text-link { min-width: 44px; min-height: 44px; }
+}
+/* Kerangka 3.8.3: centang konfirmasi kurs yang belum diisi ikut ditandai */
+.checkbox-row.invalid { color: var(--readable-negative); outline: 1px solid currentColor; outline-offset: 4px; border-radius: 6px; }
+html[data-theme="dark"] .checkbox-row.invalid { color: #f0a394; }
+/* Kerangka 3.8.6: pasangan transfer yang dipilih */
+.transfer-suggestion .button.chosen { border-color: var(--readable-positive); background: var(--surface, #fff); }
+.transfer-suggestion .pair-note { font-weight: 400; }
+
+/* Kerangka 3.12: Kelola kategori dalam empat tab; anggaran hanya untuk yang dipilih; aturan satu baris */
+.category-manager-tabs { margin: 0 0 18px; display: flex; flex-wrap: wrap; }
+.category-manager-tabs > button > span { margin-left: 6px; font-size: 12px; font-weight: 500; opacity: .75; }
+.category-manager-section[hidden] { display: none; }
+.category-manager-section:not([hidden]) { margin-top: 0; border-top: 0; padding-top: 0; }
+.category-budget-add { max-width: 320px; margin: 4px 0 10px; }
+.category-rule-search { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 12px; }
+.category-rule-search .search-input { flex: 1 1 220px; }
+@media (min-width: 641px) {
+  .category-manager-rules { gap: 6px; }
+  .category-manager-rules li { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 8px; }
+  .category-manager-rules .field:first-child { grid-column: auto; }
+  .category-manager-rules .field-label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .category-manager-rules .field-input, .category-manager-rules .select-input { min-height: 38px; padding-top: 6px; padding-bottom: 6px; }
+  .category-manager-rules .category-rule-delete { grid-column: auto; justify-self: end; padding: 8px; min-height: 38px; }
+  .category-rule-delete-text { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+/* Kerangka 3.13.1: aturan bank terlipat di Isi kategori otomatis */
+.automation-rules { margin: 10px 0 14px; }
+.automation-rules summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); min-height: 32px; display: flex; align-items: center; gap: 6px; }
+.automation-rules summary::before { content: '›'; display: inline-block; transition: transform .15s; }
+.automation-rules[open] summary::before { transform: rotate(90deg); }
+.automation-rules summary::-webkit-details-marker { display: none; }
+.automation-rules p { margin: 4px 0 0; }
+@media (max-width: 640px) {
+  .category-manager-tabs { width: 100%; flex-wrap: nowrap; }
+  .category-manager-tabs > button { flex: 1 1 auto; padding: 8px 6px; font-size: 13px; }
+  .category-manager-tabs > button > span { margin-left: 4px; }
+}

@@ -227,8 +227,10 @@ def legacy_apply(case):
     raw=p.evaluate('(key)=>localStorage.getItem(key)',FINANCE)
     p.reload(wait_until='networkidle');case.unchanged(raw)
     nav(p,'Transaksi');dialog=case.automation()
-    expect(dialog.get_by_role('button',name='Terapkan 0 kategori',exact=True)).to_be_disabled()
-    dialog.get_by_role('button',name='Batal',exact=True).click();case.unchanged(raw)
+    # Nothing left to match: a short empty state with only a way out, no "Terapkan 0 kategori".
+    expect(dialog.get_by_test_id('automation-empty')).to_be_visible()
+    expect(dialog.get_by_role('button',name=re.compile('^Terapkan '))).to_have_count(0)
+    dialog.get_by_role('button',name='Tutup',exact=True).last.click();case.unchanged(raw)
 
 
 def source_document():
@@ -342,9 +344,16 @@ def direction_guards(case):
     # from the recognizable words. If a suggestion is displayed it stays skipped.
     for row in dialog.locator('.category-automation-row').all():
         expect(row.get_by_role('combobox')).to_have_value('')
-    expect(dialog.get_by_role('button',name='Terapkan 0 kategori',exact=True)).to_be_disabled()
-    case.unchanged()
-    dialog.get_by_role('button',name='Batal',exact=True).click()
+    if dialog.locator('.category-automation-row').count():
+        expect(dialog.get_by_role('button',name='Terapkan 0 kategori',exact=True)).to_be_disabled()
+        case.unchanged()
+        dialog.get_by_role('button',name='Batal',exact=True).click()
+    else:
+        # Nothing matched at all: the short empty state offers no Terapkan button.
+        expect(dialog.get_by_test_id('automation-empty')).to_be_visible()
+        expect(dialog.get_by_role('button',name=re.compile('^Terapkan '))).to_have_count(0)
+        case.unchanged()
+        dialog.get_by_role('button',name='Tutup',exact=True).last.click()
     case.queue();case.count('review',4,4,4)
     expect(p.locator('.transactions-table tbody tr')).to_have_count(4)
     case.unchanged()
@@ -357,8 +366,8 @@ def presentation(case):
     expect(row.locator('.transaction-title')).not_to_contain_text('KART NO')
     expect(row).to_contain_text('Pembayaran kartu')
     assert row.locator('[data-bank-operation="bank-transfer"]').count()==0
-    row.get_by_role('button',name=re.compile('^Rincian nominal')).click()
-    dialog=p.get_by_role('dialog',name='Rincian nominal',exact=True)
+    row.get_by_role('button',name=re.compile('^Rincian transaksi')).click()
+    dialog=p.get_by_role('dialog',name='Rincian transaksi',exact=True)
     expect(dialog).to_contain_text(CARD)
     expect(dialog).to_contain_text('Pembayaran kartu')
     case.unchanged();case.screenshot('source-details')
