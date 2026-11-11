@@ -1534,3 +1534,26 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
 .archive-table td:first-child { white-space: nowrap; }
 .archive-table td:nth-child(2) { overflow-wrap: anywhere; }
 .archive-table :is(th, td):last-child { text-align: right; padding-right: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Bab 3: halaman Transaksi. */
+@media (max-width: 760px) {
+  .category-toolbar { gap: 8px; margin-bottom: 12px; }
+  .transactions-panel > .category-toolbar { padding-bottom: 12px; margin-bottom: 12px; }
+  .category-toolbar > .field-help { font-size: 12px; line-height: 1.4; }
+}
+.history-scope strong { color: var(--text); font-weight: 650; }
+
+/* 3.4: tabel transaksi. */
+button.transaction-open { border: 0; background: none; padding: 0; font-family: inherit; text-align: left; cursor: pointer; border-radius: 4px; }
+button.transaction-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (hover: hover) { button.transaction-open:hover { text-decoration: underline; text-underline-offset: 3px; } }
+.date-group-label { display: none; }
+.empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 14px; }
+.history-scope { scroll-margin-top: 84px; }
+@media (max-width: 760px) {
+  .transactions-table:not(.import-table) button.transaction-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow: hidden; line-height: 1.45; overflow-wrap: anywhere; }
+  .transactions-panel .date-group-label { display: block; margin: 2px 0 9px; font-size: 11px; font-weight: 650; letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted); }
+}
+.filter-fields > .search-input { flex: 2 1 220px; }
+.filter-fields > .select-input { flex: 1 1 118px; }
+.history-period .select-input { min-width: 150px; }

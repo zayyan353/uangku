@@ -214,7 +214,7 @@ def pending_and_adjustment(case):
     expect(panel).to_contain_text('21')
     expect(panel).not_to_contain_text('Transfer')
     nav(case.page, 'Transaksi')
-    case.page.get_by_label('Filter jenis transaksi', exact=True).select_option('pending')
+    case.page.get_by_role('button', name=re.compile(r'^Rapikan \d+ catatan$')).click()
     expect(case.page.locator('.transactions-table tbody tr')).to_have_count(2)
     case.assert_unchanged()
     nav(case.page, 'Ringkasan')

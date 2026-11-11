@@ -5,7 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowRight, Check, CheckCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp,
   Download, FileSpreadsheet, FolderOpen, History, Leaf, Plus, ShieldCheck,
-  Sparkles, Tags, Wallet as WalletIcon, X,
+  Sparkles, Tags, Wallet as WalletIcon, X, Search,
 } from 'lucide-react';
 import {
   CATEGORY_NAMES, formatMoney, makeId,
@@ -37,7 +37,7 @@ import { visibleCurrencyCodes, setVisibleCurrencies } from './lib/currencySettin
 import { archiveWallet, restoreWallet, createWallet, editWallet, deleteUnusedWallet, walletUsage, isWalletArchived, isArchivedLinkedEntry, archivedReadOnlyEntryIds, assertArchivedWalletsUnchanged } from './lib/walletLifecycle';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { AccountMenu, AppSidebar, MobileFooter, MobileNav, NAVIGATION, type Page } from './components/AppNavigation';
-import { HistoryFilters } from './components/HistoryFilters';
+import { HistoryFilters, type HistorySort } from './components/HistoryFilters';
 import TransactionTable from './components/TransactionTable';
 import AmountDetailModal from './components/AmountDetailModal';
 import WalletsPage, { WalletSymbol, kindLabel } from './components/WalletsPage';
@@ -56,6 +56,7 @@ import CashArchive from './components/CashArchive';
 import { createBankEntryPresentationLookup } from './lib/bankEntryHints';
 import { reviewCounts, type ReviewReason } from './lib/reviewStatus';
 import { categoryColorIndex } from './lib/dashboardView';
+import { entryCategorySuggestions } from './lib/categorySuggestions';
 import { greeting, nicknameInitial, NICKNAME_KEY, readNickname, sanitizeNickname, writeNickname } from './lib/nickname';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -107,6 +108,10 @@ export default function App() {
   const [reviewReason, setReviewReason] = useState<ReviewReason>('all');
   const [historyWallet, setHistoryWallet] = useState('all');
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('month');
+  const [historyCategory, setHistoryCategory] = useState('all');
+  const [historySort, setHistorySort] = useState<HistorySort>('newest');
+  /** The period in use before a search widened it to all periods; restored when the search box is emptied. */
+  const periodBeforeSearch = useRef<HistoryPeriod | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
   const [lastHistoryScope, setLastHistoryScope] = useState<{ currency: Currency; month: string } | null>(null);
   const historyScrollY = useRef(0);
@@ -151,7 +156,7 @@ export default function App() {
   useEffect(() => { if (toast) { const id = setTimeout(() => setToast(''), 5500); return () => clearTimeout(id); } }, [toast]);
   useEffect(() => { writePreferences({ ...preferences, currency }); }, [preferences, currency]);
   useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, historyPeriod, historyPage, reviewReason, historyWallet]);
-  useEffect(() => { setHistoryPage(1); }, [query, filter, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet]);
+  useEffect(() => { setHistoryPage(1); }, [query, filter, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet, historyCategory, historySort]);
   useEffect(() => { setAmountDetail(null); }, [state]);
   async function persistCandidate(next: StoredData, options?: CandidateOptions & { replaceLedger?: boolean }): Promise<boolean> {
     if (mutationInFlight.current) return false;
@@ -295,16 +300,40 @@ export default function App() {
   const isReviewQueue = page === 'transactions' && filter === 'pending';
   const validHistoryWallet = activeState.wallets.find(wallet => wallet.id === historyWallet && (filter === 'pending' ? !isWalletArchived(data, wallet.id) : wallet.currency === historyCurrency))?.id;
   useEffect(() => { if (historyWallet !== 'all' && !validHistoryWallet) setHistoryWallet('all'); }, [historyWallet, validHistoryWallet]);
-  const historyIndex = useMemo(() => createHistoryIndex(activeState, postingContext), [activeState, postingContext]);
+  const historyTitles = useMemo(() => createBankEntryPresentationLookup(data), [data]);
+  const historyIndex = useMemo(() => createHistoryIndex(activeState, postingContext, entry => historyTitles(entry).title), [activeState, postingContext, historyTitles]);
   const activityWalletId = page === 'overview' ? dashboardWallet?.id : page === 'transactions' ? validHistoryWallet : undefined;
   const activityPeriod = page === 'overview' ? cashflowPeriod : historyPeriod;
   const activityQuery = page === 'transactions' ? query : '';
   const activityType = page === 'transactions' ? filter : 'all';
   const allTransactions = useMemo(() => queryHistory(historyIndex, {
-    currency, month, query: activityQuery, type: activityType, period: activityPeriod, walletId: activityWalletId,
+    currency, month, query: activityQuery, type: activityType, period: activityPeriod, walletId: activityWalletId, category: page === 'transactions' && historyCategory !== 'all' ? historyCategory : undefined,
     reviewQueue: isReviewQueue, reviewReason, reviewExcludedWalletIds: archivedWalletIds, reviewExcludedEntryIds: readOnlyEntryIds,
-  }), [historyIndex, currency, month, activityQuery, activityType, activityPeriod, activityWalletId, isReviewQueue, reviewReason, archivedWalletIds, readOnlyEntryIds]);
-  const historySlice = paginateHistory(allTransactions, historyPage);
+  }), [historyIndex, currency, month, activityQuery, activityType, activityPeriod, activityWalletId, isReviewQueue, reviewReason, archivedWalletIds, readOnlyEntryIds, page, historyCategory]);
+  // The index hands rows over newest first; the other orders are a copy, the entries themselves are untouched.
+  const orderedTransactions = useMemo(() => page !== 'transactions' || historySort === 'newest' ? allTransactions
+    : historySort === 'oldest' ? [...allTransactions].reverse()
+    : [...allTransactions].sort((a, b) => (Math.abs(a.amount) - Math.abs(b.amount)) * (historySort === 'largest' ? -1 : 1)), [allTransactions, historySort, page]);
+  const historySlice = paginateHistory(orderedTransactions, historyPage);
+  // Rows exist but the filters hide them all, as opposed to a ledger with nothing in this currency yet.
+  const historyFiltered = (isReviewQueue ? historyIndex.rows.length : historyIndex.rowsByCurrency.get(currency)?.length ?? 0) > 0;
+  function resetHistory() { openHistory('all', 'month'); setMonth(clockDay.slice(0, 7)); }
+  function turnHistoryPage(next: number) {
+    setHistoryPage(next);
+    requestAnimationFrame(() => document.querySelector('.history-scope')?.scrollIntoView({ block: 'start' }));
+  }
+  // Money in and out across every row the filters match, in the selected wallet or currency. Transfers between
+  // wallets and balance adjustments are neither; the review queue mixes currencies, so it gets no total.
+  const historyTotals = useMemo(() => {
+    if (page !== 'transactions' || isReviewQueue || !allTransactions.length) return undefined;
+    let inflow = 0, outflow = 0;
+    for (const entry of allTransactions) {
+      if (entry.type === 'transfer' || entry.type === 'adjustment') continue;
+      if (entry.type === 'income' || entry.type !== 'expense' && entry.amount > 0) inflow += Math.abs(entry.amount); else outflow += Math.abs(entry.amount);
+    }
+    const digits = currencyInfo(currency).digits, scale = 10 ** digits;
+    return { inflow: Math.round(inflow * scale) / scale, outflow: Math.round(outflow * scale) / scale };
+  }, [allTransactions, page, isReviewQueue, currency]);
   function downloadHistoryCsv() {
     // Every row matching the current filters, not only the visible page.
     const presentation = createBankEntryPresentationLookup(data);
@@ -365,7 +394,9 @@ export default function App() {
       return ok;
     } catch (error) { notify(error instanceof Error ? error.message : 'Kategori belum tersimpan.'); return false; }
   }
-  const categoryTools = <div className="category-toolbar"><button className="button secondary small" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button secondary small" disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked || categoryPreferences.recovering} onClick={() => { if (!mutationInFlight.current) setCategoryAutomation({ data, token: ledger.revisionToken }); }}><CheckCheck size={16} /> Isi kategori otomatis</button><span className="field-help">Kategori kosong & konfirmasi mutasi bank · semua periode</span>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}</div>;
+  // Counted only while the Transaksi page is open; the same list the automation window builds.
+  const automationCount = useMemo(() => page === 'transactions' ? entryCategorySuggestions(data, categoryPreferences.settings).length : 0, [page, data, categoryPreferences.settings]);
+  const categoryTools = <div className="category-toolbar"><button className="button secondary small" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button secondary small" aria-describedby="category-automation-help" disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked || categoryPreferences.recovering} onClick={() => { if (!mutationInFlight.current) setCategoryAutomation({ data, token: ledger.revisionToken }); }}><CheckCheck size={16} /> Isi kategori otomatis</button><span className="field-help" id="category-automation-help" data-testid="category-automation-count" data-count={automationCount}>{automationCount > 0 ? `${automationCount} catatan bisa diisi atau dikonfirmasi · semua periode` : 'Belum ada yang bisa diisi otomatis saat ini · semua periode'}</span>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}</div>;
   const categoryTotals = cashflowResult.report?.categoryTotals ?? [];
   const categoryExpenseTotal = cashflowResult.report?.categoryExpenseTotal ?? 0;
   // Budgets are monthly limits across all wallets, so progress is shown only for that view.
@@ -575,7 +606,7 @@ export default function App() {
     if (mutationInFlight.current) return;
     historyScrollY.current = 0;
     setPage('transactions'); setQuery(''); setHistoryWallet(walletId); setFilter(type); setReviewReason('all');
-    setHistoryPeriod(period); setHistoryPage(1); setSelectedEntryIds([]);
+    setHistoryPeriod(period); setHistoryPage(1); setSelectedEntryIds([]); setHistoryCategory('all'); setHistorySort('newest'); periodBeforeSearch.current = null;
   }
   // A ledger without a single entry gets a way in instead of panels of Rp 0.
   const startGuide = !data.demo && activeState.entries.length === 0 ? <section className="panel start-guide" data-testid="start-guide" aria-labelledby="start-guide-title"><div className="panel-header"><div><h2 id="start-guide-title">Mulai dari sini</h2><p>Hitungan saldo dan rincian arus muncul setelah ada catatan pertama.</p></div></div><ol className="start-steps">
@@ -587,7 +618,8 @@ export default function App() {
   function openCategoryHistory(name: string) {
     if (mutationInFlight.current) return;
     openHistory(cashflowScope, cashflowPeriod);
-    setQuery(name);
+    // A real category gets the category filter; "Biaya transfer" is not one, so it falls back to search.
+    if (categoryPreferences.settings.names.includes(name)) setHistoryCategory(name); else setQuery(name);
   }
   /** Review nudge and latest entries; on phones they follow the cashflow cards instead of closing the page. */
   const overviewRecent = <>{pendingCount > 0 && <button className="pending-banner" onClick={() => openHistory('all', 'all', 'pending')}><span className="pending-icon"><CircleHelp size={20} /></span><span><strong>{pendingCount} catatan bisa dirapikan nanti</strong><span>{[pendingReview.type > 0 && `${pendingReview.type} jenis perlu dicek`, pendingReview.category > 0 && `${pendingReview.category} kategori belum diisi`].filter(Boolean).map(reason => `${reason}. `).join('').replace(/\. (?=\d)/g, ' · ')}Saldo sudah tercatat.</span></span><span className="pending-cta">Cek catatan <ArrowRight size={16} /></span></button>}
@@ -628,7 +660,13 @@ export default function App() {
         {!mobileOverview && overviewRecent}
       </>}
       {page === 'wallets' && <WalletsPage hasCashArchive={cashWallets.length > 0} onOpenCashArchive={() => setCashArchiveOpen(true)} walletView={walletView} onWalletViewChange={setWalletView} activeCount={availableCurrencyWallets.length} archivedCount={archivedCurrencyWallets.length} currency={currency} currencyName={currencyLabel(currency)} clockDay={clockDay} total={walletPageTotal} wallets={displayedWallets} actualText={actualText} onOpenWallet={openWallet} onRecord={walletId => openTx('expense', walletId)} onCheckBalance={walletId => openTx('adjustment', walletId)} onShowHistory={w => { setCurrency(w.currency); openHistory(w.id, 'all'); }} onRestore={w => requestWalletAction(w, 'restore')} />}
-      {page === 'transactions' && <section className="panel transactions-panel">{categoryTools}{isReviewQueue && <div className="review-scope"><CircleHelp size={19} /><div><strong>Perlu dirapikan · <span data-testid="review-total" data-count={pendingCount}>{pendingCount}</span> catatan</strong><p>Semua mata uang dan semua periode. <span data-testid="review-types" data-count={pendingReview.type}>{pendingReview.type}</span> jenis perlu dicek · <span data-testid="review-categories" data-count={pendingReview.category}>{pendingReview.category}</span> kategori belum diisi. Satu catatan bisa memiliki dua alasan; total tidak dihitung ganda. Saldo mutasi sudah tercatat.</p></div></div>}<HistoryFilters isReviewQueue={isReviewQueue} query={query} onQueryChange={value => { setQuery(value); if (value.trim() && !query.trim()) setHistoryPeriod('all'); }} period={historyPeriod} periodMonthLabel={reportMonth} onPeriodChange={setHistoryPeriod} walletId={validHistoryWallet ?? 'all'} walletOptions={activeState.wallets.filter(wallet => isReviewQueue ? !isWalletArchived(data, wallet.id) : wallet.currency === currency).map(wallet => ({ id: wallet.id, name: wallet.name, archived: isWalletArchived(data, wallet.id) }))} onWalletChange={setHistoryWallet} typeFilter={filter} onTypeFilterChange={setFilter} reviewReason={reviewReason} onReviewReasonChange={setReviewReason} onReset={() => { openHistory('all', 'month'); setMonth(clockDay.slice(0, 7)); }} onDownloadCsv={downloadHistoryCsv} transactionCount={allTransactions.length} pendingCount={pendingCount} />{selectedEntries.length > 0 && <BulkReviewPanel entries={selectedEntries} onApply={applyBulkCategory} onClear={() => setSelectedEntryIds([])} />}<p className="field-help history-scope" role="status">{isReviewQueue ? 'Semua mata uang · semua periode' : `${currency} · ${historyPeriod === 'all' ? 'Semua periode' : reportMonth}`} · {allTransactions.length} transaksi. Pilih catatan di halaman ini untuk kategori massal.</p><TransactionTable entries={historySlice.entries} state={state} data={data} onEdit={editEntry} onDetail={setAmountDetail} selection={selection} />{historySlice.total > 0 && <nav className="history-pagination" aria-label="Halaman riwayat"><span role="status">{historySlice.start}–{historySlice.end} dari {historySlice.total} · Halaman {historySlice.page} dari {historySlice.pageCount}</span>{historySlice.pageCount > 1 && <div><button className="button secondary small" aria-label="Halaman sebelumnya" disabled={historySlice.page <= 1} onClick={() => setHistoryPage(historySlice.page - 1)}><ChevronLeft size={16} /> Sebelumnya</button><button className="button secondary small" aria-label="Halaman berikutnya" disabled={historySlice.page >= historySlice.pageCount} onClick={() => setHistoryPage(historySlice.page + 1)}>Berikutnya <ChevronRight size={16} /></button></div>}</nav>}</section>}
+      {page === 'transactions' && <section className="panel transactions-panel">{categoryTools}{isReviewQueue && <div className="review-scope"><CircleHelp size={19} /><div><strong>Perlu dirapikan · <span data-testid="review-total" data-count={pendingCount}>{pendingCount}</span> catatan</strong><p>Semua mata uang dan semua periode. <span data-testid="review-types" data-count={pendingReview.type}>{pendingReview.type}</span> jenis perlu dicek · <span data-testid="review-categories" data-count={pendingReview.category}>{pendingReview.category}</span> kategori belum diisi. Satu catatan bisa memiliki dua alasan; total tidak dihitung ganda. Saldo mutasi sudah tercatat.</p></div></div>}<HistoryFilters isReviewQueue={isReviewQueue} query={query} onQueryChange={value => {
+        setQuery(value);
+        if (value.trim() && !query.trim() && historyPeriod === 'month') { periodBeforeSearch.current = historyPeriod; setHistoryPeriod('all'); }
+        else if (!value.trim() && periodBeforeSearch.current) { setHistoryPeriod(periodBeforeSearch.current); periodBeforeSearch.current = null; }
+      }} period={historyPeriod} periodMonthLabel={reportMonth} onPeriodChange={value => { periodBeforeSearch.current = null; setHistoryPeriod(value); }} sort={historySort} onSortChange={setHistorySort} category={historyCategory} categoryOptions={categoryPreferences.settings.names} onCategoryChange={setHistoryCategory} walletId={validHistoryWallet ?? 'all'} walletOptions={activeState.wallets.filter(wallet => isReviewQueue ? !isWalletArchived(data, wallet.id) : wallet.currency === currency).map(wallet => ({ id: wallet.id, name: wallet.name, archived: isWalletArchived(data, wallet.id) }))} onWalletChange={setHistoryWallet} typeFilter={filter} onTypeFilterChange={setFilter} reviewReason={reviewReason} onReviewReasonChange={setReviewReason} onReset={resetHistory} onDownloadCsv={downloadHistoryCsv} transactionCount={allTransactions.length} pendingCount={pendingCount} />{selectedEntries.length > 0 && <BulkReviewPanel entries={selectedEntries} onApply={applyBulkCategory} onClear={() => setSelectedEntryIds([])} />}<p className="field-help history-scope" role="status" data-testid="history-scope"><strong>{allTransactions.length} transaksi</strong> · {isReviewQueue ? 'Semua mata uang · semua periode' : `${currency === 'TRY' ? 'TL' : currency} · ${historyPeriod === 'all' ? query.trim() && periodBeforeSearch.current ? 'mencari di semua periode' : 'Semua periode' : reportMonth}`}{historyTotals && <> · <span data-testid="history-inflow" data-amount={historyTotals.inflow}>masuk {formatMoney(historyTotals.inflow, currency)}</span> · <span data-testid="history-outflow" data-amount={historyTotals.outflow}>keluar {formatMoney(historyTotals.outflow, currency)}</span></>}. Pilih catatan di halaman ini untuk kategori massal.</p><TransactionTable entries={historySlice.entries} state={state} data={data} onEdit={editEntry} onDetail={setAmountDetail} selection={selection} groupByDate={historySort === 'newest' || historySort === 'oldest'} empty={historyFiltered
+        ? <div className="empty-state" data-testid="history-empty-filtered"><Search size={30} /><h3>Tidak ada yang cocok</h3><p>Tidak ada transaksi untuk filter atau pencarian ini.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Reset filter</button>{historyPeriod === 'month' && <button className="button secondary small" onClick={() => setHistoryPeriod('all')}>Lihat semua periode</button>}</div></div>
+        : <div className="empty-state" data-testid="history-empty"><History size={30} /><h3>Belum ada transaksi di sini</h3><p>Mulai dari satu catatan kecil, atau impor mutasi rekeningmu.</p><div className="empty-actions"><button className="button primary small" onClick={() => openTx('expense')}><Plus size={15} /> Catat transaksi pertama</button><button className="button secondary small" onClick={() => navigate('import')}>Impor mutasi</button></div></div>} />{historySlice.total > 0 && <nav className="history-pagination" aria-label="Halaman riwayat"><span role="status">{historySlice.start}–{historySlice.end} dari {historySlice.total} · Halaman {historySlice.page} dari {historySlice.pageCount}</span>{historySlice.pageCount > 1 && <div><button className="button secondary small" aria-label="Halaman sebelumnya" disabled={historySlice.page <= 1} onClick={() => turnHistoryPage(historySlice.page - 1)}><ChevronLeft size={16} /> Sebelumnya</button><button className="button secondary small" aria-label="Halaman berikutnya" disabled={historySlice.page >= historySlice.pageCount} onClick={() => turnHistoryPage(historySlice.page + 1)}>Berikutnya <ChevronRight size={16} /></button></div>}</nav>}</section>}
       {page === 'import' && <>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}<StatementReview data={data} onCommit={saveDocument} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} /><RecoveryImportView data={data} key={data.demo ? 'demo' : 'own'} state={state} demo={data.demo} onStart={startOwn} onImport={importState} notify={notify} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} preferredCurrency={currency} onAddWallet={(requested) => { if (requested) setCurrency(requested); openWallet('new'); }} /></>}
       <MobileFooter />
       </div>

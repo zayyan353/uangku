@@ -158,6 +158,9 @@ def run_case(browser, args, output, mobile):
         unchanged()
         detail.get_by_role('button', name='Tutup rincian', exact=True).click()
         page.get_by_label('Cari transaksi', exact=True).fill('')
+        # Emptying the search box returns to the period that was in use before the search widened it.
+        expect(page.get_by_label('Periode transaksi', exact=True)).to_have_value('month')
+        page.get_by_label('Periode transaksi', exact=True).select_option('all')
         page.get_by_label('Filter jenis transaksi', exact=True).select_option('transfer')
         expect(page.locator('.transactions-table tbody tr')).to_have_count(1)
         for aria in ['Cari transaksi', 'Periode transaksi', 'Filter jenis transaksi']:

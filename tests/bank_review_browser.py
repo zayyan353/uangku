@@ -128,7 +128,7 @@ class Case:
 
     def queue(self):
         nav(self.page,'Transaksi')
-        self.page.get_by_label('Filter jenis transaksi',exact=True).select_option('pending')
+        self.page.get_by_role('button', name=re.compile(r'^Rapikan \d+ catatan$')).click()
 
     def count(self,prefix,total,types,categories):
         for suffix,value in [('total',total),('types',types),('categories',categories)]:
