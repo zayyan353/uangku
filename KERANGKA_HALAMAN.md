@@ -118,11 +118,21 @@ dan bulan (5.4).
     5.4.3: label "Periode arus rekening" kini lebih panjang daripada
     tetangganya "Dompet".
 
-- [ ] **1.2.3 Peringatan laporan**
+- [x] **1.2.3 Peringatan laporan**
   *Isi:* "Laporan tetap mencakup N dompet arsip", peringatan saldo atau periode
   belum dimulai, "Ada tanggal posting yang belum diketahui".
   - Belum dilihat (butuh dompet arsip atau tanggal kosong). Tinjau teks dan
     tampilannya saat giliran.
+  - *Dikerjakan 11 Nov 2026.* Dilihat dengan satu dompet diarsipkan dan bulan
+    Desember 2026 (belum dimulai), desktop dan HP, terang dan gelap. **[bug]**
+    Catatan "Laporan tetap mencakup N dompet arsip" tampil juga saat
+    cakupannya satu dompet aktif; sekarang hanya untuk "Semua dompet", dan
+    dompet arsip yang dipilih mendapat "Dompet ini diarsipkan. Saldo dan
+    historinya tetap dihitung." Pemeriksaan ditambah di `wallet_browser.py`
+    (19/19 lulus; `cashflow_browser.py` 19/19). Belum dilihat: peringatan
+    tanggal posting kosong dan `balanceWarning` (butuh data legacy). Tidak
+    diubah: di HP "periode belum dimulai" tertulis tiga kali (kartu saldo,
+    teks rentang, peringatan).
 
 ### 1.3 Kartu angka utama
 

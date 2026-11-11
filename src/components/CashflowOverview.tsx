@@ -61,6 +61,11 @@ export default function CashflowOverview({ report, error, currency, month, perio
   const warning = error || report?.balanceWarning || (report?.notStarted ? 'Periode belum dimulai. Transaksi bertanggal masa depan tidak masuk arus rekening aktual.' : '');
   const amount = (value: number | null | undefined, id?: string) => <span data-testid={id ? `cashflow-${id}` : undefined} data-amount={value ?? undefined}>{value === null || value === undefined ? '—' : formatMoney(value, currency)}</span>;
   const caption = periodCaption(report, month, period);
+  // The note follows the chosen scope: one active wallet's report holds no archived wallet.
+  const archivedCount = archivedWalletIds?.size ?? 0;
+  const archiveNote = walletId === 'all'
+    ? archivedCount ? `Laporan tetap mencakup ${archivedCount} dompet arsip. Pengarsipan tidak menghapus saldo atau histori.` : ''
+    : archivedWalletIds?.has(walletId) ? 'Dompet ini diarsipkan. Saldo dan historinya tetap dihitung.' : '';
   const mobile = useMobileOverview();
   const [folds, setFolds] = useState<{ reconciliation?: boolean; breakdown?: boolean }>({});
   const reconciliationOpen = folds.reconciliation ?? !mobile, breakdownOpen = folds.breakdown ?? !mobile;
@@ -73,7 +78,7 @@ export default function CashflowOverview({ report, error, currency, month, perio
       <label><span className="field-label">Periode arus rekening</span><select className="select-input" aria-label="Periode arus rekening" value={period} onChange={event => onPeriodChange(event.target.value as 'month' | 'all')}><option value="month">{monthLabel(month)}</option><option value="all">Seluruh catatan</option></select></label>
       <p className="cashflow-period" data-testid="cashflow-period">{caption}</p>
     </div>
-    {!!archivedWalletIds?.size && <p className="cashflow-explanation">Laporan tetap mencakup {archivedWalletIds.size} dompet arsip. Pengarsipan tidak menghapus saldo atau histori.</p>}
+    {archiveNote && <p className="cashflow-explanation" data-testid="cashflow-archive-note">{archiveNote}</p>}
     {warning && <div className="notice warning" data-testid="cashflow-warning" role="status">{warning}</div>}
     <div className="overview-grid">
       {balanceCard}
