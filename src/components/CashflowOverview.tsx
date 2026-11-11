@@ -18,6 +18,9 @@ interface Props {
   balanceCard: ReactNode;
   /** Shown in place of the two calculation panels while the ledger has no entries at all. */
   startGuide?: ReactNode;
+  /** Phone layout: the month field sits with scope and period, and banners follow the cards. */
+  monthControl?: ReactNode;
+  afterCards?: ReactNode;
 }
 
 const phoneLayout = '(max-width: 760px)';
@@ -53,7 +56,7 @@ export function CashflowBalance({ report, currency, month, period, scope, mobile
     <div className="balance-card-top">
       <span className="balance-label">{closing == null ? 'Saldo akhir periode' : `Saldo per ${formatDate(report!.periodEnd)}`}</span>
       {mobile && demo && <span className="balance-demo">Data contoh</span>}
-      <span className="balance-currency">{currency === 'TRY' ? 'TL' : currency}</span>
+      {!mobile && <span className="balance-currency">{currency === 'TRY' ? 'TL' : currency}</span>}
     </div>
     <div className="balance-number"><span data-testid="cashflow-closing" data-amount={closing ?? undefined}>{closing == null ? mobile ? 'Belum tersedia' : '—' : formatMoney(closing, currency)}</span></div>
     <div className="balance-meta"><WalletIcon size={15} /><span>{scope}</span></div>
@@ -63,7 +66,7 @@ export function CashflowBalance({ report, currency, month, period, scope, mobile
   </section>;
 }
 
-export default function CashflowOverview({ report, error, currency, month, period, walletId, wallets, archivedWalletIds, onPeriodChange, onWalletChange, balanceCard, startGuide }: Props) {
+export default function CashflowOverview({ report, error, currency, month, period, walletId, wallets, archivedWalletIds, onPeriodChange, onWalletChange, balanceCard, startGuide, monthControl, afterCards }: Props) {
   const warning = error || report?.balanceWarning || (report?.notStarted ? 'Periode belum dimulai. Transaksi bertanggal masa depan tidak masuk arus rekening aktual.' : '');
   const amount = (value: number | null | undefined, id?: string) => <span data-testid={id ? `cashflow-${id}` : undefined} data-amount={value ?? undefined}>{value === null || value === undefined ? '—' : formatMoney(value, currency)}</span>;
   /** A breakdown cell; an empty side reads as a dash so the filled amounts stand out. */
@@ -91,8 +94,8 @@ export default function CashflowOverview({ report, error, currency, month, perio
   return <div className="cashflow-overview">
     <div className="cashflow-controls">
       <label><span className="field-label">Dompet</span><select className="select-input" aria-label="Dompet" value={walletId} onChange={event => onWalletChange(event.target.value)}><option value="all">Semua dompet {currency}</option>{wallets.map(wallet => <option key={wallet.id} value={wallet.id}>{wallet.name}{archivedWalletIds?.has(wallet.id) ? ' (arsip)' : ''}</option>)}</select></label>
-      <label><span className="field-label">Periode arus rekening</span><select className="select-input" aria-label="Periode arus rekening" value={period} onChange={event => onPeriodChange(event.target.value as 'month' | 'all')}><option value="month">{monthLabel(month)}</option><option value="all">Seluruh catatan</option></select></label>
-      <p className="cashflow-period" data-testid="cashflow-period">{caption}</p>
+      <label><span className="field-label">Periode</span><select className="select-input" aria-label="Periode arus rekening" value={period} onChange={event => onPeriodChange(event.target.value as 'month' | 'all')}><option value="month">{monthLabel(month)}</option><option value="all">Seluruh catatan</option></select></label>
+      <div className="cashflow-period-row"><p className="cashflow-period" data-testid="cashflow-period">{caption}</p>{monthControl}</div>
     </div>
     {archiveNote && <p className="cashflow-explanation" data-testid="cashflow-archive-note">{archiveNote}</p>}
     {warning && <div className="notice warning" data-testid="cashflow-warning" role="status">{warning}</div>}
@@ -100,6 +103,7 @@ export default function CashflowOverview({ report, error, currency, month, perio
       {balanceCard}
       <div className="stats-stack"><section className="stat-card"><span className="stat-icon income"><ArrowDownLeft size={22} /></span><div><span className="stat-label">Uang masuk rekening</span><strong className="stat-value">{amount(report?.inflow, 'inflow')}</strong><span className="stat-foot">Termasuk transfer masuk dan catatan belum dikategorikan</span></div></section><section className="stat-card"><span className="stat-icon expense"><ArrowUpRight size={22} /></span><div><span className="stat-label">Uang keluar rekening</span><strong className="stat-value">{amount(report?.outflow, 'outflow')}</strong><span className="stat-foot">Termasuk transfer keluar, tarik tunai, dan biaya</span></div></section></div>
     </div>
+    {afterCards}
     {startGuide ?? <>
     <section className="panel cashflow-reconciliation" data-testid="cashflow-reconciliation" data-complete={report?.isComplete ? 'true' : 'false'} aria-label="Perhitungan saldo periode">
       <FoldHeader title="Perhitungan saldo periode" description={period === 'all' ? 'Saldo awal catatan, bukan bukti kelengkapan seluruh histori bank.' : 'Saldo awal sebelum periode dipilih, hingga batas tanggal laporan.'} summary={matched ? 'Cocok · ketuk untuk melihat hitungan' : 'Belum dapat dipastikan · ketuk untuk detail'} open={reconciliationOpen} controls={reconciliationId} onToggle={() => setFolds(f => ({ ...f, reconciliation: !reconciliationOpen }))} />

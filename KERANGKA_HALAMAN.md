@@ -367,7 +367,7 @@ dan bulan (5.4).
 
 ### 1.10 Susunan halaman
 
-- [ ] **1.10.1 Urutan bagian di HP**
+- [x] **1.10.1 Urutan bagian di HP**
   *Isi:* judul → tombol → kartu saldo → banner → tab mata uang → bulan →
   cakupan → periode → masuk/keluar → dua panel lipat → pengingat rapikan →
   transaksi terbaru → dompet → kategori.
@@ -375,6 +375,19 @@ dan bulan (5.4).
     menentukan isinya, dan banner menyela di antaranya. Usul: mata uang →
     saldo → masuk/keluar, dengan cakupan + periode diringkas jadi satu baris.
   - *Dilewati 11 Nov 2026: menunggu keputusan pemilik.*
+  - *Dikerjakan 11 Nov 2026 (pemilik menyetujui semua usul).* Urutan di HP
+    kini: judul → tombol → tab mata uang → kartu saldo → Dompet + Periode
+    dalam satu baris → rentang tanggal, "Kelola mata uang", bulan →
+    masuk/keluar → banner data contoh dan pengingat cadangan → panel lain.
+    Peringatan penyimpanan dan tanggal posting tetap di atas. Label "Periode
+    arus rekening" jadi "Periode" (`aria-label` tidak berubah); lencana mata
+    uang di kartu saldo HP dibuang karena tab mata uang kini tepat di atasnya.
+    Di lebar ≤360px kedua pilihan ditumpuk dan tulisan kecil di atas judul
+    disembunyikan supaya kartu saldo tetap di layar pertama 320×568. Desktop
+    tidak berubah. Dilihat di 320px dan 390px, terang dan gelap. Seluruh tes
+    browser CI lulus pada build ini (termasuk `first-fold` 320×568, 375×667,
+    390×844) dan `npm test` 1.759 lulus. Batas: di 320×568 kartu saldo pas di
+    tepi layar pertama, tanpa sisa ruang.
 
 - [x] **1.10.2 Tampilan saat belum ada transaksi**
   *Isi:* semua panel tetap tampil berisi Rp 0, termasuk kalimat "Perhitungan

@@ -1198,7 +1198,8 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-controls { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; margin: 0 0 18px; }
 .cashflow-controls label { display: flex; flex: 1 1 230px; min-width: 0; max-width: 380px; flex-direction: column; gap: 6px; }
 .cashflow-controls select { width: 100%; min-width: 0; }
-.cashflow-period { flex: 1 1 240px; margin: 0 0 9px; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+.cashflow-period-row { flex: 1 1 240px; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.cashflow-period { flex: 1 1 auto; margin: 0 0 9px; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
 .cashflow-overview .notice { margin: 0 0 18px; overflow-wrap: anywhere; }
 .cashflow-overview .balance-meta { line-height: 1.6; }
 .cashflow-overview .stat-foot { white-space: normal; line-height: 1.65; }
@@ -1249,8 +1250,15 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-table tbody tr:last-child :is(th, td) { border-bottom: 0; }
 @media (max-width: 600px) {
   .cashflow-controls { gap: 12px; }
-  .cashflow-controls label { flex-basis: 100%; max-width: none; }
-  .cashflow-period { flex-basis: 100%; margin-bottom: 0; }
+  .cashflow-controls label { flex: 1 1 0; max-width: none; }
+  .cashflow-period-row { flex-basis: 100%; flex-wrap: wrap; }
+  .cashflow-period-row .cashflow-period { flex-basis: 100%; }
+  .cashflow-controls .cashflow-period-row .date-pill { flex: none; flex-direction: row; flex-wrap: nowrap; margin-left: auto; min-height: 44px; padding: 0 9px; gap: 5px; }
+  .cashflow-period-row .date-pill input { width: 128px; max-width: 128px; font-size: 12px; min-height: 42px; }
+  .cashflow-period-row .button { flex: none; }
+  .cashflow-controls select { padding-left: 10px; padding-right: 28px; font-size: 14px; text-overflow: ellipsis; }
+  .cashflow-period { margin-bottom: 0; }
+  .cashflow-overview > :is(.demo-banner, .backup-reminder) { margin-bottom: 18px; }
   .cashflow-equation { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .cashflow-equation > div { padding: 10px; }
   .cashflow-equation dd { font-size: 14px; }
@@ -1485,4 +1493,13 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
 /* 9: lencana format turun ke bawah judul kartu impor di layar sempit. */
 @media (max-width: 600px) {
   .import-main > .panel-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
+
+/* 1.10.1: on the narrowest phones the tagline gives its line to the balance card. */
+@media (max-width: 360px) { .eyebrow { display: none; } }
+@media (max-width: 360px) {
+  .cashflow-controls label:not(.date-pill) { flex-basis: 100%; }
+  .cashflow-period-row .date-pill > svg { display: none; }
+  .cashflow-period-row .date-pill input { width: 118px; max-width: 118px; }
+  .cashflow-period-row .button { padding-left: 10px; padding-right: 10px; }
 }
