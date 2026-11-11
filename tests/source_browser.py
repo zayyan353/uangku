@@ -77,7 +77,7 @@ def partial_completion_override(browser,out):
         corrected=wait_doc(page,lambda d:bool(d['metadata'].get('overrides')))
         assert corrected['metadata']['facts']==facts and saldo(corrected,'bank')==17000
         import_file(page,path)
-        page.get_by_role('button',name='Pulihkan fakta bank',exact=True).click();save_import(page,1)
+        page.get_by_role('button',name='Pulihkan data bank',exact=True).click();save_import(page,1)
         restored=wait_doc(page,lambda d:saldo(d,'bank')==17450)
         assert restored['metadata']['facts']==facts and len(restored['state']['entries'])==3
         import_file(page,path)

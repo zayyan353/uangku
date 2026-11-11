@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Download, Plus, Search, Trash2, Upload } from 'lucide-react';
 import Modal from './Modal';
+import MoneyEcho from './MoneyEcho';
 import { makeId } from '../lib/finance';
 import { CATEGORY_SETTINGS_LIMIT, KEYWORD_PACK_VERSION, categorySettingsExport, parseCategorySettingsExport, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
 import type { CategoryRule } from '../lib/categorization';
@@ -162,7 +163,7 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
   return <Modal title="Kelola kategori" subtitle="Kategori dan aturan milikmu, tersimpan di browser ini." onClose={close}>
     <div className="category-manager" aria-busy={pending !== null}>
       <div className="modal-body">
-        <p className="category-manager-intro">Pengaturan ini mengatur pilihan kategori dan pencocokan keterangan. Nominal, tanggal, jenis transaksi, dan fakta bank tidak diubah di sini.</p>
+        <p className="category-manager-intro">Pengaturan ini mengatur pilihan kategori dan pencocokan keterangan. Nominal, tanggal, jenis transaksi, dan data bank tidak diubah di sini.</p>
         {notice && <p className="notice warning">{notice}</p>}
         {message && <p className="notice success" role="status">{message}</p>}
         <div className="tab-group category-manager-tabs" role="tablist" aria-label="Bagian pengaturan kategori">{TABS.map(item => <button key={item.id} type="button" role="tab" id={`category-tab-${item.id}`} aria-selected={tab === item.id} aria-controls={`category-panel-${item.id}`} className={tab === item.id ? 'active' : ''} onClick={() => setTab(item.id)}>{item.label}{item.id === 'names' ? <span>{draft.names.length}</span> : item.id === 'rules' ? <span>{draft.rules.length}</span> : null}</button>)}</div>
@@ -182,7 +183,7 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
             {budgetsError ? <p className="notice warning">{budgetsError}</p> : !budgetCurrency ? <p className="field-help">Tambahkan mata uang lebih dulu untuk mengatur anggaran.</p> : <>
               {budgetCurrencies.length > 1 && <label className="field category-budget-currency"><span className="field-label">Mata uang anggaran</span><select className="select-input" aria-label="Mata uang anggaran" value={budgetCurrency} onChange={event => setBudgetCurrency(event.target.value as Currency)}>{budgetCurrencies.map(code => <option key={code} value={code}>{code} · {currencyInfo(code).label}</option>)}</select></label>}
               {budgetShown.length === 0 && <p className="field-help" data-testid="budget-empty">Belum ada anggaran {budgetCurrency}. Pilih kategori di bawah untuk memberinya batas.</p>}
-              <ul className="category-budget-list">{budgetShown.map(name => <li key={name}><label className="field"><span className="field-label">{name}</span><input className="field-input" data-budget={name} aria-label={`Anggaran ${name} (${budgetCurrency})`} inputMode="decimal" autoComplete="off" maxLength={24} placeholder="Tanpa batas" value={budgetTexts[name] ?? ''} onChange={event => changeBudget(name, event.target.value)} /></label></li>)}</ul>
+              <ul className="category-budget-list">{budgetShown.map(name => <li key={name}><label className="field"><span className="field-label">{name}</span><input className="field-input" data-budget={name} aria-label={`Anggaran ${name} (${budgetCurrency})`} inputMode="decimal" autoComplete="off" maxLength={24} placeholder="Tanpa batas" value={budgetTexts[name] ?? ''} onChange={event => changeBudget(name, event.target.value)} /><MoneyEcho text={budgetTexts[name] ?? ''} currency={budgetCurrency} /></label></li>)}</ul>
               {budgetAvailable.length > 0 && <label className="field category-budget-add"><span className="field-label">Tambah anggaran</span><select className="select-input" aria-label="Tambah anggaran untuk kategori" value="" onChange={event => addBudget(event.target.value)}><option value="">Pilih kategori…</option>{budgetAvailable.map(name => <option key={name}>{name}</option>)}</select></label>}
               {hiddenBudgets > 0 && <p className="field-help">{hiddenBudgets} anggaran {budgetCurrency} untuk kategori yang tidak aktif tetap disimpan dan aktif kembali bila kategorinya ditambahkan lagi.</p>}
             </>}

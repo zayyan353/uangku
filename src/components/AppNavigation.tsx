@@ -28,8 +28,9 @@ export function AppSidebar({ page, pendingCount, lastBackupText, initial, onNavi
 }
 
 /** Mobile footer note. Backup and privacy live in the account menu. */
-export function MobileFooter() {
-  return <footer className="bottom-note"><span><Leaf size={14} /> Nggak harus rapi sekaligus. Yang penting mulai.</span><span>Cadangkan secara berkala</span></footer>;
+export function MobileFooter({ onBackupAll }: { onBackupAll?: () => void }) {
+  const build = typeof __UANGKU_BUILD__ === 'string' ? __UANGKU_BUILD__ : 'lokal';
+  return <footer className="bottom-note"><span><Leaf size={14} /> Nggak harus rapi sekaligus. Yang penting mulai.</span><span className="bottom-note-end">{onBackupAll ? <button type="button" className="text-link" title="Unduh cadangan lengkap sekarang" onClick={onBackupAll}>Cadangkan secara berkala</button> : 'Cadangkan secara berkala'}<span className="build-version" data-testid="build-version" title="Versi build ini">build {build}</span></span></footer>;
 }
 
 /** Avatar button in the topbar that opens backup, restore and privacy actions. */

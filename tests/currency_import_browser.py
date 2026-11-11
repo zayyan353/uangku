@@ -522,7 +522,7 @@ def cross_scheme(case,distinct=False):
     if distinct:saved=case.save_import(1)
     else:
         p.get_by_text('Opsi lain',exact=True).click()
-        p.get_by_role('button',name='Simpan fakta file saja',exact=True).click()
+        p.get_by_role('button',name='Simpan isi file saja',exact=True).click()
         expect(p.get_by_role('heading',name='Periksa sebelum disimpan',exact=True)).to_have_count(0)
         saved=case.saved()
     assert next(f for f in saved['metadata']['facts'] if f['id']=='old-fact')==before['metadata']['facts'][0]

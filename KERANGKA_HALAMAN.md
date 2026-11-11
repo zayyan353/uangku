@@ -2,24 +2,19 @@
 
 Dibuat: 11 November 2026, commit `2fb3179` (main).
 
-**Status 11 November 2026 (sesi lanjutan):** 162 dari 171 butir dicentang.
-Belum dicentang: 3.12.1 (butuh keputusan), 4.2.5, 4.2.6, 5.3.3 (belum ditinjau
-langsung), dan 5.10–5.11 (belum giliran). Hasil tes sesi ini, dijalankan lokal
-terhadap build produksi (`npm run preview`), bukan di CI:
+**Status 11 November 2026 (sesi lanjutan):** 167 dari 171 butir dicentang,
+sampai 5.11.4. Belum dicentang: 3.12.1 (butuh keputusan), 4.2.5, 4.2.6, dan
+5.3.3 (belum ditinjau langsung). Hasil tes pada build terakhir sesi ini,
+dijalankan lokal terhadap build produksi (`npm run preview`):
 
-- `npm test`: 61 file / 1.779 tes lulus. `npm run build` lulus.
-- 16 tes browser CI dijalankan pada build sebelum perbaikan terakhir: 14 lulus;
-  `wallet_browser.py` gagal 1 dari 19 kasus (fokus hilang setelah "Lanjut
-  mengisi"; sudah diperbaiki, lalu `wallet`, `category`, dan `currency_import`
-  diulang dan lulus); `performance_browser.py` gagal pada anggaran jeda frame.
-  Tes browser lain tidak diulang setelah perbaikan terakhir itu.
-- Performa (10.000 baris, 5 sampel): median 5.891 ms (anggaran 6.000), p95
-  6.231 ms (anggaran 8.000), jeda frame maksimum 298 ms (anggaran 250, **gagal**).
-  Commit sebelum sesi ini (`de8b9e8`) diukur di mesin yang sama: median 5.813 ms,
-  jeda frame 271 ms, juga gagal pada anggaran yang sama. Jadi di mesin ini
-  selisihnya dalam rentang antar-jalan, tetapi belum terbukti bahwa sesi ini
-  tidak menambah beban; hasil CI yang menentukan.
-- `full_backup_browser.py` (tidak ada di CI) lulus.
+- `npm test`: 62 file / 1.782 tes lulus. `npm run build` lulus.
+- Tes browser: 15 suite fungsional CI dan `full_backup_browser.py` lulus.
+- `performance_browser.py` (10.000 baris, 5 sampel) **gagal lokal** pada
+  anggaran jeda frame: 291 ms (anggaran 250); median 5.681 ms (anggaran 6.000),
+  p95 6.448 ms (anggaran 8.000). Commit sebelum sesi ini (`de8b9e8`) diukur di
+  mesin yang sama: jeda frame 271 ms, median 5.813 ms, juga gagal. Di CI, push
+  sebelumnya dari branch ini (sampai 5.9) lulus seluruh pemeriksaan termasuk
+  performa; hasil CI untuk 5.10–5.11 belum ada saat catatan ini ditulis.
 
 Peta isi aplikasi per halaman. **Bab** = halaman, **sub-bab** = bagian halaman,
 **butir** (mis. 1.3.1) = bagian terkecil. Tiap butir mencatat isinya sekarang dan
@@ -1780,41 +1775,77 @@ Tampil di lebih dari satu halaman. Dikerjakan sekali di sini untuk semuanya.
 
 ### 5.10 Kaki halaman
 
-- [ ] **5.10.1 Kalimat penutup**
+- [x] **5.10.1 Kalimat penutup**
   *Isi:* "Nggak harus rapi sekaligus. Yang penting mulai." dan "Cadangkan secara berkala".
   - "Cadangkan secara berkala" hanya teks. Jadikan tautan ke Cadangkan
     semuanya, atau buang.
   - **[fitur]** Tampilkan versi atau commit build.
+  - *Dikerjakan 11 Nov 2026.* "Cadangkan secara berkala" menjadi tautan yang
+    langsung mengunduh cadangan lengkap (di mode contoh dan saat penyimpanan
+    bermasalah tetap teks biasa). **[fitur]** kaki halaman menulis "build
+    <commit pendek>", diambil dari git saat build; "lokal" bila git tidak
+    tersedia.
 
 ### 5.11 Lintas halaman
 
-- [ ] **5.11.1 Zona waktu "hari ini"**
+- [x] **5.11.1 Zona waktu "hari ini"**
   *Isi:* batas hari untuk saldo aktual, laporan, dan tanggal bawaan form.
   - **[keputusan]** "Hari ini" dikunci ke Europe/Istanbul di lima tempat
     (`App.tsx:59`, `TransactionModal.tsx:18`, `RecoveryImportView.tsx:101`,
     `finance.ts:320`, `backupReminder.ts:85`). Di zona lain batas harinya
     bergeser (di WIB, pukul 00.00–04.00 masih dihitung kemarin). Pilih: zona
     perangkat, pengaturan, atau tetap; lalu satukan ke satu fungsi.
+  - *Dikerjakan 11 Nov 2026.* Keputusan pemilik: ikuti zona perangkat. "Hari
+    ini" kini satu fungsi, `deviceDay()` di `src/lib/today.ts`, dipakai di
+    kelima tempat (App, form transaksi, impor, data contoh, label cadangan
+    terakhir). Batas hari mengikuti jam dan zona waktu perangkat; tanggal
+    yang sudah tersimpan tidak diubah. Akibatnya bagi perangkat di luar
+    Türkiye: saldo aktual, laporan bulan berjalan, dan tanggal bawaan form
+    berganti pada tengah malam setempat, bukan tengah malam Istanbul. Tes
+    unit mencakup pergantian hari di WIB, Istanbul, dan Los Angeles.
 
-- [ ] **5.11.2 Format tanggal di form**
+- [x] **5.11.2 Format tanggal di form**
   *Isi:* kolom tanggal bawaan browser.
   - Tampilannya mengikuti bahasa browser (terlihat "11/08/2026" untuk
     8 Nov 2026), beda dengan "8 Nov 2026" di tempat lain. Sudah dicatat di
     `MICRO_TASKS.md` (tahap UX) dan belum dikerjakan.
+  - *Dikerjakan 11 Nov 2026.* Kolom tanggal tetap bawaan browser, tetapi di
+    bawahnya tanggal yang dipilih ditulis ulang dengan format aplikasi ("31
+    Okt 2026"), untuk tanggal transaksi dan kedua tanggal transfer. Tampilan
+    di dalam kolomnya sendiri tetap mengikuti bahasa browser dan tidak bisa
+    diatur dari halaman.
 
-- [ ] **5.11.3 Format nominal di kolom isian**
+- [x] **5.11.3 Format nominal di kolom isian**
   *Isi:* kolom nominal di form transaksi, saldo awal dompet, anggaran.
   - Nominal diketik dan tampil tanpa pemisah ribuan ("2400000"). Format saat
     mengetik, atau tampilkan "Rp 2.400.000" di bawah kolom. Aturan `parseMoney`
     tidak boleh berubah.
+  - *Dikerjakan 11 Nov 2026.* Di bawah kolom nominal muncul "Terbaca: Rp
+    2.400.000" begitu isinya sah dan berisi empat digit atau lebih: nominal,
+    biaya, dan jumlah diterima di form transaksi; saldo awal dompet;
+    anggaran. Teks yang diketik tidak diubah dan `parseMoney` tidak
+    disentuh. Pemisah ribuan saat mengetik di dalam kolomnya sendiri tidak
+    dibuat.
 
-- [ ] **5.11.4 Istilah**
+- [x] **5.11.4 Istilah**
   *Isi:* nama jenis, status, dan konsep sumber di seluruh aplikasi.
   - Satu hal punya beberapa nama: "Cek saldo" / "Penyesuaian" / "Cocokkan
     saldo"; "Perpindahan dana" / "Perpindahan dana rekening"; "Perlu dicek" /
     "Perlu dirapikan".
   - Istilah teknis tampil ke pengguna: "legacy", "backfill", "fakta sumber",
     "batas saldo awal". Buat daftar istilah, lalu seragamkan.
+  - *Dikerjakan 11 Nov 2026.* Daftar istilah ada di `docs/ISTILAH.md`.
+    Diseragamkan di teks yang tampil: "Perpindahan dana" (tanpa "rekening"),
+    judul form "Cek saldo" (bukan "Cocokkan saldo"), "data bank" / "mutasi
+    bank" (bukan "fakta bank" / "fakta sumber"), "isi file" (bukan "fakta
+    file"; tombolnya kini "Simpan isi file saja" dan "Pulihkan data bank"),
+    "titik awal saldo" (bukan "batas saldo awal", "baseline", "anchor",
+    "rebase"), "catatan impor lama" (bukan "legacy"), "melengkapi mutasi
+    lama" (bukan "backfill"). "Perlu dicek" (satu catatan) dan "Perlu
+    dirapikan" (antrean) sengaja tetap dua nama. Belum diseragamkan: pesan
+    pemeriksaan integritas data di `sourceModel.ts`, `transferPostings.ts`,
+    dan `sourceCodec.ts`, yang hanya muncul bila data tersimpan tidak
+    konsisten.
 
 ---
 

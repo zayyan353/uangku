@@ -1801,3 +1801,11 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
   .start-wallet-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) { .date-pill select { max-width: 158px; } .month-stepper .date-pill > svg { display: none; } }
+
+/* ===== Kerangka 5.10–5.11 ===== */
+.bottom-note-end { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.bottom-note .text-link { font-size: inherit; min-height: 24px; }
+.build-version { opacity: .8; font-variant-numeric: tabular-nums; }
+.money-echo { display: block; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.date-echo { font-variant-numeric: tabular-nums; }
+.date-shortcuts .date-echo { margin-right: auto; }

@@ -56,11 +56,11 @@ import CashArchive from './components/CashArchive';
 import { createBankEntryPresentationLookup, createBankEntryTitleLookup } from './lib/bankEntryHints';
 import { reviewCounts, type ReviewReason } from './lib/reviewStatus';
 import { categoryColorIndex } from './lib/dashboardView';
+import { deviceDay } from './lib/today';
 import { currencyFlagEmoji, monthOptions, nextMonth, priorMonth } from './lib/monthOptions';
 import { greeting, nicknameInitial, NICKNAME_KEY, readNickname, sanitizeNickname, writeNickname } from './lib/nickname';
 
-const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' });
-const today = () => DATE_FORMAT.format(new Date());
+const today = () => deviceDay();
 const currencyFlag = currencyFlagEmoji;
 const currencyLabel = (code: Currency) => currencyInfo(code).label;
 const COLORS = ['#e4a06a', '#7da69b', '#a2b96c', '#a0a5d4', '#d7b568', '#d58e9f', '#8db8c9', '#b1b8ae'];
@@ -290,7 +290,7 @@ export default function App() {
       const total = selected.reduce((sum, wallet) => sum + BigInt(walletBalanceAt(state, wallet.id, clockDay, postingContext)), 0n);
       if (total > BigInt(Number.MAX_SAFE_INTEGER) || total < BigInt(Number.MIN_SAFE_INTEGER)) throw new RangeError('overflow');
       return { value: Number(total), text: formatMoney(Number(total), currency) };
-    } catch { return { value: null, text: 'Belum dapat dipastikan; periksa tanggal atau baseline' }; }
+    } catch { return { value: null, text: 'Belum dapat dipastikan; periksa tanggal atau saldo awal' }; }
   }, [page, currencyWallets, data.metadata, walletView, state, postingContext, currency, clockDay, undatedWallets]);
   const availableCurrencyWallets = currencyWallets.filter(wallet => !isWalletArchived(data, wallet.id));
   const archivedCurrencyWallets = currencyWallets.filter(wallet => isWalletArchived(data, wallet.id));
@@ -507,7 +507,7 @@ export default function App() {
     const details = kind === 'archive'
       ? `Dompet ${wallet.name} akan disimpan di Arsip. ${usage.entryCount} transaksi dan bukti sumber tetap utuh; saldo tetap masuk laporan. Pulihkan untuk mencatat atau mengubah histori lagi.`
       : kind === 'restore' ? `Dompet ${wallet.name} akan kembali tersedia untuk transaksi dan impor. Histori dan saldo tetap sama.`
-      : `Hapus dompet kosong ${wallet.name}? Penghapusan hanya diizinkan jika saldo awal nol dan tidak ada transaksi, fakta bank, atau referensi histori.`;
+      : `Hapus dompet kosong ${wallet.name}? Penghapusan hanya diizinkan jika saldo awal nol dan tidak ada transaksi, data bank, atau referensi histori.`;
     setWalletModal(null);
     setConfirm({ title: kind === 'archive' ? 'Arsipkan dompet?' : kind === 'restore' ? 'Pulihkan dompet?' : 'Hapus dompet kosong?', text: details, label: kind === 'archive' ? 'Arsipkan dompet' : kind === 'restore' ? 'Pulihkan dompet' : 'Hapus dompet', danger: kind === 'delete', action: async () => {
       const next = kind === 'archive' ? archiveWallet(base.data, wallet.id, new Date().toISOString()) : kind === 'restore' ? restoreWallet(base.data, wallet.id) : deleteUnusedWallet(base.data, wallet.id);
@@ -549,9 +549,9 @@ export default function App() {
     if (mutationInFlight.current) return;
     if (isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id)) { notifyError('Histori cash lama atau dompet arsip bersifat baca saja. Pulihkan dompet bank/e-wallet untuk mengubahnya.'); return; }
     const sourced = !!data.metadata?.links.some(link => link.entryId === entry.id);
-    setConfirm({ title: 'Hapus transaksi ini?', text: sourced ? 'Interpretasi transaksi akan dihapus dari saldo. Fakta bank tetap disimpan, dan impor ulang memerlukan keputusan eksplisit agar tidak menggandakan transaksi.' : 'Saldo dompet akan dihitung ulang. Unduh cadangan bila catatan ini masih diperlukan.', label: 'Hapus transaksi', danger: true, requireReason: sourced, action: async (reason = '') => {
+    setConfirm({ title: 'Hapus transaksi ini?', text: sourced ? 'Interpretasi transaksi akan dihapus dari saldo. Data bank tetap disimpan, dan impor ulang memerlukan keputusan eksplisit agar tidak menggandakan transaksi.' : 'Saldo dompet akan dihitung ulang. Unduh cadangan bila catatan ini masih diperlukan.', label: 'Hapus transaksi', danger: true, requireReason: sourced, action: async (reason = '') => {
       const next = entry.type === 'transfer' ? executeTransferCommand(data, { kind: 'delete', entryId: entry.id, reason: reason || 'Pengguna menghapus transfer.', at: new Date().toISOString() }) : deleteSourcedEntry(data, entry.id, { reason: reason || 'Pengguna menghapus transaksi.', at: new Date().toISOString() });
-      if (await saveDocument(next, expectedToken)) notify('Transaksi dihapus; fakta sumber yang tersedia tetap dipertahankan.');
+      if (await saveDocument(next, expectedToken)) notify('Transaksi dihapus; data mutasi bank yang tersedia tetap dipertahankan.');
     } });
   }
   function unpairTransfer(entry: Entry) {
@@ -702,7 +702,7 @@ export default function App() {
         ? <div className="empty-state" data-testid="history-empty-filtered"><Search size={30} /><h3>Tidak ada yang cocok</h3><p>Tidak ada transaksi untuk filter atau pencarian ini.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Reset filter</button>{historyPeriod === 'month' && <button className="button secondary small" onClick={() => setHistoryPeriod('all')}>Lihat semua periode</button>}</div></div>
         : <div className="empty-state" data-testid="history-empty"><History size={30} /><h3>Belum ada transaksi di sini</h3><p>Mulai dari satu catatan kecil, atau impor mutasi rekeningmu.</p><div className="empty-actions"><button className="button primary small" onClick={() => openTx('expense')}><Plus size={15} /> Catat transaksi pertama</button><button className="button secondary small" onClick={() => navigate('import')}>Impor mutasi</button></div></div>} />{historySlice.total > 0 && <nav className="history-pagination" aria-label="Halaman riwayat"><span role="status">{historySlice.start}–{historySlice.end} dari {historySlice.total} · Halaman {historySlice.page} dari {historySlice.pageCount}</span>{historySlice.pageCount > 1 && <div><button className="button secondary small" aria-label="Halaman sebelumnya" disabled={historySlice.page <= 1} onClick={() => turnHistoryPage(historySlice.page - 1)}><ChevronLeft size={16} /> Sebelumnya</button><button className="button secondary small" aria-label="Halaman berikutnya" disabled={historySlice.page >= historySlice.pageCount} onClick={() => turnHistoryPage(historySlice.page + 1)}>Berikutnya <ChevronRight size={16} /></button></div>}</nav>}</section>}
       {page === 'import' && <>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}<RecoveryImportView data={data} key={data.demo ? 'demo' : 'own'} state={state} demo={data.demo} onStart={startOwn} onImport={importState} notify={notify} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} preferredCurrency={currency} onAddWallet={(requested) => { if (requested) setCurrency(requested); openWallet('new'); }} onOpenReview={() => openHistory('all', 'all', 'pending')} onOpenHistory={walletId => { const target = state.wallets.find(item => item.id === walletId); if (target) setCurrency(target.currency); openHistory(target ? walletId : 'all', 'all'); }} /><StatementReview data={data} onCommit={saveDocument} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} /></>}
-      <MobileFooter />
+      <MobileFooter onBackupAll={data.demo || blocked ? undefined : () => void backupAll()} />
       </div>
     </main>
     <MobileNav page={page} pendingCount={pendingCount} onNavigate={navigate} onRecord={() => openTx('expense')} />
@@ -716,7 +716,7 @@ export default function App() {
     {cashArchiveOpen && <CashArchive data={data} onClose={() => setCashArchiveOpen(false)} />}
     {privacyOpen && <PrivacyNotice persistence={persistence} onClose={() => setPrivacyOpen(false)} />}
     {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={walletIds => void finishStartOwn(demoReview, undefined, false, walletIds)} />}
-    {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua fakta bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button>{confirm.extra && <button className="button secondary" disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}<button className={`button ${confirm.danger ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button></div></Modal>}
+    {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua data bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button>{confirm.extra && <button className="button secondary" disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}<button className={`button ${confirm.danger ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button></div></Modal>}
     {toast && <div className={`toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.error ? <AlertTriangle size={19} /> : <CheckCircle2 size={19} />}<span>{toast.text}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)}><X size={15} /></button></div>}
   </div></CategorySettingsContext.Provider>;
 }

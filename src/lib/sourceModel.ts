@@ -162,9 +162,9 @@ export function validateSourceMetadata(financial: LegacyData, value: unknown): S
   for (const fact of m.facts) {
     sourceKeys(fact, ['id','walletId','currency','postedOn','signedAmount','balanceAfter','description','reference','fingerprintVersion','fingerprint'], ['id','walletId','currency','postedOn','signedAmount','balanceAfter','description','fingerprintVersion','fingerprint'], 'fact');
     id(fact.id, 'fact.id'); id(fact.walletId, 'fact.walletId');
-    sourceCheck(wallets.has(fact.walletId) && wallets.get(fact.walletId)!.currency === fact.currency, 'Dompet/mata uang fakta sumber tidak cocok.');
+    sourceCheck(wallets.has(fact.walletId) && wallets.get(fact.walletId)!.currency === fact.currency, 'Dompet/mata uang data mutasi bank tidak cocok.');
     date(fact.postedOn, 'fact.postedOn'); money(fact.signedAmount, 'fact.signedAmount'); money(fact.balanceAfter, 'fact.balanceAfter');
-    sourceCheck(fact.signedAmount !== 0, 'Nominal fakta sumber tidak boleh nol.'); text(fact.description, 'fact.description');
+    sourceCheck(fact.signedAmount !== 0, 'Nominal data mutasi bank tidak boleh nol.'); text(fact.description, 'fact.description');
     if (hasOwn(fact, 'reference')) text(fact.reference, 'fact.reference');
     sourceCheck(fact.fingerprintVersion === 'ziraat-v1' || fact.fingerprintVersion === 'generic-v1', 'Versi fingerprint sumber belum didukung.');
     const fingerprintPattern = fact.fingerprintVersion === 'ziraat-v1' ? /^ziraat:[a-f0-9]{16}$/ : /^generic:[a-f0-9]{16}$/;
@@ -189,7 +189,7 @@ export function validateSourceMetadata(financial: LegacyData, value: unknown): S
     }
     sourceCheck(running === BigInt(statement.closingBalance), 'Saldo akhir statement tidak cocok.');
   }
-  for (const fact of m.facts) sourceCheck(witnessed.has(fact.id), 'Fakta sumber tidak memiliki witness statement berurutan.');
+  for (const fact of m.facts) sourceCheck(witnessed.has(fact.id), 'Data mutasi bank tidak memiliki witness statement berurutan.');
   for (const override of m.overrides ?? []) {
     sourceKeys(override, ['entryId','reason','at'], ['entryId','reason','at'], 'override'); id(override.entryId, 'override.entryId'); sourceCheck(entries.has(override.entryId), 'Entry override tidak ditemukan.');
     text(override.reason, 'override.reason', 2_000, true); timestamp(override.at, 'override.at');
@@ -212,7 +212,7 @@ export function validateSourceMetadata(financial: LegacyData, value: unknown): S
       if (hasOwn(value, decision)) {
         const saved = sourceKeys(value[decision], ['reason','at'], ['reason','at'], `${label}.${decision}`);
         text(saved.reason, `${label}.${decision}.reason`, 2_000, true); timestamp(saved.at, `${label}.${decision}.at`);
-        if (entryId || proof) sourceCheck(proof?.[role], `${label}: override pasangan kehilangan fakta sumber.`);
+        if (entryId || proof) sourceCheck(proof?.[role], `${label}: override pasangan kehilangan data mutasi bank.`);
       }
       if (hasOwn(value, annotation)) {
         const saved = sourceKeys(value[annotation], ['type','category','note','importBatch'], ['type','category','note'], `${label}.${annotation}`);
@@ -265,11 +265,11 @@ export function validateSourceMetadata(financial: LegacyData, value: unknown): S
       const saved = sourceKeys(witness.groupDecision, ['reason','at'], ['reason','at'], 'unpairing.groupDecision');
       text(saved.reason, 'unpairing.groupDecision.reason', 2_000, true); timestamp(saved.at, 'unpairing.groupDecision.at');
     }
-    if (witness.groupOrigin === 'bank') sourceCheck(witness.source || witness.destination, 'Asal grup bank pada witness kehilangan fakta sumber.');
+    if (witness.groupOrigin === 'bank') sourceCheck(witness.source || witness.destination, 'Asal grup bank pada witness kehilangan data mutasi bank.');
     if (witness.pairing) validatePairing(witness.pairing, 'unpairing.pairing', undefined, witness);
   }
   indexed(m.unpairings ?? [], 'id', 'unpairings');
-  const claim = (ref: unknown, label: string): SourceFact => { id(ref, label); const fact = facts.get(ref); sourceCheck(fact, `${label}: fakta tidak ditemukan.`); sourceCheck(!claimed.has(ref), 'Satu fakta sumber diklaim oleh lebih dari satu entry.'); claimed.add(ref); return fact; };
+  const claim = (ref: unknown, label: string): SourceFact => { id(ref, label); const fact = facts.get(ref); sourceCheck(fact, `${label}: fakta tidak ditemukan.`); sourceCheck(!claimed.has(ref), 'Satu data mutasi bank diklaim oleh lebih dari satu entry.'); claimed.add(ref); return fact; };
   for (const link of m.links) {
     const entry = entries.get(link.entryId); sourceCheck(entry, 'Entry pada link tidak ditemukan.');
     sourceCheck(hasOwn(link, 'source') || hasOwn(link, 'destination'), 'Link sumber kosong.');
@@ -285,13 +285,13 @@ export function validateSourceMetadata(financial: LegacyData, value: unknown): S
     const effectiveDates = context ? { source: context.sourceDate, destination: context.destinationDate } : link.postingDates;
     let mismatch = entry.type === 'transfer' && !context && hasOwn(link, 'postingDates') && entry.date !== link.postingDates!.source;
     if (source) {
-      if (hasOwn(entry, 'sourceKey')) sourceCheck(entry.sourceKey === source.fingerprint, 'Alias legacy asal bertentangan dengan fakta sumber.');
+      if (hasOwn(entry, 'sourceKey')) sourceCheck(entry.sourceKey === source.fingerprint, 'Alias legacy asal bertentangan dengan data mutasi bank.');
       const signed = ['income','adjustment','unreviewed','movement'].includes(entry.type) ? BigInt(entry.amount) : -BigInt(entry.amount) - BigInt(entry.fee ?? 0);
       const effectiveDate = entry.type === 'transfer' && effectiveDates ? effectiveDates.source : entry.date;
       mismatch ||= source.walletId !== entry.walletId || BigInt(source.signedAmount) !== signed || source.postedOn !== effectiveDate;
     }
     if (destination) {
-      if (hasOwn(entry, 'toSourceKey')) sourceCheck(entry.toSourceKey === destination.fingerprint, 'Alias legacy tujuan bertentangan dengan fakta sumber.');
+      if (hasOwn(entry, 'toSourceKey')) sourceCheck(entry.toSourceKey === destination.fingerprint, 'Alias legacy tujuan bertentangan dengan data mutasi bank.');
       const effectiveDate = effectiveDates ? effectiveDates.destination : entry.date;
       mismatch ||= destination.walletId !== entry.toWalletId || destination.signedAmount !== entry.toAmount || destination.postedOn !== effectiveDate;
     }
@@ -383,7 +383,7 @@ export function validateSourceMetadata(financial: LegacyData, value: unknown): S
     let mismatch = !context && !!link?.postingDates && entry.date !== link.postingDates.source;
     for (const role of ['source','destination'] as const) if (link && hasOwn(link, role)) {
       const ref = link[role]; id(ref, `deletedTransfer.link.${role}`); const fact = facts.get(ref);
-      sourceCheck(fact, 'Fakta sumber transfer terhapus tidak ditemukan.');
+      sourceCheck(fact, 'Data mutasi bank transfer terhapus tidak ditemukan.');
       reserveFingerprint(fact.fingerprint,entry.id);
       sourceCheck(!claimed.has(ref) && !deletedSources.has(ref), 'Fakta transfer terhapus masih diklaim aktif atau tombstone lain.'); deletedSources.add(ref);
       const disposition = dispositions.get(ref);

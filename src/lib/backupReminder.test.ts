@@ -93,15 +93,16 @@ describe('lastBackupLabel', () => {
     expect(lastBackupLabel(null)).toBe('Cadangan terakhir: belum ada');
   });
 
-  it('shows date and time in the app time zone (Europe/Istanbul, UTC+3)', () => {
-    const label = lastBackupLabel({ at: '2026-11-09T17:36:01.896Z', fingerprint: ledgerFingerprint(LEDGER) });
+  it('shows date and time in the given zone (the device zone in the app)', () => {
+    const label = lastBackupLabel({ at: '2026-11-09T17:36:01.896Z', fingerprint: ledgerFingerprint(LEDGER) }, 'Europe/Istanbul');
     expect(label.startsWith('Cadangan terakhir: ')).toBe(true);
     expect(label).toContain('9 Nov 2026');
     expect(label).toMatch(/20[.:]36/);
   });
 
-  it('uses the Istanbul date across UTC midnight', () => {
-    expect(lastBackupLabel({ at: '2026-11-09T22:30:00.000Z', fingerprint: ledgerFingerprint(LEDGER) })).toContain('10 Nov 2026');
+  it('uses the local date across UTC midnight', () => {
+    expect(lastBackupLabel({ at: '2026-11-09T22:30:00.000Z', fingerprint: ledgerFingerprint(LEDGER) }, 'Europe/Istanbul')).toContain('10 Nov 2026');
+    expect(lastBackupLabel({ at: '2026-11-09T22:30:00.000Z', fingerprint: ledgerFingerprint(LEDGER) }, 'America/Los_Angeles')).toContain('9 Nov 2026');
   });
 });
 

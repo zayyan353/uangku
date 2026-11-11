@@ -64,7 +64,7 @@ export function inspectStoredStatement(data: SourceDocument,statementId: string)
   try{balance=walletBalanceAt(data.state,statement.walletId,statement.periodEnd,dates);}catch{/* An unknown baseline is reported, not replaced with zero. */}
   const reasons:string[]=[];
   if(!approved)reasons.push('Saldo awal belum mempunyai keputusan batas sumber yang disetujui.');
-  if(approved&&!chain)reasons.push('File ini belum mempunyai rantai bukti tersambung dari batas saldo awal. Kesamaan saldo tidak membuktikan kelengkapan.');
+  if(approved&&!chain)reasons.push('File ini belum mempunyai rantai bukti tersambung dari titik awal saldo. Kesamaan saldo tidak membuktikan kelengkapan.');
   if(missing.length)reasons.push(`${missing.length} sumber dalam cakupan belum terwakili tepat oleh catatan aktif.`);
   if(overriddenIds.length)reasons.push(`${overriddenIds.length} sumber mempunyai koreksi nilai, dompet, atau tanggal.`);
   if(extra.length)reasons.push(`${extra.length} catatan tambahan atau tanggal belum diketahui berada dalam cakupan.`);
@@ -84,14 +84,14 @@ export function prepareStatementCompletion(data: SourceDocument,statementId: str
   const next=structuredClone(data),statement=requiredStatement(next,statementId),m=next.metadata!;
   const wallet=next.state.wallets.find(row=>row.id===statement.walletId)!;
   const facts=new Map(m.facts.map(row=>[row.id,row])),first=facts.get(statement.rowIds[0]);
-  if(!first)throw new Error('File sumber tidak memiliki anchor awal yang dapat dibuktikan.');
+  if(!first)throw new Error('File ini tidak memuat mutasi awal yang bisa dijadikan titik awal saldo.');
   let baseline=m.baselines?.find(row=>row.walletId===wallet.id);
   const baselineApproved=baseline?.status==='confirmed'&&m.baselineDecisions?.some(row=>row.baselineId===baseline!.id);
   const needsEarlierBoundary=!!baseline&&first.postedOn<baseline.boundary.date;
   if(!baselineApproved||needsEarlierBoundary){
-    if(!decision.rebase)throw new Error('Pelengkapan ini memerlukan keputusan eksplisit memakai batas saldo awal dari file (rebase).');
-    if(baselineApproved&&baseline?.boundary.sourceId&&!statement.rowIds.includes(baseline.boundary.sourceId))throw new Error('Backfill harus memuat anchor baseline lama agar kesinambungan bukti dapat diperiksa. Unggah file dengan periode tumpang tindih; celah histori tidak ditebak.');
-    if(baselineApproved&&baseline?.boundary.kind!=='before-source')throw new Error('Baseline lama belum memiliki anchor sumber untuk backfill yang dapat dibuktikan.');
+    if(!decision.rebase)throw new Error('Pelengkapan ini mengubah titik awal saldo dompet. Centang dulu persetujuan memakai titik awal saldo dari file ini.');
+    if(baselineApproved&&baseline?.boundary.sourceId&&!statement.rowIds.includes(baseline.boundary.sourceId))throw new Error('File untuk melengkapi mutasi lama harus memuat mutasi yang sekarang menjadi titik awal saldo, supaya sambungannya bisa diperiksa. Unggah file dengan periode tumpang tindih; celah histori tidak ditebak.');
+    if(baselineApproved&&baseline?.boundary.kind!=='before-source')throw new Error('Titik awal saldo yang sekarang tidak berasal dari mutasi bank, jadi mutasi yang lebih lama belum bisa disambungkan dengan bukti.');
     const dates=createPostingDateIndex(m);
     if(next.state.entries.some(entry=>entryPostings(entry,dates).some(p=>p.walletId===wallet.id&&(p.date===null||p.date<first.postedOn))))throw new Error('Ada posting sebelum batas baru atau tanpa tanggal. Rebase tidak boleh menghitung ulang saldo awal secara diam-diam.');
     const opening=BigInt(first.balanceAfter)-BigInt(first.signedAmount);
@@ -113,9 +113,9 @@ export function prepareStatementCompletion(data: SourceDocument,statementId: str
     const fact=facts.get(sourceId)!;const disposition=dispositions.get(sourceId);
     if(disposition?.kind==='deleted'||disposition?.kind==='excluded'&&!decision.includeExcluded)continue;
     if(m.deletedTransfers?.some(row=>refs(row.link??{}).includes(sourceId)))continue;
-    if(aliases.has(fact.fingerprint))throw new Error('Fingerprint legacy atau sumber lain sudah memakai mutasi ini. Tinjau asosiasinya melalui impor ulang sebelum pelengkapan.');
+    if(aliases.has(fact.fingerprint))throw new Error('Catatan impor lama atau file lain sudah memakai mutasi ini. Tinjau lewat impor ulang sebelum pelengkapan.');
     if(manual.has(`${fact.walletId}:${fact.postedOn}:${fact.signedAmount}`)||manual.has(`${fact.walletId}:?:${fact.signedAmount}`))throw new Error('Ada kandidat catatan manual pada tanggal dan nominal sumber yang sama, atau transfer dengan tanggal sisi terkait belum diketahui. Tinjau impor ulang dan pilih transaksi berbeda secara eksplisit bila ini mutasi lain; asosiasi tidak ditebak.');
-    if(fact.postedOn<baseline!.boundary.date)throw new Error('Sumber sebelum batas saldo awal memerlukan backfill eksplisit.');
+    if(fact.postedOn<baseline!.boundary.date)throw new Error('Mutasi sebelum titik awal saldo harus masuk lewat pelengkapan mutasi lama, bukan ditambahkan langsung.');
     let id=`complete:${sourceId}`;for(let suffix=1;ids.has(id);suffix++)id=`complete:${sourceId}:${suffix}`;
     const saved=annotations.get(sourceId),chosen=saved?.confirmedType??'unreviewed';
     const type=chosen==='income'&&fact.signedAmount<0||chosen==='expense'&&fact.signedAmount>0?'unreviewed':chosen;

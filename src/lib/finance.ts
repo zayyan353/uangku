@@ -2,6 +2,7 @@ import { actualBalanceProblem, ActualBalanceUnavailableError, createPostingDateI
 export * from './transferPostings';
 import { formatMinorMoney } from './moneyFormatting';
 import { currencyDigits, currencyScale, isCurrencyCode, isCurrencyConversionConsistent, type Currency } from './currencyCatalog';
+import { deviceDay } from './today';
 export { CURRENCY_CATALOG, LEGACY_CURRENCY_CODES, currencyInfo, currencyDigits, currencyScale, isCurrencyCode, convertMinorCurrency, deriveCurrencyRate, isCurrencyConversionConsistent } from './currencyCatalog';
 export type { Currency } from './currencyCatalog';
 
@@ -323,9 +324,7 @@ export function assertPostingMonthTotals(state: State, context?: PostingContext)
 
 /** Deliberately fictional data. No uploaded statement or personal information. */
 export function buildDemoState(today = new Date()): State {
-  const local = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit',
-  }).format(today);
+  const local = deviceDay(today);
   const month = local.slice(0, 7);
   const currentDay = Number(local.slice(8, 10));
   const dateOn = (day: number) => `${month}-${String(Math.min(day, currentDay)).padStart(2, '0')}`;

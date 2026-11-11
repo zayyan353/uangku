@@ -49,7 +49,7 @@ def raw_token(page):
 
 def source_only(page):
     page.get_by_text('Opsi lain', exact=True).click()
-    page.get_by_role('button', name='Simpan fakta file saja', exact=True).click()
+    page.get_by_role('button', name='Simpan isi file saja', exact=True).click()
     expect(page.get_by_role('heading', name='Periksa sebelum disimpan', exact=True)).to_have_count(0)
     expect(page.get_by_test_id('save-status')).to_contain_text('Tersimpan di browser')
 
@@ -109,11 +109,11 @@ def overlapping_backfill(browser, out: Path):
         card.get_by_label(re.compile('^Alasan pelengkapan ')).fill('Adopt earlier witnessed boundary and preserve unrelated manual flow')
         before_preview = raw_token(page)
         card.get_by_role('button', name='Pratinjau pelengkapan', exact=True).click()
-        expect(card.get_by_role('alert')).to_contain_text('rebase')
+        expect(card.get_by_role('alert')).to_contain_text('titik awal saldo')
         assert raw_token(page) == before_preview
         assert card.get_by_role('button', name='Lengkapi dan simpan', exact=True).count() == 0
 
-        card.get_by_role('checkbox', name=re.compile('^Saya menyetujui batas saldo awal')).check()
+        card.get_by_role('checkbox', name=re.compile('^Saya menyetujui titik awal saldo')).check()
         card.get_by_role('button', name='Pratinjau pelengkapan', exact=True).click()
         expect(card.get_by_role('button', name='Lengkapi dan simpan', exact=True)).to_be_visible()
         expect(card).to_contain_text('2 transaksi akan ditambahkan')
@@ -168,10 +168,10 @@ def no_overlap_backfill_refused(browser, out: Path):
         assert captured['metadata']['facts'][0] == initial['metadata']['facts'][0]
         card = newest_card(page)
         card.get_by_label(re.compile('^Alasan pelengkapan ')).fill('Attempt unsafe backfill without the existing anchor')
-        card.get_by_role('checkbox', name=re.compile('^Saya menyetujui batas saldo awal')).check()
+        card.get_by_role('checkbox', name=re.compile('^Saya menyetujui titik awal saldo')).check()
         before_preview = raw_token(page)
         card.get_by_role('button', name='Pratinjau pelengkapan', exact=True).click()
-        expect(card.get_by_role('alert')).to_contain_text('anchor baseline lama')
+        expect(card.get_by_role('alert')).to_contain_text('tumpang tindih')
         assert card.get_by_role('button', name='Lengkapi dan simpan', exact=True).count() == 0
         assert raw_token(page) == before_preview
         assert stored_document(page) == captured
