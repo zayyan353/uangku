@@ -1809,3 +1809,20 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 .money-echo { display: block; margin-top: 4px; font-variant-numeric: tabular-nums; }
 .date-echo { font-variant-numeric: tabular-nums; }
 .date-shortcuts .date-echo { margin-right: auto; }
+
+/* Kerangka 4.2.5 / 4.2.6 (tinjauan ulang): isi kartu file dan daftar transfer yang dihapus */
+.statement-card-body p { font-size: 14px; line-height: 1.7; margin: 0 0 10px; }
+.statement-card-body .button { margin-top: 6px; }
+.completion-preview { display: block; margin-top: 12px; }
+.completion-preview > strong { display: block; margin-bottom: 4px; }
+.deleted-transfers { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.deleted-transfers h3 { margin: 0 0 6px; font-size: 15px; font-weight: 650; }
+.deleted-transfer-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.deleted-transfer-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+.deleted-transfer-copy { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.deleted-transfer-copy strong { font-size: 14px; }
+@media (max-width: 640px) { .deleted-transfer-list .button, .statement-card-body .button { width: 100%; } }
+/* Kerangka 5.3.3 (tinjauan ulang): tombol pemulihan rata dan penuh di HP */
+.notice.save-problem > strong, .notice.save-problem > span { flex: 1 1 100%; }
+.save-problem-actions { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+@media (max-width: 640px) { .save-problem-actions .button { flex: 1 1 100%; } }

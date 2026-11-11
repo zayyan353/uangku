@@ -187,14 +187,14 @@ export default function App() {
     try {
       const checked = prepareBackup({ ...data, state: next }).data;
       const ok = await persistCandidate(checked, { expectedData: data, expectedToken });
-      if (!ok) notifyError('Perubahan belum tersimpan. Periksa status penyimpanan dan unduh pekerjaan bila diperlukan.');
+      if (!ok) notifyError('Perubahan belum tersimpan. Pilihan unduh dan coba simpan lagi ada di kotak merah di bagian atas halaman.');
       return ok;
     } catch (reason) { notifyError(reason instanceof Error ? reason.message : 'Perubahan belum bisa disimpan.'); return false; }
   };
   async function saveDocument(next: StoredData, expectedToken = ledger.revisionToken): Promise<boolean> {
     try {
       const ok = await persistCandidate(next, { expectedData: data, expectedToken });
-      if (!ok) notifyError('Perubahan belum tersimpan. Periksa status penyimpanan dan unduh pekerjaan bila diperlukan.');
+      if (!ok) notifyError('Perubahan belum tersimpan. Pilihan unduh dan coba simpan lagi ada di kotak merah di bagian atas halaman.');
       return ok;
     } catch (error) { notifyError(error instanceof Error ? error.message : 'Perubahan belum dapat disimpan.'); return false; }
   }
@@ -671,9 +671,9 @@ export default function App() {
       <div className="page-content"><div className="page-header"><div>{page === 'overview' && <div className="eyebrow">SEDIKIT DICATAT, BANYAK TERBANTU</div>}<h1 className="page-title">{titles[page][0]} {page === 'overview' && <span className="greeting-leaf">✳</span>}</h1><p className="page-subtitle">{titles[page][1]}</p></div><div className="page-actions">{page === 'wallets' ? <button className="button primary" onClick={() => openWallet('new')}><Plus size={18} /> Tambah dompet</button> : page === 'import' ? <><button className="button ghost small import-setting" onClick={openCurrencyManager}>Kelola mata uang</button><button className="button ghost small import-setting" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></> : <><button className="button secondary" onClick={() => openTx('transfer')}><ArrowLeftRight size={17} /> Pindah uang</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></>}</div></div>
       {activeState.wallets.some(wallet => undatedWallets.has(wallet.id)) && <div className="notice warning">Ada tanggal posting yang belum diketahui. Saldo aktual dan laporan periode terkait belum dapat dianggap lengkap; nilai tersebut tetap ada pada saldo seluruh catatan.</div>}
       {(ledger.dirty || storageError || blocked) && <div className={`notice save-problem ${ledger.dirty || storageError ? 'error' : ''}`} role="status" data-testid="save-status"><strong>{ledger.label}</strong>{storageError && <span>{storageError}</span>}
-        {(ledger.dirty || blocked) && <><button className="button secondary small" onClick={() => backupCurrent(true)}>Unduh pekerjaan yang belum tersimpan</button>
+        {(ledger.dirty || blocked) && <div className="save-problem-actions"><button className="button secondary small" onClick={() => backupCurrent(true)}>Unduh pekerjaan yang belum tersimpan</button>
           <button className="button secondary small" disabled={ledger.pending || !ledger.supported || !ledger.dirty} onClick={() => void retryDraft()}>Coba simpan lagi</button>
-          <button className="button secondary small" disabled={ledger.pending} onClick={() => setConfirm({ title: 'Muat catatan terbaru?', text: ledger.dirty ? 'Unduh pekerjaan lokal terlebih dahulu jika masih diperlukan. Setelah dikonfirmasi, tampilan diganti dengan data browser terbaru.' : 'Uangku akan mencoba membaca kembali catatan di penyimpanan browser.', label: 'Muat catatan terbaru', danger: ledger.dirty, action: () => { if (ledger.reloadLatest()) { setTxModal(null); setWalletModal(null); } } })}>Muat catatan terbaru</button></>}
+          <button className="button secondary small" disabled={ledger.pending} onClick={() => setConfirm({ title: 'Muat catatan terbaru?', text: ledger.dirty ? 'Unduh pekerjaan lokal terlebih dahulu jika masih diperlukan. Setelah dikonfirmasi, tampilan diganti dengan data browser terbaru.' : 'Uangku akan mencoba membaca kembali catatan di penyimpanan browser.', label: 'Muat catatan terbaru', danger: ledger.dirty, action: () => { if (ledger.reloadLatest()) { setTxModal(null); setWalletModal(null); } } })}>Muat catatan terbaru</button></div>}
       </div>}
       {!phoneOverview && banners}
       {page !== 'import' && !isReviewQueue && <div className="currency-toolbar"><div className="currency-tabs tab-group" role="group" aria-label="Mata uang">{shownCurrencyTabs.map(c => <button key={c.code} className={`currency-tab ${currency === c.code ? 'active' : ''}`} onClick={() => setCurrency(c.code)} aria-label={`${c.code === 'TRY' ? 'TL' : c.code} ${c.label}`} aria-pressed={currency === c.code}>{currencyFlag(c.code) && <span className="currency-flag" aria-hidden="true">{currencyFlag(c.code)}</span>}<span className="currency-code">{c.code === 'TRY' ? 'TL' : c.code}</span><span className="currency-label">{c.label}{!visibleCurrencies.includes(c.code) ? ' · riwayat' : ''}</span></button>)}</div>{!phoneOverview && currencyManageButton}{!phoneOverview && monthControl}</div>}

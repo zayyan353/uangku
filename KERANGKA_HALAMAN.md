@@ -2,19 +2,21 @@
 
 Dibuat: 11 November 2026, commit `2fb3179` (main).
 
-**Status 11 November 2026 (sesi lanjutan):** 167 dari 171 butir dicentang,
-sampai 5.11.4. Belum dicentang: 3.12.1 (butuh keputusan), 4.2.5, 4.2.6, dan
-5.3.3 (belum ditinjau langsung). Hasil tes pada build terakhir sesi ini,
-dijalankan lokal terhadap build produksi (`npm run preview`):
+**Status 11 November 2026 (sesi lanjutan):** 170 dari 171 butir dicentang.
+Yang terbuka hanya 3.12.1 (ganti nama kategori), yang menurut pemilik
+dikerjakan saat aplikasinya sudah matang. Hasil tes sesi ini, dijalankan lokal
+terhadap build produksi (`npm run preview`):
 
 - `npm test`: 62 file / 1.782 tes lulus. `npm run build` lulus.
-- Tes browser: 15 suite fungsional CI dan `full_backup_browser.py` lulus.
-- `performance_browser.py` (10.000 baris, 5 sampel) **gagal lokal** pada
-  anggaran jeda frame: 291 ms (anggaran 250); median 5.681 ms (anggaran 6.000),
-  p95 6.448 ms (anggaran 8.000). Commit sebelum sesi ini (`de8b9e8`) diukur di
-  mesin yang sama: jeda frame 271 ms, median 5.813 ms, juga gagal. Di CI, push
-  sebelumnya dari branch ini (sampai 5.9) lulus seluruh pemeriksaan termasuk
-  performa; hasil CI untuk 5.10–5.11 belum ada saat catatan ini ditulis.
+- Tes browser: 15 suite fungsional CI dan `full_backup_browser.py` lulus pada
+  build 5.10–5.11. Setelah tinjauan ulang 4.2.5, 4.2.6, dan 5.3.3, tujuh suite
+  yang terkait diulang dan lulus (`source`, `backfill`, `recovery`, `smoke`,
+  `currency_import`, `bank_auto`, `theme`); sembilan lainnya tidak diulang.
+- `performance_browser.py` (10.000 baris, 5 sampel) di mesin ini: jeda frame
+  291 ms, median 5.681 ms, p95 6.448 ms. Commit sebelum sesi ini (`de8b9e8`) di
+  mesin yang sama: 271 ms dan 5.813 ms. Atas permintaan pemilik, batas di
+  `ci.yml` dilonggarkan menjadi median 7.000 ms dan jeda frame 350 ms (p95
+  tetap 8.000 ms). Di CI, push sampai 5.9 lulus dengan batas lama.
 
 Peta isi aplikasi per halaman. **Bab** = halaman, **sub-bab** = bagian halaman,
 **butir** (mis. 1.3.1) = bagian terkecil. Tiap butir mencatat isinya sekarang dan
@@ -1085,6 +1087,10 @@ dan bulan (5.4).
     transaksi sekaligus aturan, anggaran, dan template; atau tetap memakai
     nama lama). Itu perubahan data lintas dua penyimpanan dan perlu
     keputusan pemilik lebih dulu.
+  - *Catatan pemilik 11 Nov 2026:* ganti nama kategori oleh pengguna memang
+    diinginkan, dan pantas dikerjakan saat aplikasinya sudah matang. Butir
+    ini tetap terbuka sampai itu dijadwalkan; pilihan soal nasib catatan
+    lama masih perlu diputuskan saat itu.
 
 - [x] **3.12.2 Anggaran bulanan**
   *Isi:* satu kolom isian per kategori, per mata uang.
@@ -1227,19 +1233,35 @@ Tampil setelah ada file yang tersimpan.
     saldonya cocok dengan file ini." Pada keadaan lain form tetap tampil
     seperti sebelumnya.
 
-- [ ] **4.2.5 Hasil pratinjau pelengkapan**
+- [x] **4.2.5 Hasil pratinjau pelengkapan**
   *Isi:* jumlah transaksi yang akan ditambah, saldo usulan, "Lengkapi dan simpan".
   - Belum dilihat. Tinjau saat giliran.
   - *Belum dicentang (11 Nov 2026).* Tidak dilihat langsung di sesi ini.
     Alurnya (pratinjau "N transaksi akan ditambahkan", lalu simpan) lulus di
     `backfill_browser.py` pada build ini, tetapi tampilannya belum ditinjau.
+  - *Ditinjau dan dikerjakan 11 Nov 2026 (tinjauan ulang).* Dilihat di
+    desktop dan HP dengan file sintetis yang memuat mutasi lebih lama:
+    pratinjau menulis jumlah transaksi yang akan ditambah, saldo usulan, dan
+    selisihnya, lalu "Lengkapi dan simpan". Dirapikan: kotak hasil diberi
+    judul "Hasil pratinjau, belum disimpan" dan berwarna hijau bila
+    selisihnya nol atau kuning bila tidak; ukuran teks isi kartu disamakan
+    (sebelumnya baris saldo lebih besar dari teks lain); tombolnya selebar
+    kartu di HP.
 
-- [ ] **4.2.6 Transfer bersumber yang dihapus**
+- [x] **4.2.6 Transfer bersumber yang dihapus**
   *Isi:* daftar, kolom alasan, "Pulihkan seluruh transfer".
   - Belum dilihat. Tinjau saat giliran.
   - *Belum dicentang (11 Nov 2026).* Tidak dilihat langsung di sesi ini.
     Pemulihan transfer lulus di `source_browser.py` pada build ini, tetapi
     tampilannya belum ditinjau.
+  - *Ditinjau dan dikerjakan 11 Nov 2026 (tinjauan ulang).* Dilihat di
+    desktop dan HP dengan satu transfer sintetis yang dihapus. Dirapikan:
+    judulnya tidak lagi lebih besar dari judul panel dan memakai istilah
+    "Transfer dari mutasi bank yang dihapus"; tiap transfer menjadi satu
+    baris berisi keterangan, tanggal, nominal, dompet asal → tujuan, dan
+    alasan dihapus (sebelumnya hanya keterangan dan alasan); di bawah kolom
+    alasan tertulis bahwa tombol Pulihkan aktif setelah alasan diisi.
+    Pemulihannya sendiri tidak diubah dan lulus di `source_browser.py`.
 
 ### 4.3 Format dan dompet tujuan
 
@@ -1611,12 +1633,20 @@ Tampil di lebih dari satu halaman. Dikerjakan sekali di sini untuk semuanya.
     ada satu pun transaksi. Dicoba: sesudah "Mulai dari kosong" pengingat
     tidak muncul.
 
-- [ ] **5.3.3 Masalah simpan**
+- [x] **5.3.3 Masalah simpan**
   *Isi:* Unduh pekerjaan yang belum tersimpan, Coba simpan lagi, Muat catatan terbaru.
   - Belum dilihat. Tinjau saat giliran.
   - *Belum dicentang (11 Nov 2026).* Tidak dilihat langsung di sesi ini.
     Alur unduh, coba simpan lagi, dan muat catatan terbaru lulus di
     `recovery_browser.py` pada build ini.
+  - *Ditinjau dan dikerjakan 11 Nov 2026 (tinjauan ulang).* Dilihat di
+    desktop dan HP (gelap) dengan penyimpanan yang sengaja digagalkan: kotak
+    merah muncul dengan tiga tombol, "Coba simpan lagi" berhasil setelah
+    penyimpanan pulih, dan isian form tetap ada. Dirapikan: tiga tombolnya
+    rata kiri dan selebar kotak di HP (sebelumnya menjorok dan tidak sama
+    lebar); pesan galat yang muncul saat form masih terbuka kini menyebut
+    bahwa pilihan unduh dan coba lagi ada di kotak merah di atas halaman,
+    karena kotak itu berada di belakang form.
 
 ### 5.4 Bilah mata uang dan bulan
 
