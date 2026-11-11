@@ -126,3 +126,13 @@ describe('read-only transaction history', () => {
     expect(queryHistory(index, query({ period: 'all' }))).toHaveLength(1);
   });
 });
+
+describe('previousMonth', () => {
+  it('steps back one month and across a year', async () => {
+    const { previousMonth } = await import('./historyView');
+    expect(previousMonth('2026-11')).toBe('2026-10');
+    expect(previousMonth('2026-01')).toBe('2025-12');
+    expect(previousMonth('2026-13')).toBeNull();
+    expect(previousMonth('Nov 2026')).toBeNull();
+  });
+});

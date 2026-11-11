@@ -19,6 +19,8 @@ interface Props {
   /** Shown in place of the two calculation panels while the ledger has no entries at all. */
   startGuide?: ReactNode;
   /** Phone layout: the month field sits with scope and period, and banners follow the cards. */
+  /** Last month's full totals for the same scope; absent when that month has no flow. */
+  previous?: { label: string; inflow: number; outflow: number };
   monthControl?: ReactNode;
   afterCards?: ReactNode;
 }
@@ -66,7 +68,7 @@ export function CashflowBalance({ report, currency, month, period, scope, mobile
   </section>;
 }
 
-export default function CashflowOverview({ report, error, currency, month, period, walletId, wallets, archivedWalletIds, onPeriodChange, onWalletChange, balanceCard, startGuide, monthControl, afterCards }: Props) {
+export default function CashflowOverview({ report, error, currency, month, period, walletId, wallets, archivedWalletIds, onPeriodChange, onWalletChange, balanceCard, startGuide, monthControl, afterCards, previous }: Props) {
   const warning = error || report?.balanceWarning || (report?.notStarted ? 'Periode belum dimulai. Transaksi bertanggal masa depan tidak masuk arus rekening aktual.' : '');
   const amount = (value: number | null | undefined, id?: string) => <span data-testid={id ? `cashflow-${id}` : undefined} data-amount={value ?? undefined}>{value === null || value === undefined ? '—' : formatMoney(value, currency)}</span>;
   /** A breakdown cell; an empty side reads as a dash so the filled amounts stand out. */
@@ -101,7 +103,7 @@ export default function CashflowOverview({ report, error, currency, month, perio
     {warning && <div className="notice warning" data-testid="cashflow-warning" role="status">{warning}</div>}
     <div className="overview-grid">
       {balanceCard}
-      <div className="stats-stack"><section className="stat-card"><span className="stat-icon income"><ArrowDownLeft size={22} /></span><div><span className="stat-label">Uang masuk rekening</span><strong className="stat-value">{amount(report?.inflow, 'inflow')}</strong><span className="stat-foot">Termasuk transfer masuk dan catatan belum dikategorikan</span></div></section><section className="stat-card"><span className="stat-icon expense"><ArrowUpRight size={22} /></span><div><span className="stat-label">Uang keluar rekening</span><strong className="stat-value">{amount(report?.outflow, 'outflow')}</strong><span className="stat-foot">Termasuk transfer keluar, tarik tunai, dan biaya</span></div></section></div>
+      <div className="stats-stack"><section className="stat-card"><span className="stat-icon income"><ArrowDownLeft size={22} /></span><div><span className="stat-label">Uang masuk rekening</span><strong className="stat-value">{amount(report?.inflow, 'inflow')}</strong><span className="stat-foot">Termasuk transfer masuk dan catatan belum dikategorikan</span>{previous && <span className="stat-compare" data-testid="cashflow-previous-inflow" data-amount={previous.inflow}>{previous.label}: {formatMoney(previous.inflow, currency)}</span>}</div></section><section className="stat-card"><span className="stat-icon expense"><ArrowUpRight size={22} /></span><div><span className="stat-label">Uang keluar rekening</span><strong className="stat-value">{amount(report?.outflow, 'outflow')}</strong><span className="stat-foot">Termasuk transfer keluar, tarik tunai, dan biaya</span>{previous && <span className="stat-compare" data-testid="cashflow-previous-outflow" data-amount={previous.outflow}>{previous.label}: {formatMoney(previous.outflow, currency)}</span>}</div></section></div>
     </div>
     {afterCards}
     {startGuide ?? <>

@@ -367,6 +367,11 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .wallet-icon.small { width: 31px; height: 31px; border-radius: 10px; }
 .category-heading-icon { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: #f4f6ed; color: #52634f; }
 .category-more { align-self: flex-start; }
+button.category-open { border: 0; background: none; padding: 0; font-family: inherit; cursor: pointer; border-radius: 6px; position: relative; text-align: left; min-width: 0; }
+button.category-open::after { content: ""; position: absolute; inset: -12px -6px; }
+button.category-open > svg { flex: none; opacity: .55; }
+button.category-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (hover: hover) { button.category-open:hover { text-decoration: underline; text-underline-offset: 3px; } }
 /* Start guide on an empty ledger. */
 .start-guide { margin-bottom: 28px; }
 .start-steps { list-style: none; counter-reset: start-step; margin: 0; padding: 0; display: grid; gap: 10px; }
@@ -1203,6 +1208,7 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-overview .notice { margin: 0 0 18px; overflow-wrap: anywhere; }
 .cashflow-overview .balance-meta { line-height: 1.6; }
 .cashflow-overview .stat-foot { white-space: normal; line-height: 1.65; }
+.stat-compare { display: block; grid-column: 1 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.5; color: var(--text-muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
 /* Wider than a phone the icon sits beside its label, so the cards are not taller than the balance card. */
 @media (min-width: 761px) {
   .cashflow-overview .stat-card { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 11px; align-content: start; align-items: center; }

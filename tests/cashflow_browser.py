@@ -228,11 +228,17 @@ def transfer_dominant(case):
 
 
 def period_cutoff(case):
+    previous = [case.page.get_by_test_id('cashflow-previous-inflow'), case.page.get_by_test_id('cashflow-previous-outflow')]
     case.totals(7_000, 3_100, 10_700, 14_850, 250)
+    # October is compared with September's totals for the same scope.
+    expect(previous[0]).to_have_attribute('data-amount', '1000'); expect(previous[0]).to_contain_text('September 2026')
+    expect(previous[1]).to_have_attribute('data-amount', '300')
     case.period('all')
     case.totals(8_000, 3_400, 10_000, 14_850, 250)
+    expect(previous[0]).to_have_count(0)
     case.period('month'); case.month('2026-09')
     case.totals(1_000, 300, 10_000, 10_700)
+    expect(previous[0]).to_have_count(0); expect(previous[1]).to_have_count(0)  # August has no flow
     case.month('2026-10')
     case.totals(7_000, 3_100, 10_700, 14_850, 250)
 

@@ -104,3 +104,11 @@ export function monthLabel(month: string): string {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return month;
   return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
 }
+
+/** The month before a `YYYY-MM` month, or null for text that is not a month. */
+export function previousMonth(month: string): string | null {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);
+  if (!match) return null;
+  const year = Number(match[1]), index = Number(match[2]);
+  return index === 1 ? `${String(year - 1).padStart(4, '0')}-12` : `${match[1]}-${String(index - 1).padStart(2, '0')}`;
+}
