@@ -427,72 +427,109 @@ Bagian bersama yang ikut tampil: bar atas (5.2), banner (5.3), tab mata uang (5.
 
 ### 2.1 Kepala halaman
 
-- [ ] **2.1.1 Judul**
+- [x] **2.1.1 Judul**
   *Isi:* "Semua dompetmu." / "Rekening dan e-wallet. Cash tidak dibukukan."
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Judul dan subjudul dilihat
+    di desktop dan HP, terang dan gelap.
 
-- [ ] **2.1.2 Tombol Tambah dompet**
+- [x] **2.1.2 Tombol Tambah dompet**
   *Isi:* tombol utama di kepala halaman.
   - Di HP ada dua pintu yang sama dalam satu layar: tombol selebar layar di
     atas dan kartu putus-putus besar di bawah daftar (2.3.4). Cukup satu.
+  - *Dikerjakan 11 Nov 2026.* Di HP kartu putus-putus "Tambah dompet"
+    disembunyikan; tombol di kepala halaman jadi satu-satunya pintu. Desktop
+    tetap menampilkan keduanya.
 
 ### 2.2 Pengantar daftar
 
-- [ ] **2.2.1 Pemberitahuan arsip cash lama**
+- [x] **2.2.1 Pemberitahuan arsip cash lama**
   *Isi:* tampil bila masih ada dompet cash lama; tombol "Lihat arsip cash lama" (→ 2.6).
   - Belum dilihat. Tinjau saat giliran.
+  - *Dibaca dari kode saja 11 Nov 2026, tanpa perubahan.* Pemberitahuan arsip
+    cash lama butuh data dompet cash lama, yang tidak ada di data contoh;
+    belum dilihat di browser.
 
-- [ ] **2.2.2 Tab Aktif / Arsip**
+- [x] **2.2.2 Tab Aktif / Arsip**
   *Isi:* dua tab dengan jumlah dompet.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Tab Aktif/Arsip dicoba di
+    desktop dan HP; jumlah dompet ikut berubah sesudah satu dompet diarsipkan.
 
-- [ ] **2.2.3 Judul bagian dan total**
+- [x] **2.2.3 Judul bagian dan total**
   *Isi:* "Dompet Rupiah · Aktif", "2 dompet · saldo aktual 11 Nov 2026: Rp …", lencana "IDR".
   - Total saldo adalah angka terpenting halaman ini tetapi ditulis sebagai
     teks kecil. Besarkan.
   - Lencana "IDR" mengulang tab mata uang (sejenis MW-52).
+  - *Dikerjakan 11 Nov 2026.* Total saldo kini angka besar di kanan judul
+    bagian dengan label "Saldo aktual 11 Nov 2026"; jumlah dompet tetap di
+    bawah judul. Lencana "IDR" dibuang.
 
-- [ ] **2.2.4 Catatan aturan dompet**
+- [x] **2.2.4 Catatan aturan dompet**
   *Isi:* kotak "Satu dompet untuk satu mata uang…" di bawah daftar.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Kotak aturan dompet dilihat
+    di desktop dan HP, terang dan gelap.
 
 ### 2.3 Kartu dompet aktif
 
-- [ ] **2.3.1 Kepala kartu**
+- [x] **2.3.1 Kepala kartu**
   *Isi:* ikon (bank, atau huruf awal untuk e-wallet), nama, jenis, tombol "⋯".
   - Tombol "⋯" langsung membuka form Atur dompet, bukan menu. Pakai ikon/label
     yang sesuai ("Atur"), atau jadikan menu sungguhan (Atur, Riwayat, Arsipkan).
   - `--wallet-color` dipasang per mata uang tetapi tidak dipakai CSS (sudah
     dicatat di MW-69). Putuskan dipakai atau dibuang.
+  - *Dikerjakan 11 Nov 2026.* Tombol "⋯" diganti tombol beriikon dan
+    bertulisan "Atur" (nama untuk pembaca layar tetap "Atur dompet …", jadi
+    tes tidak berubah). `--wallet-color` yang tidak dipakai CSS dibuang.
 
-- [ ] **2.3.2 Saldo aktual**
+- [x] **2.3.2 Saldo aktual**
   *Isi:* label bertanggal dan angka besar.
   - **[cek]** Bila tanggal posting kosong, tempat angka besar diisi kalimat
     panjang ("Belum pasti: tanggal posting belum diketahui"). Pastikan tidak
     meluber dan beri gaya teks biasa.
+  - *Dikerjakan 11 Nov 2026.* Dugaan **[cek]** benar dari kode: kalimat
+    pengganti saldo memakai gaya angka besar. Sekarang kalimat tanpa angka
+    diberi gaya teks biasa (14px), juga pada total halaman. Keadaan tanggal
+    posting kosong sendiri belum dilihat di browser (butuh data legacy).
 
-- [ ] **2.3.3 Aksi kartu**
+- [x] **2.3.3 Aksi kartu**
   *Isi:* "Catat" (form pengeluaran untuk dompet itu) dan "Cek saldo" (→ 3.9.2).
   - Kartu aktif tidak punya jalan ke riwayatnya; "Lihat histori" hanya ada di
     kartu arsip. Tambah "Riwayat" (fungsi `openHistory` sudah ada).
+  - *Dikerjakan 11 Nov 2026.* Kartu aktif mendapat tautan "Riwayat" yang
+    membuka Transaksi untuk dompet itu, semua periode. Dicoba dengan keyboard
+    di desktop dan HP; belum punya tes otomatis.
 
-- [ ] **2.3.4 Kartu "Tambah dompet"**
+- [x] **2.3.4 Kartu "Tambah dompet"**
   *Isi:* kartu putus-putus di akhir daftar.
   - → 2.1.2.
+  - *Dikerjakan 11 Nov 2026.* Dikerjakan di 2.1.2.
 
 ### 2.4 Tampilan arsip
 
 Belum dilihat di tangkapan layar (butuh dompet arsip). Ketiga butir ditinjau
 saat gilirannya.
 
-- [ ] **2.4.1 Pemberitahuan arsip**
+*Bab 2.1–2.4 dikerjakan dalam satu commit pada 11 Nov 2026. Tes pada build itu: `npm test` 1.760 lulus, `wallet_browser.py` 19/19, `currency_import_browser.py` 28/28, `bank_auto_browser.py` 18/18, `theme_browser.py` 21/21, smoke 39 skenario, recovery 16/16, ux lulus.*
+
+- [x] **2.4.1 Pemberitahuan arsip**
   *Isi:* "Dompet arsip tetap masuk saldo dan laporan…".
+  - *Dikerjakan 11 Nov 2026.* Dilihat dengan satu dompet diarsipkan.
+    Pemberitahuan arsip kini hanya tampil bila ada dompet arsip; sebelumnya
+    tampil juga di arsip yang kosong.
 
-- [ ] **2.4.2 Kartu dompet arsip**
+- [x] **2.4.2 Kartu dompet arsip**
   *Isi:* "Lihat histori" dan "Pulihkan dompet" (dengan konfirmasi).
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Kartu arsip, "Lihat
+    histori", dan "Pulihkan dompet" dilihat di desktop dan HP, terang dan
+    gelap; fokus keyboard terlihat. Konfirmasi pemulihan dicakup
+    `wallet_browser.py`.
 
-- [ ] **2.4.3 Keadaan kosong**
+- [x] **2.4.3 Keadaan kosong**
   *Isi:* "Belum ada dompet arsip IDR."
+  - *Dikerjakan 11 Nov 2026.* Arsip kosong kini hanya menampilkan pesan "Belum
+    ada dompet arsip IDR.", tanpa total "Rp 0" dan tanpa pemberitahuan.
 
 ### 2.5 Form dompet (Tambah dompet / Atur dompet)
 

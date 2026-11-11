@@ -1509,3 +1509,14 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
   .cashflow-period-row .date-pill input { width: 118px; max-width: 118px; }
   .cashflow-period-row .button { padding-left: 10px; padding-right: 10px; }
 }
+
+/* Bab 2: halaman Dompet. */
+.wallet-total { margin: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; min-width: 0; }
+.wallet-total span { font-size: 12px; color: var(--text-muted); }
+.wallet-total strong { font-size: 24px; font-weight: 640; letter-spacing: -.6px; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.wallet-total strong.wallet-total-note, .wallet-card-balance.wallet-card-balance-note { font-size: 14px; font-weight: 500; letter-spacing: 0; line-height: 1.5; color: var(--text-muted); }
+.wallet-card-top .wallet-edit { margin-left: auto; flex: none; }
+@media (max-width: 760px) {
+  .wallet-total strong { font-size: 21px; }
+  .add-wallet-card { display: none; }
+}
