@@ -53,10 +53,9 @@ import type { CategorySettings } from './lib/categorySettings';
 import { applyBankDecisions, type BankCategoryAssignment as CategoryAssignment } from './lib/bankDecisions';
 import { activeAccountState, isCashLinkedEntry, removeUnusedCashWallets } from './lib/cashScope';
 import CashArchive from './components/CashArchive';
-import { createBankEntryPresentationLookup } from './lib/bankEntryHints';
+import { createBankEntryPresentationLookup, createBankEntryTitleLookup } from './lib/bankEntryHints';
 import { reviewCounts, type ReviewReason } from './lib/reviewStatus';
 import { categoryColorIndex } from './lib/dashboardView';
-import { entryCategorySuggestions } from './lib/categorySuggestions';
 import { greeting, nicknameInitial, NICKNAME_KEY, readNickname, sanitizeNickname, writeNickname } from './lib/nickname';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -300,16 +299,21 @@ export default function App() {
   const isReviewQueue = page === 'transactions' && filter === 'pending';
   const validHistoryWallet = activeState.wallets.find(wallet => wallet.id === historyWallet && (filter === 'pending' ? !isWalletArchived(data, wallet.id) : wallet.currency === historyCurrency))?.id;
   useEffect(() => { if (historyWallet !== 'all' && !validHistoryWallet) setHistoryWallet('all'); }, [historyWallet, validHistoryWallet]);
-  const historyTitles = useMemo(() => createBankEntryPresentationLookup(data), [data]);
-  const historyIndex = useMemo(() => createHistoryIndex(activeState, postingContext, entry => historyTitles(entry).title), [activeState, postingContext, historyTitles]);
+  const historyIndex = useMemo(() => createHistoryIndex(activeState, postingContext), [activeState, postingContext]);
   const activityWalletId = page === 'overview' ? dashboardWallet?.id : page === 'transactions' ? validHistoryWallet : undefined;
   const activityPeriod = page === 'overview' ? cashflowPeriod : historyPeriod;
   const activityQuery = page === 'transactions' ? query : '';
+  const searching = !!activityQuery.trim();
+  // Built only once a search is typed; titles are cached, so a save re-derives only the entry that changed.
+  const historyTitles = useMemo(() => searching ? createBankEntryTitleLookup(data) : undefined,
+    // The wording index reads metadata only (as in TransactionTable), so a saved edit does not rebuild it.
+    [data.metadata, searching]);
   const activityType = page === 'transactions' ? filter : 'all';
   const allTransactions = useMemo(() => queryHistory(historyIndex, {
     currency, month, query: activityQuery, type: activityType, period: activityPeriod, walletId: activityWalletId, category: page === 'transactions' && historyCategory !== 'all' ? historyCategory : undefined,
     reviewQueue: isReviewQueue, reviewReason, reviewExcludedWalletIds: archivedWalletIds, reviewExcludedEntryIds: readOnlyEntryIds,
-  }), [historyIndex, currency, month, activityQuery, activityType, activityPeriod, activityWalletId, isReviewQueue, reviewReason, archivedWalletIds, readOnlyEntryIds, page, historyCategory]);
+    shownText: historyTitles,
+  }), [historyTitles, historyIndex, currency, month, activityQuery, activityType, activityPeriod, activityWalletId, isReviewQueue, reviewReason, archivedWalletIds, readOnlyEntryIds, page, historyCategory]);
   // The index hands rows over newest first; the other orders are a copy, the entries themselves are untouched.
   const orderedTransactions = useMemo(() => page !== 'transactions' || historySort === 'newest' ? allTransactions
     : historySort === 'oldest' ? [...allTransactions].reverse()
@@ -394,9 +398,7 @@ export default function App() {
       return ok;
     } catch (error) { notify(error instanceof Error ? error.message : 'Kategori belum tersimpan.'); return false; }
   }
-  // Counted only while the Transaksi page is open; the same list the automation window builds.
-  const automationCount = useMemo(() => page === 'transactions' ? entryCategorySuggestions(data, categoryPreferences.settings).length : 0, [page, data, categoryPreferences.settings]);
-  const categoryTools = <div className="category-toolbar"><button className="button secondary small" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button secondary small" aria-describedby="category-automation-help" disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked || categoryPreferences.recovering} onClick={() => { if (!mutationInFlight.current) setCategoryAutomation({ data, token: ledger.revisionToken }); }}><CheckCheck size={16} /> Isi kategori otomatis</button><span className="field-help" id="category-automation-help" data-testid="category-automation-count" data-count={automationCount}>{automationCount > 0 ? `${automationCount} catatan bisa diisi atau dikonfirmasi · semua periode` : 'Belum ada yang bisa diisi otomatis saat ini · semua periode'}</span>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}</div>;
+  const categoryTools = <div className="category-toolbar"><button className="button secondary small" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button secondary small" aria-describedby="category-automation-help" disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked || categoryPreferences.recovering} onClick={() => { if (!mutationInFlight.current) setCategoryAutomation({ data, token: ledger.revisionToken }); }}><CheckCheck size={16} /> Isi kategori otomatis</button><span className="field-help" id="category-automation-help">Kategori kosong & konfirmasi mutasi bank · semua periode</span>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}</div>;
   const categoryTotals = cashflowResult.report?.categoryTotals ?? [];
   const categoryExpenseTotal = cashflowResult.report?.categoryExpenseTotal ?? 0;
   // Budgets are monthly limits across all wallets, so progress is shown only for that view.

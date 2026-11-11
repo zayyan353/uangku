@@ -157,10 +157,14 @@ describe('history search and category filter', () => {
     expect(ids({ query: 'kopi 35' })).toEqual([]);
   });
   it('searches the title shown on screen as well as the stored note', () => {
-    const index = createHistoryIndex(state, undefined, item => item.id === 'bank' ? 'Toko Buku' : item.note);
-    expect(ids({ query: 'toko buku' }, index)).toEqual(['bank']);
-    expect(ids({ query: 'pos 123 raw' }, index)).toEqual(['bank']);
+    let asked = 0;
+    const shownText = (item: Entry) => { asked += 1; return item.id === 'bank' ? 'Toko Buku' : item.note; };
+    expect(ids({ query: 'toko buku', shownText })).toEqual(['bank']);
+    expect(ids({ query: 'pos 123 raw', shownText })).toEqual(['bank']);
     expect(ids({ query: 'toko buku' })).toEqual([]);
+    asked = 0;
+    expect(ids({ shownText })).toHaveLength(4); // without a search the titles are never asked for
+    expect(asked).toBe(0);
   });
   it('filters by category and never matches transfers', () => {
     expect(ids({ category: 'Makan & minum' })).toEqual(['coffee']);

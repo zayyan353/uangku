@@ -65,3 +65,27 @@ export function createBankEntryPresentationLookup(data: SourceDocument) {
     return { bank, title, description, ...(merchant ? { merchant } : {}), noteIsCustom };
   };
 }
+
+const TITLE_CACHE_LIMIT = 20_000;
+const titleCache = new Map<string, string>();
+/**
+ * On-screen titles for search. Working a title out of the bank's wording is the costly part, so results are kept
+ * by everything the title depends on; an edit to one entry then re-derives that entry only.
+ */
+export function createBankEntryTitleLookup(data: SourceDocument) {
+  const descriptions = indexBankWording(data, '\n\n');
+  const present = createBankEntryPresentationLookup(data);
+  return (entry: Entry): string => {
+    const source = descriptions.get(entry.id);
+    // Without bank wording the title is the stored note, which the search index already holds.
+    if (!source) return '';
+    const key = [entry.type, entrySignedAmount(entry), entryFingerprintVersion(entry, source), entry.note, source.description].join('\u0001');
+    let title = titleCache.get(key);
+    if (title === undefined) {
+      if (titleCache.size >= TITLE_CACHE_LIMIT) titleCache.clear();
+      title = present(entry).title;
+      titleCache.set(key, title);
+    }
+    return title;
+  };
+}

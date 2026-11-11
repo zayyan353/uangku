@@ -14,6 +14,9 @@ export interface HistoryQuery {
   walletId?: string;
   /** Exact category name; "Belum dikategorikan" also matches an empty category. Transfers and adjustments never match. */
   category?: string;
+  /** The title a row shows on screen, which can be derived from the bank's wording instead of the stored note.
+   *  Asked only for rows a search has not matched otherwise, so it costs nothing without a search. */
+  shownText?: (entry: Entry) => string;
   reviewReason?: ReviewReason;
   reviewExcludedWalletIds?: ReadonlySet<string>;
   reviewExcludedEntryIds?: ReadonlySet<string>;
@@ -38,7 +41,7 @@ export interface HistoryIndex {
 }
 
 /** Derived read-only index. An entry is never changed to support a filter or sort. */
-export function createHistoryIndex(state: State, context?: PostingContext, shownText?: (entry: Entry) => string): HistoryIndex {
+export function createHistoryIndex(state: State, context?: PostingContext): HistoryIndex {
   const wallets = new Map(state.wallets.map(wallet => [wallet.id, wallet]));
   const postingIndex = createPostingDateIndex(context);
   const rows = state.entries.map((entry, ordinal) => {
@@ -58,8 +61,7 @@ export function createHistoryIndex(state: State, context?: PostingContext, shown
     for (const id of Object.keys(walletDates)) walletDates[id] = [...new Set(walletDates[id])].sort();
     const allDates = [...new Set(Object.values(dates).flat())].sort();
     return { entry, ordinal, currencies, dates, allDates, undatedCurrencies, walletDates, undatedWalletIds, amounts: [entry.amount, entry.toAmount, entry.fee].flatMap(value => value ? [String(Math.abs(value)).replace(/\D/g, '')] : []),
-      // The title on screen can be derived from the bank's wording, so it is searched along with the stored note.
-      text: `${entry.note} ${shownText?.(entry) ?? ''} ${entry.category} ${source?.name ?? ''} ${destination?.name ?? ''}`.toLocaleLowerCase('id-ID') };
+      text: `${entry.note} ${entry.category} ${source?.name ?? ''} ${destination?.name ?? ''}`.toLocaleLowerCase('id-ID') };
   });
   rows.sort((a, b) => (b.allDates.at(-1) ?? '').localeCompare(a.allDates.at(-1) ?? '') || b.ordinal - a.ordinal);
   const rowsByCurrency = new Map<Currency, HistoryRow[]>();
@@ -86,7 +88,8 @@ export function queryHistory(index: HistoryIndex, options: HistoryQuery): Entry[
     if (!options.reviewQueue && options.period === 'month'
       && !(options.walletId ? row.walletDates[options.walletId] : row.dates[options.currency])?.some(date => date.startsWith(options.month))
       && !(options.walletId ? row.undatedWalletIds.has(options.walletId) : row.undatedCurrencies.has(options.currency))) return false;
-    if (needle && !row.text.includes(needle) && !(amountNeedle && row.amounts.some(amount => amount.startsWith(amountNeedle)))) return false;
+    if (needle && !row.text.includes(needle) && !(amountNeedle && row.amounts.some(amount => amount.startsWith(amountNeedle)))
+      && !options.shownText?.(row.entry).toLocaleLowerCase('id-ID').includes(needle)) return false;
     if (options.category && (row.entry.type === 'transfer' || row.entry.type === 'adjustment' || (row.entry.category.trim() || 'Belum dikategorikan') !== options.category)) return false;
     return options.type === 'all' || (options.type === 'pending' ? needsEntryReview(row.entry, options.reviewReason) : row.entry.type === options.type);
   });

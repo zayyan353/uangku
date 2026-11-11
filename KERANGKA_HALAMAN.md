@@ -601,31 +601,46 @@ saat gilirannya.
 Bagian bersama yang ikut tampil: bar atas (5.2), banner (5.3), bilah mata uang
 dan bulan (5.4).
 
+*Bab 3.1–3.4 dikerjakan bersama pada 11 Nov 2026. Seluruh tes browser CI lulus pada build akhirnya (15 berkas + performance; `npm test` 1.764 lulus). Build pertama gagal tes performa (jeda frame 301–313 ms, batas 250 ms); penyebabnya hitungan kandidat kategori otomatis dan pencarian judul bank, keduanya diperbaiki (jeda frame akhir ±172 ms, median 4.360–4.570 ms; sebelum Bab 3 ±4.100–4.200 ms).*
+
 ### 3.1 Kepala halaman
 
-- [ ] **3.1.1 Judul**
+- [x] **3.1.1 Judul**
   *Isi:* "Catatan kecil, lebih tenang." / "Lihat uang yang masuk, keluar, dan berpindah."
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Judul dan subjudul dilihat
+    di desktop dan HP, terang dan gelap.
 
-- [ ] **3.1.2 Tombol Pindah uang dan Catat transaksi**
+- [x] **3.1.2 Tombol Pindah uang dan Catat transaksi**
   *Isi:* sama dengan 1.1.2; dompet awal mengikuti filter dompet (3.3.3).
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Tombol yang sama dengan
+    1.1.2; tampil dan berfungsi di halaman ini. Pemeriksaan keyboard lengkap
+    tidak diulang di sini.
 
 ### 3.2 Alat kategori
 
-- [ ] **3.2.1 Tombol Kelola kategori**
+- [x] **3.2.1 Tombol Kelola kategori**
   *Isi:* membuka 3.12.
   - Di HP baris alat ini beserta keterangannya memakan ±140px sebelum filter. Rapatkan.
+  - *Dikerjakan 11 Nov 2026.* Di HP jarak dan teks keterangan baris alat
+    dirapatkan: tingginya turun dari ±140px ke 103px (diukur di 390px).
 
-- [ ] **3.2.2 Tombol Isi kategori otomatis**
+- [x] **3.2.2 Tombol Isi kategori otomatis**
   *Isi:* membuka 3.13; keterangan "Kategori kosong & konfirmasi mutasi bank · semua periode".
   - Tombol selalu aktif walau tidak ada yang bisa diisi; jendelanya lalu kosong
     ("0 cocok"). Tampilkan jumlah kandidat di tombol atau nonaktifkan saat nol.
     **[cek]** biaya hitungnya pada data besar.
+  - *Dicoba 11 Nov 2026, lalu dibatalkan.* **[cek]** terbukti: menghitung
+    kandidat tiap data berubah menaikkan waktu tes performa ±800 ms per
+    rangkaian (5.632 → 4.201 ms saat hitungan dibuang) dan menonaktifkan
+    tombol saat nol mematahkan empat tes yang sengaja membuka jendela kosong.
+    Jadi tombol dan keterangannya dibiarkan seperti semula. Menampilkan jumlah
+    butuh hitungan yang ditunda atau dicicil; belum dikerjakan.
 
 ### 3.3 Filter riwayat
 
-- [ ] **3.3.1 Kotak cari**
+- [x] **3.3.1 Kotak cari**
   *Isi:* mencocokkan keterangan, nama kategori, dan nama dompet.
   - Mengetik pencarian diam-diam mengubah periode ke "Semua periode" dan tidak
     mengembalikannya saat kotak dikosongkan. Beri tahu ("mencari di semua
@@ -635,16 +650,29 @@ dan bulan (5.4).
   - **[cek]** Judul di tabel diolah dari keterangan bank (3.4.2), sedangkan
     pencarian memakai catatan mentah. Pastikan teks yang terlihat bisa ditemukan.
   - **[fitur]** Cari nominal.
+  - *Dikerjakan 11 Nov 2026.* Mengetik pencarian saat periode bulanan kini
+    ditandai "mencari di semua periode" di kalimat cakupan, dan periode semula
+    kembali saat kotak dikosongkan. Placeholder jadi "Cari keterangan,
+    kategori, nominal…". **[cek]** benar: judul hasil olahan keterangan bank
+    tidak ikut dicari; sekarang ikut (hasilnya disimpan sementara supaya tidak
+    memperlambat). **[fitur]** cari nominal dikerjakan: "35.000" atau "35000"
+    menemukan catatan bernominal itu (minimal dua digit). Tes unit baru di
+    `historyView.test.ts`; `ux_browser.py` diperbarui untuk perilaku periode.
+    Pencarian judul bank belum dilihat di browser dengan data impor.
 
-- [ ] **3.3.2 Periode**
+- [x] **3.3.2 Periode**
   *Isi:* "November 2026" / "Semua periode".
   - Sama dengan 1.2.2 → 5.4.3.
+  - *Diperiksa 11 Nov 2026.* Penyatuan kontrol tetap di 5.4.3; tidak ada
+    perubahan di sini selain perilaku periode saat mencari (3.3.1).
 
-- [ ] **3.3.3 Dompet**
+- [x] **3.3.3 Dompet**
   *Isi:* dompet pada mata uang terpilih; arsip diberi tanda.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Pilihan dompet mengikuti
+    mata uang dan menandai arsip.
 
-- [ ] **3.3.4 Jenis**
+- [x] **3.3.4 Jenis**
   *Isi:* Semua jenis, Pengeluaran, Pemasukan, Transfer, Perpindahan dana
   rekening, Perlu dirapikan, Penyesuaian.
   - **[keputusan]** "Perlu dirapikan" bukan jenis: memilihnya mengubah halaman
@@ -652,64 +680,103 @@ dan bulan (5.4).
     Keluarkan dari dropdown; pintunya sudah ada ("Rapikan N catatan"). Cek tes
     yang memilih nilai ini.
   - **[fitur]** Filter kategori belum ada.
+  - *Dikerjakan 11 Nov 2026.* (pemilik menyetujui semua usul) "Perlu
+    dirapikan" dikeluarkan dari dropdown Jenis pada riwayat biasa; pilihan itu
+    hanya ada saat antrean sedang terbuka, supaya bisa keluar lewat dropdown.
+    Tiga tes yang memilih nilai itu (`cashflow`, `bank_review`, `source`) kini
+    masuk lewat tombol "Rapikan N catatan". **[fitur]** filter kategori
+    ditambah ("Semua kategori" + daftar kategori).
 
-- [ ] **3.3.5 Ringkasan dan aksi**
+- [x] **3.3.5 Ringkasan dan aksi**
   *Isi:* "N transaksi", "Rapikan N catatan", "Reset filter", "Unduh CSV".
   - **[fitur]** Total uang masuk dan keluar dari hasil filter.
+  - *Dikerjakan 11 Nov 2026.* **[fitur]** total uang masuk dan keluar dari
+    hasil filter kini tampil di kalimat cakupan. Transfer antardompet dan
+    penyesuaian saldo tidak dihitung, jadi angka "keluar" bisa lebih kecil
+    dari kartu Ringkasan (biaya transfer tidak ikut). Tidak tampil di antrean
+    rapikan karena mata uangnya bercampur.
 
-- [ ] **3.3.6 Kalimat cakupan**
+- [x] **3.3.6 Kalimat cakupan**
   *Isi:* "IDR · November 2026 · 6 transaksi. Pilih catatan di halaman ini untuk
   kategori massal."
   - Jumlah transaksi tertulis dua kali (di sini dan di 3.3.5). Gabungkan.
+  - *Dikerjakan 11 Nov 2026.* Jumlah transaksi kini hanya ditulis sekali, di
+    awal kalimat cakupan; "N transaksi" di baris tombol dibuang.
 
 ### 3.4 Tabel transaksi
 
-- [ ] **3.4.1 Kepala tabel dan pilih semua**
+- [x] **3.4.1 Kepala tabel dan pilih semua**
   *Isi:* kolom Transaksi, Dompet, Tanggal, Nominal; centang di kepala memilih
   baris yang memenuhi syarat di halaman itu.
   - **[fitur]** Urutan selalu terbaru di atas. Belum ada pilihan urut (terlama, nominal).
+  - *Dikerjakan 11 Nov 2026.* **[fitur]** pilihan urutan ditambah: Terbaru
+    dulu, Terlama dulu, Nominal terbesar, Nominal terkecil. Dicoba di desktop
+    dan HP.
 
-- [ ] **3.4.2 Sel transaksi**
+- [x] **3.4.2 Sel transaksi**
   *Isi:* ikon jenis, judul, baris kecil (kategori, "A → B", atau "Jenis belum
   dikonfirmasi"), petunjuk operasi bank, lipatan "Keterangan bank asli".
   - Ikon cangkir hanya untuk kategori "Makan & minum" (ditulis mati); kategori
     lain memakai panah. Buat peta ikon per kategori, atau samakan semuanya.
+  - *Dikerjakan 11 Nov 2026.* Ikon kini dipetakan per kategori bawaan (19
+    kategori, mis. Transportasi, Tagihan, Belanja); kategori buatan sendiri
+    atau yang diganti namanya tetap memakai panah.
 
-- [ ] **3.4.3 Sel dompet dan tanggal**
+- [x] **3.4.3 Sel dompet dan tanggal**
   *Isi:* nama dompet, tanggal; transfer menampilkan "Debit: …", "Kredit: …",
   dan bila perlu "Tanggal legacy belum dibuktikan terpisah".
   - Catatan "Tanggal legacy…" muncul pada transfer di data contoh dan
     istilahnya teknis. Ganti kalimatnya, dan buat data contoh tidak memicunya.
   - Bila tanggal debit dan kredit sama, cukup satu tanggal.
+  - *Dikerjakan 11 Nov 2026.* Bila tanggal debit dan kredit sama, hanya satu
+    tanggal yang ditulis. Catatan "Tanggal legacy…" diganti "Satu tanggal
+    untuk kedua sisi; tanggal bank tiap sisi belum dipastikan" dan tidak
+    ditampilkan pada data contoh. Data contohnya sendiri tidak diubah.
 
-- [ ] **3.4.4 Sel nominal**
+- [x] **3.4.4 Sel nominal**
   *Isi:* tanda dan warna, "→ nominal diterima", "Biaya …", lencana "Perlu
   dicek". Seluruh sel adalah tombol ke 3.11.
   - Transfer semata uang mengulang angka yang sama ("Rp 1.000.000 →
     Rp 1.000.000"). Tampilkan "→" hanya bila berbeda.
+  - *Dikerjakan 11 Nov 2026.* "→ nominal diterima" hanya tampil bila mata uang
+    atau angkanya berbeda dari nominal keluar.
 
-- [ ] **3.4.5 Aksi baris**
+- [x] **3.4.5 Aksi baris**
   *Isi:* pensil (Ubah), tombol "Cek" untuk yang belum dikonfirmasi, "Arsip · baca saja".
   - **[keputusan]** Barisnya sendiri tidak bisa diklik, hanya nominal dan
     pensil. Pilih apakah klik judul membuka rincian.
+  - *Dikerjakan 11 Nov 2026.* (pemilik menyetujui semua usul) Judul transaksi
+    kini tombol yang membuka Rincian nominal. Dicoba dengan keyboard di
+    desktop dan HP, terang dan gelap.
 
-- [ ] **3.4.6 Keadaan kosong**
+- [x] **3.4.6 Keadaan kosong**
   *Isi:* "Belum ada transaksi di sini / Mulai dari satu catatan kecil, atau
   impor mutasi rekeningmu."
   - Pesan yang sama dipakai saat filter atau pencarian tidak menemukan apa
     pun. Bedakan: "Tidak ada yang cocok" + Reset filter; untuk data yang
     memang kosong beri tombol Catat transaksi dan Impor mutasi.
+  - *Dikerjakan 11 Nov 2026.* Dua keadaan kosong: bila ada catatan tetapi
+    filter menyembunyikan semuanya, "Tidak ada yang cocok" + Reset filter (+
+    "Lihat semua periode" bila periodenya bulanan); bila memang belum ada
+    catatan, tombol "Catat transaksi pertama" dan "Impor mutasi". Keadaan
+    kedua belum dilihat di browser.
 
-- [ ] **3.4.7 Paginasi**
+- [x] **3.4.7 Paginasi**
   *Isi:* 50 per halaman, "1–6 dari 6 · Halaman 1 dari 1", tombol Sebelumnya/Berikutnya.
   - **[cek]** Ganti halaman tidak menggulir ke awal tabel, jadi pengguna
     tertinggal di dasar halaman.
+  - *Dikerjakan 11 Nov 2026 dari kode, belum dicoba.* Ganti halaman kini
+    menggulir ke awal daftar. Data contoh hanya 6 baris, jadi perilaku ini
+    belum dilihat dengan lebih dari 50 baris dan belum punya tes.
 
-- [ ] **3.4.8 Tampilan HP**
+- [x] **3.4.8 Tampilan HP**
   *Isi:* kolom Dompet dan Tanggal pindah ke baris kecil di bawah judul; judul satu baris.
   - Judul terpotong ("Pisahkan uang bula…") dan versi lengkapnya hanya ada di
     atribut `title`, yang tidak muncul di layar sentuh. Izinkan dua baris.
   - **[fitur]** Kelompokkan baris per tanggal.
+  - *Dikerjakan 11 Nov 2026.* Di HP judul boleh dua baris. **[fitur]** label
+    tanggal muncul di atas baris pertama tiap hari saat urutannya berdasarkan
+    tanggal (bukan baris tabel tambahan, supaya hitungan baris tetap).
 
 ### 3.5 Kategori massal
 
