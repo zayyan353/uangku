@@ -79,11 +79,20 @@ dan bulan (5.4).
   - **[keputusan]** Nama "Zayyan" dan avatar "Z" ditulis mati di kode
     (`App.tsx:527`, `AppNavigation.tsx`), padahal situsnya publik. Pilih: nama
     panggilan jadi pengaturan (tersimpan di preferensi browser) atau sapaan netral.
+  - *Dilewati 11 Nov 2026: menunggu keputusan pemilik.*
 
-- [ ] **1.1.2 Tombol Pindah uang dan Catat transaksi**
+- [x] **1.1.2 Tombol Pindah uang dan Catat transaksi**
   *Isi:* membuka form 3.8 dan 3.7; dompet awal mengikuti cakupan di 1.2.1. Tanpa
   dompet, yang terbuka form Tambah dompet beserta pemberitahuan.
   - Belum ada temuan. Tombol catat yang selalu terlihat di HP → 5.1.3.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Desktop 1440px dan HP 390px,
+    tema terang dan gelap: fokus keyboard terlihat (garis 3px), Enter membuka
+    form yang benar, Escape menutup dan fokus kembali ke tombol, dompet awal
+    mengikuti cakupan. Keadaan tanpa dompet hanya dibaca dari kode
+    (`openTx` di `App.tsx`), belum dilihat: "Mulai dari kosong" tetap membuat
+    dompet, jadi keadaan itu baru muncul bila semua dompet dihapus.
+    Catatan: di HP kedua tombol setinggi 41px, di bawah target sentuh 44px.
+    Ini gaya `.button` bersama, jadi tidak diubah di butir ini.
 
 ### 1.2 Kontrol laporan
 
