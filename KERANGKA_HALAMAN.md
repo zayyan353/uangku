@@ -340,9 +340,13 @@ dan bulan (5.4).
     Tabelnya komponen yang sama dengan 3.4 (`TransactionTable`), jadi
     perbaikan 3.4 otomatis ikut; periksa ulang di sini sesudah 3.4 dikerjakan.
 
-- [ ] **1.9.3 Keadaan kosong**
+- [x] **1.9.3 Keadaan kosong**
   *Isi:* "Belum ada transaksi di sini…".
   - → 3.4.6.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Dilihat dengan bulan tanpa
+    transaksi (Desember 2026) di desktop dan HP, terang dan gelap: ikon,
+    "Belum ada transaksi di sini", dan kalimat ajakan tampil rapi.
+    Perbaikannya tetap di 3.4.6.
 
 ### 1.10 Susunan halaman
 
