@@ -238,9 +238,13 @@ dan bulan (5.4).
 
 ### 1.6 Dompetmu
 
-- [ ] **1.6.1 Kepala panel**
+- [x] **1.6.1 Kepala panel**
   *Isi:* "Dompetmu / Uangnya ada di sini." dan tautan "Lihat semua".
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Desktop dan HP, terang dan
+    gelap: "Lihat semua" terjangkau Tab, fokus terlihat, Enter membuka halaman
+    Dompet. Catatan: tautannya setinggi 24px, di bawah target sentuh 44px di
+    HP (gaya `.text-link` bersama).
 
 - [ ] **1.6.2 Baris dompet**
   *Isi:* ikon, nama, "Rekening bank · IDR", saldo aktual, panah.
