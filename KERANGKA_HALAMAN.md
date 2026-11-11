@@ -1,6 +1,25 @@
 # Uangku — Kerangka Halaman
 
-Dibuat: 11 November 2026, commit `2fb3179` (main). Belum ada butir yang dikerjakan.
+Dibuat: 11 November 2026, commit `2fb3179` (main).
+
+**Status 11 November 2026 (sesi lanjutan):** 162 dari 171 butir dicentang.
+Belum dicentang: 3.12.1 (butuh keputusan), 4.2.5, 4.2.6, 5.3.3 (belum ditinjau
+langsung), dan 5.10–5.11 (belum giliran). Hasil tes sesi ini, dijalankan lokal
+terhadap build produksi (`npm run preview`), bukan di CI:
+
+- `npm test`: 61 file / 1.779 tes lulus. `npm run build` lulus.
+- 16 tes browser CI dijalankan pada build sebelum perbaikan terakhir: 14 lulus;
+  `wallet_browser.py` gagal 1 dari 19 kasus (fokus hilang setelah "Lanjut
+  mengisi"; sudah diperbaiki, lalu `wallet`, `category`, dan `currency_import`
+  diulang dan lulus); `performance_browser.py` gagal pada anggaran jeda frame.
+  Tes browser lain tidak diulang setelah perbaikan terakhir itu.
+- Performa (10.000 baris, 5 sampel): median 5.891 ms (anggaran 6.000), p95
+  6.231 ms (anggaran 8.000), jeda frame maksimum 298 ms (anggaran 250, **gagal**).
+  Commit sebelum sesi ini (`de8b9e8`) diukur di mesin yang sama: median 5.813 ms,
+  jeda frame 271 ms, juga gagal pada anggaran yang sama. Jadi di mesin ini
+  selisihnya dalam rentang antar-jalan, tetapi belum terbukti bahwa sesi ini
+  tidak menambah beban; hasil CI yang menentukan.
+- `full_backup_browser.py` (tidak ada di CI) lulus.
 
 Peta isi aplikasi per halaman. **Bab** = halaman, **sub-bab** = bagian halaman,
 **butir** (mis. 1.3.1) = bagian terkecil. Tiap butir mencatat isinya sekarang dan
