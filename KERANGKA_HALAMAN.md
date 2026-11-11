@@ -259,9 +259,14 @@ dan bulan (5.4).
     `browser_smoke.py` 39 skenario lulus; tautan baru belum punya tes
     otomatis. Tujuan klik baris (riwayat atau form) tidak diubah.
 
-- [ ] **1.6.3 Keadaan kosong dan tombol Tambah dompet**
+- [x] **1.6.3 Keadaan kosong dan tombol Tambah dompet**
   *Isi:* "Belum ada dompet aktif IDR." + tautan; tombol putus-putus di dasar panel.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Dilihat dengan mata uang
+    tanpa dompet (AED ditambah lewat Kelola mata uang), desktop dan HP, terang
+    dan gelap: pesan dan tautan "Tambah dompet" tampil, tombol putus-putus
+    disembunyikan, Enter membuka form dengan mata uang AED terpilih, Escape
+    mengembalikan fokus ke tautan.
 
 ### 1.7 Kategori pengeluaran terkonfirmasi
 
