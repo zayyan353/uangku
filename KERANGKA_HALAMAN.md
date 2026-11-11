@@ -255,7 +255,7 @@ dan bulan (5.4).
     gelap: "Lihat semua" terjangkau Tab, fokus terlihat, Enter membuka halaman
     Dompet. Tautannya setinggi 24px, tetapi di HP area sentuhnya sudah diperluas jadi 44px oleh aturan `.text-link::after`.
 
-- [ ] **1.6.2 Baris dompet**
+- [x] **1.6.2 Baris dompet**
   *Isi:* ikon, nama, "Rekening bank · IDR", saldo aktual, panah.
   - Hanya 4 dompet pertama yang tampil tanpa tanda ada yang tersembunyi
     (sesudah "Mulai dari kosong" ada 8 dompet IDR). Tambah "+N dompet lainnya".
@@ -268,6 +268,13 @@ dan bulan (5.4).
     dan gelap. Tes: `wallet_browser.py` 19/19, `cashflow_browser.py` 19/19,
     `browser_smoke.py` 39 skenario lulus; tautan baru belum punya tes
     otomatis. Tujuan klik baris (riwayat atau form) tidak diubah.
+  - *Diselesaikan 11 Nov 2026 (pemilik menyetujui semua usul).* Klik baris
+    kini membuka Transaksi untuk dompet itu, semua periode, sesuai isyarat
+    panahnya; form Atur dompet tetap terjangkau dari halaman Dompet. Baris
+    diberi nama untuk pembaca layar ("Riwayat BCA, saldo …"). Dicoba dengan
+    keyboard di desktop dan HP. Tes: `wallet_browser.py` 19/19,
+    `cashflow_browser.py` 19/19, smoke 39 skenario; perilaku baru ini belum
+    punya tes otomatis.
 
 - [x] **1.6.3 Keadaan kosong dan tombol Tambah dompet**
   *Isi:* "Belum ada dompet aktif IDR." + tautan; tombol putus-putus di dasar panel.
