@@ -28,6 +28,10 @@ export function useMobileOverview() {
   return useSyncExternalStore(subscribeLayout, () => window.matchMedia(phoneLayout).matches);
 }
 
+type Folds = { reconciliation?: boolean; breakdown?: boolean };
+/** The last open/closed choice, kept while the app stays open so it survives a visit to another page. */
+let rememberedFolds: Folds = {};
+
 /** Panel header that folds its body; on phones the body starts folded. */
 function FoldHeader({ title, description, summary, open, controls, onToggle }: { title: string; description: string; summary?: string; open: boolean; controls: string; onToggle: () => void }) {
   return <h2 className="fold-header"><button type="button" className="fold-toggle" aria-expanded={open} aria-controls={controls} data-cashflow-fold onClick={onToggle}><span className="fold-text"><span className="fold-title">{title}</span><span className="fold-desc">{open || !summary ? description : summary}</span></span><ChevronDown className="fold-chevron" size={18} aria-hidden="true" /></button></h2>;
@@ -67,7 +71,8 @@ export default function CashflowOverview({ report, error, currency, month, perio
     ? archivedCount ? `Laporan tetap mencakup ${archivedCount} dompet arsip. Pengarsipan tidak menghapus saldo atau histori.` : ''
     : archivedWalletIds?.has(walletId) ? 'Dompet ini diarsipkan. Saldo dan historinya tetap dihitung.' : '';
   const mobile = useMobileOverview();
-  const [folds, setFolds] = useState<{ reconciliation?: boolean; breakdown?: boolean }>({});
+  const [folds, setFoldState] = useState<Folds>(rememberedFolds);
+  const setFolds = (update: (current: Folds) => Folds) => setFoldState(current => rememberedFolds = update(current));
   const reconciliationOpen = folds.reconciliation ?? !mobile, breakdownOpen = folds.breakdown ?? !mobile;
   const reconciliationId = useId(), breakdownId = useId();
   const matched = !!report?.isComplete && report.difference === 0;

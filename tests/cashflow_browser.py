@@ -417,6 +417,15 @@ def first_fold(case):
     expect(amount).to_have_text('Belum tersedia')
     expect(card.locator('.balance-label')).to_have_text('Saldo akhir periode')
     expect(card.locator('.balance-period')).to_contain_text('periode belum dimulai')
+    # An opened panel stays open after visiting another page; the untouched one keeps its default.
+    folds = page.locator('[data-cashflow-fold]')
+    expect(folds.first).to_have_attribute('aria-expanded', 'false')
+    folds.first.click()
+    mobile_nav = page.locator('.mobile-nav')
+    mobile_nav.get_by_role('button', name='Dompet', exact=True).click()
+    mobile_nav.get_by_role('button', name='Ringkasan', exact=True).click()
+    expect(folds.first).to_have_attribute('aria-expanded', 'true')
+    expect(folds.nth(1)).to_have_attribute('aria-expanded', 'false')
     case.assert_unchanged()
 
 

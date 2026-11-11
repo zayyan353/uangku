@@ -166,10 +166,16 @@ dan bulan (5.4).
 
 ### 1.4 Perhitungan saldo periode
 
-- [ ] **1.4.1 Kepala panel dan lipatan**
+- [x] **1.4.1 Kepala panel dan lipatan**
   *Isi:* judul, deskripsi, tombol lipat. Di HP tertutup dengan ringkasan
   "Cocok · ketuk untuk melihat hitungan".
   - Pilihan buka/tutup kembali ke bawaan tiap pindah halaman. Ingat pilihan terakhir.
+  - *Dikerjakan 11 Nov 2026.* Pilihan buka/tutup kedua panel lipat kini
+    bertahan saat pindah halaman dan kembali, selama aplikasi terbuka; muat
+    ulang halaman mengembalikan bawaan (desktop terbuka, HP tertutup) karena
+    pilihan ini tidak disimpan ke browser. Dicoba dengan keyboard (Enter dan
+    Spasi) di desktop dan HP. Pemeriksaan ditambah di `cashflow_browser.py`
+    (19/19 lulus).
 
 - [ ] **1.4.2 Enam kotak hitungan**
   *Isi:* Saldo awal, + Uang masuk, − Uang keluar, ± Transfer antardompet,
