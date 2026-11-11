@@ -69,7 +69,7 @@ export default function CashflowOverview({ report, error, currency, month, perio
   const breakdownCount = report?.breakdown.length ?? 0;
   return <div className="cashflow-overview">
     <div className="cashflow-controls">
-      <label><span className="field-label">Cakupan arus rekening</span><select className="select-input" aria-label="Cakupan arus rekening" value={walletId} onChange={event => onWalletChange(event.target.value)}><option value="all">Semua rekening & e-wallet {currency}</option>{wallets.map(wallet => <option key={wallet.id} value={wallet.id}>{wallet.name}{archivedWalletIds?.has(wallet.id) ? ' (arsip)' : ''}</option>)}</select></label>
+      <label><span className="field-label">Dompet</span><select className="select-input" aria-label="Dompet" value={walletId} onChange={event => onWalletChange(event.target.value)}><option value="all">Semua dompet {currency}</option>{wallets.map(wallet => <option key={wallet.id} value={wallet.id}>{wallet.name}{archivedWalletIds?.has(wallet.id) ? ' (arsip)' : ''}</option>)}</select></label>
       <label><span className="field-label">Periode arus rekening</span><select className="select-input" aria-label="Periode arus rekening" value={period} onChange={event => onPeriodChange(event.target.value as 'month' | 'all')}><option value="month">{monthLabel(month)}</option><option value="all">Seluruh catatan</option></select></label>
       <p className="cashflow-period" data-testid="cashflow-period">{caption}</p>
     </div>

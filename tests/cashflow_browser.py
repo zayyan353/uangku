@@ -130,7 +130,7 @@ class Case:
         self.page.on('pageerror', lambda err: self.errors.append(str(err)))
         self.page.goto(args.url, wait_until='networkidle')
         nav(self.page, 'Ringkasan')
-        expect(self.page.get_by_label('Cakupan arus rekening', exact=True)).to_be_visible()
+        expect(self.page.get_by_label('Dompet', exact=True)).to_be_visible()
         expect(self.page.get_by_label('Periode arus rekening', exact=True)).to_have_value('month')
         self.assert_unchanged()
 
@@ -170,7 +170,7 @@ class Case:
         self.assert_unchanged()
 
     def scope(self, value):
-        self.page.get_by_label('Cakupan arus rekening', exact=True).select_option(value)
+        self.page.get_by_label('Dompet', exact=True).select_option(value)
         self.assert_unchanged()
 
     def month(self, value):
@@ -183,7 +183,7 @@ class Case:
 
 
 def reference(case):
-    expect(case.page.get_by_label('Cakupan arus rekening', exact=True)).to_have_value('all')
+    expect(case.page.get_by_label('Dompet', exact=True)).to_have_value('all')
     expect(case.page.get_by_text(re.compile('^Uang masuk rekening'))).to_be_visible()
     expect(case.page.get_by_text(re.compile('^Uang keluar rekening'))).to_be_visible()
     case.totals(19_489_724, 19_038_042, 3_330, 455_012)
@@ -287,12 +287,12 @@ def fx(case):
     case.totals(0, 4_200, 10_000, 5_800)
     case.scope('bank')
     case.page.get_by_role('button', name=re.compile('USD.*Dolar AS')).click()
-    expect(case.page.get_by_label('Cakupan arus rekening', exact=True)).to_have_value('all')
+    expect(case.page.get_by_label('Dompet', exact=True)).to_have_value('all')
     case.totals(1_000, 0, 2_000, 3_000)
     case.scope('usd')
     case.totals(1_000, 0, 2_000, 3_000)
     case.page.get_by_role('button', name=re.compile('TL.*Lira Turki')).click()
-    expect(case.page.get_by_label('Cakupan arus rekening', exact=True)).to_have_value('all')
+    expect(case.page.get_by_label('Dompet', exact=True)).to_have_value('all')
     case.totals(0, 4_200, 10_000, 5_800)
 
 
@@ -321,7 +321,7 @@ def future_month(case):
 
 def cash_archive(case):
     case.totals(1_200, 700, 10_000, 10_500)
-    scope = case.page.get_by_label('Cakupan arus rekening', exact=True)
+    scope = case.page.get_by_label('Dompet', exact=True)
     assert 'archived-cash' not in scope.locator('option').evaluate_all('(rows)=>rows.map(row=>row.value)')
     case.scope('bank'); case.totals(1_200, 700, 10_000, 10_500)
     before = stored_document(case.page)
@@ -361,7 +361,7 @@ def source_read_and_backup(case):
 def visual(case):
     pending_and_adjustment(case)
     page = case.page
-    for selector in ['Cakupan arus rekening', 'Periode arus rekening']:
+    for selector in ['Dompet', 'Periode arus rekening']:
         node = page.get_by_label(selector, exact=True)
         node.scroll_into_view_if_needed()
         box = node.bounding_box()
@@ -375,7 +375,7 @@ def visual(case):
                ('reconciliation-equation', page.locator('.cashflow-equation'), TEXT_CONTRAST_JS),
                ('reconciliation-explanation', page.locator('.cashflow-explanation').last, TEXT_CONTRAST_JS),
                ('breakdown', page.get_by_test_id('cashflow-breakdown'), TEXT_CONTRAST_JS),
-               ('control', page.get_by_label('Cakupan arus rekening', exact=True), CONTROL_CONTRAST_JS)]
+               ('control', page.get_by_label('Dompet', exact=True), CONTROL_CONTRAST_JS)]
     for kind, target, script in samples:
         target.scroll_into_view_if_needed()
         result = page.evaluate(script)

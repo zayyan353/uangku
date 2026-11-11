@@ -96,10 +96,16 @@ dan bulan (5.4).
 
 ### 1.2 Kontrol laporan
 
-- [ ] **1.2.1 Cakupan arus rekening**
+- [x] **1.2.1 Cakupan arus rekening**
   *Isi:* dropdown "Semua rekening & e-wallet IDR" atau satu dompet (arsip diberi tanda).
   - Label "Cakupan arus rekening" panjang dan teknis. Coba "Dompet" dengan
     pilihan "Semua dompet IDR".
+  - *Dikerjakan 11 Nov 2026.* Label dan `aria-label` jadi "Dompet", pilihan
+    pertama "Semua dompet IDR"; teks yang sama di kartu saldo dan kepala
+    "Transaksi terbaru" ikut diganti supaya seragam. Tes `cashflow_browser.py`
+    dan `wallet_browser.py` diperbarui dan lulus (19/19 masing-masing). Belum
+    disentuh: untuk lira pilihan masih menulis "TRY" sedangkan tab menulis
+    "TL".
 
 - [ ] **1.2.2 Periode arus rekening**
   *Isi:* dropdown "November 2026" / "Seluruh catatan" + teks rentang "1 Nov 2026 – 11 Nov 2026".

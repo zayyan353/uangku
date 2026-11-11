@@ -266,7 +266,7 @@ def archive_history(case):
     expect(p.get_by_test_id('cashflow-inflow')).to_have_attribute('data-amount','2000')
     expect(p.get_by_test_id('cashflow-outflow')).to_have_attribute('data-amount','1225')
     expect(p.get_by_test_id('cashflow-closing')).to_have_attribute('data-amount','15775')
-    p.get_by_label('Cakupan arus rekening',exact=True).select_option('bank')
+    p.get_by_label('Dompet',exact=True).select_option('bank')
     p.get_by_role('button',name='Catat transaksi',exact=True).click()
     expect(p.get_by_role('dialog')).to_have_count(0)
     expect(p.get_by_text('Dompet diarsipkan. Pulihkan sebelum mencatat transaksi baru.',exact=True)).to_be_visible()
