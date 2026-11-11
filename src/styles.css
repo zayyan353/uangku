@@ -1826,3 +1826,9 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 .notice.save-problem > strong, .notice.save-problem > span { flex: 1 1 100%; }
 .save-problem-actions { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 @media (max-width: 640px) { .save-problem-actions .button { flex: 1 1 100%; } }
+
+/* Kerangka 3.12.1: ganti nama kategori dengan pilihan untuk catatan lama */
+.category-name-actions { display: inline-flex; gap: 4px; flex-shrink: 0; }
+.category-manager-names li.category-rename { grid-column: 1 / -1; flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; }
+.category-rename .field { margin: 0; }
+.category-rename-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }

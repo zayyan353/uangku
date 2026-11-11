@@ -58,6 +58,7 @@ import { reviewCounts, type ReviewReason } from './lib/reviewStatus';
 import { categoryColorIndex } from './lib/dashboardView';
 import { deviceDay } from './lib/today';
 import { currencyFlagEmoji, monthOptions, nextMonth, priorMonth } from './lib/monthOptions';
+import { categoryRenameTargets, categoryUsage, type CategoryRename } from './lib/categoryRename';
 import { greeting, nicknameInitial, NICKNAME_KEY, readNickname, sanitizeNickname, writeNickname } from './lib/nickname';
 
 const today = () => deviceDay();
@@ -395,11 +396,30 @@ export default function App() {
     categoryBudgetsBase.current = categoryPreferences.budgetsRaw;
     setCategoryManager({ settings: categoryPreferences.settings, budgets: categoryPreferences.budgets, budgetsError: categoryPreferences.budgetsError });
   }
-  async function saveCategorySettings(next: CategorySettings, budgets?: BudgetMap): Promise<boolean> {
+  async function saveCategorySettings(next: CategorySettings, budgets?: BudgetMap, renames: CategoryRename[] = []): Promise<boolean> {
     try {
       await categoryPreferences.save(next, categorySettingsBase.current, budgets ? { budgets, expectedRaw: categoryBudgetsBase.current } : undefined);
-      setCategoryManager(null); notify(budgets ? 'Kategori, aturan, dan anggaran berhasil disimpan di browser ini.' : 'Kategori dan aturan berhasil disimpan di browser ini.'); return true;
     } catch (error) { notifyError(error instanceof Error ? error.message : 'Pengaturan kategori belum tersimpan.'); return false; }
+    setCategoryManager(null);
+    const saved = budgets ? 'Kategori, aturan, dan anggaran berhasil disimpan di browser ini.' : 'Kategori dan aturan berhasil disimpan di browser ini.';
+    if (!renames.length) { notify(saved); return true; }
+    // The settings are stored first. If the records cannot follow, they simply keep the old name, which is
+    // the same outcome as choosing not to rename them; nothing financial depends on the order.
+    try {
+      for (const item of renames) await transactionTemplates.renameCategory(item.from, item.to);
+      let document = data, changed = 0, skipped = 0;
+      for (const item of renames.filter(rename => rename.updateEntries)) {
+        const targets = categoryRenameTargets(document, item.from);
+        skipped += targets.readOnly;
+        if (!targets.ids.length) continue;
+        document = applySourcedBulkCategory(document, targets.ids, item.to, false); changed += targets.ids.length;
+      }
+      if (changed > 0 && !await persistCandidate(document, { expectedData: data, expectedToken: ledger.revisionToken })) throw new Error('penyimpanan catatan belum berhasil');
+      notify(`${saved} ${changed > 0 ? `${changed} catatan lama ikut berganti nama kategori.` : 'Catatan lama tidak diubah.'}${skipped > 0 ? ` ${skipped} catatan baca saja (cash lama atau dompet arsip) tetap memakai nama lama.` : ''}`);
+    } catch (error) {
+      notifyError(`Nama kategori sudah tersimpan, tetapi catatan lama atau template belum ikut berganti: ${error instanceof Error ? error.message : 'penyebab tidak diketahui'}. Catatan itu tetap memakai nama lama dan bisa diganti lewat kategori massal di Transaksi.`);
+    }
+    return true;
   }
   async function applyAutomaticCategories(assignments: CategoryAssignment[]): Promise<boolean> {
     if (!categoryAutomation || mutationInFlight.current) return false;
@@ -649,6 +669,8 @@ export default function App() {
   // currency, balance, scope and period, money in and out. Banners and the month field follow that order.
   // The untouched sample is not "unsaved work"; a demo the user has added to and stored keeps its real status.
   const sampleOnly = data.demo && ledger.revisionToken === null;
+  // Counted only while Kelola kategori is open: how many editable records each name has.
+  const categoryUsageNow = useMemo(() => categoryManager ? categoryUsage(data) : {}, [categoryManager, data]);
   const phoneOverview = mobileOverview && page === 'overview';
   const currencyManageButton = <button className="button secondary small currency-manage-button" onClick={openCurrencyManager}>Kelola mata uang</button>;
   // One control for the period: step a month, pick any month, or switch to the whole ledger.
@@ -711,7 +733,7 @@ export default function App() {
     {txModal && <TransactionModal data={data} state={state} onSaveTemplate={transactionTemplates.add} onRemoveTemplate={transactionTemplates.remove} onRenameTemplate={transactionTemplates.rename} templates={transactionTemplates.templates} templatesError={transactionTemplates.error} undatedWallets={undatedWallets} initialMode={txModal.type} initialWallet={txModal.walletId} existing={txModal.existing} disabled={ledger.pending} onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined} onSave={saveEntry} onClose={() => { if (!mutationInFlight.current) setTxModal(null); }} onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined} />}
     {amountDetail && <AmountDetailModal entry={amountDetail} state={state} data={data} onClose={() => setAmountDetail(null)} onEdit={isCashLinkedEntry(state, amountDetail) || readOnlyEntryIds.has(amountDetail.id) ? undefined : () => { const entry = amountDetail; setAmountDetail(null); editEntry(entry); }} />}
     {currencyManager && <CurrencyManager data={currencyManager.data} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported} onSave={saveCurrencyList} onView={code => { resumeWalletForm.current = false; setCurrency(code); setCurrencyManager(null); navigate('overview'); }} onClose={() => { if (!mutationInFlight.current) setCurrencyManager(null); }} />}
-    {categoryManager && <CategoryManager settings={categoryManager.settings} budgets={categoryManager.budgets} budgetsError={categoryManager.budgetsError} currencies={visibleCurrencies} currency={currency} notice={categoryPreferences.error || (categoryPreferences.packAdded || categoryPreferences.packUpdated ? `${categoryPreferences.packAdded} kata kunci tambahan aktif dan ${categoryPreferences.packUpdated} pemetaan bawaan disesuaikan. Kategori dan aturan pribadi dipertahankan.` : undefined)} onSave={saveCategorySettings} onClose={() => setCategoryManager(null)} />}
+    {categoryManager && <CategoryManager usage={categoryUsageNow} settings={categoryManager.settings} budgets={categoryManager.budgets} budgetsError={categoryManager.budgetsError} currencies={visibleCurrencies} currency={currency} notice={categoryPreferences.error || (categoryPreferences.packAdded || categoryPreferences.packUpdated ? `${categoryPreferences.packAdded} kata kunci tambahan aktif dan ${categoryPreferences.packUpdated} pemetaan bawaan disesuaikan. Kategori dan aturan pribadi dipertahankan.` : undefined)} onSave={saveCategorySettings} onClose={() => setCategoryManager(null)} />}
     {categoryAutomation && <CategoryAutomation data={categoryAutomation.data} disabled={ledger.dirty || blocked || !ledger.supported} onApply={applyAutomaticCategories} onClose={() => { if (!mutationInFlight.current) setCategoryAutomation(null); }} />}
     {cashArchiveOpen && <CashArchive data={data} onClose={() => setCashArchiveOpen(false)} />}
     {privacyOpen && <PrivacyNotice persistence={persistence} onClose={() => setPrivacyOpen(false)} />}

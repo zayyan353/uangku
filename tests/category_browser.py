@@ -221,6 +221,59 @@ def manager_lifecycle(case):
     case.unchanged()
 
 
+def rename_category(case):
+    """Kerangka 3.12.1: renaming a category; the user chooses whether existing records follow."""
+    p = case.page
+    before = stored_document(p)
+    old = lambda data: sorted(row['id'] for row in data['state']['entries'] if row['category'] == 'Kategori lama')
+    assert old(before) == ['historical']
+    # First: rename without touching existing records. Only the settings change.
+    dialog = case.manager()
+    dialog.get_by_role('button', name='Ganti nama kategori Kategori lama', exact=True).click()
+    box = dialog.get_by_test_id('category-rename')
+    field = box.get_by_label('Nama baru untuk kategori Kategori lama', exact=True)
+    field.fill('Pendidikan')  # Already taken.
+    box.get_by_role('button', name='Terapkan nama', exact=True).click()
+    expect(dialog.get_by_role('alert')).to_contain_text('sudah ada')
+    field.fill('Kategori anyar')
+    follow = box.get_by_label('Ganti juga di catatan lama', exact=True)
+    expect(follow).to_be_checked()
+    expect(box).to_contain_text('1 catatan lama')
+    follow.uncheck()
+    box.get_by_role('button', name='Terapkan nama', exact=True).click()
+    expect(dialog.get_by_role('status')).to_contain_text('tetap memakai nama')
+    case.unchanged()  # Nothing is written until the settings are saved.
+    case.save_manager(dialog)
+    settings = p.evaluate('(key)=>JSON.parse(localStorage.getItem(key))', SETTINGS)
+    assert 'Kategori anyar' in settings['names'] and 'Kategori lama' not in settings['names']
+    assert next(rule for rule in settings['rules'] if rule['id'] == 'historical')['category'] == 'Kategori anyar'
+    case.unchanged()  # The record keeps its old name: the ledger bytes are identical.
+    # Second: put the old name back as a category, then rename it with the records following.
+    dialog = case.manager()
+    case.add_name(dialog, 'Kategori lama')
+    dialog.get_by_role('button', name='Ganti nama kategori Kategori lama', exact=True).click()
+    box = dialog.get_by_test_id('category-rename')
+    box.get_by_label('Nama baru untuk kategori Kategori lama', exact=True).fill('Kategori pindah')
+    expect(box.get_by_label('Ganti juga di catatan lama', exact=True)).to_be_checked()
+    box.get_by_role('button', name='Terapkan nama', exact=True).click()
+    expect(dialog.get_by_role('status')).to_contain_text('1 catatan lama ikut diganti')
+    case.unchanged()
+    case.save_manager(dialog)
+    expect(p.get_by_text('1 catatan lama ikut berganti nama kategori', exact=False)).to_be_visible()
+    after = stored_document(p)
+    assert old(after) == []
+    moved = next(row for row in after['state']['entries'] if row['id'] == 'historical')
+    assert moved['category'] == 'Kategori pindah'
+    strip = lambda data: [{k: v for k, v in row.items() if k != 'category'} for row in data['state']['entries']]
+    assert strip(after) == strip(before), 'Rename changed something other than the category'
+    assert [row['category'] for row in after['state']['entries'] if row['id'] != 'historical'] == [row['category'] for row in before['state']['entries'] if row['id'] != 'historical']
+    assert after['state']['wallets'] == before['state']['wallets']
+    raw = p.evaluate('(key)=>localStorage.getItem(key)', FINANCE)
+    p.reload(wait_until='networkidle')
+    assert p.evaluate('(key)=>localStorage.getItem(key)', FINANCE) == raw
+    assert 'Kategori pindah' in p.evaluate('(key)=>JSON.parse(localStorage.getItem(key)).names', SETTINGS)
+
+
 def budget_field(dialog, name):
     """The Anggaran tab lists only categories that have a limit; others are added from "Tambah anggaran"."""
     dialog.get_by_role('tab', name=re.compile('^Anggaran')).click()
@@ -748,6 +801,8 @@ def main():
     build = assert_production_url(args.url)
     results = []
     cases = [('manager-desktop-light', {}, manager_lifecycle),
+             ('rename-category-desktop', {}, rename_category),
+             ('rename-category-mobile-dark', {'width': 390, 'theme': 'dark'}, rename_category),
              ('manager-mobile-dark', {'width': 390, 'theme': 'dark'}, manager_lifecycle),
              ('full-backup-desktop', {}, category_suite_case),
              ('full-backup-mobile', {'width': 390, 'theme': 'dark'}, category_suite_case),

@@ -2,10 +2,11 @@
 
 Dibuat: 11 November 2026, commit `2fb3179` (main).
 
-**Status 11 November 2026 (sesi lanjutan):** 170 dari 171 butir dicentang.
-Yang terbuka hanya 3.12.1 (ganti nama kategori), yang menurut pemilik
-dikerjakan saat aplikasinya sudah matang. Hasil tes sesi ini, dijalankan lokal
-terhadap build produksi (`npm run preview`):
+**Status 11 November 2026 (sesi lanjutan):** 171 dari 171 butir dicentang.
+Hasil tes sesi ini, dijalankan lokal terhadap build produksi
+(`npm run preview`); setelah 3.12.1 dikerjakan, `npm test` (63 file / 1.787
+tes) dan sembilan suite browser yang menyentuh Kelola kategori diulang dan
+lulus. Catatan di bawah adalah keadaan sebelum 3.12.1:
 
 - `npm test`: 62 file / 1.782 tes lulus. `npm run build` lulus.
 - Tes browser: 15 suite fungsional CI dan `full_backup_browser.py` lulus pada
@@ -1077,7 +1078,7 @@ dan bulan (5.4).
 
 ### 3.12 Kelola kategori
 
-- [ ] **3.12.1 Kategori aktif**
+- [x] **3.12.1 Kategori aktif**
   *Isi:* tambah dan hapus; maksimal 100.
   - **[keputusan]** Belum bisa ganti nama: hapus + tambah membuat nama baru dan
     catatan lama tetap memakai nama lama.
@@ -1091,6 +1092,18 @@ dan bulan (5.4).
     diinginkan, dan pantas dikerjakan saat aplikasinya sudah matang. Butir
     ini tetap terbuka sampai itu dijadwalkan; pilihan soal nasib catatan
     lama masih perlu diputuskan saat itu.
+  - *Dikerjakan 11 Nov 2026.* Keputusan pemilik: pengguna yang memilih. Tiap
+    kategori (selain kategori dasar) punya tombol pensil; saat mengganti
+    nama ada centang "Ganti juga di N catatan lama" (bawaan: dicentang).
+    Dicentang: catatan yang memakai nama lama ikut berganti saat pengaturan
+    disimpan; hanya kolom kategorinya yang berubah, lewat perintah kategori
+    massal yang sama dengan halaman Transaksi. Tidak dicentang: catatan lama
+    tetap memakai nama lama. Aturan, anggaran, dan template yang menunjuk
+    nama lama selalu ikut pindah. Nama yang sudah dipakai ditolak. Catatan
+    baca saja (cash lama, dompet arsip) tidak diubah dan jumlahnya disebut
+    di pemberitahuan. Pengaturan disimpan lebih dulu; bila catatan gagal
+    menyusul, catatan itu tetap bernama lama dan pesannya mengatakan begitu.
+    `category_browser.py` menambah kasus desktop dan HP untuk kedua pilihan.
 
 - [x] **3.12.2 Anggaran bulanan**
   *Isi:* satu kolom isian per kategori, per mata uang.

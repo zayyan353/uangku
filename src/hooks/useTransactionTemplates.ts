@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { appendTemplate, parseStoredTemplates, removeTemplate, renameTemplate, TEMPLATES_KEY, type TransactionTemplate } from '../lib/transactionTemplates';
+import { renameCategoryInTemplates } from '../lib/categoryRename';
 import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
 
 export const unreadableTemplates = 'Template tersimpan tidak dapat dibaca. Template baru belum dapat disimpan agar daftar lama tidak tertimpa.';
@@ -46,5 +47,10 @@ export function useTransactionTemplates() {
   const add = (template: TransactionTemplate) => change(raw => appendTemplate(raw, template));
   const remove = (id: string) => change(raw => removeTemplate(raw, id));
   const rename = (id: string, name: string) => change(raw => renameTemplate(raw, id, name));
-  return { ...snapshot, add, remove, rename };
+  /** Templates filling a renamed category fill the new name. No write happens when none does. */
+  const renameCategory = async (from: string, to: string) => {
+    if (!snapshot.templates.some(template => template.category === from)) return;
+    await change(raw => renameCategoryInTemplates(raw, from, to) ?? { raw: raw ?? '[]', templates: parseStoredTemplates(raw) });
+  };
+  return { ...snapshot, add, remove, rename, renameCategory };
 }

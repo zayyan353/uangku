@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, Download, Plus, Search, Trash2, Upload } from 'lucide-react';
+import { Check, Download, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
 import Modal from './Modal';
 import MoneyEcho from './MoneyEcho';
 import { makeId } from '../lib/finance';
@@ -10,6 +10,7 @@ import { mergeCurrentAutomaticBankMappings } from '../lib/bankAutoMappings';
 import { applyBudgetInputs, budgetInputs, type BudgetMap } from '../lib/budgets';
 import { currencyInfo, type Currency } from '../lib/finance';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
+import { renameCategoryInBudgets, renameCategoryInSettings, type CategoryRename } from '../lib/categoryRename';
 
 const UNCATEGORIZED = 'Belum dikategorikan';
 type ManagerTab = 'names' | 'budgets' | 'rules' | 'files';
@@ -19,15 +20,17 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Pengaturan belum dapat diproses.';
 }
 
-export default function CategoryManager({ settings, budgets = {}, budgetsError = '', currencies = [], currency, onSave, onClose, notice }: {
+export default function CategoryManager({ settings, budgets = {}, budgetsError = '', currencies = [], currency, usage = {}, onSave, onClose, notice }: {
   settings: CategorySettings;
   /** Stored monthly limits; budgets are edited per currency and saved with the settings. */
   budgets?: BudgetMap;
   budgetsError?: string;
   currencies?: readonly Currency[];
   currency?: Currency;
-  /** nextBudgets is passed only when a limit was edited in this form. */
-  onSave: (next: CategorySettings, nextBudgets?: BudgetMap) => Promise<boolean>;
+  /** Editable records per category name, shown when a category is renamed. */
+  usage?: Readonly<Record<string, number>>;
+  /** nextBudgets is passed only when a limit was edited or moved by a rename; renames list every rename made in this form, in order. */
+  onSave: (next: CategorySettings, nextBudgets?: BudgetMap, renames?: CategoryRename[]) => Promise<boolean>;
   onClose: () => void;
   notice?: string;
 }) {
@@ -40,6 +43,8 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
   /** Categories given a budget field in this form before any amount is typed, per currency. */
   const [budgetAdded, setBudgetAdded] = useState<Partial<Record<Currency, string[]>>>({});
   const [ruleQuery, setRuleQuery] = useState('');
+  const [renames, setRenames] = useState<CategoryRename[]>([]);
+  const [renaming, setRenaming] = useState<{ from: string; to: string; updateEntries: boolean } | null>(null);
   const [newName, setNewName] = useState('');
   const [keyword, setKeyword] = useState('');
   const [ruleCategory, setRuleCategory] = useState(settings.names.find(name => name !== UNCATEGORIZED) ?? '');
@@ -66,7 +71,7 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
   }, [draft.names, ruleCategory]);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
-  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(settings), [draft, settings]) || Object.keys(budgetDraft).length > 0;
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(settings), [draft, settings]) || Object.keys(budgetDraft).length > 0 || renames.length > 0;
   const guard = useDiscardGuard(dirty, onClose, pending !== null);
   const close = guard.request;
   function update(next: CategorySettings, notice = ''): boolean {
@@ -80,6 +85,26 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
   function addName() {
     const name = newName.trim();
     if (update({ ...draft, names: [...draft.names, name] }, 'Kategori ditambahkan ke formulir. Klik Simpan pengaturan untuk menyimpannya.')) setNewName('');
+  }
+  /** Records that currently carry this (possibly already renamed) name: follow earlier renames back to the stored name. */
+  function recordsNamed(name: string): number {
+    let count = usage[name] ?? 0;
+    for (const item of renames) if (item.to === name && item.updateEntries) count += recordsNamed(item.from);
+    return renames.some(item => item.from === name && item.updateEntries) ? 0 : count;
+  }
+  function applyRename() {
+    if (!renaming || busyRef.current) return;
+    try {
+      const next = renameCategoryInSettings(draft, renaming.from, renaming.to), to = renaming.to.trim().normalize('NFC');
+      const affected = recordsNamed(renaming.from), follow = renaming.updateEntries && affected > 0;
+      setDraft(next); setError('');
+      setRenames(current => [...current, { from: renaming.from, to, updateEntries: follow }]);
+      // Limits typed in this form move with the name, like the stored ones do on save.
+      setBudgetDraft(current => Object.fromEntries(Object.entries(current).map(([code, inputs]) => [code, Object.fromEntries(Object.entries(inputs ?? {}).map(([name, text]) => [name === renaming.from ? to : name, text]))])));
+      setBudgetAdded(current => Object.fromEntries(Object.entries(current).map(([code, names]) => [code, (names ?? []).map(name => name === renaming.from ? to : name)])));
+      setMessage(`“${renaming.from}” menjadi “${to}” di formulir. ${affected === 0 ? 'Belum ada catatan yang memakai nama lama.' : follow ? `${affected} catatan lama ikut diganti saat disimpan.` : `${affected} catatan lama tetap memakai nama “${renaming.from}”.`} Klik Simpan pengaturan untuk menyimpannya.`);
+      setRenaming(null);
+    } catch (reason) { setError(errorMessage(reason)); }
   }
   function removeName(name: string) {
     if (name === UNCATEGORIZED) return;
@@ -124,12 +149,19 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
     if (busyRef.current) return;
     let checked: CategorySettings;
     let limits: BudgetMap | undefined;
-    try { checked = validateCategorySettings(draft); limits = nextBudgets(); }
+    try {
+      checked = validateCategorySettings(draft); limits = nextBudgets();
+      // A rename carries the stored monthly limit to the new name, also when no limit was edited here.
+      if (renames.length && !budgetLocked) {
+        const moved = renames.reduce((map, item) => renameCategoryInBudgets(map, item.from, item.to), limits ?? budgets);
+        if (JSON.stringify(moved) !== JSON.stringify(budgets)) limits = moved;
+      }
+    }
     catch (reason) { setError(errorMessage(reason)); return; }
     busyRef.current = true; setPending('save'); setError(''); setMessage('');
     let saved = false;
     try {
-      saved = limits ? await onSave(checked, limits) : await onSave(checked);
+      saved = renames.length ? await onSave(checked, limits, renames) : limits ? await onSave(checked, limits) : await onSave(checked);
       if (!saved) setError('Pengaturan belum tersimpan. Formulir ini tetap dipertahankan; periksa pesan penyimpanan lalu coba lagi.');
     } catch (reason) { setError(errorMessage(reason)); }
     finally { busyRef.current = false; setPending(null); }
@@ -154,7 +186,7 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
       if (file.size > CATEGORY_SETTINGS_LIMIT) throw new Error('File pengaturan maksimal 128 KiB.');
       const raw = await file.text();
       const checked = parseCategorySettingsExport(raw);
-      setDraft(checked); setNewName(''); setKeyword('');
+      setDraft(checked); setNewName(''); setKeyword(''); setRenames([]); setRenaming(null);
       setMessage('Pengaturan dimuat ke formulir. Belum mengganti pengaturan tersimpan; tinjau lalu klik Simpan pengaturan.');
     } catch (reason) { setError(errorMessage(reason)); }
     finally { busyRef.current = false; setPending(null); if (fileRef.current) fileRef.current.value = ''; }
@@ -170,12 +202,17 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
         <fieldset disabled={pending !== null}>
           <section className="category-manager-section" role="tabpanel" id="category-panel-names" aria-labelledby="category-tab-names" hidden={tab !== 'names'} aria-label="Daftar kategori">
             <h3>Kategori aktif <span>{draft.names.length}/100</span></h3>
-            <p className="field-help">Hapus untuk mengurangi pilihan. Nama pada catatan lama tetap disimpan. Tambahkan nama yang sama untuk mengaktifkannya kembali.</p>
+            <p className="field-help">Ganti nama dengan ikon pensil; kamu memilih apakah catatan lama ikut berganti nama. Hapus untuk mengurangi pilihan: nama pada catatan lama tetap disimpan, dan menambahkan nama yang sama mengaktifkannya kembali.</p>
             <div className="category-manager-add">
               <label className="field"><span className="field-label">Nama kategori baru</span><input className="field-input" aria-label="Nama kategori baru" maxLength={80} value={newName} placeholder="Contoh: Belanja kebutuhan harian" onChange={event => setNewName(event.target.value)} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addName(); } }} /></label>
               <button type="button" className="button secondary" disabled={draft.names.length >= 100 || !newName.trim()} onClick={addName}><Plus size={16} /> Tambah kategori</button>
             </div>
-            <ul className="category-manager-names">{draft.names.map(name => <li key={name}><span>{name}</span>{name === UNCATEGORIZED ? <small>Kategori dasar</small> : <button type="button" className="icon-button" aria-label={`Hapus kategori ${name}`} title="Hapus dari pilihan; catatan lama tetap disimpan" onClick={() => removeName(name)}><Trash2 size={16} /></button>}</li>)}</ul>
+            <ul className="category-manager-names">{draft.names.map(name => renaming?.from === name ? <li key={name} className="category-rename" data-testid="category-rename">
+              <label className="field"><span className="field-label">Nama baru untuk “{name}”</span><input className="field-input" aria-label={`Nama baru untuk kategori ${name}`} maxLength={80} autoFocus value={renaming.to} onChange={event => { setRenaming({ ...renaming, to: event.target.value }); setError(''); }} onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); applyRename(); } else if (event.key === 'Escape') { event.stopPropagation(); setRenaming(null); } }} /></label>
+              {recordsNamed(name) > 0 ? <label className="checkbox-row"><input type="checkbox" aria-label="Ganti juga di catatan lama" checked={renaming.updateEntries} onChange={event => setRenaming({ ...renaming, updateEntries: event.target.checked })} /><span>Ganti juga di {recordsNamed(name)} catatan lama. Tanpa centang, catatan itu tetap bernama “{name}”.</span></label> : <span className="field-help">Belum ada catatan yang memakai nama ini.</span>}
+              <span className="field-help">Aturan, anggaran, dan template yang memakai nama ini ikut pindah. Nominal, tanggal, dan jenis catatan tidak berubah.</span>
+              <div className="category-rename-actions"><button type="button" className="button secondary small" onClick={() => setRenaming(null)}>Batal</button><button type="button" className="button primary small" disabled={!renaming.to.trim() || renaming.to.trim() === name} onClick={applyRename}>Terapkan nama</button></div>
+            </li> : <li key={name}><span>{name}</span>{name === UNCATEGORIZED ? <small>Kategori dasar</small> : <span className="category-name-actions"><button type="button" className="icon-button" aria-label={`Ganti nama kategori ${name}`} title="Ganti nama" onClick={() => { setRenaming({ from: name, to: name, updateEntries: true }); setError(''); setMessage(''); }}><Pencil size={15} /></button><button type="button" className="icon-button" aria-label={`Hapus kategori ${name}`} title="Hapus dari pilihan; catatan lama tetap disimpan" onClick={() => removeName(name)}><Trash2 size={16} /></button></span>}</li>)}</ul>
           </section>
           <section className="category-manager-section" role="tabpanel" id="category-panel-budgets" hidden={tab !== 'budgets'} aria-label="Anggaran bulanan">
             <h3>Anggaran bulanan</h3>
