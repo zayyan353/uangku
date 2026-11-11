@@ -213,9 +213,12 @@ dan bulan (5.4).
 
 ### 1.5 Rincian arus rekening
 
-- [ ] **1.5.1 Kepala panel dan lipatan**
+- [x] **1.5.1 Kepala panel dan lipatan**
   *Isi:* sama dengan 1.4.1; ringkasan HP "3 jenis operasi · ketuk untuk melihat".
   - Ikut hasil 1.4.1.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode tambahan.* Panel ini memakai
+    penyimpan pilihan yang sama dengan 1.4.1: dibuka/ditutup lewat keyboard,
+    pindah halaman, kembali, dan pilihannya bertahan (desktop dan HP).
 
 - [ ] **1.5.2 Tabel jenis operasi**
   *Isi:* kolom Jenis operasi, Uang masuk, Uang keluar; pesan kosong "Belum ada
