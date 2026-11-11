@@ -1367,6 +1367,11 @@ html[data-theme="dark"] .tab-group > button.active { color: var(--lime); backgro
 .account-trigger[aria-expanded="true"] { border-color: var(--text-muted); }
 .account-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: 260px; max-width: calc(100vw - 32px); padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 12px 32px #1f361a24; display: flex; flex-direction: column; }
 .account-heading { display: flex; flex-direction: column; margin: 0; padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 13px; color: var(--text); }
+.page-header > div:first-child { min-width: 0; }
+.page-title { overflow-wrap: anywhere; }
+.account-nickname { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 13px; color: var(--text); }
+.account-nickname .field-input { min-height: 40px; }
+.account-nickname small { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
 .account-heading span { color: var(--text-muted); font-size: 12px; }
 .account-panel > button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 .account-panel > button:hover { background: var(--surface-raised); }

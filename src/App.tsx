@@ -56,6 +56,7 @@ import CashArchive from './components/CashArchive';
 import { createBankEntryPresentationLookup } from './lib/bankEntryHints';
 import { reviewCounts, type ReviewReason } from './lib/reviewStatus';
 import { categoryColorIndex } from './lib/dashboardView';
+import { greeting, nicknameInitial, NICKNAME_KEY, readNickname, sanitizeNickname, writeNickname } from './lib/nickname';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' });
 const today = () => DATE_FORMAT.format(new Date());
@@ -363,6 +364,19 @@ export default function App() {
   const budgetsShown = cashflowPeriod === 'month' && cashflowScope === 'all';
   const budgetsHidden = !budgetsShown && !!monthlyBudgets && Object.keys(monthlyBudgets).length > 0;
   const [allCategoriesShown, setAllCategoriesShown] = useState(false);
+  // Greeting name: typed text is kept as is while editing; the cleaned form is what gets stored and shown.
+  const [nickname, setNickname] = useState(readNickname);
+  const nicknameUnsaved = useRef(false);
+  useEffect(() => {
+    const changed = (event: StorageEvent) => { if (event.key === NICKNAME_KEY || event.key === null) setNickname(readNickname()); };
+    window.addEventListener('storage', changed);
+    return () => window.removeEventListener('storage', changed);
+  }, []);
+  function changeNickname(value: string) {
+    setNickname(value);
+    if (!writeNickname(value) && !nicknameUnsaved.current) { nicknameUnsaved.current = true; notify('Nama panggilan berlaku untuk sesi ini. Browser belum bisa menyimpannya.'); }
+  }
+  const avatarInitial = nicknameInitial(sanitizeNickname(nickname));
   const categoryRows = categoryBudgetRows(categoryTotals, budgetsShown ? monthlyBudgets : undefined, allCategoriesShown ? Infinity : undefined);
   function startOwn() {
     if (mutationInFlight.current || ledger.dirty || !data.demo) return;
@@ -526,7 +540,7 @@ export default function App() {
     } catch (err) { notify(err instanceof Error ? err.message : 'File cadangan tidak valid.'); }
     finally { if (restoreRef.current) restoreRef.current.value = ''; }
   }
-  const titles = { overview: ['Halo, Zayyan.', 'Uangmu di mana-mana. Catatannya cukup di sini.'], wallets: ['Semua dompetmu.', 'Rekening dan e-wallet. Cash tidak dibukukan.'], transactions: ['Catatan kecil, lebih tenang.', 'Lihat uang yang masuk, keluar, dan berpindah.'], import: ['Biar file yang bantu.', 'Kurangi ketik satu-satu. Mulai dari mutasi rekening.'] };
+  const titles = { overview: [greeting(sanitizeNickname(nickname)), 'Uangmu di mana-mana. Catatannya cukup di sini.'], wallets: ['Semua dompetmu.', 'Rekening dan e-wallet. Cash tidak dibukukan.'], transactions: ['Catatan kecil, lebih tenang.', 'Lihat uang yang masuk, keluar, dan berpindah.'], import: ['Biar file yang bantu.', 'Kurangi ketik satu-satu. Mulai dari mutasi rekening.'] };
   function navigate(next: Page) {
     if (mutationInFlight.current || next === page) return;
     if (page === 'transactions') {
@@ -557,8 +571,8 @@ export default function App() {
   const overviewRecent = <>{pendingCount > 0 && <button className="pending-banner" onClick={() => openHistory('all', 'all', 'pending')}><span className="pending-icon"><CircleHelp size={20} /></span><span><strong>{pendingCount} catatan bisa dirapikan nanti</strong><span>{[pendingReview.type > 0 && `${pendingReview.type} jenis perlu dicek`, pendingReview.category > 0 && `${pendingReview.category} kategori belum diisi`].filter(Boolean).map(reason => `${reason}. `).join('').replace(/\. (?=\d)/g, ' · ')}Saldo sudah tercatat.</span></span><span className="pending-cta">Cek catatan <ArrowRight size={16} /></span></button>}
     {!startGuide && <section className="panel transactions-panel"><div className="panel-header"><div><h2>Transaksi terbaru</h2><p>{dashboardWallet?.name ?? `Semua dompet ${currency}`} · {cashflowPeriod === 'all' ? 'Semua periode' : reportMonth}</p></div><button className="text-link" onClick={() => openHistory(cashflowScope, cashflowPeriod)}>Semua transaksi <ArrowRight size={15} /></button></div><TransactionTable entries={allTransactions.slice(0, 5)} state={state} data={data} onEdit={editEntry} onDetail={setAmountDetail} /></section>}</>;
   return <CategorySettingsContext.Provider value={categoryPreferences.settings}><div className="app-shell">
-    <AppSidebar page={page} pendingCount={pendingCount} lastBackupText={lastBackupText} onNavigate={navigate} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} />
-    <main className="main-content"><header className="topbar"><div className="breadcrumb"><span className="breadcrumb-root">Ruang pribadi</span><ChevronRight className="breadcrumb-separator" size={13} aria-hidden="true" /><strong>{NAVIGATION.find(n => n.page === page)?.label}</strong></div><div className="topbar-tools"><ThemePicker onNotice={notify} />{ledger.dirty || storageError || blocked ? <span className="save-pill problem" title={ledger.label} aria-hidden="true"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span> : <span className="save-pill" title={ledger.label} role="status" data-testid="save-status"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span>}<span className="local-indicator"><span className="status-dot" /> Lokal & pribadi</span><button className="icon-button" aria-label="Privasi dan cadangan" onClick={() => setPrivacyOpen(true)}><ShieldCheck size={18} /></button><AccountMenu lastBackupText={lastBackupText} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} /></div></header>
+    <AppSidebar initial={avatarInitial} page={page} pendingCount={pendingCount} lastBackupText={lastBackupText} onNavigate={navigate} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} />
+    <main className="main-content"><header className="topbar"><div className="breadcrumb"><span className="breadcrumb-root">Ruang pribadi</span><ChevronRight className="breadcrumb-separator" size={13} aria-hidden="true" /><strong>{NAVIGATION.find(n => n.page === page)?.label}</strong></div><div className="topbar-tools"><ThemePicker onNotice={notify} />{ledger.dirty || storageError || blocked ? <span className="save-pill problem" title={ledger.label} aria-hidden="true"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span> : <span className="save-pill" title={ledger.label} role="status" data-testid="save-status"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span>}<span className="local-indicator"><span className="status-dot" /> Lokal & pribadi</span><button className="icon-button" aria-label="Privasi dan cadangan" onClick={() => setPrivacyOpen(true)}><ShieldCheck size={18} /></button><AccountMenu nickname={nickname} initial={avatarInitial} onNicknameChange={changeNickname} lastBackupText={lastBackupText} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} /></div></header>
       <div className="page-content"><div className="page-header"><div>{page === 'overview' && <div className="eyebrow">SEDIKIT DICATAT, BANYAK TERBANTU</div>}<h1 className="page-title">{titles[page][0]} {page === 'overview' && <span className="greeting-leaf">✳</span>}</h1><p className="page-subtitle">{titles[page][1]}</p></div><div className="page-actions">{page === 'wallets' ? <button className="button primary" onClick={() => openWallet('new')}><Plus size={18} /> Tambah dompet</button> : page === 'import' ? <><button className="button ghost small import-setting" onClick={openCurrencyManager}>Kelola mata uang</button><button className="button ghost small import-setting" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></> : <><button className="button secondary" onClick={() => openTx('transfer')}><ArrowLeftRight size={17} /> Pindah uang</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></>}</div></div>
       {mobileOverview && balanceCard}
       {activeState.wallets.some(wallet => undatedWallets.has(wallet.id)) && <div className="notice warning">Ada tanggal posting yang belum diketahui. Saldo aktual dan laporan periode terkait belum dapat dianggap lengkap; nilai tersebut tetap ada pada saldo seluruh catatan.</div>}

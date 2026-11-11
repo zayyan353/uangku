@@ -74,12 +74,22 @@ dan bulan (5.4).
 
 ### 1.1 Kepala halaman
 
-- [ ] **1.1.1 Sapaan**
+- [x] **1.1.1 Sapaan**
   *Isi:* tulisan kecil "SEDIKIT DICATAT, BANYAK TERBANTU", judul "Halo, Zayyan. ✳", subjudul.
   - **[keputusan]** Nama "Zayyan" dan avatar "Z" ditulis mati di kode
     (`App.tsx:527`, `AppNavigation.tsx`), padahal situsnya publik. Pilih: nama
     panggilan jadi pengaturan (tersimpan di preferensi browser) atau sapaan netral.
   - *Dilewati 11 Nov 2026: menunggu keputusan pemilik.*
+  - *Dikerjakan 11 Nov 2026 (pemilik menyetujui semua usul).* Nama "Zayyan"
+    dan avatar "Z" tidak lagi ditulis mati. Menu akun punya kolom "Nama
+    panggilan" (maksimal 24 karakter) yang disimpan di browser ini saja,
+    terpisah dari catatan dan tidak ikut cadangan. Kosong: sapaan "Halo." dan
+    avatar "U"; terisi: "Halo, Sari Dewi." dan huruf awalnya. Dicoba dengan
+    keyboard, muat ulang, dikosongkan, dan nama terpanjang di desktop dan HP,
+    terang dan gelap (judul kini membungkus, tidak meluber). Tes unit baru
+    `nickname.test.ts` (`npm test` 1.759 lulus); `theme_browser.py` 21/21,
+    `category_browser.py` 25/25, smoke 39 skenario, ux lulus. Kolom ini belum
+    punya tes browser sendiri.
 
 - [x] **1.1.2 Tombol Pindah uang dan Catat transaksi**
   *Isi:* membuka form 3.8 dan 3.7; dompet awal mengikuti cakupan di 1.2.1. Tanpa
