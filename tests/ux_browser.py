@@ -92,6 +92,9 @@ def run_case(browser, args, output, mobile):
         unchanged()
         page.get_by_role('button', name='Halaman berikutnya', exact=True).click()
         expect(page.locator('.transactions-table tbody tr')).to_have_count(17)
+        # Turning the page scrolls the list into view on the next animation frame. Let that settle first,
+        # otherwise it can land after the scroll below and move the page away from the recorded offset.
+        page.evaluate('() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))')
         offset = page.evaluate('() => { window.scrollTo(0, 450); return window.scrollY; }')
         assert offset > 200
         nav.get_by_role('button', name='Dompet', exact=True).click()
