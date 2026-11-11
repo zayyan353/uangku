@@ -40,8 +40,10 @@ type Folds = { reconciliation?: boolean; breakdown?: boolean };
 let rememberedFolds: Folds = {};
 
 /** Panel header that folds its body; on phones the body starts folded. */
-function FoldHeader({ title, description, summary, open, controls, onToggle }: { title: string; description: string; summary?: string; open: boolean; controls: string; onToggle: () => void }) {
-  return <h2 className="fold-header"><button type="button" className="fold-toggle" aria-expanded={open} aria-controls={controls} data-cashflow-fold onClick={onToggle}><span className="fold-text"><span className="fold-title">{title}</span><span className="fold-desc">{open || !summary ? description : summary}</span></span><ChevronDown className="fold-chevron" size={18} aria-hidden="true" /></button></h2>;
+export function FoldHeader({ title, description, summary, open, controls, onToggle, mark = 'cashflow' }: { title: string; description: string; summary?: string; open: boolean; controls: string; onToggle: () => void;
+  /** Which group of folding panels this header belongs to; the cashflow pair is addressed together by tests. */
+  mark?: 'cashflow' | 'category' }) {
+  return <h2 className="fold-header"><button type="button" className="fold-toggle" aria-expanded={open} aria-controls={controls} {...(mark === 'cashflow' ? { 'data-cashflow-fold': true } : { 'data-category-fold': true })} onClick={onToggle}><span className="fold-text"><span className="fold-title">{title}</span><span className="fold-desc">{open || !summary ? description : summary}</span></span><ChevronDown className="fold-chevron" size={18} aria-hidden="true" /></button></h2>;
 }
 
 function periodCaption(report: CashflowReport | undefined, month: string, period: Props['period']) {
