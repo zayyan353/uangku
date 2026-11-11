@@ -490,13 +490,13 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
   27px (desktop) / 40×35px (HP), tab 36px, pemilih tema 38–40px, checkbox 15px.
   Naikkan area sentuh di ≤760px tanpa membesarkan ikon.
 
-- [ ] **MW-78 — Angka tabular di semua nominal**
+- [x] **MW-78 — Angka tabular di semua nominal**
   `tabular-nums` baru ada di `.stat-value`, `.cashflow-table td`,
   `.amount-detail dd`. Tambahkan ke `.wallet-amount`, `.amount-cell`,
   `.balance-number`, `.wallet-card-balance`, `.category-value`,
   `.cashflow-equation dd` supaya digit sejajar antarbaris.
 
-- [ ] **MW-79 — Sidebar di layar pendek + `100dvh`**
+- [x] **MW-79 — Sidebar di layar pendek + `100dvh`**
   `.sidebar` `position: fixed` tanpa `overflow-y`: di jendela pendek tombol
   cadangan di bawah terpotong dan tidak bisa digulir. `.app-shell` memakai
   `100vh` (melompat di browser HP); ganti `100dvh` dengan fallback.

@@ -32,7 +32,7 @@ button:hover:not(:disabled) { filter: brightness(.985); }
 button:active:not(:disabled) { transform: translateY(1px); }
 ::selection { background: #d5ee96; color: #173b31; }
 
-.app-shell { min-height: 100vh; display: grid; grid-template-columns: 232px minmax(0, 1fr); }
+.app-shell { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-columns: 232px minmax(0, 1fr); }
 .sidebar { background: var(--forest); color: #f4f8ed; padding: 37px 20px 22px; display: flex; flex-direction: column; position: fixed; inset: 0 auto 0 0; width: 232px; z-index: 30; }
 .brand { display: flex; align-items: center; gap: 11px; padding: 0 13px; margin-bottom: 49px; text-decoration: none; }
 .brand-mark { background: var(--lime); color: var(--forest); width: 39px; height: 39px; border-radius: 13px; display: grid; place-items: center; font-weight: 800; font-size: 29px; letter-spacing: -4px; padding-right: 3px; }
@@ -161,7 +161,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .transactions-table th:last-child, .transactions-table td:last-child { padding-right: 0; }
 .transactions-table td, .import-table td { padding: 14px 12px; border-bottom: 1px solid #f0f2eb; color: #52634f; vertical-align: middle; }
 .transactions-table tbody tr:last-child td, .import-table tbody tr:last-child td { border-bottom: none; }
-.transactions-table tbody tr:hover, .import-table tbody tr:hover { background: #fafbf7; }
+@media (hover: hover) { .transactions-table tbody tr:hover, .import-table tbody tr:hover { background: #fafbf7; } }
 .transaction-cell { display: flex; align-items: center; gap: 10px; min-width: 165px; }
 .transaction-icon { width: 33px; height: 33px; border-radius: 11px; background: #f3f1e9; color: #52634f; display: grid; place-items: center; flex-shrink: 0; }
 .transaction-icon svg { width: 15px; height: 15px; }
@@ -357,7 +357,8 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .panel-header p { font-size: 13px; }
 .text-link { font-size: 13px; }
 .wallet-row { background: transparent; border: 0; border-bottom: 1px solid #f0f2eb; width: 100%; text-align: left; }
-.wallet-row:hover { background: #fafcf6; }
+@media (hover: hover) { .wallet-row:hover { background: #fafcf6; } }
+.wallet-row:active { background: #f3f7ea; }
 .wallet-row > svg { color: #52634f; width: 13px; height: 13px; margin-left: 3px; }
 .wallet-name { font-size: 14px; }
 .wallet-detail { font-size: 12px; }
@@ -964,7 +965,9 @@ html[data-theme="dark"] :is(.wallet-row, .wallet-row-wrap, .wallet-card-footer, 
   .modal-footer, .bulk-review-confirm, .transactions-table th, .import-table th,
   .transactions-table td, .import-table td) { border-color: var(--line); }
 html[data-theme="dark"] .wallet-row { background: transparent; }
-html[data-theme="dark"] :is(.wallet-row:hover, .transactions-table tbody tr:hover, .import-table tbody tr:hover) { background: var(--surface-hover); }
+@media (hover: hover) { html[data-theme="dark"] :is(.transactions-table tbody tr:hover, .import-table tbody tr:hover) { background: var(--surface-hover); } }
+@media (hover: hover) { html[data-theme="dark"] .wallet-row:hover { background: var(--surface-hover); } }
+html[data-theme="dark"] .wallet-row:active { background: var(--surface-hover); }
 html[data-theme="dark"] :is(.transactions-table tr.selected-row, .transactions-table tbody tr:has(input.selection-checkbox:checked)) {
   background: #293e25;
 }
@@ -1369,3 +1372,61 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
 
 /* MW-59: tabel Rincian arus tanpa baris. */
 .cashflow-table .cashflow-empty td { text-align: center; color: var(--text-muted); white-space: normal; padding: 18px 0; }
+
+/* Penyempurnaan tata letak (11 Nov 2026): jarak antar-kartu seragam, baris dompet,
+   target sentuh HP, sidebar pendek, angka tabular, state tombol. */
+:root { --block-gap: 24px; }
+@media (max-width: 760px) { :root { --block-gap: 20px; } }
+
+/* 1–2, 4: satu jarak antar-blok di semua halaman. Di HP "Transaksi terbaru" berada di atas
+   .dashboard-columns, jadi kartu itu butuh jarak bawah sendiri. */
+.page-header, .demo-banner, .backup-reminder, .currency-toolbar, .pending-banner,
+.balance-card-compact, .cashflow-reconciliation, .cashflow-breakdown-panel,
+.page-content > .transactions-panel, .page-content > .notice { margin-bottom: var(--block-gap); }
+.page-content > .notice { margin-top: 0; }
+.dashboard-columns { gap: var(--block-gap); margin-bottom: var(--block-gap); }
+.wallet-grid + .notice, .page-content > .bottom-note { margin-top: var(--block-gap); }
+.wallet-view-tabs.tab-group { margin-bottom: var(--block-gap); }
+.import-format-picker + .field-help { margin-bottom: 16px; }
+
+/* 3: sorotan baris dompet simetris; garis pemisah tetap sejajar judul kartu. */
+.wallet-panel .wallet-row-wrap > .wallet-row,
+.wallet-panel .wallet-row-wrap:first-child > .wallet-row,
+.wallet-panel .wallet-row-wrap:last-child > .wallet-row { padding: 12px 10px; margin: 2px -10px; border-radius: 12px; }
+
+/* 6: sidebar bisa digulir di jendela pendek. */
+.sidebar { overflow-y: auto; scrollbar-width: thin; scrollbar-color: #ffffff2e transparent; }
+
+/* 8: digit sejajar antarbaris. */
+.wallet-amount, .amount-cell, .balance-number, .wallet-card-balance, .category-value,
+.cashflow-equation dd, .import-summary strong { font-variant-numeric: tabular-nums; }
+
+/* 10: state hover/tekan yang terlihat. */
+@media (hover: hover) {
+  .button.secondary:hover:not(:disabled), .button.ghost:hover:not(:disabled), .icon-button:hover:not(:disabled) { background: var(--surface-raised); }
+  html:not([data-theme="dark"]) .button.danger:hover:not(:disabled) { background: #ffe6df; }
+  .text-link:hover:not(:disabled) { color: var(--text); text-decoration: underline; text-underline-offset: 3px; }
+}
+:is(.button, .icon-button, .tab-group > button, .segmented-control button):active:not(:disabled) { filter: brightness(.94); }
+
+/* 5: target sentuh >= 44px di HP tanpa membesarkan ikon atau teks. */
+@media (max-width: 760px) {
+  .button.small, :is(.demo-banner, .backup-reminder) .button, .tab-group > button,
+  .segmented-control button, .theme-picker select { min-height: 44px; }
+  .modal-close, .wallet-card .icon-button,
+  .transactions-table:not(.import-table) .row-actions .icon-button { min-width: 44px; min-height: 44px; }
+  .currency-toolbar .date-pill { min-height: 44px; padding-top: 0; padding-bottom: 0; }
+  .currency-toolbar .date-pill input { min-height: 42px; }
+  .text-link, .account-trigger, .type-scroll { position: relative; }
+  .type-scroll { position: absolute; }
+  .text-link::after, .account-trigger::after, .type-scroll::after { content: ""; position: absolute; }
+  .text-link::after { inset: -10px 0; }
+  .account-trigger::after { inset: -6px; }
+  .type-scroll::after { inset: -9px; }
+  input.selection-checkbox, .selection-checkbox input[type=checkbox] { width: 24px; height: 24px; }
+}
+
+/* 9: lencana format turun ke bawah judul kartu impor di layar sempit. */
+@media (max-width: 600px) {
+  .import-main > .panel-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+}
