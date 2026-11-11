@@ -485,7 +485,7 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
   Campuran 3px/offset 3px, 2px/offset 2px, 2px/offset −2px, dan
   `:focus-within` di pemilih tema. Satu gaya lewat token `--focus`.
 
-- [ ] **MW-77 — Target sentuh ≥ 44px di HP**
+- [x] **MW-77 — Target sentuh ≥ 44px di HP**
   `.button.small` 32px, `.icon-button` 34px, `.modal-close` 30px, tombol baris
   27px (desktop) / 40×35px (HP), tab 36px, pemilih tema 38–40px, checkbox 15px.
   Naikkan area sentuh di ≤760px tanpa membesarkan ikon.
