@@ -203,9 +203,13 @@ dan bulan (5.4).
     terlihat: dari kode, selisih hanya bisa bukan nol bila rumus laporan
     sendiri tidak konsisten, jadi cabang itu belum terbukti lewat tes.
 
-- [ ] **1.4.4 "Cara membaca angka ini"**
+- [x] **1.4.4 "Cara membaca angka ini"**
   *Isi:* daftar penjelasan terlipat.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Desktop dan HP, terang dan
+    gelap: terbuka dengan Enter, fokus terlihat, empat butir penjelasan tampil
+    tanpa meluber. Catatan: baris pembukanya setinggi 25px, di bawah target
+    sentuh 44px di HP; tidak diubah di butir ini.
 
 ### 1.5 Rincian arus rekening
 
