@@ -126,3 +126,49 @@ describe('read-only transaction history', () => {
     expect(queryHistory(index, query({ period: 'all' }))).toHaveLength(1);
   });
 });
+
+describe('previousMonth', () => {
+  it('steps back one month and across a year', async () => {
+    const { previousMonth } = await import('./historyView');
+    expect(previousMonth('2026-11')).toBe('2026-10');
+    expect(previousMonth('2026-01')).toBe('2025-12');
+    expect(previousMonth('2026-13')).toBeNull();
+    expect(previousMonth('Nov 2026')).toBeNull();
+  });
+});
+
+describe('history search and category filter', () => {
+  const state = makeState([
+    entry('coffee', '2026-10-04', { amount: 35000, note: 'Kopi sore', category: 'Makan & minum' }),
+    entry('fare', '2026-10-05', { amount: 99.75, note: 'Ongkos', category: '' }),
+    entry('move', '2026-10-06', { type: 'transfer', toWalletId: 'idr', amount: 1500, toAmount: 350000, fee: 25, category: '', note: 'Pindah' }),
+    entry('bank', '2026-10-07', { amount: 12, note: 'POS 123 RAW', category: 'Belanja' }),
+  ]);
+  const ids = (extra: Partial<HistoryQuery>, index = createHistoryIndex(state)) => queryHistory(index, query(extra)).map(item => item.id).sort();
+  it('finds entries by a typed amount, with or without grouping', () => {
+    expect(ids({ query: '35.000' })).toEqual(['coffee', 'move']);
+    expect(ids({ query: '35000' })).toEqual(['coffee', 'move']);
+    expect(ids({ query: '99,75' })).toEqual(['fare']);
+    expect(ids({ query: '25' })).toEqual(['move']);
+  });
+  it('does not treat one digit or mixed text as an amount', () => {
+    expect(ids({ query: '3' })).toEqual(['bank']); // the note's own "123", not the amounts 35000 or 350000
+    expect(ids({ query: '123' })).toEqual(['bank']);
+    expect(ids({ query: 'kopi 35' })).toEqual([]);
+  });
+  it('searches the title shown on screen as well as the stored note', () => {
+    let asked = 0;
+    const shownText = (item: Entry) => { asked += 1; return item.id === 'bank' ? 'Toko Buku' : item.note; };
+    expect(ids({ query: 'toko buku', shownText })).toEqual(['bank']);
+    expect(ids({ query: 'pos 123 raw', shownText })).toEqual(['bank']);
+    expect(ids({ query: 'toko buku' })).toEqual([]);
+    asked = 0;
+    expect(ids({ shownText })).toHaveLength(4); // without a search the titles are never asked for
+    expect(asked).toBe(0);
+  });
+  it('filters by category and never matches transfers', () => {
+    expect(ids({ category: 'Makan & minum' })).toEqual(['coffee']);
+    expect(ids({ category: 'Belum dikategorikan' })).toEqual(['fare']);
+    expect(ids({ category: 'Belanja', query: 'pos' })).toEqual(['bank']);
+  });
+});

@@ -45,6 +45,10 @@ Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
   5000 ms membuat CI gagal acak tanpa perubahan kode. `ci.yml` sekarang memberi
   `--median-budget-ms 6000`; default lokal, p95 (8000 ms), dan frame budget tetap.
   Menyelidiki kenapa batch-nya ~5 detik bisa jadi MW terpisah.
+  *11 Nov 2026:* atas permintaan pemilik batasnya dilonggarkan lagi di `ci.yml`:
+  median 7000 ms dan jeda frame 350 ms (`--frame-budget-ms 350`); p95 tetap 8000 ms.
+  Di luar runner GitHub, jeda frame terukur 271–298 ms pada kode yang sama, jadi
+  batas 250 ms gagal tanpa perubahan kode. Default lokal skrip tidak diubah.
 
 - [x] **MW-01 — Perbarui aturan kerja (prasyarat semua MW lain)**
   `AGENTS.md` masih bilang branch `local-rebuild` dan "tidak boleh push, merge,

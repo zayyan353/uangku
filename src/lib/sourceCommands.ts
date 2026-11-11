@@ -25,13 +25,13 @@ export type SourcedImportPreparation =
   | { status: 'review'; inspection: SourcedInspection }
   | { status: 'invalid'; inspection: SourcedInspection; message: string };
 export interface SourceCommandDecision { reason: string; at: string }
-const E4_MESSAGE = 'Transfer dengan fakta sumber belum dapat diubah, dipasangkan, dipulihkan, atau dihapus sebelum pengamanan dua sisi E4. Fakta sumber tetap dipertahankan.';
+const E4_MESSAGE = 'Transfer dengan data mutasi bank belum dapat diubah, dipasangkan, dipulihkan, atau dihapus sebelum pengamanan dua sisi E4. Data mutasi bank tetap dipertahankan.';
 const signed = (entry: Entry): number => ['income', 'adjustment', 'unreviewed', 'movement'].includes(entry.type) ? entry.amount : -entry.amount - (entry.fee ?? 0);
 const sourceRefs = (link: SourceLink): string[] => [link.source, link.destination].filter((id): id is string => !!id);
 const canonical = (value: unknown): string => JSON.stringify(canonicalSource(value));
 function emptyMetadata(): SourceMetadata { return { policy: SOURCE_POLICY, facts: [], links: [], statements: [] }; }
 function requireDecision(decision: SourceCommandDecision): void {
-  if (!decision.reason.trim()) throw new Error('Isi alasan perubahan atau penghapusan fakta sumber.');
+  if (!decision.reason.trim()) throw new Error('Isi alasan perubahan atau penghapusan data mutasi bank.');
   if (!Number.isFinite(Date.parse(decision.at))) throw new Error('Waktu keputusan sumber tidak valid.');
 }
 function finalDocument(data: SourceDocument): SourceDocument {
@@ -328,17 +328,17 @@ function reviewFor(data: SourceDocument,wallet: Wallet,row: ImportRow,match: Mat
   if(!status)return;
   const messages:Record<SourceReviewStatus,string>={
     'alternate-source':match.legacyXmlOverlap
-      ? 'Catatan lama pada tanggal dan nominal yang sama memuat kode karakter yang mungkin berasal dari pembaca Excel lama. Bandingkan dengan file asli. Pilih Pertahankan catatan untuk menyimpan fakta file tanpa menambah transaksi, atau Transaksi berbeda jika ini memang mutasi lain.'
-      : 'Ada fakta sumber dengan ciri sama atau catatan impor lama pada tanggal/nominal yang sama, tetapi identitas format atau referensinya berbeda. Histori legacy tidak selalu memiliki saldo/keterangan sumber yang lengkap. Pertahankan catatan lama untuk tidak menambah transaksi, atau pilih Transaksi berbeda hanya jika benar-benar mutasi lain. Baris yang dipertahankan disimpan sebagai sumber dikecualikan; asosiasi tidak ditebak.',
-    'known-overridden':'Fakta bank dikenal, tetapi nilai efektif telah dikoreksi. Pertahankan koreksi atau pulihkan fakta bank secara eksplisit.',
+      ? 'Catatan lama pada tanggal dan nominal yang sama memuat kode karakter yang mungkin berasal dari pembaca Excel lama. Bandingkan dengan file asli. Pilih Pertahankan catatan untuk menyimpan isi file tanpa menambah transaksi, atau Transaksi berbeda jika ini memang mutasi lain.'
+      : 'Ada data mutasi bank dengan ciri sama atau catatan impor lama pada tanggal/nominal yang sama, tetapi identitas format atau referensinya berbeda. Catatan impor lama tidak selalu menyimpan saldo dan keterangan bank yang lengkap. Pertahankan catatan lama untuk tidak menambah transaksi, atau pilih Transaksi berbeda hanya jika benar-benar mutasi lain. Baris yang dipertahankan disimpan sebagai sumber dikecualikan; asosiasi tidak ditebak.',
+    'known-overridden':'Data bank dikenal, tetapi nilai efektif telah dikoreksi. Pertahankan koreksi atau pulihkan data bank secara eksplisit.',
     'known-deleted':'Catatan sumber dihapus. Penghapusan dipertahankan sampai dipilih pulihkan.',
     'known-deleted-transfer':'Sumber terkait transfer terhapus. Pulihkan seluruh grup beserta kedua tanggal, biaya dan koreksinya, atau pertahankan penghapusan.',
     'known-excluded':'Sumber dikecualikan secara eksplisit. Pertahankan keputusan atau pulihkan.',
     'known-deferred':'Sumber belum dipilih pada impor sebelumnya. Pertahankan atau lengkapi secara eksplisit.',
     'known-unrepresented':'Sumber dikenal tanpa catatan efektif. Pilih keputusan saat ini.',
-    'legacy-uncertain':'Fingerprint lama cocok, tetapi fakta asli sebelumnya tidak tersedia. Pertahankan catatan atau adopsi fakta file; histori tidak ditebak.',
-    'identity-ambiguous':'Fingerprint memiliki beberapa kandidat atau fakta berbeda. Identitas belum pasti; tidak ada penautan otomatis.',
-    'transfer-limited':'Koreksi atau sumber legacy transfer tidak dipulihkan per satu baris. Gunakan pengaturan seluruh transfer; fakta dan tanggal tetap dipertahankan.',
+    'legacy-uncertain':'Kode pengenal mutasi lama cocok, tetapi mutasi aslinya dulu tidak tersimpan. Pertahankan catatan atau pakai isi file ini; histori tidak ditebak.',
+    'identity-ambiguous':'Mutasi ini cocok dengan beberapa kandidat atau datanya berbeda. Identitasnya belum pasti; tidak ada penautan otomatis.',
+    'transfer-limited':'Koreksi atau sumber transfer dari impor lama tidak dipulihkan per satu baris. Gunakan pengaturan seluruh transfer; fakta dan tanggal tetap dipertahankan.',
   };
   const manual=manualMatches(index,wallet.id,row.date,row.amount);
   const message=messages[status]+(manual.length?` Ada ${manual.length} kandidat catatan manual pada tanggal dan nominal yang sama. Pilih transaksi berbeda hanya bila ini mutasi lain; untuk asosiasi yang belum pasti, pertahankan catatan.`:'');
@@ -366,11 +366,11 @@ export function inspectSourcedImport(data:SourceDocument,wallet:Wallet,preview:I
 export function chronologicalSourceRows(preview:ImportPreview):ImportRow[]{
   const forward=preview.rows.every((row,i)=>!i||preview.rows[i-1].date<=row.date&&BigInt(preview.rows[i-1].balance)+BigInt(row.amount)===BigInt(row.balance));
   const reverse=preview.rows.every((row,i)=>!i||preview.rows[i-1].date>=row.date&&BigInt(row.balance)+BigInt(preview.rows[i-1].amount)===BigInt(preview.rows[i-1].balance));
-  if(!forward&&!reverse)throw new Error('Urutan fakta sumber atau running balance tidak cocok. Baca ulang file asli.');
+  if(!forward&&!reverse)throw new Error('Urutan data mutasi bank atau running balance tidak cocok. Baca ulang file asli.');
   if(preview.sourceOrder!==undefined&&!['oldest','newest'].includes(preview.sourceOrder))throw new Error('Arah urutan sumber belum valid.');
   if(preview.sourceOrder==='oldest'&&!forward||preview.sourceOrder==='newest'&&!reverse)throw new Error('Arah urutan sumber tidak cocok dengan tanggal dan saldo.');
   const rows=preview.sourceOrder==='newest'?[...preview.rows].reverse():preview.sourceOrder==='oldest'||forward?[...preview.rows]:[...preview.rows].reverse();
-  if(!rows.length||BigInt(rows[0].balance)-BigInt(rows[0].amount)!==BigInt(preview.openingBalance)||rows.at(-1)!.balance!==preview.closingBalance)throw new Error('Saldo header dan fakta sumber tidak cocok.');
+  if(!rows.length||BigInt(rows[0].balance)-BigInt(rows[0].amount)!==BigInt(preview.openingBalance)||rows.at(-1)!.balance!==preview.closingBalance)throw new Error('Saldo header dan data mutasi bank tidak cocok.');
   return rows;
 }
 function bankEntry(fact:SourceFact,id:string,batchId:string,previous?:Entry,saved?:SourceAnnotation):Entry {
@@ -429,7 +429,7 @@ export function prepareSourcedImport(data:SourceDocument,wallet:Wallet,preview:I
       if(previous)next.state.entries=next.state.entries.map(e=>e.id===previous.id?restored:e);else next.state.entries.push(restored);
       if(!metadata.links.some(link=>link.entryId===restored.id))metadata.links.push({entryId:restored.id,source:fact.id});
       metadata.dispositions=(metadata.dispositions??[]).filter(d=>d.sourceId!==fact.id);
-      putOverride(metadata,restored.id,{reason:'Pengguna memilih mengadopsi atau memulihkan fakta file pada keputusan impor saat ini.',at});annotate(fact,restored);
+      putOverride(metadata,restored.id,{reason:'Pengguna memilih mengadopsi atau memulihkan isi file pada keputusan impor saat ini.',at});annotate(fact,restored);
       if(!previous){metadata.creationOrigins??=[];metadata.creationOrigins.push({entryId:restored.id,origin:'bank'});}appended.push(restored);
     }
     const claimed=new Set(metadata.links.flatMap(sourceRefs)),dispositions=new Map((metadata.dispositions??[]).map(d=>[d.sourceId,d]));

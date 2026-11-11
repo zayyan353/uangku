@@ -267,6 +267,7 @@ def test_transaction_draft_close(browser, output):
         assert stored(page) == initial
 
         page.get_by_role('button', name='Pindah uang', exact=True).first.click()
+        dialog.get_by_role('button', name='Tanggal masuk berbeda?', exact=True).click()
         dialog.get_by_label('Tanggal kredit', exact=True).fill('2026-11-02')
         page.keyboard.press('Escape')
         expect(keep).to_be_focused()

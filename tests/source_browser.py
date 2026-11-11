@@ -77,7 +77,7 @@ def partial_completion_override(browser,out):
         corrected=wait_doc(page,lambda d:bool(d['metadata'].get('overrides')))
         assert corrected['metadata']['facts']==facts and saldo(corrected,'bank')==17000
         import_file(page,path)
-        page.get_by_role('button',name='Pulihkan fakta bank',exact=True).click();save_import(page,1)
+        page.get_by_role('button',name='Pulihkan data bank',exact=True).click();save_import(page,1)
         restored=wait_doc(page,lambda d:saldo(d,'bank')==17450)
         assert restored['metadata']['facts']==facts and len(restored['state']['entries'])==3
         import_file(page,path)
@@ -99,7 +99,7 @@ def transfer_lifecycle(browser,out):
         import_file(page,debit,'bank');save_import(page,1)
         import_file(page,credit,'cash');save_import(page,1)
         separate=wait_doc(page,lambda d:len(d['state']['entries'])==2)
-        nav(page,'Transaksi');page.get_by_label('Filter jenis transaksi',exact=True).select_option('pending')
+        nav(page,'Transaksi');page.get_by_role('button', name=re.compile(r'^Rapikan \d+ catatan$')).click()
         page.get_by_role('button',name='Cek DOVIZ debit synthetic',exact=True).click()
         dlg=page.get_by_role('dialog');dlg.get_by_role('button',name=re.compile('^Cocokkan transfer Synthetic second bank')).click()
         expect(dlg.get_by_label('Tanggal debit',exact=True)).to_have_value('2026-10-31')

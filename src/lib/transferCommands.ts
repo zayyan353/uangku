@@ -141,11 +141,11 @@ export function getTransferUnpairProblem(data: SourceDocument, entryId: string, 
     && data.metadata?.facts.some(fact => fact.id === link.source && fact.signedAmount < 0)
     && data.metadata?.facts.some(fact => fact.id === link.destination && fact.signedAmount > 0);
   if (!context && !link && !entry.sourceKey && !entry.toSourceKey) return null;
-  if (!context && !completeFacts) return 'Fakta bank debit dan kredit belum lengkap. Fingerprint lama bukan pengganti nominal, tanggal, dan keterangan sumber. Pertahankan transfer; pulihkan cadangan yang masih memiliki kedua fakta atau tinjau bukti bank terlebih dahulu. Rekonstruksi otomatis tidak tersedia.';
+  if (!context && !completeFacts) return 'Data bank debit dan kredit belum lengkap. Fingerprint lama bukan pengganti nominal, tanggal, dan keterangan sumber. Pertahankan transfer; pulihkan cadangan yang masih memiliki kedua fakta atau tinjau bukti bank terlebih dahulu. Rekonstruksi otomatis tidak tersedia.';
   for (const role of ['source','destination'] as const) {
     if (storedAnnotation(data,link?.[role],context?.[role === 'source' ? 'sourceAnnotation' : 'destinationAnnotation'])) continue;
     if (completeFacts && options.useBankAnnotations) continue;
-    return 'Anotasi posting lama tidak lengkap. Jika kedua fakta bank tersedia, pilih secara eksplisit untuk memakai keterangan bank sebagai anotasi baru; catatan pengguna lama yang hilang tidak dapat dipulihkan otomatis.';
+    return 'Anotasi posting lama tidak lengkap. Jika kedua data bank tersedia, pilih secara eksplisit untuk memakai keterangan bank sebagai anotasi baru; catatan pengguna lama yang hilang tidak dapat dipulihkan otomatis.';
   }
   return null;
 }

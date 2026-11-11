@@ -270,9 +270,11 @@ def deleted_rule(case):
     dialog = case.manager()
     row = dialog.locator('.category-manager-rules li:has(input[value="HOP SCOOTER"])')
     expect(row).to_have_count(1)
+    dialog.get_by_role('tab', name=re.compile('^Aturan')).click()
     row.get_by_role('button', name=re.compile('^Hapus aturan ')).click()
     path = case.args.output / 'deleted-pack-rule-settings.json'
     with p.expect_download() as download:
+        dialog.get_by_role('tab', name=re.compile('^Berkas')).click()
         dialog.get_by_role('button', name='Ekspor pengaturan kategori', exact=True).click()
     download.value.save_as(path)
     exported = json.loads(path.read_text(encoding='utf-8'))
@@ -282,6 +284,7 @@ def deleted_rule(case):
     p.reload(wait_until='networkidle'); nav(p, 'Transaksi')
     dialog = case.manager()
     assert dialog.locator('.category-manager-rules li:has(input[value="HOP SCOOTER"])').count() == 0
+    dialog.get_by_role('tab', name=re.compile('^Aturan')).click()
     dialog.get_by_label('Kata kunci aturan baru', exact=True).fill('HOP SCOOTER')
     dialog.get_by_label('Kategori aturan baru', exact=True).select_option('Transportasi')
     dialog.get_by_role('button', name='Tambah aturan', exact=True).click()
@@ -330,8 +333,10 @@ def legacy_cas(case):
     second = case.new_page()
     second.goto(case.args.url, wait_until='networkidle'); nav(second, 'Transaksi')
     first_dialog, second_dialog = case.manager(), case.manager(second)
+    first_dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     first_dialog.get_by_label('Nama kategori baru', exact=True).fill('Kategori tab pertama')
     first_dialog.get_by_role('button', name='Tambah kategori', exact=True).click()
+    second_dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     second_dialog.get_by_label('Nama kategori baru', exact=True).fill('Kategori tab usang')
     second_dialog.get_by_role('button', name='Tambah kategori', exact=True).click()
     case.save(first_dialog)

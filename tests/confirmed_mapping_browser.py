@@ -212,9 +212,11 @@ def custom_override(case, id_, note, expected_category):
 def deleted_category(case):
     p = case.page
     dialog = case.manager()
+    dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     dialog.get_by_role('button', name='Hapus kategori Scooter', exact=True).click()
     export_path = case.args.output / 'v2-archived-category-settings.json'
     with p.expect_download() as download:
+        dialog.get_by_role('tab', name=re.compile('^Berkas')).click()
         dialog.get_by_role('button', name='Ekspor pengaturan kategori', exact=True).click()
     download.value.save_as(export_path)
     exported = json.loads(export_path.read_text(encoding='utf-8'))
@@ -226,6 +228,7 @@ def deleted_category(case):
     assert dialog.locator('.category-automation-row').filter(has_text='POS HOP SCOOTER CONF004').count() == 0
     dialog.get_by_role('button', name='Batal', exact=True).click()
     dialog = case.manager()
+    dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     dialog.get_by_label('Nama kategori baru', exact=True).fill('Scooter')
     dialog.get_by_role('button', name='Tambah kategori', exact=True).click()
     case.save(dialog)
@@ -260,8 +263,10 @@ def v1_cas(case):
     second = case.new_page()
     second.goto(case.args.url, wait_until='networkidle'); nav(second, 'Transaksi')
     first_dialog, second_dialog = case.manager(), case.manager(second)
+    first_dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     first_dialog.get_by_label('Nama kategori baru', exact=True).fill('Kategori tab pertama')
     first_dialog.get_by_role('button', name='Tambah kategori', exact=True).click()
+    second_dialog.get_by_role('tab', name=re.compile('^Kategori')).click()
     second_dialog.get_by_label('Nama kategori baru', exact=True).fill('Kategori tab usang')
     second_dialog.get_by_role('button', name='Tambah kategori', exact=True).click()
     case.save(first_dialog)

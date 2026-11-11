@@ -36,7 +36,13 @@ jobs:
       - name: Pasang browser pengujian
         run: |
           python -m pip install playwright==1.64.1
-          python -m playwright install --with-deps chromium
+          python -m playwright install chromium
+          # Paket sistem dan font tambahan diambil dari mirror Ubuntu, yang kadang tidak terjangkau lama.
+          # Browsernya sendiri tidak bergantung pada mirror itu, jadi kegagalan di sini hanya peringatan:
+          # bila ada pustaka yang benar-benar kurang, tes browser di bawah akan gagal dengan jelas.
+          if ! timeout 240 python -m playwright install-deps chromium; then
+            echo "::warning::Paket sistem/font tambahan untuk browser tidak terpasang (mirror Ubuntu tidak terjangkau). Tes dijalankan dengan paket bawaan runner."
+          fi
       - name: Uji build produksi dengan data sintetis
         env:
           UANGKU_TEST_URL: http://127.0.0.1:4173
@@ -71,7 +77,7 @@ jobs:
           python tests/cashflow_browser.py --output "$RUNNER_TEMP/uangku-browser-cashflow"
           python tests/source_browser.py --output "$RUNNER_TEMP/uangku-browser-source"
           python tests/backfill_browser.py --output "$RUNNER_TEMP/uangku-browser-backfill"
-          python tests/performance_browser.py --output "$RUNNER_TEMP/uangku-browser-performance" --median-budget-ms 6000
+          python tests/performance_browser.py --output "$RUNNER_TEMP/uangku-browser-performance" --median-budget-ms 7000 --frame-budget-ms 350
       - name: Simpan bukti pengujian browser
         if: always()
         uses: actions/upload-artifact@v7

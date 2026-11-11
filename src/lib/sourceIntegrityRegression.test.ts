@@ -89,8 +89,8 @@ describe('E5 FIN-002 source integrity commands',()=>{
  });
  it('retains data and explains missing facts/dates instead of guessing for incomplete legacy',()=>{
   const f=legacy();delete f.data.metadata!.links[0].destination;
-  expect(getTransferUnpairProblem(f.data,f.source.id,{useBankAnnotations:true})).toMatch(/Fakta bank debit dan kredit belum lengkap/);
-  const before=structuredClone(f.data);expect(()=>executeTransferCommand(f.data,{kind:'unpair',entryId:f.source.id,destinationEntryId:'new-credit',useBankAnnotations:true,reason:'Attempt incomplete',at})).toThrow(/Fakta bank/);expect(f.data).toEqual(before);
+  expect(getTransferUnpairProblem(f.data,f.source.id,{useBankAnnotations:true})).toMatch(/Data bank debit dan kredit belum lengkap/);
+  const before=structuredClone(f.data);expect(()=>executeTransferCommand(f.data,{kind:'unpair',entryId:f.source.id,destinationEntryId:'new-credit',useBankAnnotations:true,reason:'Attempt incomplete',at})).toThrow(/Data bank/);expect(f.data).toEqual(before);
   const dates=legacy();dates.data.metadata!.transfers![0].destinationDate=null;expect(getTransferUnpairProblem(dates.data,dates.source.id,{useBankAnnotations:true})).toMatch(/Tanggal kedua sisi/);
  });
  it('preserves current source edits through pair → edit → unpair → reimport keep',()=>{

@@ -218,9 +218,12 @@ class Case:
         p=self.page;nav(p,'Impor mutasi')
         p.get_by_role('button',name='CSV / Excel umum',exact=True).click()
         p.get_by_label('Dompet impor',exact=True).select_option(wallet_id)
-        if separator!=',':p.get_by_label('Pemisah CSV',exact=True).select_option(separator)
         p.get_by_label('File mutasi umum',exact=True).set_input_files(path)
-        expect(p.get_by_label('Worksheet',exact=True)).to_be_visible()
+        # The separator is offered once a CSV/TSV is chosen and is suggested from the file's first lines.
+        if str(path).lower().endswith(('.csv','.tsv')):
+            picker=p.get_by_label('Pemisah CSV',exact=True);expect(picker).to_be_visible()
+            if picker.input_value()!=({'\t':'tab'}.get(separator,separator)):picker.select_option(separator)
+        expect(p.get_by_label('Baris judul kolom',exact=True)).to_be_visible()
         if header!=1:p.get_by_label('Baris judul kolom',exact=True).fill(str(header))
         if mode:p.get_by_label('Mode nominal',exact=True).select_option(mode)
         for label,index in (columns or {}).items():p.get_by_label(label,exact=True).select_option(str(index))
@@ -228,7 +231,9 @@ class Case:
         p.get_by_label('Pemisah desimal',exact=True).select_option(decimal)
         p.get_by_label('Urutan mutasi',exact=True).select_option(order)
         p.get_by_label('Konfirmasi mata uang file',exact=True).check()
-        p.get_by_role('button',name='Buat pratinjau impor',exact=True).click()
+        # With a required column unmapped the button stays disabled and the form says what is missing.
+        button=p.get_by_role('button',name='Buat pratinjau impor',exact=True)
+        if button.is_enabled():button.click()
 
     def preview(self):expect(self.page.get_by_role('heading',name='Periksa sebelum disimpan',exact=True)).to_be_visible()
     def save_import(self,n):
@@ -254,7 +259,8 @@ class Case:
 def manage_add_wallet(case):
     p=case.page;before=stored_document(p)
     dialog=case.manager();case.add_currency(dialog,'EUR')
-    dialog.get_by_role('button',name='Batal',exact=True).click();case.unchanged()
+    dialog.get_by_role('button',name='Batal',exact=True).click()
+    dialog.get_by_role('button',name='Buang perubahan',exact=True).click();case.unchanged()
     dialog=case.manager()
     for code in ['EUR','JPY','KWD']:case.add_currency(dialog,code)
     after=case.save_manager(dialog)
@@ -446,8 +452,14 @@ def reject_file(case,rows,*,wallet_id='eur',mode=None,xlsx=False,formulas=None,l
     mapper=case.page.get_by_role('region',name='Pemetaan impor umum',exact=True)
     # A labelled section is a region; fall back to its stable aria attribute.
     if mapper.count()==0:mapper=case.page.locator('[aria-label="Pemetaan impor umum"]')
-    alert=mapper.get_by_role('alert');expect(alert).to_be_visible()
-    if match:expect(alert).to_contain_text(re.compile(match,re.I))
+    missing=mapper.get_by_test_id('mapping-missing')
+    if missing.count():
+        # Refused before parsing: a required column is not mapped, so no preview can be requested.
+        expect(case.page.get_by_role('button',name='Buat pratinjau impor',exact=True)).to_be_disabled()
+        if match:expect(missing).to_contain_text(re.compile(match,re.I))
+    else:
+        alert=mapper.get_by_role('alert');expect(alert).to_be_visible()
+        if match:expect(alert).to_contain_text(re.compile(match,re.I))
     expect(case.page.get_by_role('heading',name='Periksa sebelum disimpan',exact=True)).to_have_count(0)
     case.unchanged()
 
@@ -509,7 +521,8 @@ def cross_scheme(case,distinct=False):
     row.get_by_role('button',name='Transaksi berbeda' if distinct else 'Pertahankan catatan',exact=True).click()
     if distinct:saved=case.save_import(1)
     else:
-        p.get_by_role('button',name='Simpan fakta file saja',exact=True).click()
+        p.get_by_text('Opsi lain',exact=True).click()
+        p.get_by_role('button',name='Simpan isi file saja',exact=True).click()
         expect(p.get_by_role('heading',name='Periksa sebelum disimpan',exact=True)).to_have_count(0)
         saved=case.saved()
     assert next(f for f in saved['metadata']['facts'] if f['id']=='old-fact')==before['metadata']['facts'][0]
@@ -546,6 +559,7 @@ def quota_currency_retry(case):
     expect(dialog.get_by_role('alert')).to_be_visible();case.unchanged()
     p.evaluate('window.blockCurrencySave=false')
     dialog.get_by_role('button',name='Batal',exact=True).click()
+    dialog.get_by_role('button',name='Buang perubahan',exact=True).click()
     p.get_by_role('button',name='Coba simpan lagi',exact=True).click()
     saved=case.saved()
     assert [r['code'] for r in saved['metadata']['currencies']].count('JPY')==1
@@ -590,12 +604,16 @@ def mapping_invalidates_preview(case):
     # The prior preview must disappear before the user can save those rows.
     for label,changed,restored in [
         ('Kolom keterangan','1','2'),('Pemisah desimal',',','.'),('Urutan mutasi','newest','oldest')]:
+        # With a preview on screen the mapping is folded away; it has to be reopened to change it.
+        expect(p.get_by_label(label,exact=True)).to_be_hidden()
+        p.get_by_role('button',name='Ubah pemetaan',exact=True).click()
         p.get_by_label(label,exact=True).select_option(changed)
         expect(p.get_by_role('heading',name='Periksa sebelum disimpan',exact=True)).to_have_count(0)
         expect(confirmation).not_to_be_checked();case.unchanged()
         p.get_by_label(label,exact=True).select_option(restored)
         confirmation.check();p.get_by_role('button',name='Buat pratinjau impor',exact=True).click()
         case.preview();case.unchanged()
+    p.get_by_role('button',name='Ubah pemetaan',exact=True).click()
     confirmation.uncheck()
     expect(p.get_by_role('heading',name='Periksa sebelum disimpan',exact=True)).to_have_count(0)
     expect(p.get_by_role('button',name='Buat pratinjau impor',exact=True)).to_be_disabled()
@@ -611,11 +629,11 @@ def failed_replacement_does_not_revive_file(case):
     mapper=p.locator('[aria-label="Pemetaan impor umum"]')
     expect(mapper.get_by_role('alert')).to_contain_text(re.compile('kutip|CSV',re.I))
     expect(p.get_by_role('heading',name='Periksa sebelum disimpan',exact=True)).to_have_count(0)
-    expect(p.get_by_label('Worksheet',exact=True)).to_have_count(0);case.unchanged()
+    expect(p.get_by_label('Baris judul kolom',exact=True)).to_have_count(0);case.unchanged()
     # A delimiter change can reread the current file, never the old successful
     # file after a failed replacement cleared its bytes.
     p.get_by_label('Pemisah CSV',exact=True).select_option(';')
-    expect(p.get_by_label('Worksheet',exact=True)).to_have_count(0)
+    expect(p.get_by_label('Baris judul kolom',exact=True)).to_have_count(0)
     expect(p.get_by_role('button',name='Buat pratinjau impor',exact=True)).to_have_count(0)
     expect(mapper).not_to_contain_text(path.name);case.unchanged()
 
@@ -636,7 +654,8 @@ def visual(case):
     dialog.get_by_role('button',name='Batal',exact=True).click();case.unchanged()
     path=case.args.output/f'{case.name}.csv';write_csv(path,EUR_ROWS)
     case.import_file(path);case.preview();case.unchanged();case.screenshot('generic-preview')
-    p.get_by_label('Worksheet',exact=True).evaluate("el=>el.scrollIntoView({block:'center'})")
+    p.get_by_role('button',name='Ubah pemetaan',exact=True).click()
+    p.get_by_label('Baris judul kolom',exact=True).evaluate("el=>el.scrollIntoView({block:'center'})")
     p.screenshot(path=str(case.args.output/f'{case.name}-generic-mapping-viewport.png'),animations='disabled')
     for label in ['Kolom tanggal','Pemisah desimal','Urutan mutasi']:
         p.get_by_label(label,exact=True).evaluate("el=>el.scrollIntoView({block:'center'})")

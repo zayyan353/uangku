@@ -12,6 +12,11 @@ export interface HistoryQuery {
   type: string;
   reviewQueue?: boolean;
   walletId?: string;
+  /** Exact category name; "Belum dikategorikan" also matches an empty category. Transfers and adjustments never match. */
+  category?: string;
+  /** The title a row shows on screen, which can be derived from the bank's wording instead of the stored note.
+   *  Asked only for rows a search has not matched otherwise, so it costs nothing without a search. */
+  shownText?: (entry: Entry) => string;
   reviewReason?: ReviewReason;
   reviewExcludedWalletIds?: ReadonlySet<string>;
   reviewExcludedEntryIds?: ReadonlySet<string>;
@@ -20,6 +25,8 @@ interface HistoryRow {
   entry: Entry;
   ordinal: number;
   text: string;
+  /** Digits of the entry's amounts, for a search typed as a number. */
+  amounts: string[];
   currencies: Currency[];
   dates: Partial<Record<Currency, string[]>>;
   undatedCurrencies: ReadonlySet<Currency>;
@@ -53,7 +60,8 @@ export function createHistoryIndex(state: State, context?: PostingContext): Hist
     for (const currency of currencies) dates[currency] = [...new Set(dates[currency] ?? [])].sort();
     for (const id of Object.keys(walletDates)) walletDates[id] = [...new Set(walletDates[id])].sort();
     const allDates = [...new Set(Object.values(dates).flat())].sort();
-    return { entry, ordinal, currencies, dates, allDates, undatedCurrencies, walletDates, undatedWalletIds, text: `${entry.note} ${entry.category} ${source?.name ?? ''} ${destination?.name ?? ''}`.toLocaleLowerCase('id-ID') };
+    return { entry, ordinal, currencies, dates, allDates, undatedCurrencies, walletDates, undatedWalletIds, amounts: [entry.amount, entry.toAmount, entry.fee].flatMap(value => value ? [String(Math.abs(value)).replace(/\D/g, '')] : []),
+      text: `${entry.note} ${entry.category} ${source?.name ?? ''} ${destination?.name ?? ''}`.toLocaleLowerCase('id-ID') };
   });
   rows.sort((a, b) => (b.allDates.at(-1) ?? '').localeCompare(a.allDates.at(-1) ?? '') || b.ordinal - a.ordinal);
   const rowsByCurrency = new Map<Currency, HistoryRow[]>();
@@ -67,6 +75,9 @@ export function createHistoryIndex(state: State, context?: PostingContext): Hist
 
 export function queryHistory(index: HistoryIndex, options: HistoryQuery): Entry[] {
   const needle = options.query.trim().toLocaleLowerCase('id-ID');
+  // "35.000" or "35000" also finds entries by amount; two digits at least, so a day number does not match every amount.
+  const digits = /^[\d.,\s]+$/.test(needle) ? needle.replace(/\D/g, '') : '';
+  const amountNeedle = digits.length >= 2 ? digits : '';
   const rows = options.reviewQueue ? index.rows : index.rowsByCurrency.get(options.currency) ?? [];
   const found = rows.filter(row => {
     if (options.reviewQueue && options.reviewExcludedEntryIds?.has(row.entry.id)) return false;
@@ -77,7 +88,9 @@ export function queryHistory(index: HistoryIndex, options: HistoryQuery): Entry[
     if (!options.reviewQueue && options.period === 'month'
       && !(options.walletId ? row.walletDates[options.walletId] : row.dates[options.currency])?.some(date => date.startsWith(options.month))
       && !(options.walletId ? row.undatedWalletIds.has(options.walletId) : row.undatedCurrencies.has(options.currency))) return false;
-    if (needle && !row.text.includes(needle)) return false;
+    if (needle && !row.text.includes(needle) && !(amountNeedle && row.amounts.some(amount => amount.startsWith(amountNeedle)))
+      && !options.shownText?.(row.entry).toLocaleLowerCase('id-ID').includes(needle)) return false;
+    if (options.category && (row.entry.type === 'transfer' || row.entry.type === 'adjustment' || (row.entry.category.trim() || 'Belum dikategorikan') !== options.category)) return false;
     return options.type === 'all' || (options.type === 'pending' ? needsEntryReview(row.entry, options.reviewReason) : row.entry.type === options.type);
   });
   if (options.walletId) found.sort((a, b) => (b.walletDates[options.walletId!]?.at(-1) ?? '').localeCompare(a.walletDates[options.walletId!]?.at(-1) ?? '') || b.ordinal - a.ordinal);
@@ -103,4 +116,12 @@ export function paginateHistory(entries: readonly Entry[], requestedPage: number
 export function monthLabel(month: string): string {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return month;
   return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));
+}
+
+/** The month before a `YYYY-MM` month, or null for text that is not a month. */
+export function previousMonth(month: string): string | null {
+  const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(month);
+  if (!match) return null;
+  const year = Number(match[1]), index = Number(match[2]);
+  return index === 1 ? `${String(year - 1).padStart(4, '0')}-12` : `${match[1]}-${String(index - 1).padStart(2, '0')}`;
 }

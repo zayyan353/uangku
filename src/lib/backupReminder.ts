@@ -81,19 +81,19 @@ export function recordBackup(storedLedger: string, at: Date = new Date(), storag
   }
 }
 
-const BACKUP_TIME_FORMAT = new Intl.DateTimeFormat('id-ID', {
-  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Istanbul',
+const backupTimeFormat = (timeZone?: string) => new Intl.DateTimeFormat('id-ID', {
+  day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', ...(timeZone ? { timeZone } : {}),
 });
 
-/** Short text for the sidebar and mobile footer, in the app's reporting time zone. */
-export function lastBackupLabel(record: LastBackup | null): string {
+/** Short text for the sidebar and mobile footer, in the device's time zone (`timeZone` is for tests). */
+export function lastBackupLabel(record: LastBackup | null, timeZone?: string): string {
   if (!record) return 'Cadangan terakhir: belum ada';
   const at = new Date(record.at);
   if (Number.isNaN(at.getTime())) return 'Cadangan terakhir: belum ada';
-  return `Cadangan terakhir: ${BACKUP_TIME_FORMAT.format(at)}`;
+  return `Cadangan terakhir: ${backupTimeFormat(timeZone).format(at)}`;
 }
 
-/** Day (YYYY-MM-DD, app time zone) on which the reminder was closed "until tomorrow". */
+/** Day (YYYY-MM-DD, device time zone) on which the reminder was closed "until tomorrow". */
 export const REMINDER_DISMISSED_KEY = 'uangku:backup-reminder-dismissed:v1';
 export const BACKUP_REMINDER_DAYS = 7;
 const DAY_MS = 86_400_000;

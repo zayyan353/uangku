@@ -165,3 +165,12 @@ describe('wallet validation and display', () => {
     expect(s.entries.some((e) => e.type === 'transfer' && e.rate && e.rate !== 1)).toBe(true);
   });
 });
+
+describe('formatDateTime', () => {
+  it('writes a stored instant as an ordinary date and time', async () => {
+    const { formatDateTime } = await import('./finance');
+    expect(formatDateTime('2026-11-11T11:05:09.000Z', 'Asia/Jakarta')).toBe('11 Nov 2026, 18.05');
+    expect(formatDateTime('bukan waktu')).toBe('bukan waktu');
+    expect(formatDateTime('2026-13-45T99:00:00Z')).toBe('2026-13-45T99:00:00Z');
+  });
+});

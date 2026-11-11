@@ -121,6 +121,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .wallet-panel { display: flex; flex-direction: column; }
 .wallet-panel .wallet-list { margin-bottom: 16px; }
 .wallet-panel-add { align-self: stretch; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; margin-top: auto; border: 1px dashed var(--line); border-radius: 12px; background: transparent; color: var(--text-muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.wallet-panel-more { align-self: flex-start; margin: -6px 0 14px; }
 .wallet-panel-add:hover { color: var(--text); border-color: var(--text-muted); }
 .wallet-panel-add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .panel { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 23px; min-width: 0; }
@@ -365,6 +366,30 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .wallet-amount { font-size: 14px; }
 .wallet-icon.small { width: 31px; height: 31px; border-radius: 10px; }
 .category-heading-icon { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: #f4f6ed; color: #52634f; }
+.category-more { align-self: flex-start; }
+button.category-open { border: 0; background: none; padding: 0; font-family: inherit; cursor: pointer; border-radius: 6px; position: relative; text-align: left; min-width: 0; }
+button.category-open::after { content: ""; position: absolute; inset: -12px -6px; }
+button.category-open > svg { flex: none; opacity: .55; }
+button.category-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
+@media (hover: hover) { button.category-open:hover { text-decoration: underline; text-underline-offset: 3px; } }
+/* Start guide on an empty ledger. */
+.start-guide { margin-bottom: 28px; }
+.start-steps { list-style: none; counter-reset: start-step; margin: 0; padding: 0; display: grid; gap: 10px; }
+.start-steps li { counter-increment: start-step; display: flex; align-items: center; gap: 14px; padding: 13px 14px; border-radius: 12px; background: var(--surface-raised); }
+.start-steps li::before { content: counter(start-step); flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--forest); color: #fbfff4; font-size: 13px; font-weight: 650; }
+.start-step-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.start-step-text strong { font-size: 14px; color: var(--text); }
+.start-step-text span { font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.start-steps .button { flex: none; }
+@media (max-width: 760px) {
+  .start-steps li { flex-wrap: wrap; align-items: flex-start; }
+  .start-step-text { flex-basis: calc(100% - 42px); }
+  .start-steps .button { margin-left: 42px; }
+}
+button.category-heading-icon { border: 1px solid var(--line); padding: 0; cursor: pointer; flex: none; position: relative; }
+button.category-heading-icon::after { content: ""; position: absolute; inset: -8px; }
+button.category-heading-icon:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (hover: hover) { button.category-heading-icon:hover:not(:disabled) { border-color: var(--text-muted); color: var(--text); } }
 .category-heading-icon svg { width: 16px; height: 16px; stroke-width: 1.5; }
 .category-row { display: block; }
 .category-labels { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
@@ -1178,15 +1203,32 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-controls { display: flex; flex-wrap: wrap; gap: 12px 18px; align-items: end; margin: 0 0 18px; }
 .cashflow-controls label { display: flex; flex: 1 1 230px; min-width: 0; max-width: 380px; flex-direction: column; gap: 6px; }
 .cashflow-controls select { width: 100%; min-width: 0; }
-.cashflow-period { flex: 1 1 240px; margin: 0 0 9px; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
+.cashflow-period-row { flex: 1 1 240px; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-width: 0; }
+.cashflow-period { flex: 1 1 auto; margin: 0 0 9px; color: var(--text-muted); font-size: 14px; line-height: 1.6; }
 .cashflow-overview .notice { margin: 0 0 18px; overflow-wrap: anywhere; }
 .cashflow-overview .balance-meta { line-height: 1.6; }
 .cashflow-overview .stat-foot { white-space: normal; line-height: 1.65; }
+.stat-compare { display: block; grid-column: 1 / -1; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); font-size: 12px; line-height: 1.5; color: var(--text-muted); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+/* Wider than a phone the icon sits beside its label, so the cards are not taller than the balance card. */
+@media (min-width: 761px) {
+  .cashflow-overview .stat-card { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 11px; align-content: start; align-items: center; }
+  .cashflow-overview .stat-card > div { display: contents; }
+  .cashflow-overview .stat-icon { margin-bottom: 0; }
+  .cashflow-overview .stat-label { margin: 0; }
+  .cashflow-overview .stat-value { grid-column: 1 / -1; margin-top: 15px; }
+  .cashflow-overview .stat-foot { grid-column: 1 / -1; }
+}
 .cashflow-reconciliation, .cashflow-breakdown-panel { margin-bottom: 22px; min-width: 0; }
 .cashflow-equation { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 0 0 16px; }
 .cashflow-equation > div { padding: 13px; background: var(--surface-raised); border-radius: 10px; min-width: 0; }
 .cashflow-equation dt { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
 .cashflow-equation dd { margin: 5px 0 0; font-size: 15px; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+/* The result stands out from its five terms; terms that add nothing step back. */
+.cashflow-equation > .equation-result { background: var(--forest); }
+.cashflow-equation > .equation-result dt { color: #b9cdb7; }
+.cashflow-equation > .equation-result dd { color: #fbfff4; font-size: 17px; }
+.cashflow-equation > .equation-zero { background: none; box-shadow: inset 0 0 0 1px var(--line); }
+.cashflow-equation > .equation-zero dd { font-weight: 500; color: var(--text-muted); }
 .cashflow-explanation { margin: 10px 0 18px; font-size: 14px; color: var(--text-muted); line-height: 1.8; }
 .cashflow-notes { margin: 0 0 4px; font-size: 14px; color: var(--text-muted); line-height: 1.8; }
 .cashflow-notes summary { cursor: pointer; width: fit-content; border-radius: 4px; color: var(--text); font-weight: 550; }
@@ -1209,10 +1251,20 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-table th:first-child { text-align: left; width: 40%; }
 .cashflow-table thead th { color: var(--text-muted); font-size: 13px; }
 .cashflow-table td { white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums; }
+.cashflow-none { color: var(--text-muted); }
+.cashflow-table tfoot th, .cashflow-table tfoot td { border-bottom: 0; border-top: 2px solid var(--line); font-weight: 700; }
+.cashflow-table tbody tr:last-child :is(th, td) { border-bottom: 0; }
 @media (max-width: 600px) {
   .cashflow-controls { gap: 12px; }
-  .cashflow-controls label { flex-basis: 100%; max-width: none; }
-  .cashflow-period { flex-basis: 100%; margin-bottom: 0; }
+  .cashflow-controls label { flex: 1 1 0; max-width: none; }
+  .cashflow-period-row { flex-basis: 100%; flex-wrap: wrap; }
+  .cashflow-period-row .cashflow-period { flex-basis: 100%; }
+  .cashflow-controls .cashflow-period-row .date-pill { flex: none; flex-direction: row; flex-wrap: nowrap; margin-left: auto; min-height: 44px; padding: 0 9px; gap: 5px; }
+  .cashflow-period-row .date-pill input { width: 128px; max-width: 128px; font-size: 12px; min-height: 42px; }
+  .cashflow-period-row .button { flex: none; }
+  .cashflow-controls select { padding-left: 10px; padding-right: 28px; font-size: 14px; text-overflow: ellipsis; }
+  .cashflow-period { margin-bottom: 0; }
+  .cashflow-overview > :is(.demo-banner, .backup-reminder) { margin-bottom: 18px; }
   .cashflow-equation { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
   .cashflow-equation > div { padding: 10px; }
   .cashflow-equation dd { font-size: 14px; }
@@ -1329,6 +1381,11 @@ html[data-theme="dark"] .tab-group > button.active { color: var(--lime); backgro
 .account-trigger[aria-expanded="true"] { border-color: var(--text-muted); }
 .account-panel { position: absolute; right: 0; top: calc(100% + 8px); z-index: 60; width: 260px; max-width: calc(100vw - 32px); padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); box-shadow: 0 12px 32px #1f361a24; display: flex; flex-direction: column; }
 .account-heading { display: flex; flex-direction: column; margin: 0; padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 13px; color: var(--text); }
+.page-header > div:first-child { min-width: 0; }
+.page-title { overflow-wrap: anywhere; }
+.account-nickname { display: flex; flex-direction: column; gap: 5px; padding: 8px 10px 10px; border-bottom: 1px solid var(--line); margin-bottom: 4px; font-size: 13px; color: var(--text); }
+.account-nickname .field-input { min-height: 40px; }
+.account-nickname small { color: var(--text-muted); font-size: 12px; line-height: 1.45; }
 .account-heading span { color: var(--text-muted); font-size: 12px; }
 .account-panel > button { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--text); font: inherit; font-size: 14px; text-align: left; cursor: pointer; }
 .account-panel > button:hover { background: var(--surface-raised); }
@@ -1443,3 +1500,335 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
 @media (max-width: 600px) {
   .import-main > .panel-header { flex-direction: column; align-items: flex-start; gap: 8px; }
 }
+
+/* 1.10.1: on the narrowest phones the tagline gives its line to the balance card. */
+@media (max-width: 360px) { .eyebrow { display: none; } }
+@media (max-width: 360px) {
+  .cashflow-controls label:not(.date-pill) { flex-basis: 100%; }
+  .cashflow-period-row .date-pill > svg { display: none; }
+  .cashflow-period-row .date-pill input { width: 118px; max-width: 118px; }
+  .cashflow-period-row .button { padding-left: 10px; padding-right: 10px; }
+}
+
+/* Bab 2: halaman Dompet. */
+.wallet-total { margin: 0; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; text-align: right; min-width: 0; }
+.wallet-total span { font-size: 12px; color: var(--text-muted); }
+.wallet-total strong { font-size: 24px; font-weight: 640; letter-spacing: -.6px; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.wallet-total strong.wallet-total-note, .wallet-card-balance.wallet-card-balance-note { font-size: 14px; font-weight: 500; letter-spacing: 0; line-height: 1.5; color: var(--text-muted); }
+.wallet-card-top .wallet-edit { margin-left: auto; flex: none; }
+@media (max-width: 760px) {
+  .wallet-total strong { font-size: 21px; }
+  .add-wallet-card { display: none; }
+}
+.wallet-lifecycle-actions.full { grid-column: 1 / -1; }
+.field-link { align-self: flex-start; margin-top: 2px; }
+
+/* 2.6.1: arsip cash lama sebagai daftar sejajar. */
+.archive-balances { list-style: none; margin: 14px 0 8px; padding: 0; display: grid; gap: 6px; }
+.archive-balances li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-raised); font-size: 14px; color: var(--text); }
+.archive-balances li span:last-child { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.archive-table-wrap { overflow-x: auto; margin: 12px 0; }
+.archive-table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--text); }
+.archive-table th, .archive-table td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; line-height: 1.5; }
+.archive-table th { color: var(--text-muted); font-weight: 550; font-size: 12px; }
+.archive-table td:first-child { white-space: nowrap; }
+.archive-table td:nth-child(2) { overflow-wrap: anywhere; }
+.archive-table :is(th, td):last-child { text-align: right; padding-right: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+/* Bab 3: halaman Transaksi. */
+@media (max-width: 760px) {
+  .category-toolbar { gap: 8px; margin-bottom: 12px; }
+  .transactions-panel > .category-toolbar { padding-bottom: 12px; margin-bottom: 12px; }
+  .category-toolbar > .field-help { font-size: 12px; line-height: 1.4; }
+}
+.history-scope strong { color: var(--text); font-weight: 650; }
+
+/* 3.4: tabel transaksi. */
+button.transaction-open { border: 0; background: none; padding: 0; font-family: inherit; text-align: left; cursor: pointer; border-radius: 4px; }
+button.transaction-open:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (hover: hover) { button.transaction-open:hover { text-decoration: underline; text-underline-offset: 3px; } }
+.date-group-label { display: none; }
+.empty-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 14px; }
+.history-scope { scroll-margin-top: 84px; }
+@media (max-width: 760px) {
+  .transactions-table:not(.import-table) button.transaction-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; white-space: normal; overflow: hidden; line-height: 1.45; overflow-wrap: anywhere; }
+  .transactions-panel .date-group-label { display: block; margin: 2px 0 9px; font-size: 11px; font-weight: 650; letter-spacing: .6px; text-transform: uppercase; color: var(--text-muted); }
+}
+.filter-fields > .search-input { flex: 2 1 220px; }
+.filter-fields > .select-input { flex: 1 1 118px; }
+.history-period .select-input { min-width: 150px; }
+
+/* 3.5–3.6: kategori massal dan antrean rapikan. */
+.bulk-review-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 16px; }
+.review-scope .review-back { flex: none; align-self: center; }
+.quick-category { display: block; margin-top: 8px; max-width: 220px; min-height: 36px; font-size: 13px; }
+@media (max-width: 760px) {
+  .review-scope { flex-wrap: wrap; }
+  .review-scope > div { flex-basis: calc(100% - 30px); }
+  .review-scope .review-back { margin-left: 28px; }
+  .quick-category { max-width: 100%; min-height: 44px; }
+}
+
+/* 3.7–3.8: form transaksi. */
+.type-hint { margin: -4px 0 14px; line-height: 1.5; }
+.date-shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; }
+.date-shortcuts .text-link[aria-pressed="true"] { text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
+:is(.field-input, .select-input)[aria-invalid="true"] { border-color: var(--error-text, #a24c35); box-shadow: 0 0 0 1px var(--error-text, #a24c35); }
+
+/* Kerangka 3.7.3 / 3.7.6: kelola template dan saran kategori di form transaksi */
+.template-quick-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.template-quick-head .field-label { display: inline-flex; align-items: center; gap: 6px; }
+.template-manage-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto; }
+.template-manage-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px 6px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-raised); }
+.template-manage-list li .field-input { flex: 1 1 140px; min-width: 0; }
+.template-manage-name { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.template-manage-name strong, .template-manage-name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.template-manage-name span { font-size: 12px; color: var(--muted, #52634f); }
+.icon-button.danger { color: #a13d2c; }
+html[data-theme="dark"] .icon-button.danger { color: #f0a394; }
+.category-suggest { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 6px; font-size: 13px; color: var(--muted, #52634f); }
+.category-suggest .text-link { min-height: 28px; }
+@media (max-width: 640px) {
+  .template-manage-list li { flex-wrap: wrap; }
+  .template-manage-list .icon-button, .category-suggest .text-link { min-width: 44px; min-height: 44px; }
+}
+/* Kerangka 3.8.3: centang konfirmasi kurs yang belum diisi ikut ditandai */
+.checkbox-row.invalid { color: var(--readable-negative); outline: 1px solid currentColor; outline-offset: 4px; border-radius: 6px; }
+html[data-theme="dark"] .checkbox-row.invalid { color: #f0a394; }
+/* Kerangka 3.8.6: pasangan transfer yang dipilih */
+.transfer-suggestion .button.chosen { border-color: var(--readable-positive); background: var(--surface, #fff); }
+.transfer-suggestion .pair-note { font-weight: 400; }
+
+/* Kerangka 3.12: Kelola kategori dalam empat tab; anggaran hanya untuk yang dipilih; aturan satu baris */
+.category-manager-tabs { margin: 0 0 18px; display: flex; flex-wrap: wrap; }
+.category-manager-tabs > button > span { margin-left: 6px; font-size: 12px; font-weight: 500; opacity: .75; }
+.category-manager-section[hidden] { display: none; }
+.category-manager-section:not([hidden]) { margin-top: 0; border-top: 0; padding-top: 0; }
+.category-budget-add { max-width: 320px; margin: 4px 0 10px; }
+.category-rule-search { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 12px; }
+.category-rule-search .search-input { flex: 1 1 220px; }
+@media (min-width: 641px) {
+  .category-manager-rules { gap: 6px; }
+  .category-manager-rules li { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 6px 8px; }
+  .category-manager-rules .field:first-child { grid-column: auto; }
+  .category-manager-rules .field-label { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .category-manager-rules .field-input, .category-manager-rules .select-input { min-height: 38px; padding-top: 6px; padding-bottom: 6px; }
+  .category-manager-rules .category-rule-delete { grid-column: auto; justify-self: end; padding: 8px; min-height: 38px; }
+  .category-rule-delete-text { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+/* Kerangka 3.13.1: aturan bank terlipat di Isi kategori otomatis */
+.automation-rules { margin: 10px 0 14px; }
+.automation-rules summary { cursor: pointer; font-size: 13px; font-weight: 600; color: var(--muted); min-height: 32px; display: flex; align-items: center; gap: 6px; }
+.automation-rules summary::before { content: '›'; display: inline-block; transition: transform .15s; }
+.automation-rules[open] summary::before { transform: rotate(90deg); }
+.automation-rules summary::-webkit-details-marker { display: none; }
+.automation-rules p { margin: 4px 0 0; }
+@media (max-width: 640px) {
+  .category-manager-tabs { width: 100%; flex-wrap: nowrap; }
+  .category-manager-tabs > button { flex: 1 1 auto; padding: 8px 6px; font-size: 13px; }
+  .category-manager-tabs > button > span { margin-left: 4px; }
+}
+
+/* ===== Kerangka Bab 4: Impor mutasi ===== */
+/* 4.2 Periksa kelengkapan: gaya panel biasa, status di baris tertutup */
+.statement-review { padding: 22px; margin-top: 22px; }
+.statement-card { padding: 14px 16px; margin-top: 10px; box-shadow: none; }
+.statement-card > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; font-size: 14px; }
+.statement-card-title { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.statement-card-body { padding-top: 12px; }
+.badge.positive { background: var(--success-surface, #edf3e5); color: var(--readable-positive); }
+.badge.warning { background: #fcf1d9; color: #6b4a12; }
+html[data-theme="dark"] .badge.positive { background: var(--success-surface); color: var(--success-text); }
+html[data-theme="dark"] .badge.warning { background: #4a3a17; color: #f3d99a; }
+/* 4.4.1 sorotan saat file diseret; catatan mode contoh */
+.import-dropzone.dragging, .generic-import-file.dragging { border-color: var(--readable-positive); background: #eef5e2; outline: 2px solid var(--readable-positive); outline-offset: 2px; }
+html[data-theme="dark"] :is(.import-dropzone.dragging, .generic-import-file.dragging) { background: #1d3024; }
+.import-demo-note { display: block; margin-top: 12px; font-size: 13px; line-height: 1.7; }
+/* 4.5 pemetaan umum */
+.generic-import { padding: 20px; margin-bottom: 20px; min-width: 0; }
+.generic-import-file { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 14px; margin-bottom: 14px; border: 1.5px dashed #c9d5b8; border-radius: 14px; }
+html[data-theme="dark"] .generic-import-file { border-color: var(--control-border); }
+.generic-import-separator { max-width: 320px; margin-bottom: 14px; }
+.generic-import-loaded { margin: 4px 0 14px; }
+.generic-import-folded { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.generic-import-folded span { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.generic-sample-wrap { max-width: 100%; margin: 12px 0; overflow-x: auto; }
+.generic-sample-table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.generic-sample-table caption { caption-side: top; text-align: left; margin-bottom: 6px; }
+.generic-sample-table td { padding: 8px 10px; border: 1px solid var(--line); max-width: 180px; min-width: 72px; overflow-wrap: anywhere; white-space: pre-wrap; vertical-align: top; color: var(--text, #33402f); }
+.generic-sample-table tr:first-child td { font-weight: 600; background: var(--surface-raised, #f6f8ef); }
+.generic-hint { display: block; margin-top: 5px; }
+.generic-missing { margin: 12px 0 8px; font-weight: 500; }
+/* 4.7.3 catatan pratinjau jadi satu daftar ringkas */
+.import-notes { list-style: none; margin: 0 0 14px; padding: 0; border: 1px solid #ecdcae; border-radius: 12px; background: #fdf8e8; font-size: 13px; }
+.import-notes li + li { border-top: 1px solid #f0e4bf; }
+.import-notes li.info { background: var(--surface-raised, #f6f8ef); }
+.import-notes li:last-child.info { border-radius: 0 0 12px 12px; }
+.import-notes summary { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; cursor: pointer; line-height: 1.6; min-height: 40px; color: #5a4310; }
+.import-notes li.info summary { color: var(--muted); }
+.import-notes summary::-webkit-details-marker { display: none; }
+.import-notes summary svg { flex-shrink: 0; margin-top: 3px; }
+.import-notes summary span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.import-notes summary::after { content: 'Detail'; font-size: 12px; text-decoration: underline; flex-shrink: 0; }
+.import-notes details[open] summary::after { content: 'Tutup'; }
+.import-notes p { margin: 0; padding: 0 14px 12px 37px; line-height: 1.7; color: var(--muted); overflow-wrap: anywhere; }
+html[data-theme="dark"] .import-notes { background: #2f2a17; border-color: #5a4d22; }
+html[data-theme="dark"] .import-notes li + li { border-color: #5a4d22; }
+html[data-theme="dark"] .import-notes summary { color: #f3d99a; }
+html[data-theme="dark"] .import-notes li.info { background: var(--surface-raised); }
+html[data-theme="dark"] .import-notes li.info summary, html[data-theme="dark"] .import-notes p { color: var(--text-muted); }
+.inline-details { display: inline; }
+.inline-details summary { display: inline; cursor: pointer; text-decoration: underline; }
+.inline-details[open] summary { margin-right: 6px; }
+/* 4.7.5 proyeksi saldo */
+.notice.projection { display: flex; align-items: flex-start; gap: 10px; }
+.notice.projection > svg { flex-shrink: 0; margin-top: 3px; }
+/* 4.7.7 aksi massal jenis */
+.import-bulk-type { flex: 1 1 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding-top: 10px; border-top: 1px dashed #d5dfc8; }
+.import-bulk-type .button { white-space: normal; text-align: left; font-size: 13px; }
+.import-bulk-type .field-help { flex: 1 1 240px; }
+/* 4.8.6 dropdown kategori cukup lebar untuk "Belum dikategorikan" */
+.import-table .select-input.compact.import-row-category { min-width: 172px; max-width: 220px; }
+.import-table:has(.import-row-category) { min-width: 860px; }
+.import-select-all-text { display: none; }
+/* 4.9 baris simpan */
+.import-pages { margin-top: 14px; }
+.import-save { align-items: flex-end; flex-wrap: wrap; }
+.import-save-buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+.import-more { flex: 1 1 260px; min-width: 0; font-size: 13px; }
+.import-more summary { cursor: pointer; color: var(--muted); min-height: 36px; display: inline-flex; align-items: center; text-decoration: underline; }
+.import-more > div { padding: 8px 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* 4.9.3 ringkasan sesudah simpan */
+.import-result { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 16px; padding: 16px 18px; margin-bottom: 18px; border-color: #cfe0bd; background: #f3f8eb; }
+.import-result > svg { color: var(--readable-positive); flex-shrink: 0; }
+.import-result-copy { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 14px; line-height: 1.6; }
+.import-result-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+html[data-theme="dark"] .import-result { background: var(--success-surface); border-color: var(--success-border); }
+html[data-theme="dark"] .import-result > svg { color: var(--success-text); }
+
+@media (max-width: 640px) {
+  /* 4.6.1 "Cara kerjanya" tidak lagi menyela antara unggah dan pratinjau */
+  .import-layout.has-preview .import-info { display: none; }
+  /* 4.8.7 satu kartu per mutasi: tidak ada kolom yang harus digeser */
+  .import-preview .table-wrap { overflow-x: visible; }
+  .import-table, .import-table:has(.import-row-category) { min-width: 0; display: block; }
+  .import-table thead, .import-table tbody { display: block; }
+  .import-table thead tr { display: block; }
+  .import-table thead th { display: none; }
+  .import-table thead th.import-select-all { display: flex; align-items: center; gap: 10px; padding: 6px 2px 12px; text-transform: none; letter-spacing: 0; font-size: 13px; white-space: normal; }
+  .import-select-all-text { display: inline; }
+  .import-table tbody tr { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px 6px; padding: 14px 12px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface, #fff); }
+  .import-table tbody td { display: block; padding: 0; border: 0; min-width: 0; }
+  .import-table tbody td:nth-child(1) { grid-row: 1 / span 4; padding-top: 2px; }
+  .import-table tbody td:nth-child(n+2) { grid-column: 2; }
+  .import-table tbody td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 4px; }
+  .import-table tbody td[data-label="Nominal"] { font-size: 15px; font-weight: 600; }
+  .import-table tbody td[data-label="Nominal"]::before { display: none; }
+  .import-table .select-input.compact, .import-table .select-input.compact.import-row-category { width: 100%; max-width: none; min-width: 0; min-height: 44px; font-size: 14px; }
+  .import-table input[type=checkbox] { width: 22px; height: 22px; }
+  .import-table .transaction-title { max-width: 100%; }
+  .import-save-buttons { width: 100%; }
+  .import-save-buttons .button { flex: 1 1 100%; }
+  .import-result-actions { width: 100%; }
+  .generic-import-file .button { width: 100%; }
+}
+html[data-theme="dark"] .import-table tbody tr { background: transparent; }
+@media (max-width: 640px) { .import-more { flex: 0 0 auto; } .import-save { align-items: stretch; } }
+.import-save-error { margin: 14px 0 0; }
+
+/* ===== Kerangka Bab 5: bagian bersama ===== */
+/* 5.1.2 / 5.6.2 "transaksi saja" jadi opsi sekunder */
+.backup-tools button.backup-secondary { font-size: 11px; padding: 6px; text-decoration: underline; opacity: .85; }
+.account-panel .account-secondary { font-size: 12px; text-decoration: underline; padding-top: 6px; padding-bottom: 6px; }
+.account-hint { margin: 0 12px 8px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+html[data-theme="dark"] .account-hint { color: var(--text-muted); }
+/* 5.2.3 status contoh; 5.2.4 "Lokal & pribadi" sebagai tombol ke Privasi */
+.save-pill.demo { background: #fcf6e3; border-color: #ecdcae; color: #6b4a12; }
+.save-pill.demo .status-dot { background: #c9982f; }
+html[data-theme="dark"] .save-pill.demo { background: #2f2a17; border-color: #5a4d22; color: #f3d99a; }
+button.local-indicator { border: 0; background: transparent; cursor: pointer; padding: 6px 8px; border-radius: 8px; min-height: 34px; text-decoration: underline; text-decoration-color: transparent; }
+button.local-indicator:hover { text-decoration-color: currentColor; background: var(--surface-raised); }
+/* 5.4.3 satu kontrol periode: ‹ bulan › dengan "Seluruh catatan" di daftar yang sama */
+.month-stepper { display: inline-flex; align-items: center; gap: 4px; }
+.month-stepper .icon-button { min-width: 36px; min-height: 36px; padding: 6px; }
+.date-pill select { background: transparent; border: 0; color: #596954; font-size: 13px; max-width: 170px; min-height: 22px; cursor: pointer; }
+.currency-toolbar .date-pill select { font-size: 13px; }
+html[data-theme="dark"] .date-pill select { color: var(--text); background: transparent; }
+html[data-theme="dark"] .date-pill select option { background: var(--surface); color: var(--text); }
+/* 5.5 Kelola mata uang */
+.currency-manager-results { list-style: none; margin: 8px 0 14px; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.currency-manager-results li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; font-size: 14px; }
+.currency-manager-results li + li { border-top: 1px solid var(--line); }
+.currency-manager-results li > span { min-width: 0; overflow-wrap: anywhere; }
+.currency-manager-row-actions .icon-button { min-width: 34px; min-height: 34px; padding: 6px; }
+/* 5.7.2 dompet awal */
+.start-wallet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; margin: 8px 0; }
+/* 5.8.1 Privasi bersubjudul */
+.privacy-notice h3 { margin: 18px 0 6px; font-size: 15px; font-weight: 650; color: var(--text); }
+.privacy-notice h3:first-child { margin-top: 0; }
+.privacy-technical { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }
+.privacy-technical summary { cursor: pointer; font-weight: 600; font-size: 14px; min-height: 36px; display: flex; align-items: center; }
+/* 5.9.1 tanya dulu sebelum membuang perubahan */
+.discard-guard { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 14px; padding: 12px 24px; border-top: 1px solid #f0d4c9; background: #fff3ee; color: #7a3a26; font-size: 14px; }
+.discard-guard p { margin: 0; flex: 1 1 220px; line-height: 1.6; }
+.discard-guard > div { display: flex; gap: 8px; flex-wrap: wrap; }
+html[data-theme="dark"] .discard-guard { background: #3a241d; border-color: #6b4032; color: #f3c3b3; }
+/* 5.9.3 pemberitahuan galat; saat jendela terbuka pemberitahuan pindah ke atas agar tombol di dasar jendela tidak tertutup */
+.toast.error { background: #7a2e1d; color: #fff3ee; }
+.toast.error svg:first-child { color: #ffd0c2; }
+.toast.error button { color: #ffd0c2; }
+html[data-theme="dark"] .toast.error { background: #5a261a; border-color: #b0614c; color: #ffe7df; }
+body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
+
+@media (max-width: 640px) {
+  /* 5.1.3 lencana "perlu dirapikan" dan tombol catat di navigasi bawah */
+  .mobile-nav.with-record { grid-template-columns: 1fr 1fr 56px 1fr 1fr; align-items: end; }
+  .mobile-nav button { position: relative; }
+  .mobile-nav .nav-count { position: absolute; top: 0; left: calc(50% + 6px); margin: 0; min-width: 18px; padding: 1px 5px; border-radius: 9px; background: #a8442b; color: #fff; font-size: 10px; font-weight: 600; line-height: 1.5; }
+  .mobile-nav button.mobile-record { width: 52px; height: 52px; margin: -22px auto 0; border-radius: 50%; background: #173b31; color: #f3f8eb; box-shadow: 0 6px 18px #17352b40; padding: 0; }
+  .mobile-nav button.mobile-record svg { width: 24px; height: 24px; }
+  html[data-theme="dark"] .mobile-nav button.mobile-record { background: var(--lime); color: #14241b; }
+  /* 5.2.2 pemilih tema jadi ikon saja; select tetap ada di atas ikon untuk sentuhan dan pembaca layar */
+  .topbar .theme-picker { width: 40px; height: 40px; padding: 0; justify-content: center; gap: 0; }
+  .topbar .theme-picker select { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; opacity: 0; cursor: pointer; }
+  .topbar .theme-picker-chevron { display: none; }
+  .month-stepper { margin-left: auto; }
+  .month-stepper .icon-button { min-width: 40px; min-height: 40px; }
+  .currency-toolbar .month-stepper .date-pill { margin-left: 0; }
+  .date-pill select { max-width: 132px; font-size: 12px; min-height: 26px; }
+  .discard-guard { padding: 12px 18px; }
+  .discard-guard .button { flex: 1; }
+  .start-wallet-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) { .date-pill select { max-width: 158px; } .month-stepper .date-pill > svg { display: none; } }
+
+/* ===== Kerangka 5.10–5.11 ===== */
+.bottom-note-end { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.bottom-note .text-link { font-size: inherit; min-height: 24px; }
+.build-version { opacity: .8; font-variant-numeric: tabular-nums; }
+.money-echo { display: block; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.date-echo { font-variant-numeric: tabular-nums; }
+.date-shortcuts .date-echo { margin-right: auto; }
+
+/* Kerangka 4.2.5 / 4.2.6 (tinjauan ulang): isi kartu file dan daftar transfer yang dihapus */
+.statement-card-body p { font-size: 14px; line-height: 1.7; margin: 0 0 10px; }
+.statement-card-body .button { margin-top: 6px; }
+.completion-preview { display: block; margin-top: 12px; }
+.completion-preview > strong { display: block; margin-bottom: 4px; }
+.deleted-transfers { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.deleted-transfers h3 { margin: 0 0 6px; font-size: 15px; font-weight: 650; }
+.deleted-transfer-list { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.deleted-transfer-list li { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 14px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+.deleted-transfer-copy { flex: 1 1 240px; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.deleted-transfer-copy strong { font-size: 14px; }
+@media (max-width: 640px) { .deleted-transfer-list .button, .statement-card-body .button { width: 100%; } }
+/* Kerangka 5.3.3 (tinjauan ulang): tombol pemulihan rata dan penuh di HP */
+.notice.save-problem > strong, .notice.save-problem > span { flex: 1 1 100%; }
+.save-problem-actions { flex: 1 1 100%; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+@media (max-width: 640px) { .save-problem-actions .button { flex: 1 1 100%; } }
+
+/* Kerangka 3.12.1: ganti nama kategori dengan pilihan untuk catatan lama */
+.category-name-actions { display: inline-flex; gap: 4px; flex-shrink: 0; }
+.category-manager-names li.category-rename { grid-column: 1 / -1; flex-direction: column; align-items: stretch; gap: 8px; padding: 12px; }
+.category-rename .field { margin: 0; }
+.category-rename-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }

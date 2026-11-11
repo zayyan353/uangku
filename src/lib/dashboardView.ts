@@ -16,3 +16,16 @@ export function monthlyCategoryTotals(state: State, currency: Currency, month: s
     return [category, Number(value)];
   }).sort((a, b) => b[1] - a[1]);
 }
+
+/**
+ * A category's slot in a palette of `paletteSize` colours. It follows the category's place in the
+ * settings list, not its rank in this month's spending, so a category keeps its colour between months.
+ * Names missing from the list (e.g. "Biaya transfer") get a slot from their own text.
+ */
+export function categoryColorIndex(name: string, names: readonly string[], paletteSize: number): number {
+  const position = names.indexOf(name);
+  if (position >= 0) return position % paletteSize;
+  let hash = 0;
+  for (const char of name) hash = (hash * 31 + char.codePointAt(0)!) % 2147483647;
+  return hash % paletteSize;
+}

@@ -130,7 +130,7 @@ class Case:
         self.page.on('pageerror', lambda err: self.errors.append(str(err)))
         self.page.goto(args.url, wait_until='networkidle')
         nav(self.page, 'Ringkasan')
-        expect(self.page.get_by_label('Cakupan arus rekening', exact=True)).to_be_visible()
+        expect(self.page.get_by_label('Dompet', exact=True)).to_be_visible()
         expect(self.page.get_by_label('Periode arus rekening', exact=True)).to_have_value('month')
         self.assert_unchanged()
 
@@ -167,14 +167,25 @@ class Case:
         expect(reconciliation).to_be_visible()
         expect(reconciliation).to_have_attribute('data-complete', 'true')
         expect(reconciliation).to_contain_text('Perhitungan saldo periode cocok.')
+        # The breakdown's "Jumlah" row repeats the two cards, and its rows add up to it.
+        sums = self.page.get_by_test_id('cashflow-breakdown').evaluate('''table => {
+          const column = (rows, index) => rows.map(row => Number(row.cells[index].querySelector('[data-amount]').dataset.amount));
+          const body = [...table.tBodies[0].rows].filter(row => !row.classList.contains('cashflow-empty'));
+          const foot = table.tFoot ? [...table.tFoot.rows] : [];
+          return { rows: body.length, body: [1, 2].map(i => column(body, i).reduce((a, b) => a + b, 0)), foot: foot.length ? [1, 2].map(i => column(foot, i)[0]) : null };
+        }''')
+        if sums['rows']:
+            assert sums['foot'] == [inflow, outflow] and sums['body'] == [inflow, outflow], sums
+        else:
+            assert sums['foot'] is None and inflow == 0 and outflow == 0, sums
         self.assert_unchanged()
 
     def scope(self, value):
-        self.page.get_by_label('Cakupan arus rekening', exact=True).select_option(value)
+        self.page.get_by_label('Dompet', exact=True).select_option(value)
         self.assert_unchanged()
 
     def month(self, value):
-        self.page.get_by_label('Bulan laporan', exact=True).fill(value)
+        self.page.get_by_label('Bulan laporan', exact=True).select_option(value)
         self.assert_unchanged()
 
     def period(self, value):
@@ -183,7 +194,7 @@ class Case:
 
 
 def reference(case):
-    expect(case.page.get_by_label('Cakupan arus rekening', exact=True)).to_have_value('all')
+    expect(case.page.get_by_label('Dompet', exact=True)).to_have_value('all')
     expect(case.page.get_by_text(re.compile('^Uang masuk rekening'))).to_be_visible()
     expect(case.page.get_by_text(re.compile('^Uang keluar rekening'))).to_be_visible()
     case.totals(19_489_724, 19_038_042, 3_330, 455_012)
@@ -203,7 +214,7 @@ def pending_and_adjustment(case):
     expect(panel).to_contain_text('21')
     expect(panel).not_to_contain_text('Transfer')
     nav(case.page, 'Transaksi')
-    case.page.get_by_label('Filter jenis transaksi', exact=True).select_option('pending')
+    case.page.get_by_role('button', name=re.compile(r'^Rapikan \d+ catatan$')).click()
     expect(case.page.locator('.transactions-table tbody tr')).to_have_count(2)
     case.assert_unchanged()
     nav(case.page, 'Ringkasan')
@@ -217,11 +228,17 @@ def transfer_dominant(case):
 
 
 def period_cutoff(case):
+    previous = [case.page.get_by_test_id('cashflow-previous-inflow'), case.page.get_by_test_id('cashflow-previous-outflow')]
     case.totals(7_000, 3_100, 10_700, 14_850, 250)
+    # October is compared with September's totals for the same scope.
+    expect(previous[0]).to_have_attribute('data-amount', '1000'); expect(previous[0]).to_contain_text('September 2026')
+    expect(previous[1]).to_have_attribute('data-amount', '300')
     case.period('all')
     case.totals(8_000, 3_400, 10_000, 14_850, 250)
+    expect(previous[0]).to_have_count(0)
     case.period('month'); case.month('2026-09')
     case.totals(1_000, 300, 10_000, 10_700)
+    expect(previous[0]).to_have_count(0); expect(previous[1]).to_have_count(0)  # August has no flow
     case.month('2026-10')
     case.totals(7_000, 3_100, 10_700, 14_850, 250)
 
@@ -287,12 +304,12 @@ def fx(case):
     case.totals(0, 4_200, 10_000, 5_800)
     case.scope('bank')
     case.page.get_by_role('button', name=re.compile('USD.*Dolar AS')).click()
-    expect(case.page.get_by_label('Cakupan arus rekening', exact=True)).to_have_value('all')
+    expect(case.page.get_by_label('Dompet', exact=True)).to_have_value('all')
     case.totals(1_000, 0, 2_000, 3_000)
     case.scope('usd')
     case.totals(1_000, 0, 2_000, 3_000)
     case.page.get_by_role('button', name=re.compile('TL.*Lira Turki')).click()
-    expect(case.page.get_by_label('Cakupan arus rekening', exact=True)).to_have_value('all')
+    expect(case.page.get_by_label('Dompet', exact=True)).to_have_value('all')
     case.totals(0, 4_200, 10_000, 5_800)
 
 
@@ -304,6 +321,7 @@ def unknown_dates(case):
     expect(case.page.get_by_test_id('cashflow-reconciliation')).to_have_attribute('data-complete', 'false')
     expect(case.page.get_by_test_id('cashflow-reconciliation')).not_to_contain_text('Perhitungan saldo periode cocok.')
     expect(case.page.get_by_test_id('cashflow-reconciliation')).not_to_contain_text(re.compile('selisih\\s*:?\\s*₺?\\s*0', re.I))
+    expect(case.page.get_by_test_id('cashflow-verdict')).to_contain_text(re.compile(r'belum dapat dipastikan: \d+ posting belum memiliki tanggal'))
     case.assert_unchanged()
     case.scope('digital')
     case.totals(4_000, 0, 5_000, 9_000)
@@ -321,7 +339,7 @@ def future_month(case):
 
 def cash_archive(case):
     case.totals(1_200, 700, 10_000, 10_500)
-    scope = case.page.get_by_label('Cakupan arus rekening', exact=True)
+    scope = case.page.get_by_label('Dompet', exact=True)
     assert 'archived-cash' not in scope.locator('option').evaluate_all('(rows)=>rows.map(row=>row.value)')
     case.scope('bank'); case.totals(1_200, 700, 10_000, 10_500)
     before = stored_document(case.page)
@@ -361,7 +379,7 @@ def source_read_and_backup(case):
 def visual(case):
     pending_and_adjustment(case)
     page = case.page
-    for selector in ['Cakupan arus rekening', 'Periode arus rekening']:
+    for selector in ['Dompet', 'Periode arus rekening']:
         node = page.get_by_label(selector, exact=True)
         node.scroll_into_view_if_needed()
         box = node.bounding_box()
@@ -375,7 +393,7 @@ def visual(case):
                ('reconciliation-equation', page.locator('.cashflow-equation'), TEXT_CONTRAST_JS),
                ('reconciliation-explanation', page.locator('.cashflow-explanation').last, TEXT_CONTRAST_JS),
                ('breakdown', page.get_by_test_id('cashflow-breakdown'), TEXT_CONTRAST_JS),
-               ('control', page.get_by_label('Cakupan arus rekening', exact=True), CONTROL_CONTRAST_JS)]
+               ('control', page.get_by_label('Dompet', exact=True), CONTROL_CONTRAST_JS)]
     for kind, target, script in samples:
         target.scroll_into_view_if_needed()
         result = page.evaluate(script)
@@ -405,16 +423,28 @@ def first_fold(case):
     check_frame()
     expect(card.locator('.balance-demo')).to_have_count(1 if case.data['demo'] else 0)
     expect(amount).to_have_attribute('data-amount', '29750')
+    expect(card.locator('.balance-label')).to_have_text(re.compile(r'^Saldo per \d{1,2} \S+ \d{4}$'))
     case.scope('second')
     page.evaluate('window.scrollTo(0, 0)')
     check_frame()
     expect(card.locator('.balance-meta')).to_have_text('Synthetic second bank')
     expect(amount).to_have_attribute('data-amount', '19750')
-    case.month('2099-01')
+    case.month('2027-10')  # The picker offers up to a year ahead; this month has not started on the fixed clock.
     page.evaluate('window.scrollTo(0, 0)')
     check_frame()
     expect(amount).to_have_text('Belum tersedia')
+    expect(card.locator('.balance-label')).to_have_text('Saldo akhir periode')
+    expect(page.get_by_test_id('cashflow-verdict')).to_have_text('Periode belum dimulai, jadi belum ada saldo periode yang dihitung.')
     expect(card.locator('.balance-period')).to_contain_text('periode belum dimulai')
+    # An opened panel stays open after visiting another page; the untouched one keeps its default.
+    folds = page.locator('[data-cashflow-fold]')
+    expect(folds.first).to_have_attribute('aria-expanded', 'false')
+    folds.first.click()
+    mobile_nav = page.locator('.mobile-nav')
+    mobile_nav.get_by_role('button', name='Dompet', exact=True).click()
+    mobile_nav.get_by_role('button', name='Ringkasan', exact=True).click()
+    expect(folds.first).to_have_attribute('aria-expanded', 'true')
+    expect(folds.nth(1)).to_have_attribute('aria-expanded', 'false')
     case.assert_unchanged()
 
 

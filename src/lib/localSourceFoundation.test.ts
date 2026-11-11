@@ -99,7 +99,7 @@ describe('local source reconstruction and bounded compatibility',()=>{
   const full=preview(),last=full.rows[2],tail={...full,openingBalance:18000,rows:[{...last,id:'tail'}],period:{start:last.date,end:last.date}};
   const initial=importNow(empty(),tail,[0],'tail');expect(walletBalance(initial.state,'a',initial.metadata)).toBe(17450);
   const captured=importNow(initial,full,[],'full',false),id=captured.metadata!.statements.at(-1)!.id;
-  expect(()=>prepareStatementCompletion(captured,id,{reason:'Backfill',at})).toThrow(/rebase/);
+  expect(()=>prepareStatementCompletion(captured,id,{reason:'Backfill',at})).toThrow(/titik awal saldo/);
   const complete=prepareStatementCompletion(captured,id,{reason:'Adopt witnessed earlier boundary',at,rebase:true});
   expect(complete.state.entries).toHaveLength(3);expect(walletBalance(complete.state,'a',complete.metadata)).toBe(17450);expect(complete.state.wallets[0].openingBalance).toBe(10000);
   expect(()=>walletBalanceAt(complete.state,'a','2026-09-30',complete.metadata)).toThrow(/belum diketahui/);
@@ -107,7 +107,7 @@ describe('local source reconstruction and bounded compatibility',()=>{
  it('rejects a rebase without overlap proof and does not alter the current baseline',()=>{
   const initial=importNow(empty(),preview([100],10000)),other=preview([100],9000);other.rows[0]={...other.rows[0],id:'older',date:'2026-09-01',sourceKey:'ziraat:ffffffffffffffff'};other.period={start:'2026-09-01',end:'2026-09-01'};
   const captured=importNow(initial,other,[],'older',false),before=structuredClone(captured);
-  expect(()=>prepareStatementCompletion(captured,captured.metadata!.statements.at(-1)!.id,{reason:'No known continuity',at,rebase:true})).toThrow(/anchor/);expect(captured).toEqual(before);
+  expect(()=>prepareStatementCompletion(captured,captured.metadata!.statements.at(-1)!.id,{reason:'No known continuity',at,rebase:true})).toThrow(/tumpang tindih|titik awal saldo/);expect(captured).toEqual(before);
  });
  it('does not replace a valid near-capacity document when completion exceeds the 8 MiB financial budget',()=>{
   const p=preview(Array(100).fill(1));p.rows=p.rows.map(row=>({...row,date:'2026-10-01',description:'x'.repeat(3900),originalDescription:'x'.repeat(3900)}));p.period={start:'2026-10-01',end:'2026-10-01'};

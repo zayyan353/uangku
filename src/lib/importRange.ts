@@ -1,9 +1,9 @@
 import type { Entry, State } from './finance';
 import type { ImportPreview, ImportRow } from './importer';
 
-const OLDER_HISTORY = 'Ada transaksi sebelum batas awal catatan dompet ini. Menambahkannya langsung dapat menghitung saldo dua kali. Simpan fakta file saja, lalu periksa pelengkapan dengan keputusan batas saldo awal yang eksplisit. Catatan lama belum diubah.';
-const UNKNOWN_BOUNDARY = 'Urutan pada tanggal awal belum bisa dicocokkan dengan catatan yang ada. Unggah ekspor bertumpang tindih yang memuat transaksi awal yang sudah tercatat. Simpan fakta file saja, lalu periksa pelengkapan setelah bukti kesinambungan tersedia.';
-const AMBIGUOUS_ORDER = 'Urutan transaksi pada batas awal belum bisa dipastikan. Gunakan ekspor asli berurutan yang memuat anchor catatan lama, lalu simpan fakta file dan periksa pelengkapan. Batas saldo awal tidak akan diganti tanpa bukti dan keputusan eksplisit.';
+const OLDER_HISTORY = 'Ada transaksi sebelum batas awal catatan dompet ini. Menambahkannya langsung dapat menghitung saldo dua kali. Pilih “Simpan isi file saja” di Opsi lain, lalu lengkapi dari “Periksa kelengkapan mutasi” dengan menyetujui titik awal saldo yang baru. Catatan lama belum diubah.';
+const UNKNOWN_BOUNDARY = 'Urutan pada tanggal awal belum bisa dicocokkan dengan catatan yang ada. Unggah ekspor bertumpang tindih yang memuat transaksi awal yang sudah tercatat. Pilih “Simpan isi file saja” di Opsi lain, lalu periksa pelengkapan setelah file yang bersambung tersedia.';
+const AMBIGUOUS_ORDER = 'Urutan transaksi pada batas awal belum bisa dipastikan. Gunakan ekspor asli berurutan yang memuat transaksi awal yang sudah tercatat, lalu simpan isi filenya dan periksa pelengkapan. Titik awal saldo tidak akan diganti tanpa bukti dan persetujuanmu.';
 
 function involvesWallet(entry: Entry, walletId: string): boolean {
   return entry.walletId === walletId || (entry.type === 'transfer' && entry.toWalletId === walletId);
