@@ -177,12 +177,18 @@ dan bulan (5.4).
     Spasi) di desktop dan HP. Pemeriksaan ditambah di `cashflow_browser.py`
     (19/19 lulus).
 
-- [ ] **1.4.2 Enam kotak hitungan**
+- [x] **1.4.2 Enam kotak hitungan**
   *Isi:* Saldo awal, + Uang masuk, − Uang keluar, ± Transfer antardompet,
   ± Penyesuaian saldo, = Saldo akhir.
   - Kotak "= Saldo akhir" tampil sama dengan lima kotak lain. Tonjolkan sebagai hasil.
   - Kotak bernilai Rp 0 (transfer antardompet, penyesuaian) ikut memenuhi
     layar. Redupkan atau sembunyikan bila nol.
+  - *Dikerjakan 11 Nov 2026.* Kotak "= Saldo akhir" berlatar hijau tua dengan
+    angka lebih besar; kotak "± Transfer antardompet" dan "± Penyesuaian
+    saldo" yang bernilai Rp 0 jadi kotak bergaris dengan angka pudar (tetap
+    tampil supaya rumusnya utuh). Dilihat di desktop dan HP, terang dan gelap.
+    Tes: `cashflow_browser.py` 19/19 (termasuk pemeriksaan kontras),
+    `theme_browser.py` 21/21.
 
 - [ ] **1.4.3 Kalimat hasil**
   *Isi:* "Perhitungan saldo periode cocok…" atau "Saldo periode belum dapat dipastikan…".

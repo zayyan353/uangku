@@ -1196,6 +1196,12 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-equation > div { padding: 13px; background: var(--surface-raised); border-radius: 10px; min-width: 0; }
 .cashflow-equation dt { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
 .cashflow-equation dd { margin: 5px 0 0; font-size: 15px; font-weight: 700; color: var(--text); overflow-wrap: anywhere; }
+/* The result stands out from its five terms; terms that add nothing step back. */
+.cashflow-equation > .equation-result { background: var(--forest); }
+.cashflow-equation > .equation-result dt { color: #b9cdb7; }
+.cashflow-equation > .equation-result dd { color: #fbfff4; font-size: 17px; }
+.cashflow-equation > .equation-zero { background: none; box-shadow: inset 0 0 0 1px var(--line); }
+.cashflow-equation > .equation-zero dd { font-weight: 500; color: var(--text-muted); }
 .cashflow-explanation { margin: 10px 0 18px; font-size: 14px; color: var(--text-muted); line-height: 1.8; }
 .cashflow-notes { margin: 0 0 4px; font-size: 14px; color: var(--text-muted); line-height: 1.8; }
 .cashflow-notes summary { cursor: pointer; width: fit-content; border-radius: 4px; color: var(--text); font-weight: 550; }
