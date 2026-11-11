@@ -281,13 +281,22 @@ dan bulan (5.4).
     `category_browser.py` 25/25, `theme_browser.py` 21/21, `ux_browser.py`
     desktop dan mobile lulus.
 
-- [ ] **1.7.2 Baris kategori**
+- [x] **1.7.2 Baris kategori**
   *Isi:* titik warna, nama, nominal, batang. Dengan anggaran: "terpakai / batas"
   serta "Sisa …" atau "Lewat …".
   - Warna mengikuti urutan baris, jadi satu kategori bisa berganti warna tiap
     bulan. Kunci warna per kategori.
   - **[fitur]** Klik baris membuka Transaksi dengan pencarian kategori itu
     (kotak cari 3.3.1 sudah mencocokkan nama kategori).
+  - *Dikerjakan 11 Nov 2026.* Warna titik dan batang kini mengikuti urutan
+    kategori di Kelola kategori, bukan peringkat belanja bulan itu, jadi tidak
+    berganti tiap bulan; nama di luar daftar (mis. "Biaya transfer") mendapat
+    warna tetap dari namanya. Batas: paletnya 8 warna, jadi dengan lebih dari
+    8 kategori dua kategori bisa berbagi warna, dan warna ikut bergeser bila
+    urutan daftar diubah. Tes unit baru di `dashboardView.test.ts` (`npm test`
+    1.756 lulus); `category_browser.py` 25/25. Data contoh hanya berisi satu
+    bulan, jadi perbandingan antarbulan di browser belum dilihat. **[fitur]**
+    klik baris tidak dikerjakan.
 
 - [ ] **1.7.3 Kaki panel**
   *Isi:* "+N kategori lainnya", petunjuk anggaran, catatan "Hanya kategori
