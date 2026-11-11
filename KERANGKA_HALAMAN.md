@@ -311,10 +311,16 @@ dan bulan (5.4).
 
 ### 1.8 Pengingat rapikan
 
-- [ ] **1.8.1 Banner "N catatan bisa dirapikan nanti"**
+- [x] **1.8.1 Banner "N catatan bisa dirapikan nanti"**
   *Isi:* jumlah, rincian alasan, "Cek catatan" (membuka 3.6).
   - Alasan bernilai nol ikut ditulis ("0 jenis perlu dicek · 1 kategori belum
     diisi"). Tulis hanya yang lebih dari nol.
+  - *Dikerjakan 11 Nov 2026.* Alasan bernilai nol tidak ditulis lagi: data
+    contoh kini menampilkan "1 kategori belum diisi. Saldo sudah tercatat."
+    Dua alasan tetap dipisah " · ". Fokus keyboard terlihat; dilihat di
+    desktop dan HP, terang dan gelap. Tes: `bank_review_browser.py` 12/12,
+    `browser_smoke.py` 39 skenario lulus. Keadaan dengan dua alasan sekaligus
+    tidak dilihat di browser.
 
 ### 1.9 Transaksi terbaru
 
