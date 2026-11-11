@@ -270,10 +270,16 @@ dan bulan (5.4).
 
 ### 1.7 Kategori pengeluaran terkonfirmasi
 
-- [ ] **1.7.1 Kepala panel**
+- [x] **1.7.1 Kepala panel**
   *Isi:* judul, "November 2026 · cakupan rekening yang dipilih.", ikon label di kanan.
   - Ikon label tampak seperti tombol tetapi tidak bisa diklik. Jadikan tombol
     ke Kelola kategori (dari Ringkasan belum ada jalan ke anggaran), atau buang.
+  - *Dikerjakan 11 Nov 2026.* Ikon label kini tombol sungguhan bernama "Kelola
+    kategori" yang membuka dialog Kelola kategori (tempat anggaran diatur).
+    Fokus keyboard terlihat, Enter membuka, Escape menutup dan fokus kembali;
+    area sentuh 45px. Dilihat di desktop dan HP, terang dan gelap. Tes:
+    `category_browser.py` 25/25, `theme_browser.py` 21/21, `ux_browser.py`
+    desktop dan mobile lulus.
 
 - [ ] **1.7.2 Baris kategori**
   *Isi:* titik warna, nama, nominal, batang. Dengan anggaran: "terpakai / batas"
