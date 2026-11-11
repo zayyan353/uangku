@@ -405,6 +405,7 @@ def first_fold(case):
     check_frame()
     expect(card.locator('.balance-demo')).to_have_count(1 if case.data['demo'] else 0)
     expect(amount).to_have_attribute('data-amount', '29750')
+    expect(card.locator('.balance-label')).to_have_text(re.compile(r'^Saldo per \d{1,2} \S+ \d{4}$'))
     case.scope('second')
     page.evaluate('window.scrollTo(0, 0)')
     check_frame()
@@ -414,6 +415,7 @@ def first_fold(case):
     page.evaluate('window.scrollTo(0, 0)')
     check_frame()
     expect(amount).to_have_text('Belum tersedia')
+    expect(card.locator('.balance-label')).to_have_text('Saldo akhir periode')
     expect(card.locator('.balance-period')).to_contain_text('periode belum dimulai')
     case.assert_unchanged()
 

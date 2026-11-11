@@ -45,7 +45,7 @@ export function CashflowBalance({ report, currency, month, period, scope, mobile
   const closing = report?.closingBalance;
   return <section className={`balance-card${mobile ? ' balance-card-compact' : ''}`}>
     <div className="balance-card-top">
-      <span className="balance-label">Saldo akhir periode</span>
+      <span className="balance-label">{closing == null ? 'Saldo akhir periode' : `Saldo per ${formatDate(report!.periodEnd)}`}</span>
       {mobile && demo && <span className="balance-demo">Data contoh</span>}
       <span className="balance-currency">{currency === 'TRY' ? 'TL' : currency}</span>
     </div>
@@ -53,7 +53,7 @@ export function CashflowBalance({ report, currency, month, period, scope, mobile
     <div className="balance-meta"><WalletIcon size={15} /><span>{scope}</span></div>
     {mobile && <p className="balance-period">{periodCaption(report, month, period)}</p>}
     <span className="balance-orbit orbit-one" /><span className="balance-orbit orbit-two" />
-    <div className="balance-bottom"><span>Seluruh catatan: {report ? formatMoney(report.allRecordsBalance, currency) : '—'} · termasuk tanggal masa depan</span></div>
+    {report && report.allRecordsBalance !== closing && <div className="balance-bottom"><span>Seluruh catatan: {formatMoney(report.allRecordsBalance, currency)} · termasuk tanggal masa depan</span></div>}
   </section>;
 }
 

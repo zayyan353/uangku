@@ -136,7 +136,7 @@ dan bulan (5.4).
 
 ### 1.3 Kartu angka utama
 
-- [ ] **1.3.1 Kartu saldo akhir periode**
+- [x] **1.3.1 Kartu saldo akhir periode**
   *Isi:* label, lencana mata uang, angka, cakupan, baris "Seluruh catatan: … ·
   termasuk tanggal masa depan". Di HP ditambah chip "Data contoh" dan rentang tanggal.
   - Label "Saldo akhir periode" tidak menyebut tanggalnya. Tulis "Saldo per
@@ -144,6 +144,13 @@ dan bulan (5.4).
   - Baris "Seluruh catatan" tampil walau nilainya sama dengan saldo utama.
     Tampilkan hanya bila berbeda (ada catatan bertanggal masa depan).
   - Teks baris bawah kecil dan pudar di atas latar hijau tua. Cek kontrasnya.
+  - *Dikerjakan 11 Nov 2026.* Label jadi "Saldo per 11 Nov 2026" (tanggal
+    akhir periode laporan); tetap "Saldo akhir periode" bila saldonya belum
+    tersedia. Baris "Seluruh catatan" kini hanya tampil bila nilainya berbeda
+    dari saldo utama. Kontras baris bawah diukur dengan satu catatan
+    bertanggal masa depan: 5,77:1 (teks 11px, batas 4,5:1), jadi warnanya
+    tidak diubah. Tes: `cashflow_browser.py` ditambah pemeriksaan label
+    (19/19), `recovery_browser.py` 16/16, `theme_browser.py` 21/21.
 
 - [ ] **1.3.2 Kartu uang masuk dan uang keluar rekening**
   *Isi:* ikon, label, angka, catatan kaki ("Termasuk transfer masuk…").
