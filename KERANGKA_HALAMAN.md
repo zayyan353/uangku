@@ -1156,226 +1156,354 @@ tidak tampil di halaman ini.
 
 ### 4.1 Kepala halaman
 
-- [ ] **4.1.1 Judul**
+- [x] **4.1.1 Judul**
   *Isi:* "Biar file yang bantu." / "Kurangi ketik satu-satu. Mulai dari mutasi rekening."
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Judul dan subjudul tampil
+    di desktop dan HP, tema terang dan gelap.
 
-- [ ] **4.1.2 Tombol kepala**
+- [x] **4.1.2 Tombol kepala**
   *Isi:* Kelola mata uang, Kelola kategori, Catat transaksi (susunan dari MW-50).
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Tiga tombol kepala tampil
+    dan bekerja.
 
 ### 4.2 Periksa kelengkapan mutasi
 
 Tampil setelah ada file yang tersimpan.
 
-- [ ] **4.2.1 Kepala bagian**
+- [x] **4.2.1 Kepala bagian**
   *Isi:* judul dan satu kalimat pengantar.
   - Bagian ini muncul di atas area unggah dan mendorongnya ke bawah, dan
     judulnya lebih besar dari judul panel lain (gaya inline, lihat MW-69).
     Pindah ke bawah area unggah atau lipat sebagai bawaan; samakan gayanya.
   - Kalimat pengantar penuh istilah ("backfill", "batas saldo awal",
     "pemeriksaan kapasitas"). Tulis ulang.
+  - *Dikerjakan 11 Nov 2026.* Bagian ini pindah ke bawah area unggah dan
+    pratinjau, memakai kepala panel biasa (gaya inline dibuang), dan
+    pengantarnya ditulis ulang tanpa "backfill", "batas saldo awal", dan
+    "pemeriksaan kapasitas".
 
-- [ ] **4.2.2 Baris file sumber**
+- [x] **4.2.2 Baris file sumber**
   *Isi:* "Dompet · periode · N mutasi sumber"; 10 terbaru + "Tampilkan file
   sumber sebelumnya".
   - Status (cocok atau ada selisih) baru terlihat setelah baris dibuka.
     Tampilkan ringkasnya di baris. **[cek]** biaya hitungnya.
+  - *Dikerjakan 11 Nov 2026.* Tiap baris file kini membawa lencana ringkas:
+    "Cocok", "Selisih …", "Belum lengkap", atau "Belum terverifikasi".
+    **[cek]** biaya hitungnya: satu pemeriksaan membaca seluruh tautan dan
+    catatan, jadi lencana dihitung setelah halaman tampil, satu kartu per
+    giliran (bukan saat render pertama); membuka kartu menghitungnya saat
+    itu juga. Belum diukur pada buku besar yang sangat panjang dengan
+    sepuluh file.
 
-- [ ] **4.2.3 Perbandingan saldo**
+- [x] **4.2.3 Perbandingan saldo**
   *Isi:* saldo penutupan file dan saldo catatan; status batas saldo awal dan kelengkapan.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026.* Dilihat setelah satu impor sintetis yang cocok.
+    Hanya istilah "Batas saldo awal" diganti "Titik awal saldo"; hitungannya
+    tidak diubah.
 
-- [ ] **4.2.4 Form pelengkapan**
+- [x] **4.2.4 Form pelengkapan**
   *Isi:* alasan, dua centang, "Pratinjau pelengkapan".
   - Form tampil walau statusnya sudah "lengkap" dan saldonya cocok. Tampilkan
     hanya bila ada yang bisa dilengkapi.
+  - *Dikerjakan 11 Nov 2026.* Bila statusnya lengkap dan selisihnya nol,
+    form pelengkapan diganti satu kalimat "Catatan sudah lengkap dan
+    saldonya cocok dengan file ini." Pada keadaan lain form tetap tampil
+    seperti sebelumnya.
 
 - [ ] **4.2.5 Hasil pratinjau pelengkapan**
   *Isi:* jumlah transaksi yang akan ditambah, saldo usulan, "Lengkapi dan simpan".
   - Belum dilihat. Tinjau saat giliran.
+  - *Belum dicentang (11 Nov 2026).* Tidak dilihat langsung di sesi ini.
+    Alurnya (pratinjau "N transaksi akan ditambahkan", lalu simpan) lulus di
+    `backfill_browser.py` pada build ini, tetapi tampilannya belum ditinjau.
 
 - [ ] **4.2.6 Transfer bersumber yang dihapus**
   *Isi:* daftar, kolom alasan, "Pulihkan seluruh transfer".
   - Belum dilihat. Tinjau saat giliran.
+  - *Belum dicentang (11 Nov 2026).* Tidak dilihat langsung di sesi ini.
+    Pemulihan transfer lulus di `source_browser.py` pada build ini, tetapi
+    tampilannya belum ditinjau.
 
 ### 4.3 Format dan dompet tujuan
 
-- [ ] **4.3.1 Tab format**
+- [x] **4.3.1 Tab format**
   *Isi:* "Ziraat TRY · otomatis" / "CSV / Excel umum" dan kalimat "Mengganti
   format atau dompet membatalkan pratinjau…".
   - Tab awal selalu Ziraat, juga bagi yang tidak punya dompet TRY. Pilih tab
     sesuai dompet yang ada, atau ingat pilihan terakhir.
   - Kalimat peringatannya selalu tampil. Cukup saat ada pratinjau.
+  - *Dikerjakan 11 Nov 2026.* Tab awal mengikuti dompet yang ada: bila ada
+    dompet aktif tetapi tidak satu pun TRY, halaman dibuka di "CSV / Excel
+    umum"; selain itu tetap Ziraat. Pilihan terakhir tidak diingat. Kalimat
+    "Mengganti format atau dompet membatalkan pratinjau…" hanya tampil saat
+    ada pratinjau.
 
-- [ ] **4.3.2 Kepala panel**
+- [x] **4.3.2 Kepala panel**
   *Isi:* "Mutasi masuk, catatan beres." dan lencana format.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **4.3.3 Simpan ke dompet**
+- [x] **4.3.3 Simpan ke dompet**
   *Isi:* dropdown dompet; peringatan "Belum ada dompet … aktif" dengan tombol tambah.
   - Pada mode umum, dompet yang sama ditulis lagi sebagai "Dompet tujuan" di
     dalam kotak pemetaan. Buang salah satunya.
+  - *Dikerjakan 11 Nov 2026.* Tulisan "Dompet tujuan" di dalam kotak
+    pemetaan dibuang; dompet hanya dipilih di "Simpan ke dompet".
 
 ### 4.4 Unggah Ziraat
 
-- [ ] **4.4.1 Area taruh file**
+- [x] **4.4.1 Area taruh file**
   *Isi:* ikon, "Taruh file Excel di sini", tombol "Pilih file .xlsx", batas 8 MB.
   - Tidak ada sorotan saat file diseret ke atasnya.
   - Di mode contoh tombolnya mati tanpa penjelasan di tempat; alasannya hanya
     ada di banner atas.
+  - *Dikerjakan 11 Nov 2026.* Area taruh file disorot saat file diseret ke
+    atasnya. Di mode contoh, di bawah tombol yang mati tertulis alasannya
+    dengan tautan "Ganti ke data sendiri".
 
-- [ ] **4.4.2 Status dan galat**
+- [x] **4.4.2 Status dan galat**
   *Isi:* "Membaca mutasi…", "Menyimpan mutasi…", kotak galat.
   - Pesan salah ekstensi masih menyebut "versi awal". Tinjau semua pesan galat.
+  - *Dikerjakan 11 Nov 2026.* Pesan salah ekstensi tidak lagi menyebut
+    "versi awal" dan menunjuk ke "CSV / Excel umum"; pesan ukuran file
+    menyarankan periode yang lebih pendek. Galat yang muncul saat pratinjau
+    sudah tampil kini ditulis di dekat tombol simpan, bukan di atas
+    pratinjau yang sudah tergulir lewat. Pesan galat dari pembaca file
+    (`importer.ts`, `genericImport.ts`) dibaca dan tidak diubah.
 
-- [ ] **4.4.3 Catatan privasi**
+- [x] **4.4.3 Catatan privasi**
   *Isi:* "File dibaca di browser. Tidak dikirim ke server."
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
 ### 4.5 Pemetaan CSV / Excel umum
 
-- [ ] **4.5.1 Kepala dan syarat file**
+- [x] **4.5.1 Kepala dan syarat file**
   *Isi:* judul dan paragraf syarat (satu rekening, satu mata uang, ada saldo
   setelah tiap transaksi).
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **4.5.2 Pemisah CSV dan pilih file**
+- [x] **4.5.2 Pemisah CSV dan pilih file**
   *Isi:* dropdown pemisah dan tombol "Pilih file CSV/Excel".
   - **[keputusan]** Pemisah harus dipilih sendiri dan tampil juga untuk file
     Excel. Usul: tebak dari isi file sebagai saran, tampilkan hanya untuk CSV/TSV.
   - Belum bisa seret-taruh (hanya tombol), beda dengan mode Ziraat.
+  - *Dikerjakan 11 Nov 2026.* (pemilik menyetujui semua usul) Dropdown
+    pemisah hanya tampil setelah file CSV/TSV dipilih. Pemisah ditebak dari
+    baris-baris awal file (hanya bila semua baris sepakat pada satu pemisah)
+    dan ditulis sebagai tebakan yang bisa diubah; tabel contoh di bawahnya
+    memperlihatkan hasilnya. Area pilih file kini juga menerima seret-taruh.
+    `currency_import_browser.py` diperbarui.
 
-- [ ] **4.5.3 Worksheet dan baris judul kolom**
+- [x] **4.5.3 Worksheet dan baris judul kolom**
   *Isi:* dropdown worksheet dan nomor baris judul.
   - Dropdown Worksheet tampil walau hanya satu lembar (CSV).
   - Label menempel pada kalimat di atasnya.
+  - *Dikerjakan 11 Nov 2026.* Dropdown Worksheet hanya tampil bila file
+    punya lebih dari satu lembar; jarak label ke kalimat di atasnya diberi
+    ruang.
 
-- [ ] **4.5.4 Tabel contoh nilai**
+- [x] **4.5.4 Tabel contoh nilai**
   *Isi:* judul kolom + tiga baris, maksimal delapan kolom.
   - **[bug]** Di HP 390px kolom ke-2 dan ke-3 hilang (`display: none`), karena
     tabel memakai kelas `transactions-table` yang menyembunyikan kolom di layar
     kecil. Terukur: dari 4 kolom CSV uji hanya Tanggal dan Saldo yang tampil.
+  - *Dikerjakan 11 Nov 2026.* **[bug]** diperbaiki: tabel contoh memakai
+    kelasnya sendiri, tidak lagi `transactions-table`. Diukur ulang di HP
+    390px dengan CSV uji 4 kolom: keempat kolom tampil (sebelumnya dua
+    hilang); tabelnya bisa digeser bila kolomnya banyak.
 
-- [ ] **4.5.5 Pemetaan kolom**
+- [x] **4.5.5 Pemetaan kolom**
   *Isi:* tanggal, keterangan, saldo, mode nominal, nominal atau debit + kredit,
   referensi, mata uang.
   - Tombol "Buat pratinjau impor" tidak menunggu kolom wajib terisi;
     kekurangannya baru ketahuan sebagai galat setelah diklik. Tunjukkan apa
     yang belum dipilih.
+  - *Dikerjakan 11 Nov 2026.* Di atas tombol tertulis "Belum lengkap: kolom
+    saldo, pemisah desimal, …" dan tombol "Buat pratinjau impor" mati sampai
+    daftar itu kosong. Pemeriksaan isi file oleh pembaca tetap berjalan
+    seperti sebelumnya setelah tombol diklik.
 
-- [ ] **4.5.6 Format**
+- [x] **4.5.6 Format**
   *Isi:* format tanggal, pemisah desimal, urutan mutasi.
   - **[keputusan]** Desimal dan urutan wajib dipilih manual. Usul: tawarkan
     tebakan dari data (mis. tanggal naik atau turun) yang tetap harus dikonfirmasi.
+  - *Dikerjakan 11 Nov 2026.* (pemilik menyetujui semua usul) Di bawah
+    dropdown desimal dan urutan muncul saran dari data ("Dari data tampaknya
+    koma", "…paling lama di atas") dengan tautan "Pakai saran". Saran tidak
+    pernah dipilihkan otomatis, dan tidak muncul bila datanya ambigu (mis.
+    hanya tiga digit di belakang tanda, atau tanggal tidak berurutan).
 
-- [ ] **4.5.7 Konfirmasi mata uang dan "Buat pratinjau impor"**
+- [x] **4.5.7 Konfirmasi mata uang dan "Buat pratinjau impor"**
   *Isi:* centang konfirmasi dan tombol utama.
   - Pratinjau muncul jauh di bawah dan layar tidak bergerak. Terukur di HP:
     pratinjau mulai ±330px di bawah tepi bawah layar, jadi tombolnya terasa
     tidak berbuat apa-apa. Gulir ke pratinjau dan lipat kotak pemetaan.
   - **[fitur]** Ingat pemetaan terakhir per dompet.
+  - *Dikerjakan 11 Nov 2026.* Setelah pratinjau dibuat, layar bergulir ke
+    pratinjau dan kotak pemetaan terlipat menjadi satu baris dengan tombol
+    "Ubah pemetaan". Diukur di HP 390px: tepi atas pratinjau berada di tepi
+    atas layar (sebelumnya ±330px di bawah layar). Berlaku juga untuk impor
+    Ziraat. **[fitur]** "ingat pemetaan terakhir per dompet" tidak
+    dikerjakan.
 
 ### 4.6 Panel "Cara kerjanya"
 
-- [ ] **4.6.1 Tiga langkah dan catatan format**
+- [x] **4.6.1 Tiga langkah dan catatan format**
   *Isi:* Pilih dompet, Cek hasil bacaan, Simpan lalu rapikan nanti; kotak catatan.
   - Di HP panel ini berada di antara area unggah dan pratinjau, menambah jarak
     ke pratinjau. Pindah ke akhir halaman atau lipat setelah file dibaca.
+  - *Dikerjakan 11 Nov 2026.* Di HP panel "Cara kerjanya" disembunyikan
+    selama ada pratinjau, sehingga tidak lagi menyela antara area unggah dan
+    pratinjau. Di desktop tidak berubah.
 
 ### 4.7 Pratinjau "Periksa sebelum disimpan"
 
-- [ ] **4.7.1 Kepala pratinjau**
+- [x] **4.7.1 Kepala pratinjau**
   *Isi:* nama file, periode, jumlah transaksi.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **4.7.2 Ringkasan angka**
+- [x] **4.7.2 Ringkasan angka**
   *Isi:* dipilih, sudah pernah diimpor, perlu dirapikan, jenis perlu dicek,
   kategori belum diisi.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **4.7.3 Peringatan**
+- [x] **4.7.3 Peringatan**
   *Isi:* peringatan file, jenis belum dikonfirmasi, kandidat manual, tanggal
   masa depan, mutasi dilewati; ditambah dua paragraf bantuan.
   - Semuanya bertumpuk di atas tabel; di HP tabel baru mulai ±1.500px setelah
     kepala pratinjau. Jadikan satu daftar ringkas dengan detail terlipat.
   - Paragraf aturan bank ("Tarik ATM menjadi pengeluaran…") ikut tampil pada
     impor umum. Tampilkan sesuai format.
+  - *Dikerjakan 11 Nov 2026.* Peringatan dan paragraf bantuan menjadi satu
+    daftar: satu baris ringkas per hal dengan "Detail" yang bisa dibuka.
+    Paragraf aturan bank hanya tampil pada impor Ziraat, terlipat di balik
+    "Aturan bank yang dipakai". Jarak kepala pratinjau ke tabel di HP tidak
+    diukur ulang dalam piksel.
 
-- [ ] **4.7.4 Saldo awal dari file**
+- [x] **4.7.4 Saldo awal dari file**
   *Isi:* centang "Gunakan saldo sebelum transaksi pertama" (hanya untuk dompet
   yang belum punya catatan).
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **4.7.5 Proyeksi saldo**
+- [x] **4.7.5 Proyeksi saldo**
   *Isi:* proyeksi setelah impor, saldo akhir statement, selisih.
   - Cocok dan selisih tampil sama (teks polos). Beri tanda jelas: cocok ✓ atau
     selisih ⚠ dengan nominalnya.
+  - *Dikerjakan 11 Nov 2026.* Kotak proyeksi kini dibuka dengan "Cocok
+    dengan saldo akhir file." (hijau, ikon centang) atau "Selisih ±Rp … dari
+    saldo akhir file." (kuning, ikon peringatan).
 
-- [ ] **4.7.6 Cari dan filter pratinjau**
+- [x] **4.7.6 Cari dan filter pratinjau**
   *Isi:* kotak cari, dropdown tampilan (7 pilihan), "N terlihat · N dipilih total".
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **4.7.7 Kategori massal untuk yang terlihat**
+- [x] **4.7.7 Kategori massal untuk yang terlihat**
   *Isi:* dropdown kategori dan "Terapkan kategori ke N mutasi".
   - Belum ada aksi massal untuk jenis. Pada impor umum semua baris datang
     sebagai "Perlu dicek" (8 dari 8 pada file uji) dan harus diubah satu per
     satu. Tambah "masuk = pemasukan, keluar = pengeluaran untuk yang dipilih"
     (konsepnya sudah ada di 3.5.3).
+  - *Dikerjakan 11 Nov 2026.* Tombol "Tandai jenis N mutasi: masuk =
+    pemasukan, keluar = pengeluaran" berlaku untuk pilihan yang terlihat dan
+    hanya mengubah baris yang jenisnya masih "Perlu dicek"; perpindahan dana
+    yang sudah dikenali tidak disentuh. Pada file uji 8 baris, "jenis perlu
+    dicek" turun dari 8 ke 0 dengan satu klik. Nominal dan tanggal tidak
+    berubah.
 
 ### 4.8 Tabel pratinjau
 
-- [ ] **4.8.1 Centang baris dan pilih semua**
+- [x] **4.8.1 Centang baris dan pilih semua**
   *Isi:* centang per baris; centang kepala berlaku untuk mutasi baru yang terlihat.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **4.8.2 Sel transaksi**
+- [x] **4.8.2 Sel transaksi**
   *Isi:* judul, lipatan "Keterangan bank asli", tanggal, peringatan baris,
   petunjuk operasi bank.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **4.8.3 Keputusan tumpang tindih**
+- [x] **4.8.3 Keputusan tumpang tindih**
   *Isi:* "Lewati" / "Transaksi berbeda"; "Pulihkan fakta bank" / "Pertahankan catatan".
   - Belum dilihat (butuh impor yang tumpang tindih). Tinjau saat giliran.
+  - *Ditinjau 11 Nov 2026, tanpa perubahan kode.* Dilihat dengan satu
+    catatan manual sintetis yang tanggal dan nominalnya sama dengan satu
+    baris file: "Mungkin sudah dicatat manual" tampil dengan kandidatnya,
+    dan "Lewati" / "Transaksi berbeda" bekerja serta menandai pilihannya.
+    "Pulihkan fakta bank" / "Pertahankan catatan" tidak dilihat langsung;
+    alurnya lulus di `source_browser.py`.
 
-- [ ] **4.8.4 Nominal**
+- [x] **4.8.4 Nominal**
   *Isi:* tanda, warna, nominal.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **4.8.5 Jenis per baris**
+- [x] **4.8.5 Jenis per baris**
   *Isi:* dropdown Perlu dicek / Perpindahan dana rekening / Pemasukan atau Pengeluaran.
   - Aksi massal → 4.7.7.
+  - *Diperiksa 11 Nov 2026.* Aksi massal dikerjakan di 4.7.7.
 
-- [ ] **4.8.6 Kategori per baris dan saran**
+- [x] **4.8.6 Kategori per baris dan saran**
   *Isi:* dropdown kategori, catatan aturan, tombol saran.
   - Dropdownnya sempit: "Belum dikategorikan" terpotong di desktop 1440px.
+  - *Dikerjakan 11 Nov 2026.* Dropdown kategori per baris dilebarkan
+    (minimal 172px) sehingga "Belum dikategorikan" tidak terpotong di
+    desktop.
 
-- [ ] **4.8.7 Tampilan HP**
+- [x] **4.8.7 Tampilan HP**
   *Isi:* tabel yang sama, bisa digeser ke samping.
   - Terukur: tabel selebar 820px di layar 390px (area terlihat 316px).
     Nominal, Jenis, dan Kategori hanya terlihat dengan menggeser ke samping,
     tanpa tanda bisa digeser. Buat tata letak kartu per mutasi.
+  - *Dikerjakan 11 Nov 2026.* Di HP tiap mutasi menjadi satu kartu: centang,
+    judul dan tanggal, nominal, lalu Jenis dan Kategori selebar kartu.
+    Diukur di 390px: lebar isi tabel sama dengan area terlihat (316px,
+    sebelumnya 820px) dan halaman tidak bergeser ke samping. Centang "pilih
+    semua" tetap ada di atas daftar kartu.
 
-- [ ] **4.8.8 Paginasi pratinjau**
+- [x] **4.8.8 Paginasi pratinjau**
   *Isi:* 50 per halaman; "Mutasi sebelumnya" / "Mutasi berikutnya".
   - Kedua tombol tampil walau hanya satu halaman. Sembunyikan (seperti MW-41).
+  - *Dikerjakan 11 Nov 2026.* Tombol "Mutasi sebelumnya" / "Mutasi
+    berikutnya" hanya tampil bila lebih dari satu halaman.
 
 ### 4.9 Simpan impor
 
-- [ ] **4.9.1 Teks bantuan sebelum simpan**
+- [x] **4.9.1 Teks bantuan sebelum simpan**
   *Isi:* dua paragraf dan satu catatan kaki.
   - Ringkas. "Fakta file" dan "batas catatan" perlu kalimat biasa.
+  - *Dikerjakan 11 Nov 2026.* Dua paragraf dan catatan kaki diringkas
+    menjadi satu paragraf; "fakta file" dan "batas catatan" diganti kalimat
+    biasa.
 
-- [ ] **4.9.2 Tombol simpan**
+- [x] **4.9.2 Tombol simpan**
   *Isi:* Batalkan pratinjau, Simpan fakta file saja, Simpan N transaksi.
   - Di desktop tombol utama turun ke baris kedua. Rapikan barisnya.
   - "Simpan fakta file saja" adalah opsi lanjutan tetapi sejajar dengan tombol
     utama. Pindah ke "Opsi lain" (dipakai 2 file tes).
+  - *Dikerjakan 11 Nov 2026.* "Batalkan pratinjau" dan "Simpan N transaksi"
+    kini satu baris di kanan. "Simpan fakta file saja" pindah ke lipatan
+    "Opsi lain" dengan penjelasannya; label tombolnya tetap, dan dua file
+    tes diperbarui untuk membuka lipatan dulu.
 
-- [ ] **4.9.3 Sesudah simpan**
+- [x] **4.9.3 Sesudah simpan**
   *Isi:* pemberitahuan singkat; pratinjau dikosongkan.
   - Tidak ada arah berikutnya. Tampilkan ringkasan hasil dengan tombol
     "Rapikan N catatan" dan "Lihat transaksi".
+  - *Dikerjakan 11 Nov 2026.* Sesudah simpan tampil ringkasan "N transaksi
+    tersimpan ke <dompet>" dengan jumlah yang masih perlu dirapikan dan
+    tombol "Rapikan N catatan" serta "Lihat transaksi" (riwayat dompet itu,
+    semua periode). Ringkasan hilang saat file berikutnya dibaca atau
+    ditutup.
 
 ---
 

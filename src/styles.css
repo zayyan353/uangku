@@ -1628,3 +1628,110 @@ html[data-theme="dark"] .checkbox-row.invalid { color: #f0a394; }
   .category-manager-tabs > button { flex: 1 1 auto; padding: 8px 6px; font-size: 13px; }
   .category-manager-tabs > button > span { margin-left: 4px; }
 }
+
+/* ===== Kerangka Bab 4: Impor mutasi ===== */
+/* 4.2 Periksa kelengkapan: gaya panel biasa, status di baris tertutup */
+.statement-review { padding: 22px; margin-top: 22px; }
+.statement-card { padding: 14px 16px; margin-top: 10px; box-shadow: none; }
+.statement-card > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; font-size: 14px; }
+.statement-card-title { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
+.statement-card-body { padding-top: 12px; }
+.badge.positive { background: var(--success-surface, #edf3e5); color: var(--readable-positive); }
+.badge.warning { background: #fcf1d9; color: #6b4a12; }
+html[data-theme="dark"] .badge.positive { background: var(--success-surface); color: var(--success-text); }
+html[data-theme="dark"] .badge.warning { background: #4a3a17; color: #f3d99a; }
+/* 4.4.1 sorotan saat file diseret; catatan mode contoh */
+.import-dropzone.dragging, .generic-import-file.dragging { border-color: var(--readable-positive); background: #eef5e2; outline: 2px solid var(--readable-positive); outline-offset: 2px; }
+html[data-theme="dark"] :is(.import-dropzone.dragging, .generic-import-file.dragging) { background: #1d3024; }
+.import-demo-note { display: block; margin-top: 12px; font-size: 13px; line-height: 1.7; }
+/* 4.5 pemetaan umum */
+.generic-import { padding: 20px; margin-bottom: 20px; min-width: 0; }
+.generic-import-file { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 14px; margin-bottom: 14px; border: 1.5px dashed #c9d5b8; border-radius: 14px; }
+html[data-theme="dark"] .generic-import-file { border-color: var(--control-border); }
+.generic-import-separator { max-width: 320px; margin-bottom: 14px; }
+.generic-import-loaded { margin: 4px 0 14px; }
+.generic-import-folded { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.generic-import-folded span { flex: 1 1 200px; min-width: 0; overflow-wrap: anywhere; }
+.generic-sample-wrap { max-width: 100%; margin: 12px 0; overflow-x: auto; }
+.generic-sample-table { border-collapse: collapse; font-size: 12px; min-width: 100%; }
+.generic-sample-table caption { caption-side: top; text-align: left; margin-bottom: 6px; }
+.generic-sample-table td { padding: 8px 10px; border: 1px solid var(--line); max-width: 180px; min-width: 72px; overflow-wrap: anywhere; white-space: pre-wrap; vertical-align: top; color: var(--text, #33402f); }
+.generic-sample-table tr:first-child td { font-weight: 600; background: var(--surface-raised, #f6f8ef); }
+.generic-hint { display: block; margin-top: 5px; }
+.generic-missing { margin: 12px 0 8px; font-weight: 500; }
+/* 4.7.3 catatan pratinjau jadi satu daftar ringkas */
+.import-notes { list-style: none; margin: 0 0 14px; padding: 0; border: 1px solid #ecdcae; border-radius: 12px; background: #fdf8e8; font-size: 13px; }
+.import-notes li + li { border-top: 1px solid #f0e4bf; }
+.import-notes li.info { background: var(--surface-raised, #f6f8ef); }
+.import-notes li:last-child.info { border-radius: 0 0 12px 12px; }
+.import-notes summary { display: flex; align-items: flex-start; gap: 8px; padding: 10px 14px; cursor: pointer; line-height: 1.6; min-height: 40px; color: #5a4310; }
+.import-notes li.info summary { color: var(--muted); }
+.import-notes summary::-webkit-details-marker { display: none; }
+.import-notes summary svg { flex-shrink: 0; margin-top: 3px; }
+.import-notes summary span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.import-notes summary::after { content: 'Detail'; font-size: 12px; text-decoration: underline; flex-shrink: 0; }
+.import-notes details[open] summary::after { content: 'Tutup'; }
+.import-notes p { margin: 0; padding: 0 14px 12px 37px; line-height: 1.7; color: var(--muted); overflow-wrap: anywhere; }
+html[data-theme="dark"] .import-notes { background: #2f2a17; border-color: #5a4d22; }
+html[data-theme="dark"] .import-notes li + li { border-color: #5a4d22; }
+html[data-theme="dark"] .import-notes summary { color: #f3d99a; }
+html[data-theme="dark"] .import-notes li.info { background: var(--surface-raised); }
+html[data-theme="dark"] .import-notes li.info summary, html[data-theme="dark"] .import-notes p { color: var(--text-muted); }
+.inline-details { display: inline; }
+.inline-details summary { display: inline; cursor: pointer; text-decoration: underline; }
+.inline-details[open] summary { margin-right: 6px; }
+/* 4.7.5 proyeksi saldo */
+.notice.projection { display: flex; align-items: flex-start; gap: 10px; }
+.notice.projection > svg { flex-shrink: 0; margin-top: 3px; }
+/* 4.7.7 aksi massal jenis */
+.import-bulk-type { flex: 1 1 100%; display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding-top: 10px; border-top: 1px dashed #d5dfc8; }
+.import-bulk-type .button { white-space: normal; text-align: left; font-size: 13px; }
+.import-bulk-type .field-help { flex: 1 1 240px; }
+/* 4.8.6 dropdown kategori cukup lebar untuk "Belum dikategorikan" */
+.import-table .select-input.compact.import-row-category { min-width: 172px; max-width: 220px; }
+.import-table:has(.import-row-category) { min-width: 860px; }
+.import-select-all-text { display: none; }
+/* 4.9 baris simpan */
+.import-pages { margin-top: 14px; }
+.import-save { align-items: flex-end; flex-wrap: wrap; }
+.import-save-buttons { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; margin-left: auto; }
+.import-more { flex: 1 1 260px; min-width: 0; font-size: 13px; }
+.import-more summary { cursor: pointer; color: var(--muted); min-height: 36px; display: inline-flex; align-items: center; text-decoration: underline; }
+.import-more > div { padding: 8px 0 0; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+/* 4.9.3 ringkasan sesudah simpan */
+.import-result { display: flex; align-items: center; flex-wrap: wrap; gap: 12px 16px; padding: 16px 18px; margin-bottom: 18px; border-color: #cfe0bd; background: #f3f8eb; }
+.import-result > svg { color: var(--readable-positive); flex-shrink: 0; }
+.import-result-copy { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 3px; font-size: 14px; line-height: 1.6; }
+.import-result-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+html[data-theme="dark"] .import-result { background: var(--success-surface); border-color: var(--success-border); }
+html[data-theme="dark"] .import-result > svg { color: var(--success-text); }
+
+@media (max-width: 640px) {
+  /* 4.6.1 "Cara kerjanya" tidak lagi menyela antara unggah dan pratinjau */
+  .import-layout.has-preview .import-info { display: none; }
+  /* 4.8.7 satu kartu per mutasi: tidak ada kolom yang harus digeser */
+  .import-preview .table-wrap { overflow-x: visible; }
+  .import-table, .import-table:has(.import-row-category) { min-width: 0; display: block; }
+  .import-table thead, .import-table tbody { display: block; }
+  .import-table thead tr { display: block; }
+  .import-table thead th { display: none; }
+  .import-table thead th.import-select-all { display: flex; align-items: center; gap: 10px; padding: 6px 2px 12px; text-transform: none; letter-spacing: 0; font-size: 13px; white-space: normal; }
+  .import-select-all-text { display: inline; }
+  .import-table tbody tr { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 8px 6px; padding: 14px 12px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface, #fff); }
+  .import-table tbody td { display: block; padding: 0; border: 0; min-width: 0; }
+  .import-table tbody td:nth-child(1) { grid-row: 1 / span 4; padding-top: 2px; }
+  .import-table tbody td:nth-child(n+2) { grid-column: 2; }
+  .import-table tbody td[data-label]::before { content: attr(data-label); display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .6px; color: var(--muted); margin-bottom: 4px; }
+  .import-table tbody td[data-label="Nominal"] { font-size: 15px; font-weight: 600; }
+  .import-table tbody td[data-label="Nominal"]::before { display: none; }
+  .import-table .select-input.compact, .import-table .select-input.compact.import-row-category { width: 100%; max-width: none; min-width: 0; min-height: 44px; font-size: 14px; }
+  .import-table input[type=checkbox] { width: 22px; height: 22px; }
+  .import-table .transaction-title { max-width: 100%; }
+  .import-save-buttons { width: 100%; }
+  .import-save-buttons .button { flex: 1 1 100%; }
+  .import-result-actions { width: 100%; }
+  .generic-import-file .button { width: 100%; }
+}
+html[data-theme="dark"] .import-table tbody tr { background: transparent; }
+@media (max-width: 640px) { .import-more { flex: 0 0 auto; } .import-save { align-items: stretch; } }
+.import-save-error { margin: 14px 0 0; }

@@ -48,6 +48,7 @@ def raw_token(page):
 
 
 def source_only(page):
+    page.get_by_text('Opsi lain', exact=True).click()
     page.get_by_role('button', name='Simpan fakta file saja', exact=True).click()
     expect(page.get_by_role('heading', name='Periksa sebelum disimpan', exact=True)).to_have_count(0)
     expect(page.get_by_test_id('save-status')).to_contain_text('Tersimpan di browser')
