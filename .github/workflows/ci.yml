@@ -36,15 +36,13 @@ jobs:
       - name: Pasang browser pengujian
         run: |
           python -m pip install playwright==1.64.1
-          # Mirror paket runner kadang tidak terjangkau sesaat; ulangi sebelum menyerah.
-          for attempt in 1 2 3 4; do
-            if python -m playwright install --with-deps chromium; then exit 0; fi
-            echo "Pemasangan browser gagal (percobaan $attempt); menunggu sebelum mencoba lagi."
-            sleep $((attempt * 30))
-            sudo apt-get update || true
-          done
-          echo "Browser pengujian tidak terpasang setelah 4 percobaan."
-          exit 1
+          python -m playwright install chromium
+          # Paket sistem dan font tambahan diambil dari mirror Ubuntu, yang kadang tidak terjangkau lama.
+          # Browsernya sendiri tidak bergantung pada mirror itu, jadi kegagalan di sini hanya peringatan:
+          # bila ada pustaka yang benar-benar kurang, tes browser di bawah akan gagal dengan jelas.
+          if ! timeout 240 python -m playwright install-deps chromium; then
+            echo "::warning::Paket sistem/font tambahan untuk browser tidak terpasang (mirror Ubuntu tidak terjangkau). Tes dijalankan dengan paket bawaan runner."
+          fi
       - name: Uji build produksi dengan data sintetis
         env:
           UANGKU_TEST_URL: http://127.0.0.1:4173
