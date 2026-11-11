@@ -298,10 +298,16 @@ dan bulan (5.4).
     bulan, jadi perbandingan antarbulan di browser belum dilihat. **[fitur]**
     klik baris tidak dikerjakan.
 
-- [ ] **1.7.3 Kaki panel**
+- [x] **1.7.3 Kaki panel**
   *Isi:* "+N kategori lainnya", petunjuk anggaran, catatan "Hanya kategori
   pengeluaran terkonfirmasi…", keadaan kosong.
   - "+N kategori lainnya" hanya teks. Buat bisa dibuka untuk melihat semuanya.
+  - *Dikerjakan 11 Nov 2026.* "+N kategori lainnya" kini tombol yang
+    menampilkan semua kategori dan berubah jadi "Tampilkan lebih sedikit";
+    pilihannya bertahan selama aplikasi terbuka. Dicoba dengan keyboard di
+    desktop dan HP, terang dan gelap. Tes: `category_browser.py` 25/25,
+    `theme_browser.py` 21/21; tombol baru belum punya tes otomatis. Petunjuk
+    anggaran, catatan kaki, dan keadaan kosong dilihat dan tidak diubah.
 
 ### 1.8 Pengingat rapikan
 

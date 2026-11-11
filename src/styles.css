@@ -366,6 +366,7 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .wallet-amount { font-size: 14px; }
 .wallet-icon.small { width: 31px; height: 31px; border-radius: 10px; }
 .category-heading-icon { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: #f4f6ed; color: #52634f; }
+.category-more { align-self: flex-start; }
 button.category-heading-icon { border: 1px solid var(--line); padding: 0; cursor: pointer; flex: none; position: relative; }
 button.category-heading-icon::after { content: ""; position: absolute; inset: -8px; }
 button.category-heading-icon:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
