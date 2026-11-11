@@ -1409,6 +1409,16 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
 }
 :is(.button, .icon-button, .tab-group > button, .segmented-control button):active:not(:disabled) { filter: brightness(.94); }
 
+/* Kotak centang transaksi dibungkus label supaya area sentuhnya bisa 44px di HP tanpa menggeser tata letak. */
+.selection-hit { display: inline-flex; align-items: center; align-self: center; flex-shrink: 0; cursor: pointer; }
+.selection-hit:has(input:disabled) { cursor: not-allowed; }
+
+/* Transisi warna navigasi hanya saat kursor masuk: perpindahan halaman tetap seketika,
+   jadi teks tidak pernah terbaca di tengah transisi (kontras tetap terukur benar). */
+@media (hover: hover) {
+  .nav-item:not(.active):hover { transition: background-color .16s, color .16s, transform .16s; }
+}
+
 /* 5: target sentuh >= 44px di HP tanpa membesarkan ikon atau teks. */
 @media (max-width: 760px) {
   .button.small, :is(.demo-banner, .backup-reminder) .button, .tab-group > button,
@@ -1424,6 +1434,9 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
   .account-trigger::after { inset: -6px; }
   .type-scroll::after { inset: -9px; }
   input.selection-checkbox, .selection-checkbox input[type=checkbox] { width: 24px; height: 24px; }
+  .selection-hit { position: relative; z-index: 1; width: 44px; height: 44px; margin: -10px -20px -10px 0; }
+  th .selection-hit { margin-right: -12px; }
+  th .selection-hit input.selection-checkbox { margin-right: 0; }
 }
 
 /* 9: lencana format turun ke bawah judul kartu impor di layar sempit. */
