@@ -173,6 +173,12 @@ dan bulan (5.4).
     `cashflow_browser.py` 19/19, `theme_browser.py` 21/21, `ux_browser.py`
     desktop dan mobile lulus. **[fitur]** pembanding periode sebelumnya tidak
     dikerjakan.
+  - *[fitur] dikerjakan 11 Nov 2026.* Di bawah tiap kartu kini ada total bulan
+    sebelumnya untuk cakupan yang sama ("Oktober 2026: Rp …"), hanya saat
+    periodenya bulanan dan bulan sebelumnya punya arus. Angkanya total sebulan
+    penuh, sedangkan bulan berjalan baru sampai hari ini. Diuji di
+    `cashflow_browser.py` (19/19) dan `historyView.test.ts`; performa tetap
+    dalam batas (median 4.199 ms dari batas 6.000 ms).
 
 ### 1.4 Perhitungan saldo periode
 
@@ -314,6 +320,10 @@ dan bulan (5.4).
     1.756 lulus); `category_browser.py` 25/25. Data contoh hanya berisi satu
     bulan, jadi perbandingan antarbulan di browser belum dilihat. **[fitur]**
     klik baris tidak dikerjakan.
+  - *[fitur] dikerjakan 11 Nov 2026.* Nama kategori kini tombol yang membuka
+    Transaksi dengan dompet dan periode yang sama serta pencarian nama kategori
+    itu. Dicoba dengan keyboard di desktop dan HP, terang dan gelap; belum
+    punya tes otomatis.
 
 - [x] **1.7.3 Kaki panel**
   *Isi:* "+N kategori lainnya", petunjuk anggaran, catatan "Hanya kategori
