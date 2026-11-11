@@ -243,8 +243,7 @@ dan bulan (5.4).
   - Belum ada temuan.
   - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Desktop dan HP, terang dan
     gelap: "Lihat semua" terjangkau Tab, fokus terlihat, Enter membuka halaman
-    Dompet. Catatan: tautannya setinggi 24px, di bawah target sentuh 44px di
-    HP (gaya `.text-link` bersama).
+    Dompet. Tautannya setinggi 24px, tetapi di HP area sentuhnya sudah diperluas jadi 44px oleh aturan `.text-link::after`.
 
 - [ ] **1.6.2 Baris dompet**
   *Isi:* ikon, nama, "Rekening bank · IDR", saldo aktual, panah.
@@ -253,6 +252,12 @@ dan bulan (5.4).
   - **[keputusan]** Klik baris membuka form Atur dompet, padahal panahnya
     mengisyaratkan "lihat isi". Pilih: buka riwayat dompet itu, atau tetap form.
   - "· IDR" mengulang tab mata uang (di kartu dompet sudah dibuang lewat MW-52).
+  - *Sebagian dikerjakan 11 Nov 2026; belum dicentang karena satu usul menunggu
+    keputusan.* Tautan "+N dompet lainnya" ditambah (membuka halaman Dompet)
+    dan "· IDR" dibuang. Dilihat dengan 8 dompet IDR di desktop dan HP, terang
+    dan gelap. Tes: `wallet_browser.py` 19/19, `cashflow_browser.py` 19/19,
+    `browser_smoke.py` 39 skenario lulus; tautan baru belum punya tes
+    otomatis. Tujuan klik baris (riwayat atau form) tidak diubah.
 
 - [ ] **1.6.3 Keadaan kosong dan tombol Tambah dompet**
   *Isi:* "Belum ada dompet aktif IDR." + tautan; tombol putus-putus di dasar panel.

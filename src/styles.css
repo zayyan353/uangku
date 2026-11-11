@@ -121,6 +121,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .wallet-panel { display: flex; flex-direction: column; }
 .wallet-panel .wallet-list { margin-bottom: 16px; }
 .wallet-panel-add { align-self: stretch; display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; margin-top: auto; border: 1px dashed var(--line); border-radius: 12px; background: transparent; color: var(--text-muted); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.wallet-panel-more { align-self: flex-start; margin: -6px 0 14px; }
 .wallet-panel-add:hover { color: var(--text); border-color: var(--text-muted); }
 .wallet-panel-add:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .panel { background: #fff; border: 1px solid var(--line); border-radius: var(--radius); padding: 23px; min-width: 0; }
