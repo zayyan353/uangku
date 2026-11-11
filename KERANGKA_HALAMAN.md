@@ -152,10 +152,17 @@ dan bulan (5.4).
     tidak diubah. Tes: `cashflow_browser.py` ditambah pemeriksaan label
     (19/19), `recovery_browser.py` 16/16, `theme_browser.py` 21/21.
 
-- [ ] **1.3.2 Kartu uang masuk dan uang keluar rekening**
+- [x] **1.3.2 Kartu uang masuk dan uang keluar rekening**
   *Isi:* ikon, label, angka, catatan kaki ("Termasuk transfer masuk…").
   - Di desktop kartu setinggi kartu saldo dan separuh bawahnya kosong. Rapatkan.
   - **[fitur]** Pembanding periode sebelumnya ("Oktober: Rp …").
+  - *Dikerjakan 11 Nov 2026.* Di atas 760px ikon pindah ke samping label,
+    sehingga ketiga kartu sama tinggi tanpa ruang kosong (diukur: 172px di
+    761–900px, 192px di 1024–1440px, 210px di 1700px; sebelumnya 209px di
+    1440px). Di HP tidak berubah. Dilihat di tema terang dan gelap. Tes:
+    `cashflow_browser.py` 19/19, `theme_browser.py` 21/21, `ux_browser.py`
+    desktop dan mobile lulus. **[fitur]** pembanding periode sebelumnya tidak
+    dikerjakan.
 
 ### 1.4 Perhitungan saldo periode
 

@@ -1182,6 +1182,15 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-overview .notice { margin: 0 0 18px; overflow-wrap: anywhere; }
 .cashflow-overview .balance-meta { line-height: 1.6; }
 .cashflow-overview .stat-foot { white-space: normal; line-height: 1.65; }
+/* Wider than a phone the icon sits beside its label, so the cards are not taller than the balance card. */
+@media (min-width: 761px) {
+  .cashflow-overview .stat-card { display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: 11px; align-content: start; align-items: center; }
+  .cashflow-overview .stat-card > div { display: contents; }
+  .cashflow-overview .stat-icon { margin-bottom: 0; }
+  .cashflow-overview .stat-label { margin: 0; }
+  .cashflow-overview .stat-value { grid-column: 1 / -1; margin-top: 15px; }
+  .cashflow-overview .stat-foot { grid-column: 1 / -1; }
+}
 .cashflow-reconciliation, .cashflow-breakdown-panel { margin-bottom: 22px; min-width: 0; }
 .cashflow-equation { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 0 0 16px; }
 .cashflow-equation > div { padding: 13px; background: var(--surface-raised); border-radius: 10px; min-width: 0; }
