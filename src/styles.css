@@ -1557,3 +1557,14 @@ button.transaction-open:focus-visible { outline: 2px solid var(--focus); outline
 .filter-fields > .search-input { flex: 2 1 220px; }
 .filter-fields > .select-input { flex: 1 1 118px; }
 .history-period .select-input { min-width: 150px; }
+
+/* 3.5–3.6: kategori massal dan antrean rapikan. */
+.bulk-review-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 16px; }
+.review-scope .review-back { flex: none; align-self: center; }
+.quick-category { display: block; margin-top: 8px; max-width: 220px; min-height: 36px; font-size: 13px; }
+@media (max-width: 760px) {
+  .review-scope { flex-wrap: wrap; }
+  .review-scope > div { flex-basis: calc(100% - 30px); }
+  .review-scope .review-back { margin-left: 28px; }
+  .quick-category { max-width: 100%; min-height: 44px; }
+}

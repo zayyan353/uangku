@@ -780,40 +780,66 @@ dan bulan (5.4).
 
 ### 3.5 Kategori massal
 
-- [ ] **3.5.1 Ringkasan pilihan**
+*Bab 3.5–3.6 dikerjakan bersama pada 11 Nov 2026. Seluruh tes browser CI lulus lokal pada build itu (15 berkas + performance; `npm test` 1.764 lulus).*
+
+- [x] **3.5.1 Ringkasan pilihan**
   *Isi:* "N transaksi dipilih", penjelasan, "Batal pilih".
   - Pilihan hilang saat ganti halaman atau filter, dan pilih semua hanya
     mencakup halaman yang terlihat. **[fitur]** "Pilih semua N hasil filter".
+  - *Dikerjakan 11 Nov 2026.* **[fitur]** tombol "Pilih semua N hasil filter"
+    ditambah di panel pilihan; ia memilih semua baris yang bisa diberi
+    kategori di seluruh halaman hasil filter. Pilihan tetap sengaja dibuang
+    saat filter, urutan, atau halaman berubah (tes smoke menjaga ini supaya
+    catatan tersembunyi tidak ikut berubah), jadi "pilih semua" dipakai tepat
+    sebelum Terapkan. Perbaikan ikutan: pilihan kini juga dibuang saat filter
+    kategori atau urutan baru dari 3.3–3.4 diganti.
 
-- [ ] **3.5.2 Pilih kategori dan Terapkan**
+- [x] **3.5.2 Pilih kategori dan Terapkan**
   *Isi:* dropdown kategori dan tombol "Terapkan ke N transaksi".
   - Pilihan awalnya "Belum dikategorikan" dan tombol utama langsung aktif.
     Mulai dari "Pilih kategori…" dan nonaktifkan tombol sampai dipilih.
     **[cek]** akibat menerapkan "Belum dikategorikan" pada catatan yang sudah
     berkategori.
+  - *Dikerjakan 11 Nov 2026.* Dropdown mulai dari "Pilih kategori…" dan tombol
+    Terapkan nonaktif sampai kategori dipilih. **[cek]**: menerapkan "Belum
+    dikategorikan" memang mengosongkan kategori catatan terpilih; sekarang itu
+    hanya terjadi bila dipilih dengan sengaja.
 
-- [ ] **3.5.3 Konfirmasi jenis**
+- [x] **3.5.3 Konfirmasi jenis**
   *Isi:* centang "Saya sudah cek: uang masuk adalah pemasukan…" bila ada yang
   belum dikonfirmasi.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Centang konfirmasi jenis
+    dicakup `browser_smoke.py` (lulus).
 
 ### 3.6 Antrean "Perlu dirapikan"
 
-- [ ] **3.6.1 Kotak cakupan antrean**
+- [x] **3.6.1 Kotak cakupan antrean**
   *Isi:* jumlah catatan, rincian alasan, penjelasan.
   - Empat kalimat dalam satu kotak. Ringkas dan sembunyikan angka nol.
   - Tidak ada tombol kembali ke riwayat biasa (harus lewat dropdown Jenis atau
     Reset filter).
+  - *Dikerjakan 11 Nov 2026.* Kotak cakupan diringkas jadi satu kalimat,
+    alasan bernilai nol disembunyikan, dan ada tombol "Semua transaksi" untuk
+    kembali ke riwayat biasa.
 
-- [ ] **3.6.2 Filter alasan**
+- [x] **3.6.2 Filter alasan**
   *Isi:* Semua alasan / Jenis perlu dicek / Kategori belum diisi.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Tiga pilihan alasan tampil
+    di antrean; dicakup `bank_review_browser.py` (lulus).
 
-- [ ] **3.6.3 Merapikan satu catatan**
+- [x] **3.6.3 Merapikan satu catatan**
   *Isi:* pensil atau "Cek" membuka form; atau centang lalu kategori massal.
   - **[fitur]** Pilih kategori langsung di baris (dropdown + saran aturan)
     seperti di pratinjau impor (4.8.6), supaya antrean cepat habis.
   - Antrean yang sudah habis menampilkan pesan kosong umum. Ganti "Semua sudah rapi".
+  - *Dikerjakan 11 Nov 2026.* **[fitur]** baris antrean yang kategorinya
+    kosong punya dropdown "Pilih kategori…" sendiri; memilihnya langsung
+    menyimpan kategori (jenisnya tetap belum dikonfirmasi). Saran dari aturan
+    kata kunci belum ditampilkan di dropdown itu. Antrean yang habis
+    menampilkan "Semua sudah rapi" dengan tombol kembali. Dicoba di desktop
+    dan HP, terang dan gelap; belum punya tes otomatis.
 
 ### 3.7 Form transaksi (Catat / Ubah)
 
