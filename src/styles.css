@@ -1520,3 +1520,17 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
   .wallet-total strong { font-size: 21px; }
   .add-wallet-card { display: none; }
 }
+.wallet-lifecycle-actions.full { grid-column: 1 / -1; }
+.field-link { align-self: flex-start; margin-top: 2px; }
+
+/* 2.6.1: arsip cash lama sebagai daftar sejajar. */
+.archive-balances { list-style: none; margin: 14px 0 8px; padding: 0; display: grid; gap: 6px; }
+.archive-balances li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 12px; border-radius: 10px; background: var(--surface-raised); font-size: 14px; color: var(--text); }
+.archive-balances li span:last-child { font-weight: 650; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.archive-table-wrap { overflow-x: auto; margin: 12px 0; }
+.archive-table { width: 100%; border-collapse: collapse; font-size: 13px; color: var(--text); }
+.archive-table th, .archive-table td { padding: 9px 10px 9px 0; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; line-height: 1.5; }
+.archive-table th { color: var(--text-muted); font-weight: 550; font-size: 12px; }
+.archive-table td:first-child { white-space: nowrap; }
+.archive-table td:nth-child(2) { overflow-wrap: anywhere; }
+.archive-table :is(th, td):last-child { text-align: right; padding-right: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }

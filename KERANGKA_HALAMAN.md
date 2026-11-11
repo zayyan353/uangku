@@ -533,41 +533,66 @@ saat gilirannya.
 
 ### 2.5 Form dompet (Tambah dompet / Atur dompet)
 
-- [ ] **2.5.1 Nama dompet**
+*Bab 2.5–2.6 dikerjakan dalam satu commit pada 11 Nov 2026. Tes pada build itu: `npm test` 1.760 lulus, `wallet_browser.py` 19/19, `currency_import_browser.py` 28/28, `cashflow_browser.py` 19/19, `theme_browser.py` 21/21, `bank_auto_browser.py` 18/18, smoke 39 skenario.*
+
+- [x] **2.5.1 Nama dompet**
   *Isi:* wajib, maksimal 60 karakter.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Nama kosong ditolak,
+    masukan dipotong di 60 karakter, fokus awal jatuh di kolom ini (desktop
+    dan HP, terang dan gelap).
 
-- [ ] **2.5.2 Mata uang**
+- [x] **2.5.2 Mata uang**
   *Isi:* daftar mata uang yang ditampilkan; terkunci saat mengubah dompet.
   - Mata uang yang belum ditampilkan tidak bisa dipilih dari sini: form harus
     ditutup, Kelola mata uang dibuka, lalu diulang. Tambah tautan "Mata uang
     lain…" di form.
+  - *Dikerjakan 11 Nov 2026.* Form Tambah dompet punya tautan "Mata uang
+    lain…": form menutup, Kelola mata uang terbuka, dan sesudah disimpan atau
+    dibatalkan form Tambah dompet terbuka lagi dengan daftar mata uang
+    terbaru. Batas: isian yang sudah diketik di form (nama, saldo) tidak
+    dibawa. Dicoba sampai dompet AED tersimpan, desktop dan HP; belum punya
+    tes otomatis.
 
-- [ ] **2.5.3 Jenis dompet**
+- [x] **2.5.3 Jenis dompet**
   *Isi:* Rekening bank / E-wallet.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Dua pilihan (Rekening bank,
+    E-wallet) tampil dan tersimpan.
 
-- [ ] **2.5.4 Saldo awal**
+- [x] **2.5.4 Saldo awal**
   *Isi:* kolom nominal; terkunci setelah dompet punya histori.
   - Angka tampil mentah ("2400000") tanpa pemisah ribuan → 5.11.3.
+  - *Diperiksa 11 Nov 2026.* Pemisah ribuan dikerjakan di 5.11.3; tidak ada
+    perubahan di sini.
 
-- [ ] **2.5.5 Arsipkan dan Hapus**
+- [x] **2.5.5 Arsipkan dan Hapus**
   *Isi:* kotak penjelasan dan tombol; konfirmasinya dialog terpisah.
   - **[bug]** Di desktop kotaknya hanya selebar setengah form dan sisi kanannya
     kosong. Aturan lebar penuh hanya berlaku untuk `.field.full` dan
     `.notice.full`, tidak untuk `.wallet-lifecycle-actions.full`.
+  - *Dikerjakan 11 Nov 2026.* **[bug]** diperbaiki: kotak Arsipkan/Hapus kini
+    selebar form di desktop (diukur 466px dari 520px lebar badan form, sisanya
+    padding; sebelumnya setengah).
 
-- [ ] **2.5.6 Tombol dan pesan galat**
+- [x] **2.5.6 Tombol dan pesan galat**
   *Isi:* Batal, Simpan dompet, kotak galat.
   - Menutup form (klik luar atau Escape) membuang isian tanpa bertanya → 5.9.1.
+  - *Diperiksa 11 Nov 2026.* Tombol dan kotak galat dilihat; konfirmasi
+    sebelum membuang isian dikerjakan di 5.9.1.
 
 ### 2.6 Arsip cash lama (jendela baca saja)
 
-- [ ] **2.6.1 Daftar catatan cash lama**
+- [x] **2.6.1 Daftar catatan cash lama**
   *Isi:* saldo per dompet cash dan daftar catatan, 50 per halaman.
   - **[cek]** Tiap catatan ditulis sebagai paragraf "tanggal · keterangan ·
     dompet · nominal". Ubah jadi daftar yang sejajar. Belum dilihat (butuh
     data cash lama).
+  - *Dikerjakan 11 Nov 2026.* Dugaan **[cek]** benar. Saldo per dompet cash
+    kini daftar dua kolom dan catatan lama jadi tabel Tanggal / Keterangan /
+    Dompet / Nominal. Dilihat lewat data sintetis `bank_auto_browser.py`
+    (18/18 lulus) di desktop tema terang saja; HP dan tema gelap belum
+    dilihat.
 
 ---
 
