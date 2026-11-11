@@ -304,6 +304,7 @@ def unknown_dates(case):
     expect(case.page.get_by_test_id('cashflow-reconciliation')).to_have_attribute('data-complete', 'false')
     expect(case.page.get_by_test_id('cashflow-reconciliation')).not_to_contain_text('Perhitungan saldo periode cocok.')
     expect(case.page.get_by_test_id('cashflow-reconciliation')).not_to_contain_text(re.compile('selisih\\s*:?\\s*₺?\\s*0', re.I))
+    expect(case.page.get_by_test_id('cashflow-verdict')).to_contain_text(re.compile(r'belum dapat dipastikan: \d+ posting belum memiliki tanggal'))
     case.assert_unchanged()
     case.scope('digital')
     case.totals(4_000, 0, 5_000, 9_000)
@@ -416,6 +417,7 @@ def first_fold(case):
     check_frame()
     expect(amount).to_have_text('Belum tersedia')
     expect(card.locator('.balance-label')).to_have_text('Saldo akhir periode')
+    expect(page.get_by_test_id('cashflow-verdict')).to_have_text('Periode belum dimulai, jadi belum ada saldo periode yang dihitung.')
     expect(card.locator('.balance-period')).to_contain_text('periode belum dimulai')
     # An opened panel stays open after visiting another page; the untouched one keeps its default.
     folds = page.locator('[data-cashflow-fold]')

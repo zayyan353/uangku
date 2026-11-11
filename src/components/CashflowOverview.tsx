@@ -77,6 +77,13 @@ export default function CashflowOverview({ report, error, currency, month, perio
   const reconciliationId = useId(), breakdownId = useId();
   const matched = !!report?.isComplete && report.difference === 0;
   const breakdownCount = report?.breakdown.length ?? 0;
+  // When the sum does not close, name the cause instead of a general "not certain".
+  const verdict = matched ? 'Perhitungan saldo periode cocok. Ini mencocokkan catatan aplikasi, belum membuktikan mutasi bank sudah lengkap.'
+    : !report ? 'Laporan belum dapat dihitung, jadi saldo periode belum tersedia.'
+    : report.notStarted ? 'Periode belum dimulai, jadi belum ada saldo periode yang dihitung.'
+    : report.unknownDatePostings ? `Saldo periode belum dapat dipastikan: ${report.unknownDatePostings} posting belum memiliki tanggal. Angka arus hanya mencakup posting dengan tanggal yang diketahui.`
+    : report.difference ? `Perhitungan belum cocok: selisih ${formatMoney(report.difference, currency)} antara saldo akhir dan hasil hitungan.`
+    : 'Saldo periode belum dapat dipastikan. Angka arus hanya mencakup posting dengan tanggal yang diketahui.';
   return <div className="cashflow-overview">
     <div className="cashflow-controls">
       <label><span className="field-label">Dompet</span><select className="select-input" aria-label="Dompet" value={walletId} onChange={event => onWalletChange(event.target.value)}><option value="all">Semua dompet {currency}</option>{wallets.map(wallet => <option key={wallet.id} value={wallet.id}>{wallet.name}{archivedWalletIds?.has(wallet.id) ? ' (arsip)' : ''}</option>)}</select></label>
@@ -93,7 +100,7 @@ export default function CashflowOverview({ report, error, currency, month, perio
       <FoldHeader title="Perhitungan saldo periode" description={period === 'all' ? 'Saldo awal catatan, bukan bukti kelengkapan seluruh histori bank.' : 'Saldo awal sebelum periode dipilih, hingga batas tanggal laporan.'} summary={matched ? 'Cocok · ketuk untuk melihat hitungan' : 'Belum dapat dipastikan · ketuk untuk detail'} open={reconciliationOpen} controls={reconciliationId} onToggle={() => setFolds(f => ({ ...f, reconciliation: !reconciliationOpen }))} />
       <div className="fold-body" id={reconciliationId} hidden={!reconciliationOpen}>
       <dl className="cashflow-equation"><div><dt>Saldo awal{period === 'all' ? ' catatan' : ' periode'}</dt><dd>{amount(report?.openingBalance, 'opening')}</dd></div><div><dt>+ Uang masuk</dt><dd>{amount(report?.inflow)}</dd></div><div><dt>− Uang keluar</dt><dd>{amount(report?.outflow)}</dd></div><div className={report?.internalNet === 0 ? 'equation-zero' : undefined}><dt>± Transfer antardompet</dt><dd>{amount(report?.internalNet, 'internal-net')}</dd></div><div className={report?.adjustment === 0 ? 'equation-zero' : undefined}><dt>± Penyesuaian saldo</dt><dd>{amount(report?.adjustment, 'adjustment')}</dd></div><div className="equation-result"><dt>= Saldo akhir</dt><dd>{amount(report?.closingBalance)}</dd></div></dl>
-      <p className="cashflow-explanation">{matched ? 'Perhitungan saldo periode cocok. Ini mencocokkan catatan aplikasi, belum membuktikan mutasi bank sudah lengkap.' : 'Saldo periode belum dapat dipastikan. Angka arus hanya mencakup posting dengan tanggal yang diketahui.'}</p>
+      <p className="cashflow-explanation" data-testid="cashflow-verdict">{verdict}</p>
       <details className="cashflow-notes"><summary>Cara membaca angka ini</summary>
         <ul>
           <li>Uang masuk belum tentu penghasilan baru; uang keluar belum tentu belanja.</li>

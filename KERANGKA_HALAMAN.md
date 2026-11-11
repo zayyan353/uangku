@@ -190,11 +190,18 @@ dan bulan (5.4).
     Tes: `cashflow_browser.py` 19/19 (termasuk pemeriksaan kontras),
     `theme_browser.py` 21/21.
 
-- [ ] **1.4.3 Kalimat hasil**
+- [x] **1.4.3 Kalimat hasil**
   *Isi:* "Perhitungan saldo periode cocok…" atau "Saldo periode belum dapat dipastikan…".
   - **[cek]** Saat belum cocok, kalimatnya tidak menyebut selisih atau
     penyebabnya. Tampilkan selisih (`report.difference`) bila ada dan tunjuk
     penyebabnya (mis. tanggal posting kosong).
+  - *Dikerjakan 11 Nov 2026.* Dugaan **[cek]** benar: kalimatnya sama untuk
+    semua keadaan belum cocok. Sekarang dibedakan: periode belum dimulai; N
+    posting belum bertanggal; selisih bernominal bila hitungannya tidak
+    menutup; laporan gagal dihitung. Dua keadaan pertama diuji di
+    `cashflow_browser.py` (19/19 lulus). Cabang "selisih" belum pernah
+    terlihat: dari kode, selisih hanya bisa bukan nol bila rumus laporan
+    sendiri tidak konsisten, jadi cabang itu belum terbukti lewat tes.
 
 - [ ] **1.4.4 "Cara membaca angka ini"**
   *Isi:* daftar penjelasan terlipat.
