@@ -324,9 +324,13 @@ dan bulan (5.4).
 
 ### 1.9 Transaksi terbaru
 
-- [ ] **1.9.1 Kepala panel**
+- [x] **1.9.1 Kepala panel**
   *Isi:* judul, cakupan · periode, tautan "Semua transaksi".
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Desktop dan HP, terang dan
+    gelap: subjudul mengikuti dompet dan periode yang dipilih; "Semua
+    transaksi" terjangkau Tab, fokus terlihat, dan membuka Transaksi dengan
+    dompet serta periode yang sama.
 
 - [ ] **1.9.2 Lima transaksi terbaru**
   *Isi:* tabel yang sama dengan 3.4, tanpa kotak centang.
