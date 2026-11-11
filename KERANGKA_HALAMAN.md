@@ -107,10 +107,16 @@ dan bulan (5.4).
     disentuh: untuk lira pilihan masih menulis "TRY" sedangkan tab menulis
     "TL".
 
-- [ ] **1.2.2 Periode arus rekening**
+- [x] **1.2.2 Periode arus rekening**
   *Isi:* dropdown "November 2026" / "Seluruh catatan" + teks rentang "1 Nov 2026 – 11 Nov 2026".
   - Bulannya sendiri diganti lewat kontrol lain yang letaknya terpisah (pemilih
     bulan di bilah mata uang). Dua kontrol untuk satu hal → 5.4.3.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Desktop dan HP, terang dan
+    gelap: "Seluruh catatan" mengganti teks rentang jadi "Seluruh catatan
+    hingga 11 Nov 2026" dan menyembunyikan pemilih bulan; fokus keyboard
+    terlihat. Penyatuan dua kontrol tetap dikerjakan di 5.4.3. Catatan untuk
+    5.4.3: label "Periode arus rekening" kini lebih panjang daripada
+    tetangganya "Dompet".
 
 - [ ] **1.2.3 Peringatan laporan**
   *Isi:* "Laporan tetap mencakup N dompet arsip", peringatan saldo atau periode
