@@ -167,6 +167,17 @@ class Case:
         expect(reconciliation).to_be_visible()
         expect(reconciliation).to_have_attribute('data-complete', 'true')
         expect(reconciliation).to_contain_text('Perhitungan saldo periode cocok.')
+        # The breakdown's "Jumlah" row repeats the two cards, and its rows add up to it.
+        sums = self.page.get_by_test_id('cashflow-breakdown').evaluate('''table => {
+          const column = (rows, index) => rows.map(row => Number(row.cells[index].querySelector('[data-amount]').dataset.amount));
+          const body = [...table.tBodies[0].rows].filter(row => !row.classList.contains('cashflow-empty'));
+          const foot = table.tFoot ? [...table.tFoot.rows] : [];
+          return { rows: body.length, body: [1, 2].map(i => column(body, i).reduce((a, b) => a + b, 0)), foot: foot.length ? [1, 2].map(i => column(foot, i)[0]) : null };
+        }''')
+        if sums['rows']:
+            assert sums['foot'] == [inflow, outflow] and sums['body'] == [inflow, outflow], sums
+        else:
+            assert sums['foot'] is None and inflow == 0 and outflow == 0, sums
         self.assert_unchanged()
 
     def scope(self, value):

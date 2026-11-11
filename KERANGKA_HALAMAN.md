@@ -220,7 +220,7 @@ dan bulan (5.4).
     penyimpan pilihan yang sama dengan 1.4.1: dibuka/ditutup lewat keyboard,
     pindah halaman, kembali, dan pilihannya bertahan (desktop dan HP).
 
-- [ ] **1.5.2 Tabel jenis operasi**
+- [x] **1.5.2 Tabel jenis operasi**
   *Isi:* kolom Jenis operasi, Uang masuk, Uang keluar; pesan kosong "Belum ada
   arus pada periode ini."
   - Tidak ada baris jumlah, jadi hubungannya dengan kartu 1.3.2 harus dihitung
@@ -228,6 +228,13 @@ dan bulan (5.4).
   - Sel "Rp 0" berulang. Ganti "—" supaya angka yang berisi lebih menonjol.
   - **[fitur]** Klik baris membuka transaksi penyusunnya (butuh filter jenis
     operasi di 3.3; belum ada).
+  - *Dikerjakan 11 Nov 2026.* Baris "Jumlah" ditambah di kaki tabel (sama
+    dengan kartu uang masuk dan keluar); sel bernilai nol ditulis "—" (pembaca
+    layar tetap mendengar "Rp 0"). `cashflow_browser.py` kini memeriksa bahwa
+    jumlah baris sama dengan baris "Jumlah" dan dengan kedua kartu pada setiap
+    kasus yang cocok (19/19 lulus); `theme_browser.py` 21/21. Dilihat di
+    desktop dan HP, terang dan gelap. **[fitur]** klik baris tidak dikerjakan
+    (butuh filter jenis operasi di 3.3).
 
 ### 1.6 Dompetmu
 

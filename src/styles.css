@@ -1224,6 +1224,9 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .cashflow-table th:first-child { text-align: left; width: 40%; }
 .cashflow-table thead th { color: var(--text-muted); font-size: 13px; }
 .cashflow-table td { white-space: nowrap; overflow-wrap: normal; font-variant-numeric: tabular-nums; }
+.cashflow-none { color: var(--text-muted); }
+.cashflow-table tfoot th, .cashflow-table tfoot td { border-bottom: 0; border-top: 2px solid var(--line); font-weight: 700; }
+.cashflow-table tbody tr:last-child :is(th, td) { border-bottom: 0; }
 @media (max-width: 600px) {
   .cashflow-controls { gap: 12px; }
   .cashflow-controls label { flex-basis: 100%; max-width: none; }
