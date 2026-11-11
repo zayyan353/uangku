@@ -367,6 +367,20 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .wallet-icon.small { width: 31px; height: 31px; border-radius: 10px; }
 .category-heading-icon { width: 31px; height: 31px; border-radius: 10px; display: grid; place-items: center; background: #f4f6ed; color: #52634f; }
 .category-more { align-self: flex-start; }
+/* Start guide on an empty ledger. */
+.start-guide { margin-bottom: 28px; }
+.start-steps { list-style: none; counter-reset: start-step; margin: 0; padding: 0; display: grid; gap: 10px; }
+.start-steps li { counter-increment: start-step; display: flex; align-items: center; gap: 14px; padding: 13px 14px; border-radius: 12px; background: var(--surface-raised); }
+.start-steps li::before { content: counter(start-step); flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; background: var(--forest); color: #fbfff4; font-size: 13px; font-weight: 650; }
+.start-step-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.start-step-text strong { font-size: 14px; color: var(--text); }
+.start-step-text span { font-size: 13px; line-height: 1.5; color: var(--text-muted); }
+.start-steps .button { flex: none; }
+@media (max-width: 760px) {
+  .start-steps li { flex-wrap: wrap; align-items: flex-start; }
+  .start-step-text { flex-basis: calc(100% - 42px); }
+  .start-steps .button { margin-left: 42px; }
+}
 button.category-heading-icon { border: 1px solid var(--line); padding: 0; cursor: pointer; flex: none; position: relative; }
 button.category-heading-icon::after { content: ""; position: absolute; inset: -8px; }
 button.category-heading-icon:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }

@@ -357,12 +357,27 @@ dan bulan (5.4).
   - **[keputusan]** Kartu saldo berada di atas tab mata uang dan filter yang
     menentukan isinya, dan banner menyela di antaranya. Usul: mata uang →
     saldo → masuk/keluar, dengan cakupan + periode diringkas jadi satu baris.
+  - *Dilewati 11 Nov 2026: menunggu keputusan pemilik.*
 
-- [ ] **1.10.2 Tampilan saat belum ada transaksi**
+- [x] **1.10.2 Tampilan saat belum ada transaksi**
   *Isi:* semua panel tetap tampil berisi Rp 0, termasuk kalimat "Perhitungan
   saldo periode cocok".
   - Ganti dengan panduan mulai: isi saldo awal dompet, lalu catat transaksi
     pertama atau impor mutasi. Panel hitungan muncul setelah ada data.
+  - *Dikerjakan 11 Nov 2026.* Bila catatan sendiri belum berisi satu transaksi
+    pun, panel "Perhitungan saldo periode", "Rincian arus rekening", dan
+    "Transaksi terbaru" diganti panel "Mulai dari sini" berisi tiga langkah
+    bertombol: Buka Dompet, Catat sekarang, Buka Impor mutasi. Kartu saldo,
+    kartu masuk/keluar, Dompetmu, dan panel kategori tetap tampil. Dilihat
+    sesudah "Mulai dari kosong" di desktop dan HP, terang dan gelap; fokus
+    keyboard terlihat. Seluruh tes browser CI dijalankan: smoke 39 skenario,
+    recovery 16, ux 2, theme 21, category 25, keyword_pack 13,
+    confirmed_mapping 10, bank_description 9, bank_auto 18, bank_review 12,
+    wallet 19, currency_import 28, cashflow 19, source 4, backfill 2,
+    performance lulus (median 4.214 ms). Tujuh tes dari recovery sampai
+    bank_description dijalankan pada build sebelum tombol langkah 2 diganti
+    nama dari "Catat transaksi" (nama itu bentrok dengan tombol kepala halaman
+    dan menggagalkan smoke). Panduan ini belum punya tes otomatis sendiri.
 
 ---
 

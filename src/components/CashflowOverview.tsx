@@ -16,6 +16,8 @@ interface Props {
   onPeriodChange: (period: 'month' | 'all') => void;
   onWalletChange: (walletId: string) => void;
   balanceCard: ReactNode;
+  /** Shown in place of the two calculation panels while the ledger has no entries at all. */
+  startGuide?: ReactNode;
 }
 
 const phoneLayout = '(max-width: 760px)';
@@ -61,7 +63,7 @@ export function CashflowBalance({ report, currency, month, period, scope, mobile
   </section>;
 }
 
-export default function CashflowOverview({ report, error, currency, month, period, walletId, wallets, archivedWalletIds, onPeriodChange, onWalletChange, balanceCard }: Props) {
+export default function CashflowOverview({ report, error, currency, month, period, walletId, wallets, archivedWalletIds, onPeriodChange, onWalletChange, balanceCard, startGuide }: Props) {
   const warning = error || report?.balanceWarning || (report?.notStarted ? 'Periode belum dimulai. Transaksi bertanggal masa depan tidak masuk arus rekening aktual.' : '');
   const amount = (value: number | null | undefined, id?: string) => <span data-testid={id ? `cashflow-${id}` : undefined} data-amount={value ?? undefined}>{value === null || value === undefined ? '—' : formatMoney(value, currency)}</span>;
   /** A breakdown cell; an empty side reads as a dash so the filled amounts stand out. */
@@ -98,6 +100,7 @@ export default function CashflowOverview({ report, error, currency, month, perio
       {balanceCard}
       <div className="stats-stack"><section className="stat-card"><span className="stat-icon income"><ArrowDownLeft size={22} /></span><div><span className="stat-label">Uang masuk rekening</span><strong className="stat-value">{amount(report?.inflow, 'inflow')}</strong><span className="stat-foot">Termasuk transfer masuk dan catatan belum dikategorikan</span></div></section><section className="stat-card"><span className="stat-icon expense"><ArrowUpRight size={22} /></span><div><span className="stat-label">Uang keluar rekening</span><strong className="stat-value">{amount(report?.outflow, 'outflow')}</strong><span className="stat-foot">Termasuk transfer keluar, tarik tunai, dan biaya</span></div></section></div>
     </div>
+    {startGuide ?? <>
     <section className="panel cashflow-reconciliation" data-testid="cashflow-reconciliation" data-complete={report?.isComplete ? 'true' : 'false'} aria-label="Perhitungan saldo periode">
       <FoldHeader title="Perhitungan saldo periode" description={period === 'all' ? 'Saldo awal catatan, bukan bukti kelengkapan seluruh histori bank.' : 'Saldo awal sebelum periode dipilih, hingga batas tanggal laporan.'} summary={matched ? 'Cocok · ketuk untuk melihat hitungan' : 'Belum dapat dipastikan · ketuk untuk detail'} open={reconciliationOpen} controls={reconciliationId} onToggle={() => setFolds(f => ({ ...f, reconciliation: !reconciliationOpen }))} />
       <div className="fold-body" id={reconciliationId} hidden={!reconciliationOpen}>
@@ -114,5 +117,6 @@ export default function CashflowOverview({ report, error, currency, month, perio
       </div>
     </section>
     <section className="panel cashflow-breakdown-panel"><FoldHeader title="Rincian arus rekening" description="Jenis operasi mengikuti keterangan mutasi; tujuan belanjanya bisa tetap belum diketahui." summary={breakdownCount ? `${breakdownCount} jenis operasi · ketuk untuk melihat` : 'Belum ada arus · ketuk untuk melihat'} open={breakdownOpen} controls={breakdownId} onToggle={() => setFolds(f => ({ ...f, breakdown: !breakdownOpen }))} /><div className="cashflow-table-wrap fold-body" id={breakdownId} hidden={!breakdownOpen}><table className="cashflow-table" data-testid="cashflow-breakdown"><thead><tr><th>Jenis operasi</th><th>Uang masuk</th><th>Uang keluar</th></tr></thead><tbody>{report?.breakdown.map(row => <tr key={row.id}><th scope="row">{row.label}</th><td>{flow(row.inflow)}</td><td>{flow(row.outflow)}</td></tr>)}{!breakdownCount && <tr className="cashflow-empty"><td colSpan={3}>Belum ada arus pada periode ini.</td></tr>}</tbody>{breakdownCount > 0 && <tfoot><tr data-testid="cashflow-breakdown-total"><th scope="row">Jumlah</th><td>{amount(report?.inflow)}</td><td>{amount(report?.outflow)}</td></tr></tfoot>}</table></div></section>
+    </>}
   </div>;
 }
