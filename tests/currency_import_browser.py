@@ -259,7 +259,8 @@ class Case:
 def manage_add_wallet(case):
     p=case.page;before=stored_document(p)
     dialog=case.manager();case.add_currency(dialog,'EUR')
-    dialog.get_by_role('button',name='Batal',exact=True).click();case.unchanged()
+    dialog.get_by_role('button',name='Batal',exact=True).click()
+    dialog.get_by_role('button',name='Buang perubahan',exact=True).click();case.unchanged()
     dialog=case.manager()
     for code in ['EUR','JPY','KWD']:case.add_currency(dialog,code)
     after=case.save_manager(dialog)
@@ -558,6 +559,7 @@ def quota_currency_retry(case):
     expect(dialog.get_by_role('alert')).to_be_visible();case.unchanged()
     p.evaluate('window.blockCurrencySave=false')
     dialog.get_by_role('button',name='Batal',exact=True).click()
+    dialog.get_by_role('button',name='Buang perubahan',exact=True).click()
     p.get_by_role('button',name='Coba simpan lagi',exact=True).click()
     saved=case.saved()
     assert [r['code'] for r in saved['metadata']['currencies']].count('JPY')==1

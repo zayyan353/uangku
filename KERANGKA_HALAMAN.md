@@ -1513,159 +1513,251 @@ Tampil di lebih dari satu halaman. Dikerjakan sekali di sini untuk semuanya.
 
 ### 5.1 Navigasi
 
-- [ ] **5.1.1 Menu samping (desktop)**
+- [x] **5.1.1 Menu samping (desktop)**
   *Isi:* logo, empat menu, lencana jumlah di Transaksi.
   - Lencana jumlah tidak punya label untuk pembaca layar. Beri "N perlu dirapikan".
+  - *Dikerjakan 11 Nov 2026.* Tombol Transaksi di menu samping membawa
+    keterangan "N catatan perlu dirapikan" (`aria-description` dan `title`).
+    Nama tombolnya sendiri tidak diubah, supaya tetap terbaca "Transaksi N".
 
-- [ ] **5.1.2 Bagian bawah menu samping**
+- [x] **5.1.2 Bagian bawah menu samping**
   *Isi:* kartu "Nggak harus sempurna.", tiga tombol cadangan, "Cadangan
   terakhir", kartu "Ruang pribadi".
   - Dua tombol cadangan → 5.6.2.
+  - *Dikerjakan 11 Nov 2026 bersama 5.6.2.*
 
-- [ ] **5.1.3 Navigasi bawah (HP)**
+- [x] **5.1.3 Navigasi bawah (HP)**
   *Isi:* empat tab.
   - Lencana jumlah "perlu dirapikan" tidak ada di HP, hanya di menu samping.
   - **[keputusan]** Tombol catat yang selalu terlihat di HP (mis. "+" di
     tengah navigasi). Sekarang tombol Catat ikut tergulir.
+  - *Dikerjakan 11 Nov 2026.* (pemilik menyetujui semua usul) Lencana jumlah
+    "perlu dirapikan" kini juga tampil di tab Transaksi pada navigasi bawah.
+    Tombol bulat "+" di tengah navigasi bawah (label "Catat cepat") membuka
+    form Catat transaksi dari halaman mana pun; tombol Catat di kepala
+    halaman tetap ada.
 
 ### 5.2 Bar atas
 
-- [ ] **5.2.1 Jejak halaman**
+- [x] **5.2.1 Jejak halaman**
   *Isi:* "Ruang pribadi › Ringkasan".
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **5.2.2 Pemilih tema**
+- [x] **5.2.2 Pemilih tema**
   *Isi:* Sistem / Terang / Gelap.
   - Di HP pil "Sistem ▾" jadi elemen terbesar di bar atas. Jadikan ikon saja
     atau pindah ke menu akun (tes menuntut "Tema tampilan" terlihat; 3 file).
+  - *Dikerjakan 11 Nov 2026.* Di HP pemilih tema menjadi tombol ikon 40px;
+    dropdown "Tema tampilan" tetap ada di atas ikon itu (tidak terlihat,
+    tetapi bisa disentuh dan dibaca pembaca layar), jadi tesnya tidak
+    berubah.
 
-- [ ] **5.2.3 Status simpan**
+- [x] **5.2.3 Status simpan**
   *Isi:* pil teks di desktop, titik warna di HP.
   - Di mode contoh tertulis "Belum tersimpan", terbaca seperti masalah. Tulis
     "Data contoh".
   - **[cek]** Di HP hanya titik tanpa teks. Pastikan artinya jelas, juga bagi
     pembaca layar.
+  - *Dikerjakan 11 Nov 2026.* Selama yang tampil hanya contoh yang belum
+    pernah disimpan, pil status bertulis "Data contoh" (warna kuning).
+    Contoh yang sudah kamu tambahi dan tersimpan tetap menunjukkan status
+    simpan yang sebenarnya. **[cek]** di HP: titik warna itu punya teks
+    tersembunyi yang sama untuk pembaca layar dan `title`; arti titiknya
+    bagi pengguna yang melihat tetap hanya dari warna.
 
-- [ ] **5.2.4 "Lokal & pribadi" dan tombol perisai**
+- [x] **5.2.4 "Lokal & pribadi" dan tombol perisai**
   *Isi:* teks kecil dan tombol ikon ke jendela Privasi.
   - Tiga elemen berdampingan untuk hal yang sama (teks, perisai, menu akun
     yang berisi Privasi). Jadikan teksnya tombol ke Privasi dan buang perisai.
+  - *Dikerjakan 11 Nov 2026.* "Lokal & pribadi" menjadi tombol yang membuka
+    jendela Privasi; tombol perisai dibuang. `theme_browser.py` diperbarui.
+    Di HP jalurnya tetap lewat menu akun.
 
-- [ ] **5.2.5 Menu akun**
+- [x] **5.2.5 Menu akun**
   *Isi:* avatar "Z"; Cadangkan semuanya, Cadangkan transaksi saja, Pulihkan
   cadangan, Privasi, cadangan terakhir.
   - Avatar "Z" ditulis mati → 1.1.1.
+  - *Diperiksa 11 Nov 2026.* Avatar sudah mengikuti nama panggilan sejak
+    1.1.1. Susunan menu berubah di 5.6.2.
 
 ### 5.3 Banner
 
-- [ ] **5.3.1 Banner data contoh**
+- [x] **5.3.1 Banner data contoh**
   *Isi:* "Kenalan dulu pakai data contoh." dan "Mulai pakai data sendiri" (→ 5.7).
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **5.3.2 Pengingat cadangan**
+- [x] **5.3.2 Pengingat cadangan**
   *Isi:* "Belum ada cadangan lengkap." atau "Sudah lebih dari 7 hari…";
   Cadangkan sekarang, Nanti saja.
   - Muncul langsung setelah "Mulai dari kosong", saat belum ada satu pun
     transaksi. Tunda sampai ada catatan.
+  - *Dikerjakan 11 Nov 2026.* Pengingat cadangan tidak tampil selama belum
+    ada satu pun transaksi. Dicoba: sesudah "Mulai dari kosong" pengingat
+    tidak muncul.
 
 - [ ] **5.3.3 Masalah simpan**
   *Isi:* Unduh pekerjaan yang belum tersimpan, Coba simpan lagi, Muat catatan terbaru.
   - Belum dilihat. Tinjau saat giliran.
+  - *Belum dicentang (11 Nov 2026).* Tidak dilihat langsung di sesi ini.
+    Alur unduh, coba simpan lagi, dan muat catatan terbaru lulus di
+    `recovery_browser.py` pada build ini.
 
 ### 5.4 Bilah mata uang dan bulan
 
-- [ ] **5.4.1 Tab mata uang**
+- [x] **5.4.1 Tab mata uang**
   *Isi:* bendera, kode, nama (nama disembunyikan di HP).
   - Bendera hanya ada untuk IDR, TRY, USD, EUR; mata uang lain memakai "¤".
     Lengkapi atau buang bendera.
+  - *Dikerjakan 11 Nov 2026.* Bendera diturunkan dari dua huruf pertama kode
+    mata uang (JPY → 🇯🇵, GBP → 🇬🇧), jadi semua mata uang berkode negara
+    mendapat bendera. Kode khusus berawalan X tidak diberi bendera dan tidak
+    lagi memakai "¤".
 
-- [ ] **5.4.2 Tombol Kelola mata uang**
+- [x] **5.4.2 Tombol Kelola mata uang**
   *Isi:* membuka 5.5.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.*
 
-- [ ] **5.4.3 Pemilih bulan dan periode**
+- [x] **5.4.3 Pemilih bulan dan periode**
   *Isi:* kolom bulan di kanan bilah; pilihan "bulan ini / seluruh catatan" ada
   di dropdown terpisah (1.2.2, 3.3.2).
   - Satukan jadi satu kontrol: ‹ November 2026 › + "Seluruh catatan".
   - **[cek]** Kolom bulan memakai `input type="month"`, yang di Firefox dan
     Safari desktop tidak punya pemilih (jadi kotak teks). Kontrol baru
     sekaligus menghapus ketergantungan itu.
+  - *Dikerjakan 11 Nov 2026.* Kolom bulan diganti satu kontrol: tombol ‹ ›,
+    dan daftar bulan yang juga memuat "Seluruh catatan". Daftarnya memakai
+    dropdown biasa, jadi tidak lagi bergantung pada `input type="month"`
+    (**[cek]** Firefox dan Safari sendiri tidak diuji di sini). Rentang
+    daftar: tiga tahun ke belakang sampai setahun ke depan, dilebarkan
+    mengikuti tanggal catatan. Dropdown "Periode" lama di Ringkasan dan
+    Transaksi belum dibuang; keduanya tetap sinkron dengan kontrol baru. Dua
+    file tes diperbarui (`select_option`), dan tes bulan "2099-01" diganti
+    bulan dalam rentang.
 
 ### 5.5 Kelola mata uang
 
-- [ ] **5.5.1 Cari dan tambah**
+- [x] **5.5.1 Cari dan tambah**
   *Isi:* kotak cari menyaring isi dropdown "Mata uang tambahan"; tombol tambah.
   - Cari → dropdown → tombol terasa berbelit. Tampilkan hasil cari sebagai
     daftar yang bisa langsung ditambah.
+  - *Dikerjakan 11 Nov 2026.* Saat kotak cari diisi, hasilnya tampil sebagai
+    daftar (maksimal delapan) dengan tombol "Tambah" di tiap baris. Dropdown
+    "Mata uang tambahan" tetap ada untuk menjelajah tanpa mengetik.
 
-- [ ] **5.5.2 Daftar tampil**
+- [x] **5.5.2 Daftar tampil**
   *Isi:* tiap mata uang dengan Sembunyikan dan Buka laporan.
   - Tertulis "Urutan ini dipakai pada tab mata uang" tetapi urutannya tidak
     bisa diubah. Tambah naik/turun.
+  - *Dikerjakan 11 Nov 2026.* Tiap baris daftar tampil punya tombol naik dan
+    turun; urutan tersimpan bersama daftar dan dipakai tab mata uang
+    (dicoba: JPY dinaikkan lalu tampil di urutan itu).
 
-- [ ] **5.5.3 Tercatat tetapi disembunyikan**
+- [x] **5.5.3 Tercatat tetapi disembunyikan**
   *Isi:* mata uang yang punya dompet tetapi tidak ditampilkan.
   - Belum dilihat. Tinjau saat giliran.
+  - *Ditinjau 11 Nov 2026, tanpa perubahan kode.* Dilihat dengan
+    menyembunyikan TRY yang punya dua dompet: bagian "Tercatat tetapi
+    disembunyikan" muncul dengan tombol Tampilkan dan Buka laporan.
 
 ### 5.6 Cadangan dan pemulihan
 
-- [ ] **5.6.1 Cadangkan semuanya**
+- [x] **5.6.1 Cadangkan semuanya**
   *Isi:* mengunduh satu file berisi dompet, transaksi, dan pengaturan kategori.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Dicakup
+    `full_backup_browser.py`.
 
-- [ ] **5.6.2 Cadangkan transaksi saja**
+- [x] **5.6.2 Cadangkan transaksi saja**
   *Isi:* mengunduh catatan tanpa pengaturan kategori.
   - **[keputusan]** Dua tombol cadangan berdampingan tanpa penjelasan bedanya,
     dan hanya "semuanya" yang dihitung sebagai cadangan terakhir. Usul:
     jadikan "transaksi saja" opsi sekunder (dipakai 8 file tes).
+  - *Dikerjakan 11 Nov 2026.* (pemilik menyetujui semua usul) "Cadangkan
+    transaksi saja" menjadi tautan kecil di bawah "Cadangan terakhir", baik
+    di menu samping maupun di menu akun, dengan keterangan bedanya (tanpa
+    pengaturan kategori; tidak dihitung sebagai cadangan terakhir). Label
+    tombolnya tetap.
 
-- [ ] **5.6.3 Pulihkan cadangan**
+- [x] **5.6.3 Pulihkan cadangan**
   *Isi:* pilih file → dialog berisi jumlah dompet, transaksi, kategori, aturan.
   - Dialog hanya menyarankan mencadangkan isi sekarang. Tambah tombol
     "Cadangkan dulu" di dialog itu.
+  - *Dikerjakan 11 Nov 2026.* Dialog pulihkan (lengkap maupun transaksi
+    saja) punya tombol "Cadangkan dulu" yang mengunduh isi sekarang tanpa
+    menutup dialog. Tombol pulihkannya kini merah (5.9.2). Tombol baru ini
+    belum dicakup tes otomatis dan belum dicoba langsung di sesi ini.
 
 ### 5.7 Mulai pakai data sendiri
 
-- [ ] **5.7.1 Dialog pilihan**
+- [x] **5.7.1 Dialog pilihan**
   *Isi:* Batal, Mulai dari kosong, Bawa transaksi saya; lipatan tinjau transaksi contoh.
   - Tanpa transaksi buatan sendiri kalimatnya "0 transaksi akan dibawa. Semua
     0 transaksi tambahan…" dan tombol utama mati tanpa alasan. Buat teks
     khusus dan jadikan "Mulai dari kosong" tombol utama pada keadaan itu.
+  - *Dikerjakan 11 Nov 2026.* Tanpa transaksi buatan sendiri, dialog menulis
+    "Belum ada transaksi buatanmu di mode contoh…", "Mulai dari kosong"
+    menjadi tombol utama, dan "Bawa transaksi saya" tidak ditampilkan.
 
-- [ ] **5.7.2 Mulai dari kosong**
+- [x] **5.7.2 Mulai dari kosong**
   *Isi:* mengganti data contoh dengan catatan baru.
   - **[keputusan]** "Kosong" ternyata berisi 10 dompet bawaan (BCA, BCA
     Digital, BRI, GoPay, DANA, Bank Jago, SeaBank, ShopeePay, Ziraat, Papara)
     yang harus dihapus satu per satu bila tidak dipakai. Usul: langkah memilih
     dompet awal, atau mulai tanpa dompet.
+  - *Dikerjakan 11 Nov 2026.* (pemilik menyetujui semua usul) Dialog punya
+    lipatan "Dompet awal untuk Mulai dari kosong · 10 dari 10": centang
+    dompet yang tidak dipakai bisa dihilangkan sebelum mulai. Tanpa disentuh
+    hasilnya sama seperti sebelumnya (sepuluh dompet); minimal satu dompet
+    harus dipilih. Dicoba: tiga dompet IDR dihilangkan dan tidak ikut
+    dibuat.
 
 ### 5.8 Privasi dan cadangan
 
-- [ ] **5.8.1 Isi penjelasan**
+- [x] **5.8.1 Isi penjelasan**
   *Isi:* tujuh paragraf (penyimpanan persisten, origin, cadangan JSON, Layar Utama).
   - Padat dan teknis ("origin", "script"). Susun jadi beberapa subjudul pendek
     dan taruh detail teknis di lipatan.
+  - *Dikerjakan 11 Nov 2026.* Penjelasan disusun dalam empat subjudul pendek
+    (tempat penyimpanan, supaya tidak hilang, pindah perangkat, Layar
+    Utama); tiga paragraf tentang origin dan script pindah ke lipatan
+    "Detail teknis". Isi faktualnya tidak diubah.
 
 ### 5.9 Jendela, konfirmasi, pemberitahuan
 
-- [ ] **5.9.1 Kerangka jendela**
+- [x] **5.9.1 Kerangka jendela**
   *Isi:* fokus terkunci di dalam jendela; Escape dan klik luar menutup.
   - Hanya form transaksi yang bertanya sebelum membuang isian. Kelola
     kategori, form dompet, dan Kelola mata uang langsung tertutup dan
     perubahannya hilang. Samakan.
   - Bentuk lembar bawah di HP sudah dicatat sebagai MW-81.
+  - *Dikerjakan 11 Nov 2026.* Kelola kategori, form dompet, dan Kelola mata
+    uang kini bertanya "Buang perubahan?" bila ada isian yang belum
+    disimpan, untuk Escape, klik luar, tombol tutup, dan Batal. Tanpa
+    perubahan, jendela langsung tertutup seperti biasa. Empat tes yang
+    membatalkan isian diperbarui. Lembar bawah di HP tetap MW-81.
 
-- [ ] **5.9.2 Dialog konfirmasi**
+- [x] **5.9.2 Dialog konfirmasi**
   *Isi:* judul, teks, kolom alasan (bila wajib), Batal dan tombol aksi.
   - Tombol merah ditentukan dari label yang diawali "Hapus", sehingga "Ganti
     data tersimpan dengan dompet kosong" tampil hijau. Pakai penanda bahaya
     yang eksplisit.
+  - *Dikerjakan 11 Nov 2026.* Warna tombol aksi ditentukan penanda `danger`
+    yang eksplisit. Merah: hapus transaksi, hapus dompet, ganti data
+    tersimpan dengan dompet kosong, pulihkan cadangan, dan muat catatan
+    terbaru saat ada pekerjaan lokal yang belum tersimpan.
 
-- [ ] **5.9.3 Pemberitahuan**
+- [x] **5.9.3 Pemberitahuan**
   *Isi:* satu pesan di bawah layar, hilang setelah 5,5 detik.
   - Pesan gagal ("Perubahan belum tersimpan…") memakai ikon centang dan gaya
     yang sama dengan pesan berhasil. Buat varian galat yang tidak hilang sendiri.
   - Pesan bisa menutupi tombol di dasar jendela (terlihat di form Cek transaksi).
+  - *Dikerjakan 11 Nov 2026.* Pesan gagal memakai varian galat: warna merah,
+    ikon peringatan, `role="alert"`, dan tidak hilang sendiri sampai
+    ditutup. Saat sebuah jendela terbuka, pemberitahuan pindah ke atas layar
+    sehingga tidak menutupi tombol di dasar jendela.
 
 ### 5.10 Kaki halaman
 

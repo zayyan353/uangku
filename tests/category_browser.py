@@ -457,6 +457,7 @@ def stale_settings(case):
     saved = p.evaluate('(key)=>JSON.parse(localStorage.getItem(key))', SETTINGS)
     assert 'Kategori tab pertama' in saved['names'] and 'Kategori tab usang' not in saved['names']
     b.get_by_role('button', name='Batal', exact=True).click()
+    b.get_by_role('button', name='Buang perubahan', exact=True).click()  # Unsaved draft: the window asks first.
     b = case.manager(second)
     expect(b.locator('.category-manager-names li').filter(has_text='Kategori tab pertama')).to_have_count(1)
     assert b.locator('.category-manager-names li').filter(has_text='Kategori tab usang').count() == 0

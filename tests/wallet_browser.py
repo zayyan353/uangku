@@ -180,7 +180,13 @@ class Case:
 def create_and_cancel(case):
     p=case.page;before=stored_document(p)
     dialog=case.form();dialog.get_by_label('Nama dompet',exact=True).fill('Synthetic cancelled')
-    dialog.get_by_role('button',name='Batal',exact=True).click();case.unchanged()
+    # A started form asks before it is thrown away (Kerangka 5.9.1); nothing is written either way.
+    dialog.get_by_role('button',name='Batal',exact=True).click()
+    expect(dialog.get_by_test_id('discard-guard')).to_be_visible();case.unchanged()
+    dialog.get_by_role('button',name='Lanjut mengisi',exact=True).click()
+    expect(dialog.get_by_label('Nama dompet',exact=True)).to_have_value('Synthetic cancelled')
+    p.keyboard.press('Escape');dialog.get_by_role('button',name='Buang perubahan',exact=True).click()
+    expect(p.get_by_role('dialog')).to_have_count(0);case.unchanged()
     dialog=case.form();dialog.get_by_label('Nama dompet',exact=True).fill('Synthetic new ewallet')
     dialog.get_by_label(re.compile('^Jenis dompet')).select_option('ewallet')
     dialog.get_by_label(re.compile(r'^Saldo awal \(TRY\)')).fill('1.234,56')

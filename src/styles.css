@@ -1735,3 +1735,69 @@ html[data-theme="dark"] .import-result > svg { color: var(--success-text); }
 html[data-theme="dark"] .import-table tbody tr { background: transparent; }
 @media (max-width: 640px) { .import-more { flex: 0 0 auto; } .import-save { align-items: stretch; } }
 .import-save-error { margin: 14px 0 0; }
+
+/* ===== Kerangka Bab 5: bagian bersama ===== */
+/* 5.1.2 / 5.6.2 "transaksi saja" jadi opsi sekunder */
+.backup-tools button.backup-secondary { font-size: 11px; padding: 6px; text-decoration: underline; opacity: .85; }
+.account-panel .account-secondary { font-size: 12px; text-decoration: underline; padding-top: 6px; padding-bottom: 6px; }
+.account-hint { margin: 0 12px 8px; font-size: 11px; line-height: 1.6; color: var(--muted); }
+html[data-theme="dark"] .account-hint { color: var(--text-muted); }
+/* 5.2.3 status contoh; 5.2.4 "Lokal & pribadi" sebagai tombol ke Privasi */
+.save-pill.demo { background: #fcf6e3; border-color: #ecdcae; color: #6b4a12; }
+.save-pill.demo .status-dot { background: #c9982f; }
+html[data-theme="dark"] .save-pill.demo { background: #2f2a17; border-color: #5a4d22; color: #f3d99a; }
+button.local-indicator { border: 0; background: transparent; cursor: pointer; padding: 6px 8px; border-radius: 8px; min-height: 34px; text-decoration: underline; text-decoration-color: transparent; }
+button.local-indicator:hover { text-decoration-color: currentColor; background: var(--surface-raised); }
+/* 5.4.3 satu kontrol periode: ‹ bulan › dengan "Seluruh catatan" di daftar yang sama */
+.month-stepper { display: inline-flex; align-items: center; gap: 4px; }
+.month-stepper .icon-button { min-width: 36px; min-height: 36px; padding: 6px; }
+.date-pill select { background: transparent; border: 0; color: #596954; font-size: 13px; max-width: 170px; min-height: 22px; cursor: pointer; }
+.currency-toolbar .date-pill select { font-size: 13px; }
+html[data-theme="dark"] .date-pill select { color: var(--text); background: transparent; }
+html[data-theme="dark"] .date-pill select option { background: var(--surface); color: var(--text); }
+/* 5.5 Kelola mata uang */
+.currency-manager-results { list-style: none; margin: 8px 0 14px; padding: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.currency-manager-results li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; font-size: 14px; }
+.currency-manager-results li + li { border-top: 1px solid var(--line); }
+.currency-manager-results li > span { min-width: 0; overflow-wrap: anywhere; }
+.currency-manager-row-actions .icon-button { min-width: 34px; min-height: 34px; padding: 6px; }
+/* 5.7.2 dompet awal */
+.start-wallet-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 14px; margin: 8px 0; }
+/* 5.8.1 Privasi bersubjudul */
+.privacy-notice h3 { margin: 18px 0 6px; font-size: 15px; font-weight: 650; color: var(--text); }
+.privacy-notice h3:first-child { margin-top: 0; }
+.privacy-technical { margin-top: 16px; border-top: 1px solid var(--line); padding-top: 10px; }
+.privacy-technical summary { cursor: pointer; font-weight: 600; font-size: 14px; min-height: 36px; display: flex; align-items: center; }
+/* 5.9.1 tanya dulu sebelum membuang perubahan */
+.discard-guard { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 14px; padding: 12px 24px; border-top: 1px solid #f0d4c9; background: #fff3ee; color: #7a3a26; font-size: 14px; }
+.discard-guard p { margin: 0; flex: 1 1 220px; line-height: 1.6; }
+.discard-guard > div { display: flex; gap: 8px; flex-wrap: wrap; }
+html[data-theme="dark"] .discard-guard { background: #3a241d; border-color: #6b4032; color: #f3c3b3; }
+/* 5.9.3 pemberitahuan galat; saat jendela terbuka pemberitahuan pindah ke atas agar tombol di dasar jendela tidak tertutup */
+.toast.error { background: #7a2e1d; color: #fff3ee; }
+.toast.error svg:first-child { color: #ffd0c2; }
+.toast.error button { color: #ffd0c2; }
+html[data-theme="dark"] .toast.error { background: #5a261a; border-color: #b0614c; color: #ffe7df; }
+body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
+
+@media (max-width: 640px) {
+  /* 5.1.3 lencana "perlu dirapikan" dan tombol catat di navigasi bawah */
+  .mobile-nav.with-record { grid-template-columns: 1fr 1fr 56px 1fr 1fr; align-items: end; }
+  .mobile-nav button { position: relative; }
+  .mobile-nav .nav-count { position: absolute; top: 0; left: calc(50% + 6px); margin: 0; min-width: 18px; padding: 1px 5px; border-radius: 9px; background: #a8442b; color: #fff; font-size: 10px; font-weight: 600; line-height: 1.5; }
+  .mobile-nav button.mobile-record { width: 52px; height: 52px; margin: -22px auto 0; border-radius: 50%; background: #173b31; color: #f3f8eb; box-shadow: 0 6px 18px #17352b40; padding: 0; }
+  .mobile-nav button.mobile-record svg { width: 24px; height: 24px; }
+  html[data-theme="dark"] .mobile-nav button.mobile-record { background: var(--lime); color: #14241b; }
+  /* 5.2.2 pemilih tema jadi ikon saja; select tetap ada di atas ikon untuk sentuhan dan pembaca layar */
+  .topbar .theme-picker { width: 40px; height: 40px; padding: 0; justify-content: center; gap: 0; }
+  .topbar .theme-picker select { position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; min-height: 0; padding: 0; opacity: 0; cursor: pointer; }
+  .topbar .theme-picker-chevron { display: none; }
+  .month-stepper { margin-left: auto; }
+  .month-stepper .icon-button { min-width: 40px; min-height: 40px; }
+  .currency-toolbar .month-stepper .date-pill { margin-left: 0; }
+  .date-pill select { max-width: 132px; font-size: 12px; min-height: 26px; }
+  .discard-guard { padding: 12px 18px; }
+  .discard-guard .button { flex: 1; }
+  .start-wallet-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) { .date-pill select { max-width: 158px; } .month-stepper .date-pill > svg { display: none; } }

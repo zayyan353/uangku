@@ -4,7 +4,7 @@ import TransactionModal, { type TxMode, type EntrySaveOptions } from './componen
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowRight, Check, CheckCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp,
-  Download, FileSpreadsheet, FolderOpen, History, Leaf, Plus, ShieldCheck,
+  AlertTriangle, Download, FileSpreadsheet, FolderOpen, History, Leaf, Plus,
   Sparkles, Tags, Wallet as WalletIcon, X, Search,
 } from 'lucide-react';
 import {
@@ -56,11 +56,12 @@ import CashArchive from './components/CashArchive';
 import { createBankEntryPresentationLookup, createBankEntryTitleLookup } from './lib/bankEntryHints';
 import { reviewCounts, type ReviewReason } from './lib/reviewStatus';
 import { categoryColorIndex } from './lib/dashboardView';
+import { currencyFlagEmoji, monthOptions, nextMonth, priorMonth } from './lib/monthOptions';
 import { greeting, nicknameInitial, NICKNAME_KEY, readNickname, sanitizeNickname, writeNickname } from './lib/nickname';
 
 const DATE_FORMAT = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul', year: 'numeric', month: '2-digit', day: '2-digit' });
 const today = () => DATE_FORMAT.format(new Date());
-const currencyFlag = (code: Currency) => code === 'IDR' ? '🇮🇩' : code === 'TRY' ? '🇹🇷' : code === 'USD' ? '🇺🇸' : code === 'EUR' ? '🇪🇺' : '¤';
+const currencyFlag = currencyFlagEmoji;
 const currencyLabel = (code: Currency) => currencyInfo(code).label;
 const COLORS = ['#e4a06a', '#7da69b', '#a2b96c', '#a0a5d4', '#d7b568', '#d58e9f', '#8db8c9', '#b1b8ae'];
 
@@ -138,11 +139,11 @@ export default function App() {
   const [walletView, setWalletView] = useState<'active' | 'archive'>('active');
   const walletEditorBase = useRef<{ data: StoredData; token: string | null; editingId?: string } | null>(null);
   const [txModal, setTxModal] = useState<{ type: TxMode; walletId?: string; existing?: Entry } | null>(null);
-  const [confirm, setConfirm] = useState<{ title: string; text: string; label: string; requireReason?: boolean; allowBankAnnotations?: boolean; action: (reason?: string, useBankAnnotations?: boolean) => void | Promise<void> } | null>(null);
+  const [confirm, setConfirm] = useState<{ title: string; text: string; label: string; danger?: boolean; requireReason?: boolean; allowBankAnnotations?: boolean; extra?: { label: string; run: () => void }; action: (reason?: string, useBankAnnotations?: boolean) => void | Promise<void> } | null>(null);
   const [confirmReason, setConfirmReason] = useState('');
   const [confirmBankAnnotations, setConfirmBankAnnotations] = useState(false);
   useEffect(() => { setConfirmReason(''); setConfirmBankAnnotations(false); }, [confirm]);
-  const [toast, setToast] = useState('');
+  const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
   const state = data.state;
   const activeState = useMemo(() => activeAccountState(state), [state]);
@@ -151,8 +152,10 @@ export default function App() {
   const cashWallets = useMemo(() => state.wallets.filter(wallet => wallet.kind === 'cash'), [state.wallets]);
   const postingContext = useMemo(() => createPostingDateIndex(data.metadata), [data.metadata]);
   const undatedWallets = useMemo(() => new Set(state.entries.flatMap(entry => entryPostings(entry, postingContext).filter(posting => posting.date === null).map(posting => posting.walletId))), [state, postingContext]);
-  const notify = (text: string) => setToast(text);
-  useEffect(() => { if (toast) { const id = setTimeout(() => setToast(''), 5500); return () => clearTimeout(id); } }, [toast]);
+  const notify = (text: string) => setToast({ text, error: false });
+  /** A failure stays on screen until it is closed; it is not styled or timed like a success. */
+  const notifyError = (text: string) => setToast({ text, error: true });
+  useEffect(() => { if (toast && !toast.error) { const id = setTimeout(() => setToast(null), 5500); return () => clearTimeout(id); } }, [toast]);
   useEffect(() => { writePreferences({ ...preferences, currency }); }, [preferences, currency]);
   useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, historyPeriod, historyPage, reviewReason, historyWallet, historyCategory, historySort]);
   useEffect(() => { setHistoryPage(1); }, [query, filter, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet, historyCategory, historySort]);
@@ -184,22 +187,22 @@ export default function App() {
     try {
       const checked = prepareBackup({ ...data, state: next }).data;
       const ok = await persistCandidate(checked, { expectedData: data, expectedToken });
-      if (!ok) notify('Perubahan belum tersimpan. Periksa status penyimpanan dan unduh pekerjaan bila diperlukan.');
+      if (!ok) notifyError('Perubahan belum tersimpan. Periksa status penyimpanan dan unduh pekerjaan bila diperlukan.');
       return ok;
-    } catch (reason) { notify(reason instanceof Error ? reason.message : 'Perubahan belum bisa disimpan.'); return false; }
+    } catch (reason) { notifyError(reason instanceof Error ? reason.message : 'Perubahan belum bisa disimpan.'); return false; }
   };
   async function saveDocument(next: StoredData, expectedToken = ledger.revisionToken): Promise<boolean> {
     try {
       const ok = await persistCandidate(next, { expectedData: data, expectedToken });
-      if (!ok) notify('Perubahan belum tersimpan. Periksa status penyimpanan dan unduh pekerjaan bila diperlukan.');
+      if (!ok) notifyError('Perubahan belum tersimpan. Periksa status penyimpanan dan unduh pekerjaan bila diperlukan.');
       return ok;
-    } catch (error) { notify(error instanceof Error ? error.message : 'Perubahan belum dapat disimpan.'); return false; }
+    } catch (error) { notifyError(error instanceof Error ? error.message : 'Perubahan belum dapat disimpan.'); return false; }
   }
   async function runConfirmation() {
     if (!confirm || mutationInFlight.current || confirm.requireReason && !confirmReason.trim()) return;
     const request = confirm; setConfirm(null);
     try { await request.action(confirmReason.trim(), confirmBankAnnotations); }
-    catch (error) { notify(error instanceof Error ? error.message : 'Perubahan ditolak; catatan lama dipertahankan.'); }
+    catch (error) { notifyError(error instanceof Error ? error.message : 'Perubahan ditolak; catatan lama dipertahankan.'); }
   }
   function openWallet(value: Wallet | 'new') {
     if (mutationInFlight.current || value !== 'new' && (value.kind === 'cash' || isWalletArchived(data, value.id))) return;
@@ -225,7 +228,7 @@ export default function App() {
         notify('Cadangan diunduh. Uji pemulihannya di salinan terpisah.');
       }
     }
-    catch (reason) { notify(reason instanceof Error ? reason.message : 'Cadangan belum dapat dibuat.'); }
+    catch (reason) { notifyError(reason instanceof Error ? reason.message : 'Cadangan belum dapat dibuat.'); }
   }
   const [lastBackup, setLastBackup] = useState(() => readLastBackup());
   const [reminderDismissedOn, setReminderDismissedOn] = useState(() => readReminderDismissed());
@@ -240,7 +243,7 @@ export default function App() {
   }, []);
   const lastBackupText = lastBackupLabel(lastBackup);
   const currentFingerprint = useMemo(() => ledger.revisionToken === null ? null : ledgerFingerprint(ledger.revisionToken), [ledger.revisionToken]);
-  const reminderReason = data.demo || blocked ? null : backupReminderReason({ lastBackup, currentFingerprint, now: Date.now(), today: clockDay, dismissedOn: reminderDismissedOn });
+  const reminderReason = data.demo || blocked || state.entries.length === 0 ? null : backupReminderReason({ lastBackup, currentFingerprint, now: Date.now(), today: clockDay, dismissedOn: reminderDismissedOn });
   function closeReminder() {
     dismissReminder(clockDay);
     setReminderDismissedOn(clockDay);
@@ -255,7 +258,7 @@ export default function App() {
       if (exportedToken !== null && recordBackup(exportedToken)) setLastBackup(readLastBackup());
       notify('Cadangan lengkap diunduh. Dompet, transaksi, dan pengaturan kategori ada dalam satu file.');
     } catch (reason) {
-      notify(reason instanceof Error ? reason.message : 'Cadangan lengkap belum dapat dibuat.');
+      notifyError(reason instanceof Error ? reason.message : 'Cadangan lengkap belum dapat dibuat.');
     }
   }
   const currencyWallets = useMemo(() => activeState.wallets.filter(w => w.currency === currency), [activeState.wallets, currency]);
@@ -375,7 +378,7 @@ export default function App() {
       if (!await saveDocument(next)) return;
       notify(`${selectedEntries.length} transaksi dirapikan.${confirmUnreviewed ? ' Jenis yang dipilih sudah dikonfirmasi.' : ' Jenis yang belum dicek tetap ditandai.'}`);
       setSelectedEntryIds([]);
-    } catch (err) { notify(err instanceof Error ? err.message : 'Transaksi belum bisa dirapikan.'); }
+    } catch (err) { notifyError(err instanceof Error ? err.message : 'Transaksi belum bisa dirapikan.'); }
   }
   /** One row of the review queue, categorised from its own picker; the type stays unconfirmed. */
   async function applyQuickCategory(entry: Entry, category: string) {
@@ -384,7 +387,7 @@ export default function App() {
       if (isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id)) throw Error('Histori cash lama atau dompet arsip bersifat baca saja. Pulihkan dompet bank/e-wallet untuk mengubahnya.');
       if (!await saveDocument(applySourcedBulkCategory(data, [entry.id], category, false))) return;
       notify(`Kategori ${category} disimpan.`);
-    } catch (err) { notify(err instanceof Error ? err.message : 'Kategori belum bisa disimpan.'); }
+    } catch (err) { notifyError(err instanceof Error ? err.message : 'Kategori belum bisa disimpan.'); }
   }
   function openCategoryManager() {
     if (mutationInFlight.current || categoryPreferences.recovering) return;
@@ -396,7 +399,7 @@ export default function App() {
     try {
       await categoryPreferences.save(next, categorySettingsBase.current, budgets ? { budgets, expectedRaw: categoryBudgetsBase.current } : undefined);
       setCategoryManager(null); notify(budgets ? 'Kategori, aturan, dan anggaran berhasil disimpan di browser ini.' : 'Kategori dan aturan berhasil disimpan di browser ini.'); return true;
-    } catch (error) { notify(error instanceof Error ? error.message : 'Pengaturan kategori belum tersimpan.'); return false; }
+    } catch (error) { notifyError(error instanceof Error ? error.message : 'Pengaturan kategori belum tersimpan.'); return false; }
   }
   async function applyAutomaticCategories(assignments: CategoryAssignment[]): Promise<boolean> {
     if (!categoryAutomation || mutationInFlight.current) return false;
@@ -406,7 +409,7 @@ export default function App() {
       const ok = await persistCandidate(next, { expectedData: base.data, expectedToken: base.token });
       if (ok) { setCategoryAutomation(null); notify(`${assignments.length} kategori tersimpan.${assignments.some(item => item.confirmBankType) ? ' Mutasi bank yang dikenali sudah dikonfirmasi; saldo rekening tetap.' : ' Nominal dan jenis transaksi tetap.'}`); }
       return ok;
-    } catch (error) { notify(error instanceof Error ? error.message : 'Kategori belum tersimpan.'); return false; }
+    } catch (error) { notifyError(error instanceof Error ? error.message : 'Kategori belum tersimpan.'); return false; }
   }
   const categoryTools = <div className="category-toolbar"><button className="button secondary small" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button secondary small" aria-describedby="category-automation-help" disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked || categoryPreferences.recovering} onClick={() => { if (!mutationInFlight.current) setCategoryAutomation({ data, token: ledger.revisionToken }); }}><CheckCheck size={16} /> Isi kategori otomatis</button><span className="field-help" id="category-automation-help">Kategori kosong & konfirmasi mutasi bank · semua periode</span>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}</div>;
   const categoryTotals = cashflowResult.report?.categoryTotals ?? [];
@@ -435,23 +438,27 @@ export default function App() {
     const base = { data, token: ledger.revisionToken };
     if (!blocked) { setDemoReview(base); return; }
     if (base.token === null) {
-      notify('Izinkan penyimpanan untuk situs ini lalu muat ulang agar data asli bisa dibaca.');
+      notifyError('Izinkan penyimpanan untuk situs ini lalu muat ulang agar data asli bisa dibaca.');
       return;
     }
-    setConfirm({ title: 'Ganti data tersimpan yang tidak dapat dibaca?', text: 'Data asli di penyimpanan browser tidak dapat dibaca oleh versi ini. Yang terlihat hanyalah contoh sementara. Unduh data asli melalui tombol pemulihan terlebih dahulu. Jika dikonfirmasi, data tersimpan tersebut akan diganti dengan dompet kosong.', label: 'Ganti data tersimpan dengan dompet kosong', action: () => finishStartOwn(base, undefined, true) });
+    setConfirm({ title: 'Ganti data tersimpan yang tidak dapat dibaca?', text: 'Data asli di penyimpanan browser tidak dapat dibaca oleh versi ini. Yang terlihat hanyalah contoh sementara. Unduh data asli melalui tombol pemulihan terlebih dahulu. Jika dikonfirmasi, data tersimpan tersebut akan diganti dengan dompet kosong.', label: 'Ganti data tersimpan dengan dompet kosong', danger: true, action: () => finishStartOwn(base, undefined, true) });
   }
-  async function finishStartOwn(base: { data: StoredData; token: string | null }, included?: ReadonlySet<string>, replaceBlocked = false) {
+  async function finishStartOwn(base: { data: StoredData; token: string | null }, included?: ReadonlySet<string>, replaceBlocked = false, starterWalletIds?: readonly string[]) {
     if (mutationInFlight.current) return;
     if (data !== base.data || base.token !== ledger.revisionToken || blocked !== replaceBlocked) {
       setDemoReview(null);
-      notify('Catatan berubah sejak pilihan dibuka. Periksa kembali catatan terbaru.');
+      notifyError('Catatan berubah sejak pilihan dibuka. Periksa kembali catatan terbaru.');
       return;
     }
     try {
-      const next: StoredData = included ? carryDemo(base.data, included) : { app: 'uangku', version: 1, demo: false, state: createEmptyState() };
+      const empty = createEmptyState();
+      // "Mulai dari kosong" keeps only the starting wallets the user left ticked; with no choice given, all of them.
+      const starters = starterWalletIds ? empty.wallets.filter(wallet => starterWalletIds.includes(wallet.id)) : empty.wallets;
+      if (!included && !starters.length) throw new Error('Pilih setidaknya satu dompet awal.');
+      const next: StoredData = included ? carryDemo(base.data, included) : { app: 'uangku', version: 1, demo: false, state: { ...empty, wallets: starters } };
       const ok = await persistCandidate(next, { replaceBlocked, replaceLedger: true, expectedData: base.data, expectedToken: base.token });
       if (ok) notify(included ? `${next.state.entries.length} transaksi dibawa ke catatan pribadi.` : 'Dompet kosong berhasil tersimpan.');
-    } catch (error) { notify(error instanceof Error ? error.message : 'Catatan belum dapat disimpan.'); }
+    } catch (error) { notifyError(error instanceof Error ? error.message : 'Catatan belum dapat disimpan.'); }
     finally { setDemoReview(null); }
   }
   function openTx(type: TxMode, walletId = activityWalletId) {
@@ -461,7 +468,7 @@ export default function App() {
     if (type === 'transfer' && availableWallets.length < 2) { openWallet('new'); notify('Transfer membutuhkan dua dompet.'); return; }
     if (type === 'adjustment' && walletId) {
       try { if (undatedWallets.has(walletId)) throw new Error('Tanggal posting belum diketahui.'); walletBalanceAt(state, walletId, today(), postingContext); }
-    catch (error) { notify(error instanceof Error ? error.message : 'Saldo aktual belum dapat dipastikan.'); return; }
+    catch (error) { notifyError(error instanceof Error ? error.message : 'Saldo aktual belum dapat dipastikan.'); return; }
     }
     editorBaseToken.current = ledger.revisionToken;
     setTxModal({ type, walletId: walletId ?? preferredWallet(availableWallets, currency, preferences) });
@@ -495,27 +502,27 @@ export default function App() {
     setWalletModal(null); setCurrency(wallet.currency); setWalletView('active'); notify('Dompet tersimpan.'); return true;
   }
   function requestWalletAction(wallet: Wallet, kind: 'archive' | 'restore' | 'delete', base = { data, token: ledger.revisionToken }) {
-    if (mutationInFlight.current || ledger.pending || ledger.dirty || blocked || !ledger.supported) { notify('Selesaikan status penyimpanan sebelum mengubah dompet.'); return; }
+    if (mutationInFlight.current || ledger.pending || ledger.dirty || blocked || !ledger.supported) { notifyError('Selesaikan status penyimpanan sebelum mengubah dompet.'); return; }
     const usage = walletUsage(base.data, wallet.id);
     const details = kind === 'archive'
       ? `Dompet ${wallet.name} akan disimpan di Arsip. ${usage.entryCount} transaksi dan bukti sumber tetap utuh; saldo tetap masuk laporan. Pulihkan untuk mencatat atau mengubah histori lagi.`
       : kind === 'restore' ? `Dompet ${wallet.name} akan kembali tersedia untuk transaksi dan impor. Histori dan saldo tetap sama.`
       : `Hapus dompet kosong ${wallet.name}? Penghapusan hanya diizinkan jika saldo awal nol dan tidak ada transaksi, fakta bank, atau referensi histori.`;
     setWalletModal(null);
-    setConfirm({ title: kind === 'archive' ? 'Arsipkan dompet?' : kind === 'restore' ? 'Pulihkan dompet?' : 'Hapus dompet kosong?', text: details, label: kind === 'archive' ? 'Arsipkan dompet' : kind === 'restore' ? 'Pulihkan dompet' : 'Hapus dompet', action: async () => {
+    setConfirm({ title: kind === 'archive' ? 'Arsipkan dompet?' : kind === 'restore' ? 'Pulihkan dompet?' : 'Hapus dompet kosong?', text: details, label: kind === 'archive' ? 'Arsipkan dompet' : kind === 'restore' ? 'Pulihkan dompet' : 'Hapus dompet', danger: kind === 'delete', action: async () => {
       const next = kind === 'archive' ? archiveWallet(base.data, wallet.id, new Date().toISOString()) : kind === 'restore' ? restoreWallet(base.data, wallet.id) : deleteUnusedWallet(base.data, wallet.id);
       if (await persistCandidate(next, { expectedData: base.data, expectedToken: base.token })) { setWalletView(kind === 'archive' ? 'archive' : 'active'); notify(kind === 'archive' ? 'Dompet diarsipkan. Histori dan saldo tetap tersimpan.' : kind === 'restore' ? 'Dompet dipulihkan.' : 'Dompet kosong dihapus.'); }
     } });
   }
   async function saveEntry(entry: Entry, removeIds: string[], keepOpen = false, options?: EntrySaveOptions): Promise<boolean> {
-    if (isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id) || isWalletArchived(data, entry.walletId) || !!entry.toWalletId && isWalletArchived(data, entry.toWalletId) || state.entries.some(item => removeIds.includes(item.id) && (isCashLinkedEntry(state, item) || readOnlyEntryIds.has(item.id)))) { notify('Histori cash lama atau dompet arsip bersifat baca saja. Pulihkan dompet bank/e-wallet untuk mengubahnya.'); return false; }
+    if (isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id) || isWalletArchived(data, entry.walletId) || !!entry.toWalletId && isWalletArchived(data, entry.toWalletId) || state.entries.some(item => removeIds.includes(item.id) && (isCashLinkedEntry(state, item) || readOnlyEntryIds.has(item.id)))) { notifyError('Histori cash lama atau dompet arsip bersifat baca saja. Pulihkan dompet bank/e-wallet untuk mengubahnya.'); return false; }
     const at = new Date().toISOString();
     let next: StoredData;
     try {
       next = entry.type === 'transfer'
         ? saveTransferEntry(data, entry, removeIds, { sourceDate: options?.sourceDate ?? entry.date, destinationDate: options?.destinationDate ?? entry.date, ...options, reason: options?.reason || 'Pengguna mencatat atau mencocokkan transfer.', at })
         : applySourcedEntryEdit(data, entry, removeIds, { reason: options?.reason ?? '', at });
-    } catch (error) { notify(error instanceof Error ? error.message : 'Transaksi belum bisa disimpan.'); return false; }
+    } catch (error) { notifyError(error instanceof Error ? error.message : 'Transaksi belum bisa disimpan.'); return false; }
     if (!await saveDocument(next, editorBaseToken.current)) return false;
     editorBaseToken.current = serializeBackup(next);
     if (!txModal?.existing && !entry.sourceKey) {
@@ -534,15 +541,15 @@ export default function App() {
     if (isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id)) { setAmountDetail(entry); return; }
     if (entry.type === 'adjustment') {
       try { if (undatedWallets.has(entry.walletId)) throw new Error('Tanggal posting belum diketahui.'); walletBalanceAt(state, entry.walletId, today(), postingContext); }
-      catch (error) { notify(error instanceof Error ? error.message : 'Saldo aktual belum dapat dipastikan.'); return; }
+      catch (error) { notifyError(error instanceof Error ? error.message : 'Saldo aktual belum dapat dipastikan.'); return; }
     }
     editorBaseToken.current = ledger.revisionToken; setTxModal({ type: entry.type === 'unreviewed' ? (entry.amount > 0 ? 'income' : 'expense') : entry.type, existing: entry });
   }
   function deleteEntry(entry: Entry, expectedToken = ledger.revisionToken) {
     if (mutationInFlight.current) return;
-    if (isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id)) { notify('Histori cash lama atau dompet arsip bersifat baca saja. Pulihkan dompet bank/e-wallet untuk mengubahnya.'); return; }
+    if (isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id)) { notifyError('Histori cash lama atau dompet arsip bersifat baca saja. Pulihkan dompet bank/e-wallet untuk mengubahnya.'); return; }
     const sourced = !!data.metadata?.links.some(link => link.entryId === entry.id);
-    setConfirm({ title: 'Hapus transaksi ini?', text: sourced ? 'Interpretasi transaksi akan dihapus dari saldo. Fakta bank tetap disimpan, dan impor ulang memerlukan keputusan eksplisit agar tidak menggandakan transaksi.' : 'Saldo dompet akan dihitung ulang. Unduh cadangan bila catatan ini masih diperlukan.', label: 'Hapus transaksi', requireReason: sourced, action: async (reason = '') => {
+    setConfirm({ title: 'Hapus transaksi ini?', text: sourced ? 'Interpretasi transaksi akan dihapus dari saldo. Fakta bank tetap disimpan, dan impor ulang memerlukan keputusan eksplisit agar tidak menggandakan transaksi.' : 'Saldo dompet akan dihitung ulang. Unduh cadangan bila catatan ini masih diperlukan.', label: 'Hapus transaksi', danger: true, requireReason: sourced, action: async (reason = '') => {
       const next = entry.type === 'transfer' ? executeTransferCommand(data, { kind: 'delete', entryId: entry.id, reason: reason || 'Pengguna menghapus transfer.', at: new Date().toISOString() }) : deleteSourcedEntry(data, entry.id, { reason: reason || 'Pengguna menghapus transaksi.', at: new Date().toISOString() });
       if (await saveDocument(next, expectedToken)) notify('Transaksi dihapus; fakta sumber yang tersedia tetap dipertahankan.');
     } });
@@ -572,31 +579,33 @@ export default function App() {
       const { ledger: restored } = backup;
       const counts = `${restored.state.wallets.length} dompet, ${restored.state.entries.length} transaksi`;
       const options = { replaceBlocked: true, replaceLedger: true, expectedData: data, expectedToken: ledger.revisionToken };
+      // The dialog stays open: the download only reads, so the restore can still be confirmed or cancelled afterwards.
+      const backupFirst = { label: 'Cadangkan dulu', run: () => { if (blocked || data.demo) backupCurrent(); else void backupAll(); } };
       if (backup.kind === 'full') {
         const settings = backup.categorySettings;
         setConfirm({
           title: 'Pulihkan cadangan lengkap?',
           text: `${counts}, ${settings.names.length} kategori, dan ${settings.rules.length} aturan dari file akan menggantikan catatan dan pengaturan kategori di browser ini. Cadangkan isi saat ini dulu jika masih diperlukan.`,
-          label: 'Pulihkan semuanya',
+          label: 'Pulihkan semuanya', danger: true, extra: backupFirst,
           action: async () => {
             const saved = await persistCandidate(restored, {
               ...options, restoreCategories: { settings, expectedRaw: categoryPreferences.raw, ...(backup.budgets ? { budgets: backup.budgets } : {}), ...(backup.templates ? { templates: backup.templates } : {}) },
             });
             if (saved) notify('Cadangan lengkap dipulihkan. Transaksi dan pengaturan kategori sudah tersimpan.');
-            else notify('Cadangan lengkap belum dipulihkan. Periksa status penyimpanan sebelum mencoba lagi.');
+            else notifyError('Cadangan lengkap belum dipulihkan. Periksa status penyimpanan sebelum mencoba lagi.');
           },
         });
       } else {
         setConfirm({
           title: 'Pulihkan cadangan?',
           text: `${counts} akan menggantikan catatan di browser ini. Pengaturan kategori dan aturan pribadi tetap dipakai. Cadangkan catatan saat ini dulu jika masih diperlukan.`,
-          label: 'Pulihkan data',
+          label: 'Pulihkan data', danger: true, extra: backupFirst,
           action: async () => {
             if (await persistCandidate(restored, options)) notify('Cadangan berhasil dipulihkan dan tersimpan.');
           },
         });
       }
-    } catch (err) { notify(err instanceof Error ? err.message : 'File cadangan tidak valid.'); }
+    } catch (err) { notifyError(err instanceof Error ? err.message : 'File cadangan tidak valid.'); }
     finally { if (restoreRef.current) restoreRef.current.value = ''; }
   }
   const titles = { overview: [greeting(sanitizeNickname(nickname)), 'Uangmu di mana-mana. Catatannya cukup di sini.'], wallets: ['Semua dompetmu.', 'Rekening dan e-wallet. Cash tidak dibukukan.'], transactions: ['Catatan kecil, lebih tenang.', 'Lihat uang yang masuk, keluar, dan berpindah.'], import: ['Biar file yang bantu.', 'Kurangi ketik satu-satu. Mulai dari mutasi rekening.'] };
@@ -638,25 +647,36 @@ export default function App() {
     {!startGuide && <section className="panel transactions-panel"><div className="panel-header"><div><h2>Transaksi terbaru</h2><p>{dashboardWallet?.name ?? `Semua dompet ${currency}`} · {cashflowPeriod === 'all' ? 'Semua periode' : reportMonth}</p></div><button className="text-link" onClick={() => openHistory(cashflowScope, cashflowPeriod)}>Semua transaksi <ArrowRight size={15} /></button></div><TransactionTable entries={allTransactions.slice(0, 5)} state={state} data={data} onEdit={editEntry} onDetail={setAmountDetail} /></section>}</>;
   // On a phone the Ringkasan reads top-down in the order things depend on each other:
   // currency, balance, scope and period, money in and out. Banners and the month field follow that order.
+  // The untouched sample is not "unsaved work"; a demo the user has added to and stored keeps its real status.
+  const sampleOnly = data.demo && ledger.revisionToken === null;
   const phoneOverview = mobileOverview && page === 'overview';
   const currencyManageButton = <button className="button secondary small currency-manage-button" onClick={openCurrencyManager}>Kelola mata uang</button>;
-  const monthControl = page !== 'wallets' && (page !== 'transactions' || historyPeriod === 'month') && (page !== 'overview' || cashflowPeriod === 'month') ? <label className="date-pill"><History size={15} /><input aria-label="Bulan laporan" type="month" value={month} onChange={e => { if (e.target.value) setMonth(e.target.value); }} /></label> : null;
+  // One control for the period: step a month, pick any month, or switch to the whole ledger.
+  const periodAll = page === 'overview' ? cashflowPeriod === 'all' : page === 'transactions' ? historyPeriod === 'all' : false;
+  const monthChoices = useMemo(() => monthOptions(clockDay, month, state.entries.map(entry => entry.date)), [clockDay, month, state.entries]);
+  function choosePeriod(value: string) {
+    const next = value === 'all' ? 'all' as const : 'month' as const;
+    if (page === 'overview') setCashflowPeriod(next);
+    if (page === 'transactions') { periodBeforeSearch.current = null; setHistoryPeriod(next); }
+    if (value !== 'all') setMonth(value);
+  }
+  const monthControl = page !== 'wallets' && page !== 'import' ? <div className="month-stepper" role="group" aria-label="Periode laporan"><button type="button" className="icon-button" aria-label="Bulan sebelumnya" disabled={periodAll} onClick={() => setMonth(priorMonth(month))}><ChevronLeft size={16} /></button><label className="date-pill"><History size={15} aria-hidden="true" /><select aria-label="Bulan laporan" value={periodAll ? 'all' : month} onChange={e => choosePeriod(e.target.value)}><option value="all">Seluruh catatan</option>{monthChoices.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button type="button" className="icon-button" aria-label="Bulan berikutnya" disabled={periodAll} onClick={() => setMonth(nextMonth(month))}><ChevronRight size={16} /></button></div> : null;
   const banners = <>
       {reminderReason && <div className="backup-reminder" role="status" data-testid="backup-reminder" data-reason={reminderReason}><span className="demo-banner-icon"><Download size={20} /></span><div className="demo-banner-copy"><strong>{reminderReason === 'never' ? 'Belum ada cadangan lengkap.' : 'Sudah lebih dari 7 hari sejak cadangan terakhir.'}</strong><span>{reminderReason === 'never' ? 'Catatan hanya tersimpan di browser ini. Unduh satu file cadangan supaya tidak hilang bila data situs terhapus.' : 'Catatan sudah berubah sejak itu. Unduh cadangan lengkap yang baru.'}</span></div><button className="button ghost small" onClick={() => void backupAll()}>Cadangkan sekarang</button><button className="button ghost small" onClick={closeReminder}>Nanti saja</button></div>}
       {data.demo ? <div className="demo-banner"><span className="demo-banner-icon"><Sparkles size={20} /></span><div className="demo-banner-copy"><strong>Kenalan dulu pakai data contoh.</strong><span className={blocked ? 'demo-banner-alert' : page === 'import' ? 'demo-banner-import' : 'demo-banner-detail'}>{blocked ? 'Penyimpanan perlu dipulihkan. Yang tampil adalah contoh sementara.' : page === 'import' ? 'Mulai dengan data sendiri sebelum mengimpor mutasi asli.' : 'Transaksi yang kamu tambahkan di sini bisa dibawa saat mulai memakai data sendiri.'}</span></div><button className="button ghost small" disabled={ledger.pending || ledger.dirty} onClick={startOwn}>Mulai pakai data sendiri <ArrowRight size={16} /></button></div> : null}
   </>;
   return <CategorySettingsContext.Provider value={categoryPreferences.settings}><div className="app-shell">
     <AppSidebar initial={avatarInitial} page={page} pendingCount={pendingCount} lastBackupText={lastBackupText} onNavigate={navigate} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} />
-    <main className="main-content"><header className="topbar"><div className="breadcrumb"><span className="breadcrumb-root">Ruang pribadi</span><ChevronRight className="breadcrumb-separator" size={13} aria-hidden="true" /><strong>{NAVIGATION.find(n => n.page === page)?.label}</strong></div><div className="topbar-tools"><ThemePicker onNotice={notify} />{ledger.dirty || storageError || blocked ? <span className="save-pill problem" title={ledger.label} aria-hidden="true"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span> : <span className="save-pill" title={ledger.label} role="status" data-testid="save-status"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span>}<span className="local-indicator"><span className="status-dot" /> Lokal & pribadi</span><button className="icon-button" aria-label="Privasi dan cadangan" onClick={() => setPrivacyOpen(true)}><ShieldCheck size={18} /></button><AccountMenu nickname={nickname} initial={avatarInitial} onNicknameChange={changeNickname} lastBackupText={lastBackupText} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} /></div></header>
+    <main className="main-content"><header className="topbar"><div className="breadcrumb"><span className="breadcrumb-root">Ruang pribadi</span><ChevronRight className="breadcrumb-separator" size={13} aria-hidden="true" /><strong>{NAVIGATION.find(n => n.page === page)?.label}</strong></div><div className="topbar-tools"><ThemePicker onNotice={notify} />{ledger.dirty || storageError || blocked ? <span className="save-pill problem" title={ledger.label} aria-hidden="true"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span> : <span className={`save-pill${sampleOnly ? ' demo' : ''}`} title={sampleOnly ? 'Data contoh: belum ada catatanmu sendiri yang disimpan' : ledger.label} role="status" data-testid="save-status"><span className="status-dot" /><span className="save-pill-text">{sampleOnly ? 'Data contoh' : ledger.label}</span></span>}<button type="button" className="local-indicator" title="Privasi dan cadangan" onClick={() => setPrivacyOpen(true)}><span className="status-dot" /> Lokal & pribadi</button><AccountMenu nickname={nickname} initial={avatarInitial} onNicknameChange={changeNickname} lastBackupText={lastBackupText} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} /></div></header>
       <div className="page-content"><div className="page-header"><div>{page === 'overview' && <div className="eyebrow">SEDIKIT DICATAT, BANYAK TERBANTU</div>}<h1 className="page-title">{titles[page][0]} {page === 'overview' && <span className="greeting-leaf">✳</span>}</h1><p className="page-subtitle">{titles[page][1]}</p></div><div className="page-actions">{page === 'wallets' ? <button className="button primary" onClick={() => openWallet('new')}><Plus size={18} /> Tambah dompet</button> : page === 'import' ? <><button className="button ghost small import-setting" onClick={openCurrencyManager}>Kelola mata uang</button><button className="button ghost small import-setting" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></> : <><button className="button secondary" onClick={() => openTx('transfer')}><ArrowLeftRight size={17} /> Pindah uang</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></>}</div></div>
       {activeState.wallets.some(wallet => undatedWallets.has(wallet.id)) && <div className="notice warning">Ada tanggal posting yang belum diketahui. Saldo aktual dan laporan periode terkait belum dapat dianggap lengkap; nilai tersebut tetap ada pada saldo seluruh catatan.</div>}
       {(ledger.dirty || storageError || blocked) && <div className={`notice save-problem ${ledger.dirty || storageError ? 'error' : ''}`} role="status" data-testid="save-status"><strong>{ledger.label}</strong>{storageError && <span>{storageError}</span>}
         {(ledger.dirty || blocked) && <><button className="button secondary small" onClick={() => backupCurrent(true)}>Unduh pekerjaan yang belum tersimpan</button>
           <button className="button secondary small" disabled={ledger.pending || !ledger.supported || !ledger.dirty} onClick={() => void retryDraft()}>Coba simpan lagi</button>
-          <button className="button secondary small" disabled={ledger.pending} onClick={() => setConfirm({ title: 'Muat catatan terbaru?', text: ledger.dirty ? 'Unduh pekerjaan lokal terlebih dahulu jika masih diperlukan. Setelah dikonfirmasi, tampilan diganti dengan data browser terbaru.' : 'Uangku akan mencoba membaca kembali catatan di penyimpanan browser.', label: 'Muat catatan terbaru', action: () => { if (ledger.reloadLatest()) { setTxModal(null); setWalletModal(null); } } })}>Muat catatan terbaru</button></>}
+          <button className="button secondary small" disabled={ledger.pending} onClick={() => setConfirm({ title: 'Muat catatan terbaru?', text: ledger.dirty ? 'Unduh pekerjaan lokal terlebih dahulu jika masih diperlukan. Setelah dikonfirmasi, tampilan diganti dengan data browser terbaru.' : 'Uangku akan mencoba membaca kembali catatan di penyimpanan browser.', label: 'Muat catatan terbaru', danger: ledger.dirty, action: () => { if (ledger.reloadLatest()) { setTxModal(null); setWalletModal(null); } } })}>Muat catatan terbaru</button></>}
       </div>}
       {!phoneOverview && banners}
-      {page !== 'import' && !isReviewQueue && <div className="currency-toolbar"><div className="currency-tabs tab-group" role="group" aria-label="Mata uang">{shownCurrencyTabs.map(c => <button key={c.code} className={`currency-tab ${currency === c.code ? 'active' : ''}`} onClick={() => setCurrency(c.code)} aria-label={`${c.code === 'TRY' ? 'TL' : c.code} ${c.label}`} aria-pressed={currency === c.code}><span className="currency-flag">{currencyFlag(c.code)}</span><span className="currency-code">{c.code === 'TRY' ? 'TL' : c.code}</span><span className="currency-label">{c.label}{!visibleCurrencies.includes(c.code) ? ' · riwayat' : ''}</span></button>)}</div>{!phoneOverview && currencyManageButton}{!phoneOverview && monthControl}</div>}
+      {page !== 'import' && !isReviewQueue && <div className="currency-toolbar"><div className="currency-tabs tab-group" role="group" aria-label="Mata uang">{shownCurrencyTabs.map(c => <button key={c.code} className={`currency-tab ${currency === c.code ? 'active' : ''}`} onClick={() => setCurrency(c.code)} aria-label={`${c.code === 'TRY' ? 'TL' : c.code} ${c.label}`} aria-pressed={currency === c.code}>{currencyFlag(c.code) && <span className="currency-flag" aria-hidden="true">{currencyFlag(c.code)}</span>}<span className="currency-code">{c.code === 'TRY' ? 'TL' : c.code}</span><span className="currency-label">{c.label}{!visibleCurrencies.includes(c.code) ? ' · riwayat' : ''}</span></button>)}</div>{!phoneOverview && currencyManageButton}{!phoneOverview && monthControl}</div>}
       {phoneOverview && balanceCard}
       {page === 'overview' && <>
         <CashflowOverview {...cashflowResult} previous={previousFlow} startGuide={startGuide} monthControl={phoneOverview ? <>{currencyManageButton}{monthControl}</> : undefined} afterCards={phoneOverview ? banners : undefined} balanceCard={!mobileOverview && balanceCard} currency={currency} month={month} period={cashflowPeriod} walletId={cashflowScope} wallets={currencyWallets} archivedWalletIds={new Set(archivedCurrencyWallets.map(wallet => wallet.id))} onPeriodChange={setCashflowPeriod} onWalletChange={setCashflowWallet} />
@@ -685,7 +705,7 @@ export default function App() {
       <MobileFooter />
       </div>
     </main>
-    <MobileNav page={page} onNavigate={navigate} />
+    <MobileNav page={page} pendingCount={pendingCount} onNavigate={navigate} onRecord={() => openTx('expense')} />
     <input ref={restoreRef} type="file" accept=".json,application/json" aria-label="File cadangan Uangku" hidden onChange={e => void restore(e.target.files?.[0])} />
     {walletModal && <WalletEditor key={walletModal === 'new' ? 'new' : walletModal.id} existing={walletModal === 'new' ? undefined : walletModal} defaultCurrency={visibleCurrencies.includes(currency) ? currency : visibleCurrencies[0]} currencies={visibleCurrencies} usage={walletModal === 'new' || !state.wallets.some(wallet => wallet.id === walletModal.id) ? undefined : walletUsage(data, walletModal.id)} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported || walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id))} disabledReason={ledger.dirty || blocked || !ledger.supported ? 'Penyimpanan belum siap. Selesaikan pemulihan atau konflik pada status penyimpanan dahulu; isian tetap dipertahankan.' : walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id)) ? 'Dompet berubah, dihapus, atau diarsipkan di tab lain. Tutup untuk membuka daftar terbaru.' : ''} onSave={saveWallet} onClose={() => { if (!mutationInFlight.current) setWalletModal(null); }} onArchive={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'archive', walletEditorBase.current!)} onManageCurrencies={walletModal === 'new' ? () => { if (mutationInFlight.current) return; resumeWalletForm.current = true; setWalletModal(null); openCurrencyManager(); } : undefined} onDelete={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'delete', walletEditorBase.current!)} />}
     {txModal && <TransactionModal data={data} state={state} onSaveTemplate={transactionTemplates.add} onRemoveTemplate={transactionTemplates.remove} onRenameTemplate={transactionTemplates.rename} templates={transactionTemplates.templates} templatesError={transactionTemplates.error} undatedWallets={undatedWallets} initialMode={txModal.type} initialWallet={txModal.walletId} existing={txModal.existing} disabled={ledger.pending} onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined} onSave={saveEntry} onClose={() => { if (!mutationInFlight.current) setTxModal(null); }} onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined} />}
@@ -695,8 +715,8 @@ export default function App() {
     {categoryAutomation && <CategoryAutomation data={categoryAutomation.data} disabled={ledger.dirty || blocked || !ledger.supported} onApply={applyAutomaticCategories} onClose={() => { if (!mutationInFlight.current) setCategoryAutomation(null); }} />}
     {cashArchiveOpen && <CashArchive data={data} onClose={() => setCashArchiveOpen(false)} />}
     {privacyOpen && <PrivacyNotice persistence={persistence} onClose={() => setPrivacyOpen(false)} />}
-    {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={() => void finishStartOwn(demoReview)} />}
-    {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua fakta bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button><button className={`button ${confirm.label.startsWith('Hapus') ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button></div></Modal>}
-    {toast && <div className="toast" role="status"><CheckCircle2 size={19} /><span>{toast}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast('')}><X size={15} /></button></div>}
+    {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={walletIds => void finishStartOwn(demoReview, undefined, false, walletIds)} />}
+    {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua fakta bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button>{confirm.extra && <button className="button secondary" disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}<button className={`button ${confirm.danger ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button></div></Modal>}
+    {toast && <div className={`toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.error ? <AlertTriangle size={19} /> : <CheckCircle2 size={19} />}<span>{toast.text}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)}><X size={15} /></button></div>}
   </div></CategorySettingsContext.Provider>;
 }

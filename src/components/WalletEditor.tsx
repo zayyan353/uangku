@@ -5,6 +5,7 @@ import { makeId, parseMoney, validateWallet, type Currency, type Wallet } from '
 import { currencyInfo, LEGACY_CURRENCY_CODES } from '../lib/currencyCatalog';
 import { formatMoneyInput } from '../lib/moneyFormatting';
 import type { WalletUsage } from '../lib/walletLifecycle';
+import { useDiscardGuard } from '../hooks/useDiscardGuard';
 
 export default function WalletEditor({ existing, defaultCurrency, usage, onSave, onClose, onDelete, onArchive, disabled = false, disabledReason = '', currencies = LEGACY_CURRENCY_CODES , onManageCurrencies }: {
   existing?: Wallet; defaultCurrency: Currency; usage?: WalletUsage; currencies?: readonly Currency[];
@@ -22,6 +23,8 @@ export default function WalletEditor({ existing, defaultCurrency, usage, onSave,
   const [busy, setBusy] = useState(false);
   const saving = useRef(false);
   const changed = !!existing && (name !== existing.name || currency !== existing.currency || kind !== existing.kind || balance !== formatMoneyInput(existing.openingBalance, existing.currency));
+  // A new wallet counts as started once it has a name or a balance other than the initial 0.
+  const guard = useDiscardGuard(existing ? changed : !!name.trim() || balance.trim() !== '0', onClose, busy);
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (saving.current || disabled) return;
@@ -37,7 +40,7 @@ export default function WalletEditor({ existing, defaultCurrency, usage, onSave,
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Dompet belum dapat disimpan.'); }
     finally { saving.current = false; setBusy(false); }
   }
-  return <Modal title={existing ? 'Atur dompet' : 'Tambah dompet'} subtitle="Satu dompet untuk satu tempat uang dan mata uang." onClose={() => { if (!saving.current && !busy) onClose(); }}>
+  return <Modal title={existing ? 'Atur dompet' : 'Tambah dompet'} subtitle="Satu dompet untuk satu tempat uang dan mata uang." onClose={guard.request}>
     <form onSubmit={submit}><fieldset disabled={disabled || busy} style={{ display: 'contents' }}><div className="modal-body form-grid">
       {disabledReason && <div className="notice warning full" role="status">{disabledReason}</div>}
       <label className="field full"><span className="field-label">Nama dompet</span><input required maxLength={60} className="field-input" value={name} onChange={event => setName(event.target.value)} placeholder="Contoh: Ziraat utama, Papara" /></label>
@@ -46,6 +49,6 @@ export default function WalletEditor({ existing, defaultCurrency, usage, onSave,
       <label className="field full"><span className="field-label">Saldo awal ({currency})</span><input required disabled={usage?.openingLocked} className="field-input amount-input" inputMode="decimal" value={balance} onChange={event => setBalance(event.target.value)} /><span className="field-help">{usage?.openingLocked ? 'Saldo awal terkunci karena sudah ada histori atau bukti sumber. Gunakan Cek saldo untuk mencocokkan saldo saat ini.' : `Saldo sebelum transaksi pertama. ${currencyInfo(currency).digits} digit desimal; gunakan koma untuk desimal. Setelah ada histori, saldo awal dikunci.`}</span></label>
       {existing && <div className="wallet-lifecycle-actions full"><p className="field-help">{usage?.canDelete ? 'Dompet kosong tanpa saldo atau referensi histori dapat dihapus.' : 'Dompet ini memiliki saldo atau histori. Arsipkan untuk menghentikan input baru; histori dan saldo tetap masuk laporan.'}</p>{changed && <p className="field-help">Simpan atau batalkan perubahan formulir sebelum mengarsipkan atau menghapus.</p>}{onArchive && <button disabled={changed} type="button" className="button secondary small" onClick={onArchive}><Archive size={16} /> Arsipkan dompet</button>}{usage?.canDelete && onDelete && <button disabled={changed} type="button" className="button danger small" onClick={onDelete}><Trash2 size={16} /> Hapus dompet</button>}</div>}
       {error && <div className="notice error full" role="alert">{error}</div>}
-    </div></fieldset><div className="modal-footer"><button disabled={busy} type="button" className="button secondary" onClick={onClose}>Batal</button><button disabled={disabled || busy} className="button primary" type="submit"><Check size={17} /> {busy ? 'Menyimpan…' : 'Simpan dompet'}</button></div></form>
+    </div></fieldset>{guard.prompt}<div className="modal-footer"><button disabled={busy} type="button" className="button secondary" onClick={guard.request}>Batal</button><button disabled={disabled || busy} className="button primary" type="submit"><Check size={17} /> {busy ? 'Menyimpan…' : 'Simpan dompet'}</button></div></form>
   </Modal>;
 }

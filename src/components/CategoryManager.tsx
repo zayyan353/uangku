@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Download, Plus, Search, Trash2, Upload } from 'lucide-react';
 import Modal from './Modal';
 import { makeId } from '../lib/finance';
@@ -8,6 +8,7 @@ import { mergeCurrentCategoryKeywordPack } from '../lib/categoryConfirmedMapping
 import { mergeCurrentAutomaticBankMappings } from '../lib/bankAutoMappings';
 import { applyBudgetInputs, budgetInputs, type BudgetMap } from '../lib/budgets';
 import { currencyInfo, type Currency } from '../lib/finance';
+import { useDiscardGuard } from '../hooks/useDiscardGuard';
 
 const UNCATEGORIZED = 'Belum dikategorikan';
 type ManagerTab = 'names' | 'budgets' | 'rules' | 'files';
@@ -64,7 +65,9 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
   }, [draft.names, ruleCategory]);
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
-  function close() { if (!busyRef.current) onClose(); }
+  const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(settings), [draft, settings]) || Object.keys(budgetDraft).length > 0;
+  const guard = useDiscardGuard(dirty, onClose, pending !== null);
+  const close = guard.request;
   function update(next: CategorySettings, notice = ''): boolean {
     if (busyRef.current) return false;
     try {
@@ -219,6 +222,7 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
         {pending && <p className="notice" role="status">{pending === 'save' ? 'Sedang menyimpan pengaturan…' : 'Sedang membaca pengaturan…'}</p>}
         {error && <div ref={errorRef} tabIndex={-1} className="notice error" role="alert">{error}</div>}
       </div>
+      {guard.prompt}
       <div className="modal-footer"><button type="button" className="button secondary" disabled={pending !== null} onClick={close}>Batal</button><button type="button" className="button primary" disabled={pending !== null} onClick={() => void save()}><Check size={16} /> Simpan pengaturan</button></div>
     </div>
   </Modal>;

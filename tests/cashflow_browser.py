@@ -185,7 +185,7 @@ class Case:
         self.assert_unchanged()
 
     def month(self, value):
-        self.page.get_by_label('Bulan laporan', exact=True).fill(value)
+        self.page.get_by_label('Bulan laporan', exact=True).select_option(value)
         self.assert_unchanged()
 
     def period(self, value):
@@ -429,7 +429,7 @@ def first_fold(case):
     check_frame()
     expect(card.locator('.balance-meta')).to_have_text('Synthetic second bank')
     expect(amount).to_have_attribute('data-amount', '19750')
-    case.month('2099-01')
+    case.month('2027-10')  # The picker offers up to a year ahead; this month has not started on the fixed clock.
     page.evaluate('window.scrollTo(0, 0)')
     check_frame()
     expect(amount).to_have_text('Belum tersedia')

@@ -371,7 +371,7 @@ def visual_case(case, theme):
     expect(dialog).to_contain_text('Total debit dompet asal')
     case.capture('read-only-transfer-detail')
     dialog.get_by_role('button', name='Tutup rincian', exact=True).click()
-    privacy = page.get_by_role('button', name='Privasi dan cadangan', exact=True)
+    privacy = page.get_by_role('button', name='Lokal & pribadi', exact=True)
     (privacy if privacy.is_visible() else backup_action(page, 'Privasi')).click()
     case.capture('privacy-modal')
     page.get_by_role('button', name='Tutup penjelasan privasi', exact=True).click()
