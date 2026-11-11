@@ -843,31 +843,44 @@ dan bulan (5.4).
 
 ### 3.7 Form transaksi (Catat / Ubah)
 
-- [ ] **3.7.1 Kepala form dan tutup**
+*Bab 3.7–3.8 dikerjakan sebagian pada 11 Nov 2026. Seluruh tes browser CI lulus lokal pada build itu (`npm test` 1.764 lulus; smoke, recovery, dan source diulang sesudah dua penyesuaian terakhir). Belum dikerjakan dan belum dicentang: 3.7.3 (mengelola template), 3.7.6 (urutan dan saran kategori), 3.8.3 (beda mata uang) dan 3.8.6 (pasangan transfer) yang belum dilihat.*
+
+- [x] **3.7.1 Kepala form dan tutup**
   *Isi:* judul per mode, subjudul; bila ada isian, menutup menanyakan "Buang
   isian transaksi?".
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Judul per mode tampil;
+    konfirmasi "Buang isian transaksi?" dicakup `recovery_browser.py` (lulus).
 
-- [ ] **3.7.2 Pilihan jenis**
+- [x] **3.7.2 Pilihan jenis**
   *Isi:* Pengeluaran, Pemasukan, Perpindahan dana, Transfer, Cek saldo. Di HP
   barisnya bisa digeser.
   - **[keputusan]** "Perpindahan dana" dan "Transfer" mudah tertukar. Beri
     keterangan satu baris di bawah tab aktif, atau ganti labelnya.
   - Nama jenis berbeda antarbagian → 5.11.4.
+  - *Dikerjakan 11 Nov 2026.* (pemilik menyetujui semua usul) Satu baris
+    keterangan tampil di bawah tab jenis yang aktif, mis. Transfer: "Pindah
+    uang antara dua dompetmu sendiri. Jumlah seluruh uangmu tidak berubah."
+    Label tabnya tidak diganti; penyeragaman nama jenis tetap di 5.11.4.
 
 - [ ] **3.7.3 Isi cepat dari template**
   *Isi:* deretan tombol template di atas form baru.
   - Template tidak bisa dihapus atau diganti namanya (hanya ada fungsi tambah).
     Buat cara mengelolanya.
 
-- [ ] **3.7.4 Dompet dan tanggal**
+- [x] **3.7.4 Dompet dan tanggal**
   *Isi:* dropdown dompet aktif dan kolom tanggal.
   - Tanggal tampil mengikuti bahasa browser ("11/08/2026") → 5.11.2.
   - **[fitur]** Tombol cepat "Kemarin".
+  - *Dikerjakan 11 Nov 2026.* **[fitur]** tombol cepat "Hari ini" dan
+    "Kemarin" di bawah kolom tanggal (tidak pada Cek saldo dan catatan impor
+    yang tanggalnya terkunci). Format tampilan tanggal tetap di 5.11.2.
 
-- [ ] **3.7.5 Nominal**
+- [x] **3.7.5 Nominal**
   *Isi:* kolom angka besar dengan kode mata uang.
   - Tidak ada pemisah ribuan saat mengetik → 5.11.3.
+  - *Diperiksa 11 Nov 2026.* Pemisah ribuan dikerjakan di 5.11.3; tidak ada
+    perubahan di sini.
 
 - [ ] **3.7.6 Kategori dan keterangan**
   *Isi:* dropdown kategori ("boleh nanti") dan kolom keterangan ("opsional").
@@ -876,53 +889,78 @@ dan bulan (5.4).
   - **[fitur]** Saran kategori dari keterangan saat mencatat manual, memakai
     aturan kata kunci yang sama dengan impor.
 
-- [ ] **3.7.7 Simpan sebagai template**
+- [x] **3.7.7 Simpan sebagai template**
   *Isi:* tombol yang membuka kolom nama template.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Tombol "Simpan sebagai
+    template" tampil pada form baru.
 
-- [ ] **3.7.8 Tombol bawah**
+- [x] **3.7.8 Tombol bawah**
   *Isi:* Batal, Simpan transaksi, Simpan & catat lagi; saat mengubah: Hapus,
   Pisahkan transfer.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Batal, Simpan transaksi,
+    dan Simpan & catat lagi tampil di desktop dan HP.
 
-- [ ] **3.7.9 Peringatan dan galat**
+- [x] **3.7.9 Peringatan dan galat**
   *Isi:* peringatan tanggal masa depan dan dompet arsip; satu kotak galat di dasar form.
   - Galat hanya muncul di dasar form. Tandai juga kolom yang salah.
+  - *Dikerjakan 11 Nov 2026.* Kotak galat tetap satu, tetapi kolom yang
+    dimaksud kini ikut ditandai merah (`aria-invalid`) untuk nominal, tanggal,
+    atau dompet. Penentuannya dari kata di pesan galat, jadi pesan yang tidak
+    menyebut kolomnya tidak menandai apa pun. Dicoba dengan nominal tidak
+    valid di desktop dan HP.
 
 ### 3.8 Form pindah uang (jenis Transfer)
 
-- [ ] **3.8.1 Dari dompet dan Ke dompet**
+- [x] **3.8.1 Dari dompet dan Ke dompet**
   *Isi:* dua dropdown; tujuan terisi otomatis.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Dua dropdown tampil dan
+    tujuan terisi otomatis.
 
-- [ ] **3.8.2 Nominal keluar dan kotak jumlah masuk**
+- [x] **3.8.2 Nominal keluar dan kotak jumlah masuk**
   *Isi:* kolom nominal dan kotak "Rp … masuk ke …".
   - Untuk transfer semata uang kotak itu hanya mengulang nominal. Tampilkan
     bila ada beda (kurs atau biaya).
+  - *Dikerjakan 11 Nov 2026.* Pada transfer semata uang, kotak "… masuk ke …"
+    kini hanya tampil bila ada biaya (atau untuk meminta dompet tujuan yang
+    berbeda). `browser_smoke.py` diperbarui: tes lama mengharapkan kotak itu
+    selalu tampil.
 
 - [ ] **3.8.3 Beda mata uang**
   *Isi:* "Isi kurs" / "Isi jumlah diterima", pratinjau hasil, centang konfirmasi kurs.
   - Belum dilihat. Tinjau saat giliran.
 
-- [ ] **3.8.4 Tanggal debit dan tanggal kredit**
+- [x] **3.8.4 Tanggal debit dan tanggal kredit**
   *Isi:* dua kolom tanggal.
   - **[keputusan]** Dua tanggal selalu tampil walau biasanya sama. Usul: satu
     tanggal sebagai bawaan + "Tanggal masuk berbeda?".
+  - *Dikerjakan 11 Nov 2026.* (pemilik menyetujui semua usul) Transfer baru
+    mulai dengan satu kolom "Tanggal" untuk kedua sisi dan tautan "Tanggal
+    masuk berbeda?" yang membuka dua kolom. Transfer yang sudah ada selalu
+    menampilkan dua kolom, karena tanggalnya bisa berbeda atau belum diketahui
+    dan tidak boleh diisi tebakan. `recovery_browser.py` diperbarui untuk
+    mengklik tautan itu.
 
-- [ ] **3.8.5 Biaya tambahan**
+- [x] **3.8.5 Biaya tambahan**
   *Isi:* kolom biaya di luar nominal transfer.
   - Belum ada temuan.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Kolom biaya tampil dengan
+    keterangannya.
 
 - [ ] **3.8.6 Pasangan transfer**
   *Isi:* saran "Mungkin pasangan transfer" dan dropdown "Catatan pasangan"
   (saat mengubah catatan impor).
   - Belum dilihat. Tinjau saat giliran.
 
-- [ ] **3.8.7 Alasan perubahan dan Pisahkan transfer**
+- [x] **3.8.7 Alasan perubahan dan Pisahkan transfer**
   *Isi:* kolom "Alasan perubahan finansial atau tanggal"; tombol Pisahkan
   transfer dengan konfirmasi.
   - Kolom alasan tampil juga pada transfer baru yang belum punya apa pun
     untuk diubah. Sembunyikan untuk catatan baru.
+  - *Dikerjakan 11 Nov 2026.* Kolom "Alasan perubahan" tidak lagi tampil pada
+    transfer baru; tetap tampil saat mengubah catatan yang sudah ada.
 
 ### 3.9 Jenis lain di form
 

@@ -1568,3 +1568,9 @@ button.transaction-open:focus-visible { outline: 2px solid var(--focus); outline
   .review-scope .review-back { margin-left: 28px; }
   .quick-category { max-width: 100%; min-height: 44px; }
 }
+
+/* 3.7–3.8: form transaksi. */
+.type-hint { margin: -4px 0 14px; line-height: 1.5; }
+.date-shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; }
+.date-shortcuts .text-link[aria-pressed="true"] { text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
+:is(.field-input, .select-input)[aria-invalid="true"] { border-color: var(--error-text, #a24c35); box-shadow: 0 0 0 1px var(--error-text, #a24c35); }

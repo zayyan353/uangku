@@ -153,13 +153,15 @@ def check_desktop(browser, tmp):
     page.get_by_role("button", name="Pindah uang", exact=True).click()
     dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
     dialog(page).get_by_label("Dompet tujuan", exact=True).select_option("bca-digital-idr")
-    # Empty amount asks for an amount, not for a different destination.
+    # With a valid destination and no fee the received amount would only repeat the amount typed,
+    # so nothing is shown; in particular an empty amount does not ask for a different destination.
     transfer_hint = dialog(page).locator(".notice.full")
-    expect(transfer_hint).to_contain_text("Isi nominal untuk melihat jumlah yang masuk ke")
-    expect(transfer_hint).not_to_contain_text("dompet tujuan yang berbeda")
+    expect(transfer_hint).to_have_count(0)
     dialog(page).get_by_label("Nominal", exact=True).fill("100000")
-    expect(transfer_hint).to_contain_text("100.000 masuk ke")
+    expect(transfer_hint).to_have_count(0)
+    # A fee makes the received amount differ from what leaves the wallet, so it is spelled out.
     dialog(page).get_by_label(re.compile("Biaya tambahan")).fill("2500")
+    expect(transfer_hint).to_contain_text("100.000 masuk ke")
     dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
     assert balance(state(page), "bca-idr") == 37_250_000
     assert balance(state(page), "bca-digital-idr") == 10_000_000
