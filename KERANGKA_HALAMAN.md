@@ -332,9 +332,13 @@ dan bulan (5.4).
     transaksi" terjangkau Tab, fokus terlihat, dan membuka Transaksi dengan
     dompet serta periode yang sama.
 
-- [ ] **1.9.2 Lima transaksi terbaru**
+- [x] **1.9.2 Lima transaksi terbaru**
   *Isi:* tabel yang sama dengan 3.4, tanpa kotak centang.
   - Perbaikannya dikerjakan di 3.4. Di sini cukup pastikan hasilnya ikut.
+  - *Diperiksa 11 Nov 2026, tanpa perubahan kode.* Lima baris tampil tanpa
+    kotak centang dan tanpa meluber di desktop dan HP, terang dan gelap.
+    Tabelnya komponen yang sama dengan 3.4 (`TransactionTable`), jadi
+    perbaikan 3.4 otomatis ikut; periksa ulang di sini sesudah 3.4 dikerjakan.
 
 - [ ] **1.9.3 Keadaan kosong**
   *Isi:* "Belum ada transaksi di sini…".
