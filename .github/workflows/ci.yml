@@ -77,6 +77,7 @@ jobs:
           python tests/cashflow_browser.py --output "$RUNNER_TEMP/uangku-browser-cashflow"
           python tests/source_browser.py --output "$RUNNER_TEMP/uangku-browser-source"
           python tests/backfill_browser.py --output "$RUNNER_TEMP/uangku-browser-backfill"
+          python tests/kerangka_browser.py --output "$RUNNER_TEMP/uangku-browser-kerangka"
           python tests/performance_browser.py --output "$RUNNER_TEMP/uangku-browser-performance" --median-budget-ms 7000 --frame-budget-ms 350
       - name: Simpan bukti pengujian browser
         if: always()
@@ -100,5 +101,6 @@ jobs:
             ${{ runner.temp }}/uangku-browser-cashflow
             ${{ runner.temp }}/uangku-browser-source
             ${{ runner.temp }}/uangku-browser-backfill
+            ${{ runner.temp }}/uangku-browser-kerangka
             ${{ runner.temp }}/uangku-browser-performance
             ${{ runner.temp }}/preview.log

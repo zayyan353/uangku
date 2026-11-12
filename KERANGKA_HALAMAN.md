@@ -31,12 +31,12 @@ untuk kode sesudahnya.
     frame 350 ms (p95 tetap 8.000 ms). Di CI, push sampai 5.9 lulus dengan
     batas lama.
 
+Delapan butir yang perilaku barunya dulu hanya dicoba manual (1.1.1, 1.6.2,
+1.7.2, 1.7.3, 1.10.2, 2.3.3, 3.4.7, 3.6.3) sejak 12 Nov 2026 diuji
+`kerangka_browser.py` di CI, desktop dan HP; rinciannya di catatan tiap butir.
+
 Yang masih terbuka walau butirnya sudah dicentang:
 
-- Perilaku baru tanpa tes browser sendiri: 1.1.1 (kolom nama panggilan; ada
-  tes unit), 1.6.2 (tautan "+N dompet lainnya" dan klik baris), 1.7.2 (klik
-  nama kategori), 1.7.3 (tombol "+N kategori lainnya"), 1.10.2 (panduan),
-  2.3.3, 3.4.7, 3.6.3.
 - Beberapa butir masih bertanda "Belum dilihat" di catatannya (mis. dompet
   arsip, transfer beda mata uang); usulnya dikerjakan dari kode. Firefox dan
   Safari belum dicoba.
@@ -128,6 +128,9 @@ dan bulan (5.4).
     `nickname.test.ts` (`npm test` 1.759 lulus); `theme_browser.py` 21/21,
     `category_browser.py` 25/25, smoke 39 skenario, ux lulus. Kolom ini belum
     punya tes browser sendiri.
+  - *Tes browser 12 Nov 2026:* `kerangka_browser.py` (desktop dan HP): kolom
+    nama panggilan: sapaan dan huruf avatar ikut berubah, tersimpan terpisah
+    dari catatan, bertahan setelah muat ulang, dan hilang saat dikosongkan.
 
 - [x] **1.1.2 Tombol Pindah uang dan Catat transaksi**
   *Isi:* membuka form 3.8 dan 3.7; dompet awal mengikuti cakupan di 1.2.1. Tanpa
@@ -318,6 +321,9 @@ dan bulan (5.4).
     keyboard di desktop dan HP. Tes: `wallet_browser.py` 19/19,
     `cashflow_browser.py` 19/19, smoke 39 skenario; perilaku baru ini belum
     punya tes otomatis.
+  - *Tes browser 12 Nov 2026:* `kerangka_browser.py` (desktop dan HP): empat
+    baris dompet, tautan "+2 dompet lainnya" ke Dompet, dan klik baris (dengan
+    keyboard) ke Transaksi dompet itu, semua periode.
 
 - [x] **1.6.3 Keadaan kosong dan tombol Tambah dompet**
   *Isi:* "Belum ada dompet aktif IDR." + tautan; tombol putus-putus di dasar panel.
@@ -365,6 +371,8 @@ dan bulan (5.4).
     Transaksi dengan dompet dan periode yang sama serta pencarian nama kategori
     itu. Dicoba dengan keyboard di desktop dan HP, terang dan gelap; belum
     punya tes otomatis.
+  - *Tes browser 12 Nov 2026:* `kerangka_browser.py` (desktop dan HP): klik nama
+    kategori membuka Transaksi dengan filter kategori itu.
 
 - [x] **1.7.3 Kaki panel**
   *Isi:* "+N kategori lainnya", petunjuk anggaran, catatan "Hanya kategori
@@ -376,6 +384,9 @@ dan bulan (5.4).
     desktop dan HP, terang dan gelap. Tes: `category_browser.py` 25/25,
     `theme_browser.py` 21/21; tombol baru belum punya tes otomatis. Petunjuk
     anggaran, catatan kaki, dan keadaan kosong dilihat dan tidak diubah.
+  - *Tes browser 12 Nov 2026:* `kerangka_browser.py` (desktop dan HP): "+2
+    kategori lainnya" membuka semua kategori, bertahan saat pindah halaman,
+    dan menutup lagi.
 
 ### 1.8 Pengingat rapikan
 
@@ -458,6 +469,9 @@ dan bulan (5.4).
     bank_description dijalankan pada build sebelum tombol langkah 2 diganti
     nama dari "Catat transaksi" (nama itu bentrok dengan tombol kepala halaman
     dan menggagalkan smoke). Panduan ini belum punya tes otomatis sendiri.
+  - *Tes browser 12 Nov 2026:* `kerangka_browser.py` (desktop dan HP): panel
+    "Mulai dari sini" menggantikan tiga panel hitungan, dan ketiga tombolnya
+    menuju tempat yang benar.
 
 ---
 
@@ -540,6 +554,8 @@ Bagian bersama yang ikut tampil: bar atas (5.2), banner (5.3), tab mata uang (5.
   - *Dikerjakan 11 Nov 2026.* Kartu aktif mendapat tautan "Riwayat" yang
     membuka Transaksi untuk dompet itu, semua periode. Dicoba dengan keyboard
     di desktop dan HP; belum punya tes otomatis.
+  - *Tes browser 12 Nov 2026:* `kerangka_browser.py` (desktop dan HP): tautan
+    "Riwayat" di kartu dompet membuka Transaksi dompet itu, semua periode.
 
 - [x] **2.3.4 Kartu "Tambah dompet"**
   *Isi:* kartu putus-putus di akhir daftar.
@@ -808,6 +824,8 @@ dan bulan (5.4).
   - *Dikerjakan 11 Nov 2026 dari kode, belum dicoba.* Ganti halaman kini
     menggulir ke awal daftar. Data contoh hanya 6 baris, jadi perilaku ini
     belum dilihat dengan lebih dari 50 baris dan belum punya tes.
+  - *Tes browser 12 Nov 2026:* `kerangka_browser.py` (desktop dan HP): dengan
+    117 baris, ganti ke halaman 2 menggulir awal daftar ke 84px dari atas.
 
 - [x] **3.4.8 Tampilan HP**
   *Isi:* kolom Dompet dan Tanggal pindah ke baris kecil di bawah judul; judul satu baris.
@@ -880,6 +898,9 @@ dan bulan (5.4).
     kata kunci belum ditampilkan di dropdown itu. Antrean yang habis
     menampilkan "Semua sudah rapi" dengan tombol kembali. Dicoba di desktop
     dan HP, terang dan gelap; belum punya tes otomatis.
+  - *Tes browser 12 Nov 2026:* `kerangka_browser.py` (desktop dan HP): dropdown
+    kategori di antrean menyimpan kategorinya, lalu "Semua sudah rapi" dan
+    tombol kembali.
 
 ### 3.7 Form transaksi (Catat / Ubah)
 
