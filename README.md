@@ -78,10 +78,11 @@ jadi PDF yang hanya berisi uang masuk, atau yang halamannya hilang, ditolak.
 Jenis transaksi diambil dari kolom Rincian Transaksi:
 
 - *Tambah/Tarik Uang Kantong* (pindah uang antar Kantong), *Pemindahan dari Akun
-  Lama*, *Transfer Masuk/Keluar*, dan *Isi Saldo Dompet Digital* menjadi
-  perpindahan dana, sama seperti pokok transfer Ziraat. Transfer dari/ke nama
-  pemilik rekening (nama di bagian atas PDF) ditandai sebagai rekening milikmu
-  sendiri; transfer ke orang lain bisa diubah menjadi pengeluaran di pratinjau.
+  Lama*, *Transfer Masuk*, *Isi Saldo Dompet Digital*, dan *Transfer Keluar* ke
+  rekening atas nama pemilik (nama di bagian atas PDF) menjadi perpindahan dana.
+- *Transfer Keluar* ke nama orang lain menjadi pengeluaran. Bila bank
+  menyamarkan nama penerima (mis. `ZXXXXXXXXX3`) dan sisa hurufnya tidak cocok
+  dengan nama pemilik, jenisnya **Perlu dicek**.
 - *Pembayaran dengan Jago Pay* dan *Transaksi POS* (kartu) menjadi pengeluaran.
   GO-FOOD masuk Makan & minum; merchant lain mengikuti aturan kategori.
 - *Transaksi POS* yang masuk dengan ID dan nominal sama dengan pembelian di file

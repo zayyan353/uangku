@@ -159,9 +159,18 @@ function collectRows(pages: PdfTextRun[][]): { rows: (RawRow & { columns: Column
 
 type Operation = Pick<ImportRow, 'classification' | 'category' | 'warning'>;
 
-function ownName(owner: string, party: string): boolean {
-  const name = folded(owner), other = folded(party).replace(/^(?:dana|go pay|gopay|ovo|shopeepay|linkaja)\s+/, '');
-  return other.split(' ').length >= 2 && other.length >= 8 && name.startsWith(other);
+/** Whose account the counterparty is, judged only from the name the bank prints.
+ * The bank cuts long names and masks some (e.g. "ZAYXXX SYA"); a masked name
+ * counts as the owner's only when every visible part starts the owner's name
+ * parts in order, with at least three visible letters each. */
+function counterparty(owner: string, party: string): 'own' | 'other' | 'masked' {
+  const name = folded(owner), other = folded(party).replace(/^(?:dana|danatopup|go pay|gopay|ovo|shopeepay|linkaja)\s+/, '');
+  const tokens = other.split(' ').filter(Boolean), names = name.split(' ').filter(Boolean);
+  const masked = tokens.some(token => /x{3,}/.test(token));
+  if (!masked) return name && tokens.length >= 2 && other.length >= 8 && name.startsWith(other) ? 'own' : 'other';
+  const visible = tokens.map(token => token.replace(/x{3,}.*$/, ''));
+  const own = tokens.length >= 2 && tokens.length <= names.length && visible.every((part, index) => part.length >= 3 && names[index].startsWith(part));
+  return own ? 'own' : 'masked';
 }
 
 function classify(row: JagoRow, amount: number, owner: string, earlier: readonly { row: JagoRow; amount: number }[]): Operation {
@@ -174,9 +183,15 @@ function classify(row: JagoRow, amount: number, owner: string, earlier: readonly
   }
   if (operation === 'transfer masuk' || operation === 'transfer keluar') {
     if ((operation === 'transfer masuk') !== amount > 0) return wrongDirection;
-    return movement(owner && ownName(owner, row.party)
-      ? `Transfer ${amount > 0 ? 'dari' : 'ke'} rekening atas namamu sendiri. Dicatat sebagai perpindahan dana, bukan pemasukan atau pengeluaran.`
-      : 'Transfer bank dikenali. Sesuai aturan transfer, hanya perubahan saldo rekening ini dicatat. Ubah jenisnya bila ini pembayaran atau penghasilan.');
+    const whose = counterparty(owner, row.party);
+    if (whose === 'own') return movement(`Transfer ${amount > 0 ? 'dari' : 'ke'} rekening atas namamu sendiri. Dicatat sebagai perpindahan dana, bukan pemasukan atau pengeluaran.`);
+    if (whose === 'masked' && amount < 0) {
+      return { classification: 'unreviewed', category: UNCATEGORIZED,
+        warning: 'Nama penerima disamarkan bank, jadi belum pasti rekening milikmu atau orang lain. Saldo dicatat; pilih pengeluaran atau perpindahan dana.' };
+    }
+    if (amount < 0) return { classification: 'expense', category: UNCATEGORIZED,
+      warning: 'Transfer ke rekening atas nama orang lain dicatat sebagai pengeluaran. Ubah ke perpindahan dana bila itu rekeningmu sendiri.' };
+    return movement('Transfer masuk dari nama lain. Sesuai aturan transfer, hanya perubahan saldo rekening ini dicatat. Ubah ke pemasukan bila ini penghasilan.');
   }
   if (operation === 'isi saldo dompet digital') {
     return amount < 0 ? movement('Isi saldo e-wallet dikenali. Dicatat sebagai perpindahan dana ke e-wallet, bukan pengeluaran.') : wrongDirection;
@@ -271,7 +286,7 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
       if (parseStatementMoney(latest, wallet.currency, ',') !== newest.balance) warnings.push('Saldo terbaru di bagian atas PDF berbeda dengan saldo transaksi terakhir. Mungkin ada transaksi sesudah periode yang dipilih.');
     } catch { /* the header figure is informational only */ }
   }
-  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Pindah uang antar Kantong, transfer bank, dan isi saldo e-wallet dicatat sebagai perpindahan dana; pembayaran Jago Pay dan transaksi kartu sebagai pengeluaran; bonus sebagai Cashback.');
+  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Pindah uang antar Kantong, transfer masuk, transfer ke rekening atas namamu, dan isi saldo e-wallet dicatat sebagai perpindahan dana; transfer ke orang lain, pembayaran Jago Pay, dan transaksi kartu sebagai pengeluaran; bonus sebagai Cashback.');
   return { rows, sourceOrder: order, currency: wallet.currency, openingBalance, closingBalance: newest.balance, warnings,
     period: { start: oldest.date, end: newest.date } };
 }

@@ -61,15 +61,34 @@ describe('Bank Jago PDF statement', () => {
   it('decides types only from the bank operation wording and leaves the rest for review', () => {
     const rows = parseJagoStatement(statement(), wallet(), []).rows;
     expect(rows.map(row => [row.classification, row.category])).toEqual([
-      ['movement', 'Transfer'], ['movement', 'Transfer'], ['movement', 'Transfer'], ['movement', 'Transfer'],
+      ['movement', 'Transfer'], ['movement', 'Transfer'], ['movement', 'Transfer'], ['expense', 'Belum dikategorikan'],
       ['expense', 'Makan & minum'], ['expense', 'Belum dikategorikan'], ['expense', 'Belum dikategorikan'],
       ['income', 'Pengembalian dana'], ['movement', 'Transfer'], ['income', 'Cashback'],
       ['unreviewed', 'Belum dikategorikan'], ['movement', 'Transfer'],
     ]);
     expect(rows[1].warning).toContain('atas namamu sendiri');
-    expect(rows[3].warning).toContain('Ubah jenisnya bila ini pembayaran');
+    expect(rows[3].warning).toContain('atas nama orang lain dicatat sebagai pengeluaran');
+    expect(rows[11].warning).toContain('Ubah ke pemasukan bila ini penghasilan');
     expect(rows[8].warning).toContain('e-wallet');
     expect(rows[10].warning).toContain('belum dikenali');
+  });
+
+  it('tells own accounts from other people by the printed name, including names the bank masks', () => {
+    const transfer = (party: string, amount: string, balance: string, id: string): SyntheticJagoRow =>
+      ({ date: '01 Jan 2026', time: '08.00', party: [party], title: ['Transfer Keluar'], id: [id], amount, balance });
+    const rows = [
+      { date: '01 Jan 2026', time: '07.00', party: ['BUDI CONTOH SANTOSO'], title: ['Transfer Masuk'], id: ['0'], amount: '+100.000,00', balance: '100.000,00' },
+      transfer('budi Contoh', '-1.000', '99.000,00', '1'),
+      transfer('DANA-BUDI CONTOH SANTOSO', '-1.000', '98.000,00', '2'),
+      transfer('DANATOPUP BUDXXX CON', '-1.000', '97.000,00', '3'),
+      transfer('TOKO ZXXXXXXXXX3', '-1.000', '96.000,00', '4'),
+      transfer('BXXXXX CXXXXX', '-1.000', '95.000,00', '5'),
+      transfer('BUDI LAIN', '-1.000', '94.000,00', '6'),
+      transfer('BUDI', '-1.000', '93.000,00', '7'),
+    ];
+    const parsed = parseJagoStatement(statement(rows), wallet(), []).rows;
+    expect(parsed.map(row => row.classification)).toEqual(['movement', 'movement', 'movement', 'movement', 'unreviewed', 'unreviewed', 'expense', 'expense']);
+    expect(parsed[4].warning).toContain('disamarkan bank');
   });
 
   it('does not confirm a type when the amount runs against the operation', () => {

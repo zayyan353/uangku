@@ -19,13 +19,14 @@ ROWS = [
     ('01 Jan 2026', '08.00', ['Pemindahan dari Akun', 'Lama'], [], ['Pemindahan dari Akun', 'Lama'], ['11111111'], [], '+1.000,50', '1.000,50'),
     ('02 Jan 2026', '09.15', ['BUDI CONTOH SANT'], ['ALTOPay 9990001112'], ['Transfer Masuk'], ['900000000001_20260102_', '9990001112'], ['BUDI CONTOH SANT'], '+500.000,00', '501.000,50'),
     ('02 Jan 2026', '09.20', ['Budi Contoh'], ['Pindah uang antar Kantong'], ['Tambah Uang Kantong'], ['22222222'], [], '-100.000', '401.000,50'),
-    ('04 Feb 2026', '12.30', ['GoPay'], ['0320260204000001AbCdEf', 'GhID-1'], ['Pembayaran dengan', 'Jago Pay'], ['0320260204000001AbCd', 'EfGhID-1'], ['004 - GO-FOODWarung Contoh'], '-60.000', '341.000,50'),
-    ('05 Feb 2026', '06.48', ['TOKO.CONTOH'], ['•••• 0000'], ['Transaksi POS'], ['600000000001'], [], '-20.864,10', '320.136,40'),
-    ('05 Feb 2026', '07.02', ['TOKO.CONTOH'], ['Jago'], ['Transaksi POS'], ['600000000001'], [], '+20.864,10', '341.000,50'),
-    ('07 Mar 2026', '22.20', ['Bonus Jago Debit Card'], [], ['Bonus'], ['260307-ABCD-EFGH12'], ['Promo Debit Card'], '+10.000,00', '351.000,50'),
-    ('08 Mar 2026', '07.00', ['Layanan Contoh'], [], ['Biaya Layanan Contoh'], ['260308-ZZZZ-000001'], [], '-1.000', '350.000,50'),
+    ('03 Jan 2026', '10.05', ['PENJUAL CONTOH'], ['BCA 0000111122'], ['Transfer Keluar'], ['26003T000001'], ['bayar kursus'], '-1.000', '400.000,50'),
+    ('04 Feb 2026', '12.30', ['GoPay'], ['0320260204000001AbCdEf', 'GhID-1'], ['Pembayaran dengan', 'Jago Pay'], ['0320260204000001AbCd', 'EfGhID-1'], ['004 - GO-FOODWarung Contoh'], '-60.000', '340.000,50'),
+    ('05 Feb 2026', '06.48', ['TOKO.CONTOH'], ['•••• 0000'], ['Transaksi POS'], ['600000000001'], [], '-20.864,10', '319.136,40'),
+    ('05 Feb 2026', '07.02', ['TOKO.CONTOH'], ['Jago'], ['Transaksi POS'], ['600000000001'], [], '+20.864,10', '340.000,50'),
+    ('07 Mar 2026', '22.20', ['Bonus Jago Debit Card'], [], ['Bonus'], ['260307-ABCD-EFGH12'], ['Promo Debit Card'], '+10.000,00', '350.000,50'),
+    ('08 Mar 2026', '07.00', ['Layanan Contoh'], [], ['Biaya Layanan Contoh'], ['260308-ZZZZ-000001'], [], '-1.000', '349.000,50'),
 ]
-EXPECTED_TYPES = ['movement', 'movement', 'movement', 'expense', 'expense', 'income', 'income', 'unreviewed']
+EXPECTED_TYPES = ['movement', 'movement', 'movement', 'expense', 'expense', 'expense', 'income', 'income', 'unreviewed']
 
 
 def pdf(pages):
@@ -169,7 +170,7 @@ def import_and_save(browser, out, mobile):
         types = [e['type'] for e in sorted(saved['state']['entries'], key=lambda e: next(i for i, f in enumerate(saved['metadata']['facts']) if f['fingerprint'] == e['sourceKey']))]
         assert types == EXPECTED_TYPES, types
         assert all(e['walletId'] == 'jago' for e in entries)
-        assert saldo(saved, 'jago') == 35_000_050, saldo(saved, 'jago')
+        assert saldo(saved, 'jago') == 34_900_050, saldo(saved, 'jago')
         facts = saved['metadata']['facts']
         assert len(facts) == len(ROWS) and all(f['fingerprintVersion'] == 'generic-v1' and f['currency'] == 'IDR' for f in facts)
         assert any(f['reference'] == '900000000001_20260102_9990001112' for f in facts)
