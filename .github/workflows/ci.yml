@@ -133,9 +133,13 @@ jobs:
           python-version: '3.12'
       - name: Pasang browser pengujian
         # Firefox dan WebKit butuh pustaka sistemnya; tanpa itu tes tidak bisa jalan sama sekali.
+        # Inter adalah font pertama aplikasi. Tanpa itu runner memakai DejaVu Sans yang jauh lebih lebar dari
+        # font sistem HP (SF, Roboto), sehingga batas layar pertama 320x568 mengukur font yang salah.
         run: |
           python -m pip install playwright==1.64.1
           python -m playwright install --with-deps ${{ matrix.browser }}
+          sudo apt-get install -y --no-install-recommends fonts-inter
+          fc-match Inter
       - name: Uji build produksi dengan data sintetis
         env:
           UANGKU_TEST_URL: http://127.0.0.1:4173
