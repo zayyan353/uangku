@@ -9,8 +9,8 @@ import { extractPdfText, type PdfTextRun } from './pdfText';
  * balance. Rows are kept only when the balance chain proves none is missing.
  *
  * Rows are stored as general-format bank facts (generic-v1), so saved data and
- * backups keep their existing format. The operation types below are decided
- * here, from the bank's own wording, and every one can be changed in preview.
+ * backups keep their existing format. Money in is income and money out is
+ * expense; every row can still be changed in preview.
  */
 
 const UNCATEGORIZED = 'Belum dikategorikan';
@@ -159,70 +159,26 @@ function collectRows(pages: PdfTextRun[][]): { rows: (RawRow & { columns: Column
 
 type Operation = Pick<ImportRow, 'classification' | 'category' | 'warning'>;
 
-/** Whose account the counterparty is, judged only from the name the bank prints.
- * The bank cuts long names and masks some (e.g. "ZAYXXX SYA"); a masked name
- * counts as the owner's only when every visible part starts the owner's name
- * parts in order, with at least three visible letters each. */
-function counterparty(owner: string, party: string): 'own' | 'other' | 'masked' {
-  const name = folded(owner), other = folded(party).replace(/^(?:dana|danatopup|go pay|gopay|ovo|shopeepay|linkaja)\s+/, '');
-  const tokens = other.split(' ').filter(Boolean), names = name.split(' ').filter(Boolean);
-  const masked = tokens.some(token => /x{3,}/.test(token));
-  if (!masked) return name && tokens.length >= 2 && other.length >= 8 && name.startsWith(other) ? 'own' : 'other';
-  const visible = tokens.map(token => token.replace(/x{3,}.*$/, ''));
-  const own = tokens.length >= 2 && tokens.length <= names.length && visible.every((part, index) => part.length >= 3 && names[index].startsWith(part));
-  return own ? 'own' : 'masked';
-}
-
-/** Senders that hold the user's own balance as often as they pay income. */
-const PLATFORM = / (?:shopee ?pay|shopee|tokopedia|go ?pay|gojek|dana|ovo|linkaja|bukalapak|lazada|blibli|flip|bibit|ajaib|jenius|seabank) /;
-
-function classify(row: JagoRow, amount: number, owner: string, earlier: readonly { row: JagoRow; amount: number }[]): Operation {
+/** Owner's rule (12 Nov 2026): money into this account is income and money out
+ * is expense, whatever the operation, including moves between own Kantong and
+ * own accounts. The bank wording only picks a category where it says which. */
+function classify(row: JagoRow, amount: number, earlier: readonly { row: JagoRow; amount: number }[]): Operation {
   const operation = folded(row.title);
-  const movement = (warning: string): Operation => ({ classification: 'movement', category: 'Transfer', warning });
-  const wrongDirection: Operation = { classification: 'unreviewed', category: UNCATEGORIZED,
-    warning: 'Arah nominal tidak sesuai dengan jenis transaksi dari bank. Saldo dicatat, jenisnya perlu ditinjau.' };
-  if (operation === 'tambah uang kantong' || operation === 'tarik uang kantong' || operation === 'pemindahan dari akun lama') {
-    return movement('Pindah uang antar Kantong Jago dikenali. Hanya perubahan saldo kantong ini dicatat; bukan pemasukan atau pengeluaran.');
+  const classification = amount > 0 ? 'income' : 'expense';
+  let category = UNCATEGORIZED;
+  let warning: string | undefined;
+  if (['tambah uang kantong', 'tarik uang kantong', 'pemindahan dari akun lama', 'transfer masuk', 'transfer keluar', 'isi saldo dompet digital'].includes(operation)) {
+    category = 'Transfer';
+  } else if (operation === 'pembayaran dengan jago pay' && amount < 0 && /\bgo ?food/.test(folded(row.note))) {
+    category = 'Makan & minum';
+  } else if (operation === 'transaksi pos' && amount > 0 && row.reference
+    && earlier.some(item => folded(item.row.title) === 'transaksi pos' && item.row.reference === row.reference && item.amount === -amount)) {
+    category = 'Pengembalian dana';
+    warning = 'Pembayaran kartu dengan ID dan nominal yang sama dikembalikan.';
+  } else if (operation === 'bonus' && amount > 0) {
+    category = 'Cashback';
   }
-  if (operation === 'transfer masuk' || operation === 'transfer keluar') {
-    if ((operation === 'transfer masuk') !== amount > 0) return wrongDirection;
-    const whose = counterparty(owner, row.party);
-    if (whose === 'own') return movement(`Transfer ${amount > 0 ? 'dari' : 'ke'} rekening atas namamu sendiri. Dicatat sebagai perpindahan dana, bukan pemasukan atau pengeluaran.`);
-    if (whose === 'masked' && amount < 0) {
-      return { classification: 'unreviewed', category: UNCATEGORIZED,
-        warning: 'Nama penerima disamarkan bank, jadi belum pasti rekening milikmu atau orang lain. Saldo dicatat; pilih pengeluaran atau perpindahan dana.' };
-    }
-    if (amount < 0) return { classification: 'expense', category: UNCATEGORIZED,
-      warning: 'Transfer ke rekening atas nama orang lain dicatat sebagai pengeluaran. Ubah ke perpindahan dana bila itu rekeningmu sendiri.' };
-    if (whose === 'masked') {
-      return { classification: 'unreviewed', category: UNCATEGORIZED,
-        warning: 'Nama pengirim disamarkan bank, jadi belum pasti dari rekening milikmu atau orang lain. Saldo dicatat; pilih pemasukan atau perpindahan dana.' };
-    }
-    if (PLATFORM.test(` ${folded(row.party)} `)) {
-      return movement('Uang masuk dari e-wallet atau marketplace dicatat sebagai perpindahan dana (penarikan saldomu sendiri). Ubah ke pemasukan bila ini refund atau hasil penjualan.');
-    }
-    return { classification: 'income', category: UNCATEGORIZED,
-      warning: 'Transfer dari rekening atas nama orang lain dicatat sebagai pemasukan. Ubah ke perpindahan dana bila itu rekeningmu sendiri.' };
-  }
-  if (operation === 'isi saldo dompet digital') {
-    return amount < 0 ? movement('Isi saldo e-wallet dikenali. Dicatat sebagai perpindahan dana ke e-wallet, bukan pengeluaran.') : wrongDirection;
-  }
-  if (operation === 'pembayaran dengan jago pay') {
-    if (amount > 0) return wrongDirection;
-    return { classification: 'expense', category: /\bgo ?food/.test(folded(row.note)) ? 'Makan & minum' : UNCATEGORIZED };
-  }
-  if (operation === 'transaksi pos') {
-    if (amount < 0) return { classification: 'expense', category: UNCATEGORIZED };
-    const purchase = row.reference && earlier.some(item => folded(item.row.title) === 'transaksi pos' && item.row.reference === row.reference && item.amount === -amount);
-    return purchase
-      ? { classification: 'income', category: 'Pengembalian dana', warning: 'Pembayaran kartu dengan ID dan nominal yang sama dikembalikan. Dicatat sebagai Pengembalian dana, bukan penghasilan baru.' }
-      : { classification: 'unreviewed', category: UNCATEGORIZED, warning: 'Uang masuk dari transaksi kartu tanpa pembelian yang cocok di file ini. Jenisnya perlu ditinjau.' };
-  }
-  if (operation === 'bonus') {
-    return amount > 0 ? { classification: 'income', category: 'Cashback', warning: 'Bonus atau promo dari Bank Jago dicatat sebagai pemasukan Cashback.' } : wrongDirection;
-  }
-  return { classification: 'unreviewed', category: UNCATEGORIZED,
-    warning: amount > 0 ? 'Uang masuk belum tentu pemasukan. Saldo dicatat, jenisnya perlu ditinjau.' : 'Jenis transaksi Jago ini belum dikenali. Saldo dicatat, jenisnya perlu ditinjau.' };
+  return { classification, category, warning };
 }
 
 function describe(row: JagoRow): string {
@@ -243,7 +199,6 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
     ?? headerText.map(text => /^([A-Z]{3}) [\d.,]+$/.exec(text)?.[1]).find(Boolean);
   if (!currency) fail('Mata uang di PDF tidak ditemukan. Unduh ulang PDF dari aplikasi Jago.');
   if (currency !== wallet.currency) fail(`PDF ini memakai ${currency}. Pilih dompet dengan mata uang ${currency}.`);
-  const owner = [...header].filter(run => run.y < 780).sort((a, b) => b.size - a.size || b.y - a.y)[0]?.text ?? '';
   if (!rawRows.length) fail('Tidak ada transaksi di PDF ini. Pilih periode yang berisi transaksi.');
   if (rawRows.length > MAX_ROWS) fail('Terlalu banyak transaksi. Unduh periode yang lebih singkat.');
 
@@ -265,7 +220,7 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
     if (seen.has(sourceKey)) fail(`Dua transaksi identik pada ${where}. Unduh ulang PDF dari aplikasi Jago.`);
     seen.add(sourceKey);
     const duplicate = known.has(sourceKey);
-    const operation = classify(row, amount, owner, parsed);
+    const operation = classify(row, amount, parsed);
     parsed.push({ row, amount });
     return { id: `${sourceKey}:${index}`, date: row.date, description, originalDescription: description, amount, balance,
       reference, originalReference: reference, sourceKey, fingerprintVersion: 'generic-v1', ...operation,
@@ -288,16 +243,14 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
 
   const warnings: string[] = [];
   const duplicateCount = rows.filter(row => row.duplicate).length;
-  const pendingCount = rows.filter(row => row.classification === 'unreviewed' && !row.duplicate).length;
   if (duplicateCount) warnings.push(`${duplicateCount} transaksi kemungkinan sudah ada dan tidak dipilih.`);
-  if (pendingCount) warnings.push(`${pendingCount} transaksi disimpan sebagai Perlu ditinjau agar saldo tetap benar tanpa menebak pemasukan atau transfer.`);
   const latest = headerText.map(text => /^[A-Z]{3} ([\d.,]+)$/.exec(text)?.[1]).find(Boolean);
   if (latest) {
     try {
       if (parseStatementMoney(latest, wallet.currency, ',') !== newest.balance) warnings.push('Saldo terbaru di bagian atas PDF berbeda dengan saldo transaksi terakhir. Mungkin ada transaksi sesudah periode yang dipilih.');
     } catch { /* the header figure is informational only */ }
   }
-  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Pindah uang antar Kantong, transfer dari/ke rekening atas namamu, uang masuk dari e-wallet/marketplace, dan isi saldo e-wallet dicatat sebagai perpindahan dana; transfer dari orang lain sebagai pemasukan; transfer ke orang lain, pembayaran Jago Pay, dan transaksi kartu sebagai pengeluaran; bonus sebagai Cashback.');
+  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Semua uang masuk dicatat sebagai pemasukan dan semua uang keluar sebagai pengeluaran, termasuk pindah uang antar Kantong dan transfer antar rekeningmu sendiri.');
   return { rows, sourceOrder: order, currency: wallet.currency, openingBalance, closingBalance: newest.balance, warnings,
     period: { start: oldest.date, end: newest.date } };
 }

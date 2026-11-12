@@ -75,23 +75,13 @@ per file, ke dompet IDR. PDF dibaca di browser; teksnya harus asli dari aplikasi
 (bukan hasil pindai atau foto) dan tidak terkunci kata sandi. Unduh tanpa filter:
 saldo setiap baris harus sama dengan saldo baris sebelumnya ditambah jumlahnya,
 jadi PDF yang hanya berisi uang masuk, atau yang halamannya hilang, ditolak.
-Jenis transaksi diambil dari kolom Rincian Transaksi:
-
-- *Tambah/Tarik Uang Kantong* (pindah uang antar Kantong), *Pemindahan dari Akun
-  Lama*, *Isi Saldo Dompet Digital*, *Transfer Masuk/Keluar* dari/ke rekening
-  atas nama pemilik (nama di bagian atas PDF), dan *Transfer Masuk* dari e-wallet
-  atau marketplace (mis. ShopeePay, Tokopedia; dianggap penarikan saldo sendiri)
-  menjadi perpindahan dana.
-- *Transfer Keluar* ke nama orang lain menjadi pengeluaran, dan *Transfer Masuk*
-  dari nama orang lain menjadi pemasukan.
-- Nama yang disamarkan bank (mis. `ZXXXXXXXXX3`) yang sisa hurufnya tidak cocok
-  dengan nama pemilik tetap **Perlu dicek**.
-- *Pembayaran dengan Jago Pay* dan *Transaksi POS* (kartu) menjadi pengeluaran.
-  GO-FOOD masuk Makan & minum; merchant lain mengikuti aturan kategori.
-- *Transaksi POS* yang masuk dengan ID dan nominal sama dengan pembelian di file
-  yang sama menjadi pemasukan Pengembalian dana. *Bonus* menjadi Cashback.
-- Jenis lain, atau arah nominal yang bertentangan dengan jenisnya, tetap
-  **Perlu dicek**.
+Semua uang masuk ke Kantong itu dicatat sebagai **pemasukan** dan semua uang
+keluar sebagai **pengeluaran**, termasuk pindah uang antar Kantong dan transfer
+antar rekeningmu sendiri (keputusan pemilik). Kategori diisi bila bank
+menyebutnya: transfer, pindah Kantong, dan isi saldo e-wallet → Transfer;
+GO-FOOD → Makan & minum; transaksi kartu yang masuk kembali dengan ID dan
+nominal sama → Pengembalian dana; bonus → Cashback. Sisanya mengikuti aturan
+kategori. Jenis setiap baris tetap bisa diubah di pratinjau.
 
 Baris Jago disimpan sebagai fakta bank format umum, jadi format cadangan tidak
 berubah. Mengimpor PDF yang sama atau periode yang tumpang tindih menandai baris
