@@ -637,19 +637,21 @@ Dicatat dari uji yang sama, **belum dikerjakan**:
     Rantai saldo antarbaris wajib cocok (urutan lama→baru atau sebaliknya).
   - Fakta disimpan sebagai `generic-v1` (`generic:` + 16 hex) sehingga format
     cadangan dan codec tidak berubah.
-  - Jenis dari Rincian Transaksi: pindah Kantong, akun lama, transfer masuk,
-    transfer keluar ke nama pemilik, dan isi saldo e-wallet → perpindahan dana
-    (Transfer); transfer keluar ke orang lain → pengeluaran (keputusan pemilik,
-    12 Nov 2026), nama penerima yang disamarkan bank dan tidak cocok dengan
-    nama pemilik → Perlu dicek; Jago Pay dan POS → pengeluaran (GO-FOOD →
+  - Jenis dari Rincian Transaksi: pindah Kantong, akun lama, transfer dari/ke
+    nama pemilik, dan isi saldo e-wallet → perpindahan dana (Transfer);
+    transfer keluar ke orang lain → pengeluaran dan transfer masuk dari orang
+    lain → pemasukan (keputusan pemilik, 12 Nov 2026); uang masuk dari
+    e-wallet/marketplace (ShopeePay, Tokopedia, dll.) dan nama yang disamarkan
+    bank tanpa kecocokan → Perlu dicek; Jago Pay dan POS → pengeluaran (GO-FOOD →
     Makan & minum); POS masuk dengan ID+nominal sama → Pengembalian dana;
     Bonus → Cashback; lainnya Perlu dicek.
   - Tab **Bank Jago PDF · otomatis** di halaman Impor (dompet IDR; dompet bernama
     "jago" dipilih lebih dulu).
   *Hasil pada file pemilik:* 98 dari 98 baris terbaca, saldo akhir sama dengan
-  PDF; 66 perpindahan dana, 21 pengeluaran (6 di antaranya transfer ke orang
-  lain), 2 pemasukan, 9 Perlu dicek (transfer ke VA Mandiri dengan nama
-  `ZXXXXXXXXXXX3` yang disamarkan bank); impor ulang → 98 duplikat.
+  PDF; 58 perpindahan dana, 21 pengeluaran (6 di antaranya transfer ke orang
+  lain), 3 pemasukan (1 transfer dari orang lain), 16 Perlu dicek (9 transfer
+  ke VA Mandiri dengan nama `ZXXXXXXXXXXX3` yang disamarkan bank, 6 uang masuk
+  dari ShopeePay, 1 dari Tokopedia); impor ulang → 98 duplikat.
   *Batasan:* hanya tata letak PDF Jago ini (bahasa Indonesia, IDR). Kantong
   lain diimpor per file; perpindahan antar Kantong belum dipasangkan otomatis.
   Pembelian reksa dana lewat Bibit tetap pengeluaran tanpa kategori.

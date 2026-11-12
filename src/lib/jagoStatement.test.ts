@@ -64,11 +64,11 @@ describe('Bank Jago PDF statement', () => {
       ['movement', 'Transfer'], ['movement', 'Transfer'], ['movement', 'Transfer'], ['expense', 'Belum dikategorikan'],
       ['expense', 'Makan & minum'], ['expense', 'Belum dikategorikan'], ['expense', 'Belum dikategorikan'],
       ['income', 'Pengembalian dana'], ['movement', 'Transfer'], ['income', 'Cashback'],
-      ['unreviewed', 'Belum dikategorikan'], ['movement', 'Transfer'],
+      ['unreviewed', 'Belum dikategorikan'], ['income', 'Belum dikategorikan'],
     ]);
     expect(rows[1].warning).toContain('atas namamu sendiri');
     expect(rows[3].warning).toContain('atas nama orang lain dicatat sebagai pengeluaran');
-    expect(rows[11].warning).toContain('Ubah ke pemasukan bila ini penghasilan');
+    expect(rows[11].warning).toContain('atas nama orang lain dicatat sebagai pemasukan');
     expect(rows[8].warning).toContain('e-wallet');
     expect(rows[10].warning).toContain('belum dikenali');
   });
@@ -89,6 +89,14 @@ describe('Bank Jago PDF statement', () => {
     const parsed = parseJagoStatement(statement(rows), wallet(), []).rows;
     expect(parsed.map(row => row.classification)).toEqual(['movement', 'movement', 'movement', 'movement', 'unreviewed', 'unreviewed', 'expense', 'expense']);
     expect(parsed[4].warning).toContain('disamarkan bank');
+    const incoming = (party: string, id: string, balance: string): SyntheticJagoRow =>
+      ({ date: '02 Jan 2026', time: '08.00', party: [party], title: ['Transfer Masuk'], id: [id], amount: '+1.000,00', balance });
+    const senders = parseJagoStatement(statement([
+      incoming('BUDI CONTOH SANT', 'a', '1.000,00'), incoming('ORANG LAIN', 'b', '2.000,00'), incoming('ShopeePay', 'c', '3.000,00'),
+      incoming('Tokopedia', 'd', '4.000,00'), incoming('GO-PAY - BUDI CONTOH SANTOSO', 'e', '5.000,00'), incoming('BXXXX CXXXXX', 'f', '6.000,00'),
+    ]), wallet(), []).rows;
+    expect(senders.map(row => row.classification)).toEqual(['movement', 'income', 'unreviewed', 'unreviewed', 'movement', 'unreviewed']);
+    expect(senders[2].warning).toContain('e-wallet atau marketplace');
   });
 
   it('does not confirm a type when the amount runs against the operation', () => {

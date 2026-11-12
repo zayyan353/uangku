@@ -25,8 +25,9 @@ ROWS = [
     ('05 Feb 2026', '07.02', ['TOKO.CONTOH'], ['Jago'], ['Transaksi POS'], ['600000000001'], [], '+20.864,10', '340.000,50'),
     ('07 Mar 2026', '22.20', ['Bonus Jago Debit Card'], [], ['Bonus'], ['260307-ABCD-EFGH12'], ['Promo Debit Card'], '+10.000,00', '350.000,50'),
     ('08 Mar 2026', '07.00', ['Layanan Contoh'], [], ['Biaya Layanan Contoh'], ['260308-ZZZZ-000001'], [], '-1.000', '349.000,50'),
+    ('09 Mar 2026', '07.00', ['ORANG LAIN'], ['BNI 0000000000'], ['Transfer Masuk'], ['260309-ZZZZ-000002'], [], '+5.000,00', '354.000,50'),
 ]
-EXPECTED_TYPES = ['movement', 'movement', 'movement', 'expense', 'expense', 'expense', 'income', 'income', 'unreviewed']
+EXPECTED_TYPES = ['movement', 'movement', 'movement', 'expense', 'expense', 'expense', 'income', 'income', 'unreviewed', 'income']
 
 
 def pdf(pages):
@@ -170,7 +171,7 @@ def import_and_save(browser, out, mobile):
         types = [e['type'] for e in sorted(saved['state']['entries'], key=lambda e: next(i for i, f in enumerate(saved['metadata']['facts']) if f['fingerprint'] == e['sourceKey']))]
         assert types == EXPECTED_TYPES, types
         assert all(e['walletId'] == 'jago' for e in entries)
-        assert saldo(saved, 'jago') == 34_900_050, saldo(saved, 'jago')
+        assert saldo(saved, 'jago') == 35_400_050, saldo(saved, 'jago')
         facts = saved['metadata']['facts']
         assert len(facts) == len(ROWS) and all(f['fingerprintVersion'] == 'generic-v1' and f['currency'] == 'IDR' for f in facts)
         assert any(f['reference'] == '900000000001_20260102_9990001112' for f in facts)
