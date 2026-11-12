@@ -27,7 +27,36 @@ def install_playwright_path():
             return
 
 
+BROWSERS = ('chromium', 'firefox', 'webkit')
+
+
+def browser_name():
+    """Engine under test: UANGKU_BROWSER=chromium (default), firefox, or webkit (Safari's engine)."""
+    name = os.environ.get('UANGKU_BROWSER', 'chromium').strip().lower() or 'chromium'
+    if name not in BROWSERS:
+        raise SystemExit(f'UANGKU_BROWSER must be one of {", ".join(BROWSERS)}, not {name!r}')
+    return name
+
+
+class _NoMobileFlag:
+    """Firefox has no is_mobile emulation; keep the phone viewport and touch, drop only that flag."""
+
+    def __init__(self, browser):
+        self._browser = browser
+
+    def new_context(self, **options):
+        options.pop('is_mobile', None)
+        return self._browser.new_context(**options)
+
+    def __getattr__(self, name):
+        return getattr(self._browser, name)
+
+
 def launch_browser(playwright):
+    name = browser_name()
+    if name != 'chromium':
+        browser = getattr(playwright, name).launch(headless=True)
+        return _NoMobileFlag(browser) if name == 'firefox' else browser
     executable = os.environ.get('CHROMIUM_PATH')
     if not executable and os.name == 'nt':
         for candidate in [r'C:\Program Files\Google\Chrome\Application\chrome.exe',
