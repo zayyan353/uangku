@@ -307,8 +307,8 @@ dan bulan (5.4).
     mengisyaratkan "lihat isi". Pilih: buka riwayat dompet itu, atau tetap form.
   - "· IDR" mengulang tab mata uang (di kartu dompet sudah dibuang lewat MW-52).
   - *Tahap pertama, 11 Nov 2026 (sebelum klik baris diputuskan).* Tautan
-    "+N dompet lainnya" ditambah (membuka halaman Dompet) dan "· IDR" dibuang. Dilihat dengan 8 dompet IDR di desktop dan HP, terang
-    dan gelap. Tes: `wallet_browser.py` 19/19, `cashflow_browser.py` 19/19,
+    "+N dompet lainnya" ditambah (membuka halaman Dompet) dan "· IDR" dibuang.
+    Dilihat dengan 8 dompet IDR di desktop dan HP, terang dan gelap. Tes: `wallet_browser.py` 19/19, `cashflow_browser.py` 19/19,
     `browser_smoke.py` 39 skenario lulus; tautan baru belum punya tes
     otomatis. Tujuan klik baris (riwayat atau form) tidak diubah.
   - *Diselesaikan 11 Nov 2026 (pemilik menyetujui semua usul).* Klik baris
