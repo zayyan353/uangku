@@ -38,8 +38,11 @@ Delapan butir yang perilaku barunya dulu hanya dicoba manual (1.1.1, 1.6.2,
 Yang masih terbuka walau butirnya sudah dicentang:
 
 - Beberapa butir masih bertanda "Belum dilihat" di catatannya (mis. dompet
-  arsip, transfer beda mata uang); usulnya dikerjakan dari kode. Firefox dan
-  Safari belum dicoba.
+  arsip, transfer beda mata uang); usulnya dikerjakan dari kode.
+- Sejak 12 Nov 2026 semua suite browser fungsional juga jalan di Firefox dan
+  WebKit (mesin Safari) di CI, job "Tes browser firefox/webkit"; pilih mesin
+  lokal dengan `UANGKU_BROWSER=firefox|webkit`. Ini Playwright di Linux, bukan
+  Safari macOS/iOS atau HP sungguhan; tes performa hanya dihitung di Chromium.
 
 Peta isi aplikasi per halaman. **Bab** = halaman, **sub-bab** = bagian halaman,
 **butir** (mis. 1.3.1) = bagian terkecil. Tiap butir mencatat isinya sekarang dan
@@ -1726,7 +1729,8 @@ Tampil di lebih dari satu halaman. Dikerjakan sekali di sini untuk semuanya.
   - *Dikerjakan 11 Nov 2026.* Kolom bulan diganti satu kontrol: tombol ‹ ›,
     dan daftar bulan yang juga memuat "Seluruh catatan". Daftarnya memakai
     dropdown biasa, jadi tidak lagi bergantung pada `input type="month"`
-    (**[cek]** Firefox dan Safari sendiri tidak diuji di sini). Rentang
+    (**[cek]** Firefox dan Safari sendiri tidak diuji di sini; sejak 12 Nov
+    2026 kontrol ini ikut diuji suite browser di Firefox dan WebKit). Rentang
     daftar: tiga tahun ke belakang sampai setahun ke depan, dilebarkan
     mengikuti tanggal catatan. Dropdown "Periode" lama di Ringkasan dan
     Transaksi belum dibuang; keduanya tetap sinkron dengan kontrol baru. Dua

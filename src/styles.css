@@ -361,6 +361,9 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 @media (hover: hover) { .wallet-row:hover { background: #fafcf6; } }
 .wallet-row:active { background: #f3f7ea; }
 .wallet-row > svg { color: #52634f; width: 13px; height: 13px; margin-left: 3px; }
+/* A very long balance wraps in its own column instead of hiding the name or pushing the row past a 320px screen. */
+.wallet-row > .wallet-info { min-width: 5.5rem; }
+.wallet-row > .wallet-amount { min-width: 0; white-space: normal; overflow-wrap: anywhere; text-align: right; }
 .wallet-name { font-size: 14px; }
 .wallet-detail { font-size: 12px; }
 .wallet-amount { font-size: 14px; }

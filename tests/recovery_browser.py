@@ -101,12 +101,13 @@ def isolated(browser, initial, output, name, *, viewport=None, init_extra=None):
     if init_extra:
         context.add_init_script(init_extra)
     errors = []
+    # page.clock belongs to the context and covers every tab; WebKit refuses a second install.
+    context.clock.install(time=FIXED_TIME)
 
     def add_page():
         page = context.new_page()
         page.set_default_timeout(25_000)
         page.on('pageerror', lambda err: errors.append(str(err)))
-        page.clock.install(time=FIXED_TIME)
         page.goto(URL, wait_until='networkidle')
         expect(page.locator('.balance-card')).to_be_visible()
         return page
@@ -162,7 +163,11 @@ def test_clean_sync_and_concurrent_forms(browser, output):
         open_expense(b, note='Concurrent B')
         a.get_by_role('dialog').locator('form').evaluate('(form) => form.requestSubmit()')
         b.get_by_role('dialog').locator('form').evaluate('(form) => form.requestSubmit()')
-        a.wait_for_timeout(400)
+        # Each tab either saved (its form closed) or lost the race (form open, conflict shown). A fixed
+        # wait was too short when the second write was slow, and read the ledger before it landed.
+        for tab in (a, b):
+            tab.wait_for_function('''() => !document.querySelector('[role=dialog]')
+              || document.querySelector('[data-testid=save-status]')?.textContent.includes('konflik')''')
         notes = persisted_notes(a)
         assert 'Sequential A' in notes and 'Sequential B' in notes
         assert ('Concurrent A' in notes) or ('Concurrent B' in notes)
@@ -289,12 +294,13 @@ def test_transaction_draft_close(browser, output):
 def test_pending_writer_modal_guard(browser, output):
     with isolated(browser, fixture(), output, 'pending-writer') as (_, new_page, _):
         page = new_page()
+        # Patch the prototype: WebKit can recreate the navigator.locks wrapper and drop an own property.
         page.evaluate('''() => {
-          const request = navigator.locks.request.bind(navigator.locks);
-          navigator.locks.request = (name,options,callback) => request(name,options,async lock => {
+          const manager = Object.getPrototypeOf(navigator.locks), request = manager.request;
+          manager.request = function (name,options,callback) { return request.call(this,name,options,async lock => {
             await new Promise(resolve => { window.__releaseSyntheticWriter = resolve; });
             return callback(lock);
-          });
+          }); };
         }''')
         dlg = open_expense(page, note='Pending original draft')
         dlg.get_by_role('button', name='Simpan transaksi', exact=True).click()

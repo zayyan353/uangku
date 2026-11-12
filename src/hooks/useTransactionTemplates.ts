@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { appendTemplate, parseStoredTemplates, removeTemplate, renameTemplate, TEMPLATES_KEY, type TransactionTemplate } from '../lib/transactionTemplates';
 import { renameCategoryInTemplates } from '../lib/categoryRename';
-import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
+import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, requestExclusive, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
 
 export const unreadableTemplates = 'Template tersimpan tidak dapat dibaca. Template baru belum dapat disimpan agar daftar lama tidak tertimpa.';
 
@@ -34,7 +34,7 @@ export function useTransactionTemplates() {
   async function change(apply: (raw: string | null) => { raw: string; templates: TransactionTemplate[] }): Promise<void> {
     if (!navigator.locks?.request) throw Error('Browser ini belum mendukung koordinasi penyimpanan. Coba browser yang mendukung Web Locks.');
     await finishInterruptedRestore(localStorage, browserLocks());
-    await navigator.locks.request(CATEGORY_LOCK, () => {
+    await requestExclusive(navigator.locks, CATEGORY_LOCK, () => {
       if (localStorage.getItem(RESTORE_JOURNAL) !== null) throw Error(restorePending);
       const current = localStorage.getItem(TEMPLATES_KEY);
       let next: ReturnType<typeof appendTemplate>;

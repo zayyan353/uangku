@@ -2,7 +2,7 @@ import { createContext, useEffect, useState } from 'react';
 import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, KEYWORD_PACK_VERSION, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
 import { effectiveCategorySettings } from '../lib/categorySettingsUpgrade';
 import { BUDGETS_KEY, isEmptyBudgets, parseStoredBudgets, serializeBudgets, type BudgetMap } from '../lib/budgets';
-import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
+import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, requestExclusive, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
 
 export const CategorySettingsContext = createContext<CategorySettings>(defaultCategorySettings());
 export const unreadableBudgets = 'Anggaran tersimpan tidak dapat dibaca. Bagian anggaran dikunci agar anggaran lama tidak tertimpa.';
@@ -52,7 +52,7 @@ export function useCategorySettings() {
     const budgetsRaw = budgets && !isEmptyBudgets(budgets) ? serializeBudgets(budgets) : null;
     if (!navigator.locks?.request) throw Error('Browser ini belum mendukung koordinasi pengaturan. Coba browser yang mendukung Web Locks.');
     await finishInterruptedRestore(localStorage, browserLocks());
-    await navigator.locks.request(CATEGORY_LOCK, () => {
+    await requestExclusive(navigator.locks, CATEGORY_LOCK, () => {
       if (localStorage.getItem(RESTORE_JOURNAL) !== null) throw Error(restorePending);
       if (localStorage.getItem(CATEGORY_SETTINGS_KEY) !== expectedRaw) { setSnapshot(load()); throw Error('Pengaturan berubah di tab lain. Tutup lalu buka kembali pengelola kategori sebelum menyimpan.'); }
       if (budgetChange && localStorage.getItem(BUDGETS_KEY) !== budgetChange.expectedRaw) { setSnapshot(load()); throw Error('Anggaran berubah di tab lain. Tutup lalu buka kembali pengelola kategori sebelum menyimpan.'); }
