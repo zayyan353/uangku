@@ -121,7 +121,7 @@ function expandNumeric(value: unknown): string {
   return parts![1] + (point <= 0 ? `0.${'0'.repeat(-point)}${raw}` : point >= raw.length ? raw + '0'.repeat(point - raw.length) : `${raw.slice(0, point)}.${raw.slice(point)}`);
 }
 /** Stable scheme-specific identity. The old Ziraat scheme is never rewritten. */
-function fingerprint(input: string): string {
+export function genericFingerprint(input: string): string {
   let a = 0x811c9dc5, b = 0x9e3779b9;
   for (let index = 0; index < input.length; index++) { const code = input.charCodeAt(index); a = Math.imul(a ^ code, 0x01000193); b = Math.imul(b ^ code, 0x85ebca6b); }
   return `${(a >>> 0).toString(16).padStart(8, '0')}${(b >>> 0).toString(16).padStart(8, '0')}`;
@@ -163,7 +163,7 @@ export function parseGenericStatement(table: GenericTable, mapping: GenericMappi
         amount = credit - debit;
       }
       if (!amount) fail('Nominal nol tidak dapat diimpor.');
-      const sourceKey = `generic:${fingerprint(JSON.stringify([wallet.id, wallet.currency, date, amount, balance, originalDescription.normalize('NFC').trim(), originalReference.normalize('NFC').trim()]))}`;
+      const sourceKey = `generic:${genericFingerprint(JSON.stringify([wallet.id, wallet.currency, date, amount, balance, originalDescription.normalize('NFC').trim(), originalReference.normalize('NFC').trim()]))}`;
       if (seen.has(sourceKey)) fail('Identitas dua baris sama. Sertakan kolom referensi unik dan periksa ekspor asli.');
       seen.add(sourceKey);
       const duplicate = known.has(sourceKey);

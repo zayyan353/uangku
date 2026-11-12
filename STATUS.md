@@ -20,8 +20,9 @@ Diperbarui: 9 November 2026 (MW-02). Status terkini yang pasti ada di GitHub Act
 
 - Data hanya di browser (`localStorage`); tidak ada akun, server, atau sinkronisasi.
   Cadangkan lewat tombol **Cadangkan semuanya**.
-- Impor: XLSX Ziraat TRY/TL dan CSV/TSV/XLSX umum dengan kolom saldo berjalan.
-  PDF, XLS lama, dan file tanpa saldo belum didukung. Impor tidak menukar mata uang.
+- Impor: XLSX Ziraat TRY/TL, PDF riwayat transaksi Bank Jago (IDR), dan
+  CSV/TSV/XLSX umum dengan kolom saldo berjalan. PDF bank lain, XLS lama, dan
+  file tanpa saldo belum didukung. Impor tidak menukar mata uang.
 - Batas: file impor 8 MiB, data keuangan 8 MiB, pengaturan kategori 128 KiB.
 - Fakta sumber, tanggal, dan asosiasi legacy yang hilang tidak ditebak.
 - Belum diuji di Safari/iOS/Android fisik maupun screen reader manual.

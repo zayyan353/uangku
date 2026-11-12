@@ -74,6 +74,7 @@ jobs:
           python tests/bank_review_browser.py --output "$RUNNER_TEMP/uangku-browser-bank-review"
           python tests/wallet_browser.py --output "$RUNNER_TEMP/uangku-browser-wallets"
           python tests/currency_import_browser.py --output "$RUNNER_TEMP/uangku-browser-currency-import"
+          python tests/jago_browser.py --output "$RUNNER_TEMP/uangku-browser-jago"
           python tests/cashflow_browser.py --output "$RUNNER_TEMP/uangku-browser-cashflow"
           python tests/source_browser.py --output "$RUNNER_TEMP/uangku-browser-source"
           python tests/backfill_browser.py --output "$RUNNER_TEMP/uangku-browser-backfill"
@@ -98,6 +99,7 @@ jobs:
             ${{ runner.temp }}/uangku-browser-bank-review
             ${{ runner.temp }}/uangku-browser-wallets
             ${{ runner.temp }}/uangku-browser-currency-import
+            ${{ runner.temp }}/uangku-browser-jago
             ${{ runner.temp }}/uangku-browser-cashflow
             ${{ runner.temp }}/uangku-browser-source
             ${{ runner.temp }}/uangku-browser-backfill
@@ -174,6 +176,7 @@ jobs:
           python tests/bank_review_browser.py --output "$out/bank-review"
           python tests/wallet_browser.py --output "$out/wallets"
           python tests/currency_import_browser.py --output "$out/currency-import"
+          python tests/jago_browser.py --output "$out/jago"
           python tests/cashflow_browser.py --output "$out/cashflow"
           python tests/source_browser.py --output "$out/source"
           python tests/backfill_browser.py --output "$out/backfill"
