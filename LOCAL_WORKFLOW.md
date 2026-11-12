@@ -55,6 +55,9 @@ tidak tersedia tetap ditandai belum terverifikasi, tidak dibuat-buat.
 Tes unit: `npm test`. Tipe dan build: `npm run build`.
 Pengujian browser memakai Python 3.12+, Playwright 1.64.1, Chrome/Chromium dan
 context sintetis baru; tidak memakai profil browser atau rekening pribadi.
+Untuk Firefox atau WebKit (mesin Safari), pasang dulu
+`python -m playwright install --with-deps firefox webkit` lalu jalankan harness
+yang sama dengan `UANGKU_BROWSER=firefox` atau `UANGKU_BROWSER=webkit`.
 Jalankan preview produksi sebelum harness, kemudian:
 
 ```sh
