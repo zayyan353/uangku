@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AlertTriangle, ArrowRight, CheckCheck, CheckCircle2, FileSpreadsheet, FolderOpen, Leaf, Search, ShieldCheck, Tags, X } from 'lucide-react';
 import { formatDate, formatMoney, makeId, walletBalance, type Currency, type Entry, type State, type Wallet } from '../lib/finance';
 import { parseZiraatWorkbook, type ImportPreview, type ImportRow } from '../lib/importer';
+import { parseJagoStatement } from '../lib/jagoStatement';
 import { inspectSourcedImport, prepareSourcedImport, type SourcedImportDecisions, type SourceResolution } from '../lib/sourceCommands';
 import type { StoredData } from '../lib/storage';
 import { CategorySettingsContext } from '../hooks/useCategorySettings';
@@ -35,18 +36,35 @@ function firstSentence(text: string): string {
   return end > 0 && end < text.length - 2 ? text.slice(0, end + 1) : text;
 }
 
+type ImportFormat = 'ziraat' | 'jago' | 'generic';
+/** Banks read without column mapping: one currency, one file type, the bank's own wording. */
+const BANK_FORMATS = {
+  ziraat: { currency: 'TRY', walletHint: 'ziraat', extension: '.xlsx', badge: 'Ziraat · TRY · Excel', fileKind: 'Excel', fileLabel: 'File mutasi Ziraat',
+    help: 'Ekspor mutasi Ziraat · maksimal 8 MB', wrongFile: 'Format ini hanya membaca ekspor Excel Ziraat (.xlsx). Untuk CSV atau file bank lain, pilih “CSV / Excel umum”.',
+    notice: 'Pembacaan otomatis khusus format Excel Ziraat TRY. Untuk mata uang atau bank lain, pilih CSV / Excel umum.',
+    rules: 'Tarik ATM menjadi pengeluaran, setor ATM menjadi pemasukan, dan transfer bank tetap perpindahan dana. PREPAID masuk menjadi pemasukan Cashback; refund masalah ATM yang jelas menjadi Pengembalian dana. Belanja pada pembayaran kartu adalah kategori umum, bukan tebakan barang yang dibeli.' },
+  jago: { currency: 'IDR', walletHint: 'jago', extension: '.pdf', badge: 'Bank Jago · IDR · PDF', fileKind: 'PDF', fileLabel: 'File mutasi Bank Jago',
+    help: 'PDF “Riwayat Transaksi” satu Kantong dari aplikasi Jago · maksimal 8 MB', wrongFile: 'Format ini hanya membaca PDF riwayat transaksi Bank Jago (.pdf). Untuk file bank lain, pilih format lain.',
+    notice: 'Pembacaan otomatis khusus PDF riwayat transaksi Bank Jago (IDR), satu Kantong per file. Unduh tanpa filter agar saldo antarbaris bisa diperiksa.',
+    rules: 'Pindah uang antar Kantong, transfer bank masuk/keluar, dan isi saldo e-wallet tetap perpindahan dana; transfer dari/ke nama pemilik rekening ditandai sebagai milikmu sendiri. Pembayaran Jago Pay dan transaksi kartu (POS) menjadi pengeluaran; GO-FOOD masuk Makan & minum. Transaksi kartu yang dikembalikan dengan ID dan nominal sama menjadi Pengembalian dana, dan bonus bank menjadi Cashback. Jenis lain tetap Perlu dicek.' },
+} as const satisfies Record<Exclude<ImportFormat, 'generic'>, Record<string, string>>;
+const formatCurrency = (format: ImportFormat, fallback: Currency): Currency => format === 'generic' ? fallback : BANK_FORMATS[format].currency;
+const preferredWallet = (wallets: readonly Wallet[], format: ImportFormat): Wallet | undefined =>
+  (format === 'generic' ? undefined : wallets.find(wallet => wallet.name.toLowerCase().includes(BANK_FORMATS[format].walletHint))) ?? wallets[0];
+
 /** New local orchestration around the exactly recovered importCommit module. */
 export default function RecoveryImportView({ data, state, demo, onStart, onImport, notify, disabled = false, onAddWallet, preferredCurrency = 'TRY', onOpenReview, onOpenHistory }: RecoveryImportViewProps) {
   // The Ziraat reader needs a TRY wallet. Without one, start on the general format instead of a dead end.
-  const [importFormat, setImportFormat] = useState<'ziraat' | 'generic'>(() => {
+  const [importFormat, setImportFormat] = useState<ImportFormat>(() => {
     const usable = state.wallets.filter(wallet => wallet.kind !== 'cash' && !isWalletArchived(data, wallet.id));
     return usable.length > 0 && !usable.some(wallet => wallet.currency === 'TRY') ? 'generic' : 'ziraat';
   });
   const [dragging, setDragging] = useState(false);
   const [lastImport, setLastImport] = useState<{ count: number; pending: number; walletId: string; walletName: string; captureOnly: boolean } | null>(null);
   const previewRef = useRef<HTMLElement>(null);
-  const eligibleWallets = useMemo(() => state.wallets.filter(wallet => (importFormat === 'generic' || wallet.currency === 'TRY') && wallet.kind !== 'cash' && !isWalletArchived(data, wallet.id)), [state.wallets, data.metadata, importFormat]);
-  const [walletId, setWallet] = useState(() => eligibleWallets.find(wallet => wallet.name.toLowerCase().includes('ziraat'))?.id ?? eligibleWallets[0]?.id ?? '');
+  const bankFormat = importFormat === 'generic' ? undefined : BANK_FORMATS[importFormat];
+  const eligibleWallets = useMemo(() => state.wallets.filter(wallet => (importFormat === 'generic' || wallet.currency === BANK_FORMATS[importFormat].currency) && wallet.kind !== 'cash' && !isWalletArchived(data, wallet.id)), [state.wallets, data.metadata, importFormat]);
+  const [walletId, setWallet] = useState(() => preferredWallet(eligibleWallets, importFormat)?.id ?? '');
   const selectedWalletRef = useRef(walletId); selectedWalletRef.current = walletId;
   const [result, setResult] = useState<ImportPreview | null>(null);
   const [walletSnapshot, setWalletSnapshot] = useState<Wallet | null>(null);
@@ -88,7 +106,7 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
     if (eligibleWallets.some(item => item.id === walletId)) return;
     resetPreview();
     setBusy(false);
-    setWallet(eligibleWallets.find(item => item.name.toLowerCase().includes('ziraat'))?.id ?? eligibleWallets[0]?.id ?? '');
+    setWallet(preferredWallet(eligibleWallets, importFormat)?.id ?? '');
     if (walletId) setError('Dompet tujuan dihapus atau diarsipkan. Pratinjau dibatalkan; pilih dompet aktif yang sesuai lalu baca ulang file.');
   }, [eligibleWallets, walletId]);
   const existingActivity = state.entries.some(entry => entry.walletId === walletId || entry.toWalletId === walletId);
@@ -219,21 +237,23 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
     setUseOpening(!latest.state.entries.some(entry => entry.walletId === snapshot.id || entry.toWalletId === snapshot.id));
     batchRef.current = makeId();
   }
-  function changeImportFormat(next: 'ziraat' | 'generic') {
+  function changeImportFormat(next: ImportFormat) {
     if (controlsDisabled) return;
     resetPreview(); setImportFormat(next);
-    const eligible = state.wallets.filter(item => item.kind !== 'cash' && !isWalletArchived(data, item.id) && (next === 'generic' || item.currency === 'TRY'));
-    setWallet(eligible.find(item => item.currency === (next === 'ziraat' ? 'TRY' : preferredCurrency))?.id ?? eligible[0]?.id ?? '');
+    const eligible = state.wallets.filter(item => item.kind !== 'cash' && !isWalletArchived(data, item.id) && (next === 'generic' || item.currency === BANK_FORMATS[next].currency));
+    setWallet((next === 'generic' ? eligible.find(item => item.currency === preferredCurrency) ?? eligible[0] : preferredWallet(eligible, next))?.id ?? '');
   }
 
   async function readFile(file?: File) {
     if (!file || reading.current || savingRef.current || disabledRef.current) return;
     if (demo) { setError('Mulai dengan data sendiri dulu agar mutasi asli tidak tercampur dengan contoh.'); return; }
     if (!wallet) { setError('Pilih dompet tujuan terlebih dahulu.'); return; }
-    if (!file.name.toLowerCase().endsWith('.xlsx')) { setError('Format ini hanya membaca ekspor Excel Ziraat (.xlsx). Untuk CSV atau file bank lain, pilih “CSV / Excel umum”.'); return; }
+    if (!bankFormat) return;
+    if (!file.name.toLowerCase().endsWith(bankFormat.extension)) { setError(bankFormat.wrongFile); return; }
     if (file.size > 8 * 1024 * 1024) { setError('Ukuran file maksimal 8 MB. Ekspor periode yang lebih pendek lalu coba lagi.'); return; }
     const generation = ++readGeneration.current;
     const snapshot = { ...wallet };
+    const format = importFormat;
     reading.current = true;
     setBusy(true); setError(''); setResult(null); setRows([]); setWalletSnapshot(null); setDecisions({});
     setPreviewQuery(''); setPreviewFilter('all'); setPreviewCategory('Belum dikategorikan');
@@ -242,10 +262,10 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
       if (!mounted.current || generation !== readGeneration.current) return;
       if (disabledRef.current) throw new Error('Penyimpanan belum tersedia. Coba baca file lagi setelah masalah diselesaikan.');
       const latest = dataRef.current;
-      const parsed = parseZiraatWorkbook(bytes, snapshot, latest.state.entries);
+      const parsed = format === 'jago' ? parseJagoStatement(bytes, snapshot, latest.state.entries) : parseZiraatWorkbook(bytes, snapshot, latest.state.entries);
       acceptPreview(parsed, file.name, snapshot);
     } catch (reason) {
-      if (mounted.current && generation === readGeneration.current) setError(reason instanceof Error ? reason.message : 'File belum bisa dibaca. Coba ekspor ulang file Excel dari bank.');
+      if (mounted.current && generation === readGeneration.current) setError(reason instanceof Error ? reason.message : `File belum bisa dibaca. Coba ekspor ulang file ${format === 'jago' ? 'PDF' : 'Excel'} dari bank.`);
     } finally {
       if (mounted.current && generation === readGeneration.current) {
         reading.current = false; setBusy(false);
@@ -283,17 +303,17 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
   }
 
   return <>
-    <div className="import-format-picker tab-group" role="group" aria-label="Format impor"><button className={importFormat === 'ziraat' ? 'active' : ''} aria-pressed={importFormat === 'ziraat'} disabled={controlsDisabled} onClick={() => changeImportFormat('ziraat')}>Ziraat TRY · otomatis</button><button className={importFormat === 'generic' ? 'active' : ''} aria-pressed={importFormat === 'generic'} disabled={controlsDisabled} onClick={() => changeImportFormat('generic')}>CSV / Excel umum</button></div>{result && <p className="field-help" data-testid="format-change-warning">Mengganti format atau dompet membatalkan pratinjau yang belum disimpan.</p>}
+    <div className="import-format-picker tab-group" role="group" aria-label="Format impor"><button className={importFormat === 'ziraat' ? 'active' : ''} aria-pressed={importFormat === 'ziraat'} disabled={controlsDisabled} onClick={() => changeImportFormat('ziraat')}>Ziraat TRY · otomatis</button><button className={importFormat === 'jago' ? 'active' : ''} aria-pressed={importFormat === 'jago'} disabled={controlsDisabled} onClick={() => changeImportFormat('jago')}>Bank Jago PDF · otomatis</button><button className={importFormat === 'generic' ? 'active' : ''} aria-pressed={importFormat === 'generic'} disabled={controlsDisabled} onClick={() => changeImportFormat('generic')}>CSV / Excel umum</button></div>{result && <p className="field-help" data-testid="format-change-warning">Mengganti format atau dompet membatalkan pratinjau yang belum disimpan.</p>}
     {lastImport && <section className="panel import-result" role="status" data-testid="import-result"><CheckCircle2 size={22} aria-hidden="true" /><div className="import-result-copy"><strong>{lastImport.captureOnly ? `Isi file tersimpan untuk ${lastImport.walletName}, tanpa menambah transaksi.` : `${lastImport.count} transaksi tersimpan ke ${lastImport.walletName}.`}</strong><span>{lastImport.captureOnly ? 'Catatan dan saldo tidak berubah. Lengkapi dari “Periksa kelengkapan mutasi” di bawah bila diperlukan.' : lastImport.pending > 0 ? `${lastImport.pending} di antaranya masih perlu dirapikan: jenis atau kategorinya belum jelas. Saldonya sudah tercatat.` : 'Semua sudah punya jenis dan kategori.'}</span></div><div className="import-result-actions">{!lastImport.captureOnly && lastImport.pending > 0 && onOpenReview && <button className="button primary small" onClick={onOpenReview}>Rapikan {lastImport.pending} catatan <ArrowRight size={15} /></button>}{!lastImport.captureOnly && onOpenHistory && <button className="button secondary small" onClick={() => onOpenHistory(lastImport.walletId)}>Lihat transaksi</button>}<button className="icon-button" aria-label="Tutup ringkasan impor" onClick={() => setLastImport(null)}><X size={16} /></button></div></section>}
-    <div className={`import-layout${result ? ' has-preview' : ''}`}><section className="panel import-main"><div className="panel-header"><div><h2>Mutasi masuk, catatan beres.</h2><p>Satu unggahan untuk banyak transaksi.</p></div><span className="badge neutral">{importFormat === 'ziraat' ? 'Ziraat · TRY · Excel' : 'CSV / Excel · pemetaan kolom'}</span></div>
-      <label className="field"><span className="field-label">Simpan ke dompet</span><select aria-label="Dompet impor" className="select-input" value={walletId} disabled={controlsDisabled || !eligibleWallets.length} onChange={event => { resetPreview(); setWallet(event.target.value); }}>{!eligibleWallets.length && <option value="">Belum ada dompet {importFormat === 'ziraat' ? 'TRY ' : ''}aktif</option>}{eligibleWallets.map(item => <option key={item.id} value={item.id}>{item.name} · {item.currency}</option>)}</select></label>
-      {!wallet && <div className="notice warning">Belum ada dompet {importFormat === 'ziraat' ? 'TRY ' : ''}aktif untuk format ini. Tambahkan dompet atau pulihkan dari Arsip.{onAddWallet && <button type="button" className="button secondary small" onClick={() => onAddWallet(importFormat === 'ziraat' ? 'TRY' : preferredCurrency)}>{importFormat === 'ziraat' ? 'Tambah dompet TRY' : 'Tambah dompet'}</button>}</div>}
+    <div className={`import-layout${result ? ' has-preview' : ''}`}><section className="panel import-main"><div className="panel-header"><div><h2>Mutasi masuk, catatan beres.</h2><p>Satu unggahan untuk banyak transaksi.</p></div><span className="badge neutral">{bankFormat ? bankFormat.badge : 'CSV / Excel · pemetaan kolom'}</span></div>
+      <label className="field"><span className="field-label">Simpan ke dompet</span><select aria-label="Dompet impor" className="select-input" value={walletId} disabled={controlsDisabled || !eligibleWallets.length} onChange={event => { resetPreview(); setWallet(event.target.value); }}>{!eligibleWallets.length && <option value="">Belum ada dompet {bankFormat ? `${bankFormat.currency} ` : ''}aktif</option>}{eligibleWallets.map(item => <option key={item.id} value={item.id}>{item.name} · {item.currency}</option>)}</select></label>
+      {!wallet && <div className="notice warning">Belum ada dompet {bankFormat ? `${bankFormat.currency} ` : ''}aktif untuk format ini. Tambahkan dompet atau pulihkan dari Arsip.{onAddWallet && <button type="button" className="button secondary small" onClick={() => onAddWallet(formatCurrency(importFormat, preferredCurrency))}>{bankFormat ? `Tambah dompet ${bankFormat.currency}` : 'Tambah dompet'}</button>}</div>}
       {importFormat === 'generic' && wallet && <GenericImportMapper key={`${wallet.id}:${wallet.currency}`} wallet={wallet} entries={state.entries} disabled={controlsDisabled || demo} hasPreview={!!result} onPreview={acceptPreview} onInvalidate={resetPreview} />}
-      {importFormat === 'ziraat' && <><div className={`import-dropzone ${busy ? 'busy' : ''}${dragging ? ' dragging' : ''}`} onDragOver={event => { event.preventDefault(); if (!controlsDisabled && !demo) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={event => { event.preventDefault(); setDragging(false); if (!controlsDisabled) void readFile(event.dataTransfer.files[0]); }}>
-        <span className="import-file-icon"><FileSpreadsheet size={30} /></span><h3>{busy ? 'Membaca mutasi…' : saving ? 'Menyimpan mutasi…' : 'Taruh file Excel di sini'}</h3><p>atau pilih file dari perangkatmu</p><button className="button primary" disabled={controlsDisabled || demo || !wallet} onClick={() => inputRef.current?.click()}><FolderOpen size={17} /> Pilih file .xlsx</button><span className="field-help">Ekspor mutasi Ziraat · maksimal 8 MB</span>{demo && <span className="import-demo-note" data-testid="import-demo-note">Tombol ini aktif setelah kamu memakai data sendiri, supaya mutasi asli tidak tercampur contoh. <button type="button" className="text-link" onClick={onStart}>Ganti ke data sendiri</button></span>}
-        <input ref={inputRef} aria-label="File mutasi Ziraat" type="file" accept=".xlsx" hidden disabled={controlsDisabled || demo} onChange={event => void readFile(event.target.files?.[0])} />
+      {bankFormat && <><div className={`import-dropzone ${busy ? 'busy' : ''}${dragging ? ' dragging' : ''}`} onDragOver={event => { event.preventDefault(); if (!controlsDisabled && !demo) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={event => { event.preventDefault(); setDragging(false); if (!controlsDisabled) void readFile(event.dataTransfer.files[0]); }}>
+        <span className="import-file-icon"><FileSpreadsheet size={30} /></span><h3>{busy ? 'Membaca mutasi…' : saving ? 'Menyimpan mutasi…' : `Taruh file ${bankFormat.fileKind} di sini`}</h3><p>atau pilih file dari perangkatmu</p><button className="button primary" disabled={controlsDisabled || demo || !wallet} onClick={() => inputRef.current?.click()}><FolderOpen size={17} /> Pilih file {bankFormat.extension}</button><span className="field-help">{bankFormat.help}</span>{demo && <span className="import-demo-note" data-testid="import-demo-note">Tombol ini aktif setelah kamu memakai data sendiri, supaya mutasi asli tidak tercampur contoh. <button type="button" className="text-link" onClick={onStart}>Ganti ke data sendiri</button></span>}
+        <input key={importFormat} ref={inputRef} aria-label={bankFormat.fileLabel} type="file" accept={bankFormat.extension} hidden disabled={controlsDisabled || demo} onChange={event => void readFile(event.target.files?.[0])} />
       </div></>}<p className="privacy-note"><ShieldCheck size={16} /> File dibaca di browser. Tidak dikirim ke server.</p>
-    </section><aside className="panel import-info"><span className="eyebrow">CARA KERJANYA</span><h3>Lebih sedikit ketik.<br />Lebih banyak waktu.</h3><div className="import-steps">{[['Pilih dompet', 'Pastikan rekening dan mata uangnya sesuai.'], ['Cek hasil bacaan', 'Bandingkan juga mutasi yang mungkin dicatat manual.'], ['Simpan, rapikan nanti', 'Transaksi yang belum jelas tetap tercatat.']].map(([title, text], index) => <div className="import-step" key={title}><span>{index + 1}</span><div><strong>{title}</strong><p>{text}</p></div></div>)}</div><div className="notice"><Leaf size={19} /><span>{importFormat === 'ziraat' ? 'Pembacaan otomatis khusus format Excel Ziraat TRY. Untuk mata uang atau bank lain, pilih CSV / Excel umum.' : 'Petakan kolom sesuai file. Tanggal, keterangan, nominal dan saldo setelah transaksi diperlukan; satu file untuk satu rekening dan mata uang.'}</span></div></aside></div>
+    </section><aside className="panel import-info"><span className="eyebrow">CARA KERJANYA</span><h3>Lebih sedikit ketik.<br />Lebih banyak waktu.</h3><div className="import-steps">{[['Pilih dompet', 'Pastikan rekening dan mata uangnya sesuai.'], ['Cek hasil bacaan', 'Bandingkan juga mutasi yang mungkin dicatat manual.'], ['Simpan, rapikan nanti', 'Transaksi yang belum jelas tetap tercatat.']].map(([title, text], index) => <div className="import-step" key={title}><span>{index + 1}</span><div><strong>{title}</strong><p>{text}</p></div></div>)}</div><div className="notice"><Leaf size={19} /><span>{bankFormat ? bankFormat.notice : 'Petakan kolom sesuai file. Tanggal, keterangan, nominal dan saldo setelah transaksi diperlukan; satu file untuk satu rekening dan mata uang.'}</span></div></aside></div>
     {!result && (error || inspection?.error) && <div className="notice error" role="alert">{error || inspection?.error}</div>}
     {result && wallet && <section ref={previewRef} className="panel import-preview" aria-busy={saving}><div className="panel-header"><div><h2>Periksa sebelum disimpan</h2><p>{filename} · {formatDate(result.period.start)} – {formatDate(result.period.end)}</p></div><span className="badge neutral">{currentRows.length} transaksi</span></div>
       <div className="import-summary"><span><strong>{selected.length}</strong> dipilih</span><span><strong>{currentRows.filter(row => row.duplicate).length}</strong> sudah pernah diimpor</span><span><strong data-testid="import-review-total" data-count={selectedReview.total}>{selectedReview.total}</strong> perlu dirapikan</span><span><strong data-testid="import-review-types" data-count={selectedReview.type}>{selectedReview.type}</strong> jenis perlu dicek</span><span><strong data-testid="import-review-categories" data-count={selectedReview.category}>{selectedReview.category}</strong> kategori belum diisi</span></div>
@@ -303,7 +323,7 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
         <small className="field-help">Proyeksi mencakup seluruh catatan dompet, termasuk transaksi di luar periode file. Kesamaan saldo saja belum membuktikan histori lengkap.</small></div></div>
       <div className="import-filter-bar"><label className="search-input"><Search size={17} /><input aria-label="Cari mutasi" placeholder="Cari keterangan, tanggal, atau kategori…" value={previewQuery} disabled={controlsDisabled} onChange={event => setPreviewQuery(event.target.value)} /></label>
         <select className="select-input" aria-label="Tampilkan mutasi" value={previewFilter} disabled={controlsDisabled} onChange={event => setPreviewFilter(event.target.value)}><option value="all">Semua mutasi</option><option value="new">Mutasi baru</option><option value="pending">Perlu dirapikan</option><option value="type-pending">Jenis perlu dicek</option><option value="category-pending">Kategori belum diisi</option><option value="duplicate">Sudah diimpor</option><option value="selected">Yang dipilih</option></select><span className="import-filter-count">{visibleRows.length} terlihat · {selected.length} dipilih total</span></div>
-      <p className="field-help category-import-summary" role="status">{Object.keys(automaticCategories).length} kategori diisi aturan saat file dibaca. Yang ambigu ditawarkan sebagai saran; pilihan manual tetap dipakai.{importFormat === 'ziraat' && <> <details className="inline-details"><summary>Aturan bank yang dipakai</summary>Tarik ATM menjadi pengeluaran, setor ATM menjadi pemasukan, dan transfer bank tetap perpindahan dana. PREPAID masuk menjadi pemasukan Cashback; refund masalah ATM yang jelas menjadi Pengembalian dana. Belanja pada pembayaran kartu adalah kategori umum, bukan tebakan barang yang dibeli.</details></>}</p>
+      <p className="field-help category-import-summary" role="status">{Object.keys(automaticCategories).length} kategori diisi aturan saat file dibaca. Yang ambigu ditawarkan sebagai saran; pilihan manual tetap dipakai.{bankFormat && <> <details className="inline-details"><summary>Aturan bank yang dipakai</summary>{bankFormat.rules}</details></>}</p>
       <div className="import-bulk-category"><label className="field"><span className="field-label">Kategori untuk pilihan yang terlihat</span><select className="select-input" aria-label="Kategori mutasi terpilih" value={previewCategory} disabled={controlsDisabled} onChange={event => setPreviewCategory(event.target.value)}>{categoryChoices(categorySettings, previewCategory).map(name => <option key={name}>{name}</option>)}</select></label><button className="button secondary" disabled={controlsDisabled || !visibleSelected.length} onClick={applyPreviewCategory}><Tags size={16} /> Terapkan kategori ke {visibleSelected.length} mutasi</button>{visibleUntyped.length > 0 && <div className="import-bulk-type"><button className="button secondary" disabled={controlsDisabled} data-testid="import-bulk-type" onClick={applyPreviewTypes}><CheckCheck size={16} /> Tandai jenis {visibleUntyped.length} mutasi: masuk = pemasukan, keluar = pengeluaran</button><span className="field-help">Hanya untuk pilihan terlihat yang jenisnya masih “Perlu dicek”. Perpindahan antar-rekening tetap perlu kamu tandai sendiri di barisnya.</span></div>}</div>
       <div className="table-wrap"><table className="transactions-table import-table"><thead><tr><th className="import-select-all"><input type="checkbox" aria-label="Pilih semua transaksi baru" title="Pilih atau batalkan hanya mutasi baru yang terlihat" disabled={controlsDisabled || !visibleNewRows.length} checked={visibleNewRows.length > 0 && visibleNewRows.every(row => row.selected)} ref={input => { if (input) input.indeterminate = visibleSelected.length > 0 && visibleSelected.length < visibleNewRows.length; }} onChange={event => { const ids = new Set(visibleNewRows.map(row => row.id)); const checked = event.target.checked; setRows(current => current.map(row => ids.has(row.id) ? { ...row, selected: checked } : row)); }} /><span className="import-select-all-text">Pilih semua mutasi baru yang terlihat</span></th><th>Transaksi</th><th>Nominal</th><th>Jenis</th><th>Kategori</th></tr></thead>
         <tbody>{visibleRows.map(row => {

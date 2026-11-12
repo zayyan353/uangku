@@ -1331,6 +1331,11 @@ Tampil setelah ada file yang tersimpan.
     umum"; selain itu tetap Ziraat. Pilihan terakhir tidak diingat. Kalimat
     "Mengganti format atau dompet membatalkan pratinjau…" hanya tampil saat
     ada pratinjau.
+  - *Ditambah 12 Nov 2026 (MW-19a).* Tab ketiga "Bank Jago PDF · otomatis"
+    di antara Ziraat dan CSV. Hanya dompet IDR yang ditawarkan; dompet yang
+    namanya memuat "jago" dipilih lebih dulu. Tab awal tidak berubah. Di HP
+    ketiga tab tetap satu baris (label boleh terlipat), tanpa geser horizontal
+    (`jago_browser.py`, 390 px).
 
 - [x] **4.3.2 Kepala panel**
   *Isi:* "Mutasi masuk, catatan beres." dan lencana format.
@@ -1344,7 +1349,12 @@ Tampil setelah ada file yang tersimpan.
   - *Dikerjakan 11 Nov 2026.* Tulisan "Dompet tujuan" di dalam kotak
     pemetaan dibuang; dompet hanya dipilih di "Simpan ke dompet".
 
-### 4.4 Unggah Ziraat
+### 4.4 Unggah Ziraat / Bank Jago
+
+Area unggah dipakai bersama. Pada tab Bank Jago teksnya "Taruh file PDF di
+sini", tombol "Pilih file .pdf", dan bantuan "PDF “Riwayat Transaksi” satu
+Kantong dari aplikasi Jago · maksimal 8 MB"; galatnya berasal dari
+`jagoStatement.ts`/`pdfText.ts` (ditambah 12 Nov 2026, MW-19a).
 
 - [x] **4.4.1 Area taruh file**
   *Isi:* ikon, "Taruh file Excel di sini", tombol "Pilih file .xlsx", batas 8 MB.

@@ -618,6 +618,42 @@ Dicatat dari uji yang sama, **belum dikerjakan**:
 
 - [ ] **MW-19 — Pembaca mutasi bank lain** (satu bank = satu MW).
   Butuh contoh file mutasi asli yang angkanya sudah disamarkan.
+
+- [x] **MW-19a — Bank Jago (PDF riwayat transaksi)** (12 November 2026)
+  Pemilik memberi PDF "Pocket Transactions History" satu Kantong (98 transaksi,
+  2022–2026) dan meminta pembacaannya otomatis seperti Ziraat. File asli hanya
+  dibaca di memori dan profil sementara; isinya tidak disalin ke repo, tes
+  memakai PDF sintetis dengan tata letak yang sama.
+  - Pembaca teks PDF kecil tanpa dependency baru (`pdfText.ts`, memakai `fflate`
+    yang sudah ada): objek dicari tanpa xref, object stream dibuka, FlateDecode
+    dibatasi 48 MiB hasil buka, teks dipetakan lewat ToUnicode. PDF terenkripsi,
+    kompresi lain, atau huruf tanpa peta teks ditolak. Producer Jago tidak
+    memetakan glyph ligatur `ft`/`fh` huruf TT Commons; dua glyph itu dipetakan
+    khusus untuk keluarga huruf tersebut (dicek terhadap halaman cetak), glyph
+    lain tetap terlihat sebagai karakter tak dikenal.
+  - Pembaca tabel Jago (`jagoStatement.ts`): kolom dicari dari judulnya per
+    halaman, baris dikelompokkan dari tanggal, nama/ID yang terbungkus disambung,
+    jumlah dan saldo dibedakan dari tandanya, mata uang dicocokkan dengan dompet.
+    Rantai saldo antarbaris wajib cocok (urutan lama→baru atau sebaliknya).
+  - Fakta disimpan sebagai `generic-v1` (`generic:` + 16 hex) sehingga format
+    cadangan dan codec tidak berubah.
+  - Jenis dari Rincian Transaksi: pindah Kantong, akun lama, transfer masuk/
+    keluar, dan isi saldo e-wallet → perpindahan dana (Transfer); Jago Pay dan
+    POS → pengeluaran (GO-FOOD → Makan & minum); POS masuk dengan ID+nominal
+    sama → Pengembalian dana; Bonus → Cashback; lainnya Perlu dicek.
+  - Tab **Bank Jago PDF · otomatis** di halaman Impor (dompet IDR; dompet bernama
+    "jago" dipilih lebih dulu).
+  *Hasil pada file pemilik:* 98 dari 98 baris terbaca, saldo akhir sama dengan
+  PDF, 0 Perlu dicek, 6 pengeluaran tanpa kategori (3 Bibit, 2 tip Gojek yang
+  disarankan Transportasi, 1 POS Trendyol yang diisi aturan Belanja online),
+  impor ulang → 98 duplikat.
+  *Batasan:* hanya tata letak PDF Jago ini (bahasa Indonesia, IDR). Kantong
+  lain diimpor per file; perpindahan antar Kantong belum dipasangkan otomatis.
+  Pembelian reksa dana lewat Bibit tetap pengeluaran tanpa kategori.
+  *File:* `src/lib/pdfText.ts`, `src/lib/jagoStatement.ts`,
+  `src/lib/testing/syntheticPdf.ts`, tes unit, `genericImport.ts` (ekspor
+  fungsi fingerprint), `RecoveryImportView.tsx`, `tests/jago_browser.py`,
+  `.github/workflows/ci.yml`, `README.md`, `STATUS.md`.
 - [ ] **MW-20 — Impor PDF/XLS lama.** Ini makro; pecah dulu setelah ada contoh file.
 
 ---

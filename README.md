@@ -32,8 +32,9 @@ Gunakan cadangan JSON untuk memindahkan catatan secara sengaja.
 - **Kategori:** tambah atau kurangi pilihan dan kelola aturan kata kunci sendiri.
   Kecocokan yang jelas dapat diisi otomatis, sedangkan yang ambigu menjadi saran.
   Kategori dan aturan pribadi tidak ditimpa oleh pembaruan aturan bawaan.
-- **Impor:** pembaca otomatis XLSX Ziraat TRY/TL dan pemetaan kolom CSV, TSV,
-  atau XLSX umum untuk dompet aktif dalam mata uang yang didukung.
+- **Impor:** pembaca otomatis XLSX Ziraat TRY/TL, pembaca otomatis PDF riwayat
+  transaksi Bank Jago (IDR), dan pemetaan kolom CSV, TSV, atau XLSX umum untuk
+  dompet aktif dalam mata uang yang didukung.
 - **Fakta sumber:** keterangan, tanggal, nominal, dan saldo bank disimpan
   terpisah dari anotasi pengguna. Pratinjau memeriksa saldo antarbaris, impor
   berulang, dan kemungkinan tumpang tindih dengan catatan yang sudah ada.
@@ -43,7 +44,7 @@ Gunakan cadangan JSON untuk memindahkan catatan secara sengaja.
   pulihkan catatan melalui JSON.
 
 Aplikasi belum terhubung ke API bank dan tidak menyinkronkan rekening otomatis.
-PDF dan XLS lama belum didukung. Pembacaan format umum memakai pilihan kolom
+PDF bank lain dan XLS lama belum didukung. Pembacaan format umum memakai pilihan kolom
 yang dikonfirmasi pengguna, bukan janji mendukung seluruh format ekspor bank.
 
 ## Mulai memakai
@@ -67,6 +68,30 @@ mewakili satu rekening dalam satu mata uang; impor tidak menukar mata uang.
 
 **Ziraat otomatis:** pilih mode Ziraat untuk XLSX rekening TRY/TL dengan kolom
 `Tarih`, `Fiş No`, `Açıklama`, `İşlem Tutarı`, dan `Bakiye`.
+
+**Bank Jago otomatis:** pilih mode Bank Jago untuk PDF "Riwayat Transaksi"
+(*Pocket Transactions History*) yang diunduh dari aplikasi Jago, satu Kantong
+per file, ke dompet IDR. PDF dibaca di browser; teksnya harus asli dari aplikasi
+(bukan hasil pindai atau foto) dan tidak terkunci kata sandi. Unduh tanpa filter:
+saldo setiap baris harus sama dengan saldo baris sebelumnya ditambah jumlahnya,
+jadi PDF yang hanya berisi uang masuk, atau yang halamannya hilang, ditolak.
+Jenis transaksi diambil dari kolom Rincian Transaksi:
+
+- *Tambah/Tarik Uang Kantong* (pindah uang antar Kantong), *Pemindahan dari Akun
+  Lama*, *Transfer Masuk/Keluar*, dan *Isi Saldo Dompet Digital* menjadi
+  perpindahan dana, sama seperti pokok transfer Ziraat. Transfer dari/ke nama
+  pemilik rekening (nama di bagian atas PDF) ditandai sebagai rekening milikmu
+  sendiri; transfer ke orang lain bisa diubah menjadi pengeluaran di pratinjau.
+- *Pembayaran dengan Jago Pay* dan *Transaksi POS* (kartu) menjadi pengeluaran.
+  GO-FOOD masuk Makan & minum; merchant lain mengikuti aturan kategori.
+- *Transaksi POS* yang masuk dengan ID dan nominal sama dengan pembelian di file
+  yang sama menjadi pemasukan Pengembalian dana. *Bonus* menjadi Cashback.
+- Jenis lain, atau arah nominal yang bertentangan dengan jenisnya, tetap
+  **Perlu dicek**.
+
+Baris Jago disimpan sebagai fakta bank format umum, jadi format cadangan tidak
+berubah. Mengimpor PDF yang sama atau periode yang tumpang tindih menandai baris
+yang sudah ada sebagai duplikat.
 
 **CSV / Excel umum:**
 
