@@ -95,7 +95,8 @@ describe('Bank Jago PDF statement', () => {
       incoming('BUDI CONTOH SANT', 'a', '1.000,00'), incoming('ORANG LAIN', 'b', '2.000,00'), incoming('ShopeePay', 'c', '3.000,00'),
       incoming('Tokopedia', 'd', '4.000,00'), incoming('GO-PAY - BUDI CONTOH SANTOSO', 'e', '5.000,00'), incoming('BXXXX CXXXXX', 'f', '6.000,00'),
     ]), wallet(), []).rows;
-    expect(senders.map(row => row.classification)).toEqual(['movement', 'income', 'unreviewed', 'unreviewed', 'movement', 'unreviewed']);
+    expect(senders.map(row => row.classification)).toEqual(['movement', 'income', 'movement', 'movement', 'movement', 'unreviewed']);
+    expect(senders[2]).toMatchObject({ category: 'Transfer' });
     expect(senders[2].warning).toContain('e-wallet atau marketplace');
   });
 

@@ -194,10 +194,12 @@ function classify(row: JagoRow, amount: number, owner: string, earlier: readonly
     }
     if (amount < 0) return { classification: 'expense', category: UNCATEGORIZED,
       warning: 'Transfer ke rekening atas nama orang lain dicatat sebagai pengeluaran. Ubah ke perpindahan dana bila itu rekeningmu sendiri.' };
-    if (whose === 'masked' || PLATFORM.test(` ${folded(row.party)} `)) {
+    if (whose === 'masked') {
       return { classification: 'unreviewed', category: UNCATEGORIZED,
-        warning: whose === 'masked' ? 'Nama pengirim disamarkan bank, jadi belum pasti dari rekening milikmu atau orang lain. Saldo dicatat; pilih pemasukan atau perpindahan dana.'
-          : 'Uang masuk dari e-wallet atau marketplace bisa berupa penarikan saldomu sendiri, refund, atau hasil penjualan. Saldo dicatat; pilih pemasukan atau perpindahan dana.' };
+        warning: 'Nama pengirim disamarkan bank, jadi belum pasti dari rekening milikmu atau orang lain. Saldo dicatat; pilih pemasukan atau perpindahan dana.' };
+    }
+    if (PLATFORM.test(` ${folded(row.party)} `)) {
+      return movement('Uang masuk dari e-wallet atau marketplace dicatat sebagai perpindahan dana (penarikan saldomu sendiri). Ubah ke pemasukan bila ini refund atau hasil penjualan.');
     }
     return { classification: 'income', category: UNCATEGORIZED,
       warning: 'Transfer dari rekening atas nama orang lain dicatat sebagai pemasukan. Ubah ke perpindahan dana bila itu rekeningmu sendiri.' };
@@ -295,7 +297,7 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
       if (parseStatementMoney(latest, wallet.currency, ',') !== newest.balance) warnings.push('Saldo terbaru di bagian atas PDF berbeda dengan saldo transaksi terakhir. Mungkin ada transaksi sesudah periode yang dipilih.');
     } catch { /* the header figure is informational only */ }
   }
-  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Pindah uang antar Kantong, transfer dari/ke rekening atas namamu, dan isi saldo e-wallet dicatat sebagai perpindahan dana; transfer dari orang lain sebagai pemasukan; transfer ke orang lain, pembayaran Jago Pay, dan transaksi kartu sebagai pengeluaran; bonus sebagai Cashback.');
+  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Pindah uang antar Kantong, transfer dari/ke rekening atas namamu, uang masuk dari e-wallet/marketplace, dan isi saldo e-wallet dicatat sebagai perpindahan dana; transfer dari orang lain sebagai pemasukan; transfer ke orang lain, pembayaran Jago Pay, dan transaksi kartu sebagai pengeluaran; bonus sebagai Cashback.');
   return { rows, sourceOrder: order, currency: wallet.currency, openingBalance, closingBalance: newest.balance, warnings,
     period: { start: oldest.date, end: newest.date } };
 }

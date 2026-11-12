@@ -78,14 +78,14 @@ jadi PDF yang hanya berisi uang masuk, atau yang halamannya hilang, ditolak.
 Jenis transaksi diambil dari kolom Rincian Transaksi:
 
 - *Tambah/Tarik Uang Kantong* (pindah uang antar Kantong), *Pemindahan dari Akun
-  Lama*, *Isi Saldo Dompet Digital*, dan *Transfer Masuk/Keluar* dari/ke
-  rekening atas nama pemilik (nama di bagian atas PDF) menjadi perpindahan dana.
+  Lama*, *Isi Saldo Dompet Digital*, *Transfer Masuk/Keluar* dari/ke rekening
+  atas nama pemilik (nama di bagian atas PDF), dan *Transfer Masuk* dari e-wallet
+  atau marketplace (mis. ShopeePay, Tokopedia; dianggap penarikan saldo sendiri)
+  menjadi perpindahan dana.
 - *Transfer Keluar* ke nama orang lain menjadi pengeluaran, dan *Transfer Masuk*
   dari nama orang lain menjadi pemasukan.
-- Uang masuk dari e-wallet atau marketplace (mis. ShopeePay, Tokopedia) bisa
-  berupa penarikan saldo sendiri, jadi tetap **Perlu dicek**. Begitu juga nama
-  yang disamarkan bank (mis. `ZXXXXXXXXX3`) bila sisa hurufnya tidak cocok
-  dengan nama pemilik.
+- Nama yang disamarkan bank (mis. `ZXXXXXXXXX3`) yang sisa hurufnya tidak cocok
+  dengan nama pemilik tetap **Perlu dicek**.
 - *Pembayaran dengan Jago Pay* dan *Transaksi POS* (kartu) menjadi pengeluaran.
   GO-FOOD masuk Makan & minum; merchant lain mengikuti aturan kategori.
 - *Transaksi POS* yang masuk dengan ID dan nominal sama dengan pembelian di file
