@@ -2,22 +2,44 @@
 
 Dibuat: 11 November 2026, commit `2fb3179` (main).
 
-**Status 11 November 2026 (sesi lanjutan):** 171 dari 171 butir dicentang.
-Hasil tes sesi ini, dijalankan lokal terhadap build produksi
-(`npm run preview`); setelah 3.12.1 dikerjakan, `npm test` (63 file / 1.787
-tes) dan sembilan suite browser yang menyentuh Kelola kategori diulang dan
-lulus. Catatan di bawah adalah keadaan sebelum 3.12.1:
+**Status 12 November 2026:** selesai. 171 dari 171 butir dicentang, termasuk
+14 butir **[keputusan]** yang sudah diputuskan pemilik (ringkasannya di
+[Keputusan pemilik](#keputusan-pemilik) di akhir file). Sesudah butir
+terakhir ada satu perubahan di luar daftar: panel Kategori pengeluaran di
+Ringkasan bisa dilipat (`c412612`, dicatat di 1.7.1).
 
-- `npm test`: 62 file / 1.782 tes lulus. `npm run build` lulus.
-- Tes browser: 15 suite fungsional CI dan `full_backup_browser.py` lulus pada
-  build 5.10–5.11. Setelah tinjauan ulang 4.2.5, 4.2.6, dan 5.3.3, tujuh suite
-  yang terkait diulang dan lulus (`source`, `backfill`, `recovery`, `smoke`,
-  `currency_import`, `bank_auto`, `theme`); sembilan lainnya tidak diulang.
-- `performance_browser.py` (10.000 baris, 5 sampel) di mesin ini: jeda frame
-  291 ms, median 5.681 ms, p95 6.448 ms. Commit sebelum sesi ini (`de8b9e8`) di
-  mesin yang sama: 271 ms dan 5.813 ms. Atas permintaan pemilik, batas di
-  `ci.yml` dilonggarkan menjadi median 7.000 ms dan jeda frame 350 ms (p95
-  tetap 8.000 ms). Di CI, push sampai 5.9 lulus dengan batas lama.
+Hasil tes, dari yang terbaru. Hasil lama dicatat sebagai riwayat, bukan bukti
+untuk kode sesudahnya.
+
+- 12 Nov 2026, `main` `a430984`: `npm test` 63 file / 1.787 tes lulus,
+  `npm run build` lulus. Tes browser tidak dijalankan ulang untuk perapian
+  dokumen ini.
+- 11 Nov 2026, sesudah 3.12.1: `npm test` 63 file / 1.787 tes dan sembilan
+  suite browser yang menyentuh Kelola kategori diulang dan lulus, lokal
+  terhadap build produksi (`npm run preview`).
+- 11 Nov 2026, sebelum 3.12.1:
+  - `npm test`: 62 file / 1.782 tes lulus. `npm run build` lulus.
+  - Tes browser: 15 suite fungsional CI dan `full_backup_browser.py` lulus
+    pada build 5.10–5.11. Setelah tinjauan ulang 4.2.5, 4.2.6, dan 5.3.3,
+    tujuh suite yang terkait diulang dan lulus (`source`, `backfill`,
+    `recovery`, `smoke`, `currency_import`, `bank_auto`, `theme`); sembilan
+    lainnya tidak diulang.
+  - `performance_browser.py` (10.000 baris, 5 sampel) di mesin ini: jeda
+    frame 291 ms, median 5.681 ms, p95 6.448 ms. Commit sebelum sesi ini
+    (`de8b9e8`) di mesin yang sama: 271 ms dan 5.813 ms. Atas permintaan
+    pemilik, batas di `ci.yml` dilonggarkan menjadi median 7.000 ms dan jeda
+    frame 350 ms (p95 tetap 8.000 ms). Di CI, push sampai 5.9 lulus dengan
+    batas lama.
+
+Yang masih terbuka walau butirnya sudah dicentang:
+
+- Perilaku baru tanpa tes browser sendiri: 1.1.1 (kolom nama panggilan; ada
+  tes unit), 1.6.2 (tautan "+N dompet lainnya" dan klik baris), 1.7.2 (klik
+  nama kategori), 1.7.3 (tombol "+N kategori lainnya"), 1.10.2 (panduan),
+  2.3.3, 3.4.7, 3.6.3.
+- Beberapa butir masih bertanda "Belum dilihat" di catatannya (mis. dompet
+  arsip, transfer beda mata uang); usulnya dikerjakan dari kode. Firefox dan
+  Safari belum dicoba.
 
 Peta isi aplikasi per halaman. **Bab** = halaman, **sub-bab** = bagian halaman,
 **butir** (mis. 1.3.1) = bagian terkecil. Tiap butir mencatat isinya sekarang dan
@@ -96,7 +118,6 @@ dan bulan (5.4).
   - **[keputusan]** Nama "Zayyan" dan avatar "Z" ditulis mati di kode
     (`App.tsx:527`, `AppNavigation.tsx`), padahal situsnya publik. Pilih: nama
     panggilan jadi pengaturan (tersimpan di preferensi browser) atau sapaan netral.
-  - *Dilewati 11 Nov 2026: menunggu keputusan pemilik.*
   - *Dikerjakan 11 Nov 2026 (pemilik menyetujui semua usul).* Nama "Zayyan"
     dan avatar "Z" tidak lagi ditulis mati. Menu akun punya kolom "Nama
     panggilan" (maksimal 24 karakter) yang disimpan di browser ini saja,
@@ -285,10 +306,9 @@ dan bulan (5.4).
   - **[keputusan]** Klik baris membuka form Atur dompet, padahal panahnya
     mengisyaratkan "lihat isi". Pilih: buka riwayat dompet itu, atau tetap form.
   - "· IDR" mengulang tab mata uang (di kartu dompet sudah dibuang lewat MW-52).
-  - *Sebagian dikerjakan 11 Nov 2026; belum dicentang karena satu usul menunggu
-    keputusan.* Tautan "+N dompet lainnya" ditambah (membuka halaman Dompet)
-    dan "· IDR" dibuang. Dilihat dengan 8 dompet IDR di desktop dan HP, terang
-    dan gelap. Tes: `wallet_browser.py` 19/19, `cashflow_browser.py` 19/19,
+  - *Tahap pertama, 11 Nov 2026 (sebelum klik baris diputuskan).* Tautan
+    "+N dompet lainnya" ditambah (membuka halaman Dompet) dan "· IDR" dibuang.
+    Dilihat dengan 8 dompet IDR di desktop dan HP, terang dan gelap. Tes: `wallet_browser.py` 19/19, `cashflow_browser.py` 19/19,
     `browser_smoke.py` 39 skenario lulus; tautan baru belum punya tes
     otomatis. Tujuan klik baris (riwayat atau form) tidak diubah.
   - *Diselesaikan 11 Nov 2026 (pemilik menyetujui semua usul).* Klik baris
@@ -320,6 +340,10 @@ dan bulan (5.4).
     area sentuh 45px. Dilihat di desktop dan HP, terang dan gelap. Tes:
     `category_browser.py` 25/25, `theme_browser.py` 21/21, `ux_browser.py`
     desktop dan mobile lulus.
+  - *Sesudah daftar selesai (`c412612`, 11 Nov 2026):* panel bisa dilipat
+    dan dibuka dengan kepala lipat yang sama seperti Perhitungan saldo
+    periode dan Rincian arus rekening; saat dilipat tampil jumlah kategori dan
+    totalnya. `cashflow_browser.py` diperbarui di commit itu.
 
 - [x] **1.7.2 Baris kategori**
   *Isi:* titik warna, nama, nominal, batang. Dengan anggaran: "terpakai / batas"
@@ -401,7 +425,6 @@ dan bulan (5.4).
   - **[keputusan]** Kartu saldo berada di atas tab mata uang dan filter yang
     menentukan isinya, dan banner menyela di antaranya. Usul: mata uang →
     saldo → masuk/keluar, dengan cakupan + periode diringkas jadi satu baris.
-  - *Dilewati 11 Nov 2026: menunggu keputusan pemilik.*
   - *Dikerjakan 11 Nov 2026 (pemilik menyetujui semua usul).* Urutan di HP
     kini: judul → tombol → tab mata uang → kartu saldo → Dompet + Periode
     dalam satu baris → rentang tanggal, "Kelola mata uang", bulan →
@@ -1082,16 +1105,11 @@ dan bulan (5.4).
   *Isi:* tambah dan hapus; maksimal 100.
   - **[keputusan]** Belum bisa ganti nama: hapus + tambah membuat nama baru dan
     catatan lama tetap memakai nama lama.
-  - *Dilewati 11 Nov 2026, belum dicentang.* Butir ini tidak memuat usul
-    yang bisa langsung dikerjakan: ganti nama berarti memilih nasib catatan
-    lama (ikut berganti nama, yang menulis ulang kategori di banyak
-    transaksi sekaligus aturan, anggaran, dan template; atau tetap memakai
-    nama lama). Itu perubahan data lintas dua penyimpanan dan perlu
-    keputusan pemilik lebih dulu.
-  - *Catatan pemilik 11 Nov 2026:* ganti nama kategori oleh pengguna memang
-    diinginkan, dan pantas dikerjakan saat aplikasinya sudah matang. Butir
-    ini tetap terbuka sampai itu dijadwalkan; pilihan soal nasib catatan
-    lama masih perlu diputuskan saat itu.
+  - *Sempat ditunda 11 Nov 2026:* ganti nama berarti memilih nasib catatan
+    lama (ikut berganti nama, yang menulis ulang kategori di banyak transaksi
+    sekaligus aturan, anggaran, dan template; atau tetap memakai nama lama),
+    yaitu perubahan data lintas dua penyimpanan. Pemilik memutuskannya pada
+    hari yang sama.
   - *Dikerjakan 11 Nov 2026.* Keputusan pemilik: pengguna yang memilih. Tiap
     kategori (selain kategori dasar) punya tombol pensil; saat mengganti
     nama ada centang "Ganti juga di N catatan lama" (bawaan: dicentang).
@@ -1892,35 +1910,24 @@ Tampil di lebih dari satu halaman. Dikerjakan sekali di sini untuk semuanya.
 
 ---
 
-## Keputusan yang ditunggu
+## Keputusan pemilik
 
-Butir **[keputusan]**, dikumpulkan supaya bisa diputuskan lebih dulu:
+Semua butir **[keputusan]** sudah diputuskan pemilik pada 11 November 2026 dan
+dikerjakan. Rinciannya ada di catatan tiap butir.
 
-| Butir | Yang perlu dipilih |
-|---|---|
-| 1.1.1 | Nama sapaan dan avatar: pengaturan, atau sapaan netral |
-| 1.6.2 | Klik baris dompet di Ringkasan: riwayat atau form |
-| 1.10.1 | Urutan bagian Ringkasan di HP |
-| 3.3.4 | "Perlu dirapikan" keluar dari dropdown Jenis |
-| 3.4.5 | Klik baris transaksi membuka rincian |
-| 3.7.2 | Label "Perpindahan dana" dan "Transfer" |
-| 3.8.4 | Satu tanggal bawaan untuk transfer |
-| 3.12.1 | Ganti nama kategori dan nasib catatan lama |
-| 4.5.2 | Tebak pemisah CSV dari isi file |
-| 4.5.6 | Tebak desimal dan urutan mutasi sebagai saran |
-| 5.1.3 | Tombol catat yang selalu terlihat di HP |
-| 5.6.2 | Posisi "Cadangkan transaksi saja" |
-| 5.7.2 | Dompet bawaan saat "Mulai dari kosong" |
-| 5.11.1 | Zona waktu untuk "hari ini" |
-
-## Kalau mau menyimpang dari urutan
-
-Urutan bawaan tetap 1.1.1 dan seterusnya. Enam butir ini paling terasa oleh
-pengguna dan tidak bergantung pada butir lain, jadi boleh didahulukan:
-
-1. **4.5.4** tabel contoh kehilangan kolom di HP.
-2. **4.8.7** tabel pratinjau impor di HP harus digeser untuk melihat nominal.
-3. **4.5.7** pratinjau impor muncul di luar layar.
-4. **5.9.1** jendela membuang perubahan tanpa bertanya.
-5. **4.7.7** jenis transaksi impor umum harus diisi satu per satu.
-6. **2.5.5** kotak Arsipkan setengah lebar.
+| Butir | Pertanyaan | Keputusan |
+|---|---|---|
+| 1.1.1 | Nama sapaan dan avatar | Nama panggilan diatur di menu akun, disimpan di browser saja; kosong: sapaan netral "Halo." |
+| 1.6.2 | Klik baris dompet di Ringkasan | Membuka Transaksi untuk dompet itu; form tetap di halaman Dompet |
+| 1.10.1 | Urutan bagian Ringkasan di HP | Mata uang → saldo → dompet + periode → masuk/keluar |
+| 3.3.4 | "Perlu dirapikan" di dropdown Jenis | Hanya muncul saat antrean terbuka; masuk lewat "Rapikan N catatan" |
+| 3.4.5 | Klik baris transaksi | Judul transaksi membuka Rincian nominal |
+| 3.7.2 | Label "Perpindahan dana" dan "Transfer" | Label tetap; satu baris keterangan di bawah tab jenis |
+| 3.8.4 | Tanggal transfer | Transfer baru: satu tanggal + "Tanggal masuk berbeda?"; transfer lama tetap dua kolom |
+| 3.12.1 | Ganti nama kategori dan catatan lama | Bisa ganti nama; pengguna memilih apakah catatan lama ikut (bawaan: ikut) |
+| 4.5.2 | Pemisah CSV | Ditebak dari isi file bila semua baris sepakat; bisa diubah |
+| 4.5.6 | Desimal dan urutan mutasi | Saran dari data dengan "Pakai saran"; tidak pernah dipilihkan otomatis |
+| 5.1.3 | Tombol catat di HP | Tombol "+" (Catat cepat) di tengah navigasi bawah |
+| 5.6.2 | "Cadangkan transaksi saja" | Tautan kecil di bawah "Cadangan terakhir" dengan keterangan bedanya |
+| 5.7.2 | Dompet bawaan "Mulai dari kosong" | Dompet awal bisa dihilangkan sebelum mulai; minimal satu |
+| 5.11.1 | Zona waktu "hari ini" | Ikut zona waktu perangkat |
