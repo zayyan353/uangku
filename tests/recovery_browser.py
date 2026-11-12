@@ -163,7 +163,11 @@ def test_clean_sync_and_concurrent_forms(browser, output):
         open_expense(b, note='Concurrent B')
         a.get_by_role('dialog').locator('form').evaluate('(form) => form.requestSubmit()')
         b.get_by_role('dialog').locator('form').evaluate('(form) => form.requestSubmit()')
-        a.wait_for_timeout(400)
+        # Each tab either saved (its form closed) or lost the race (form open, conflict shown). A fixed
+        # wait was too short when the second write was slow, and read the ledger before it landed.
+        for tab in (a, b):
+            tab.wait_for_function('''() => !document.querySelector('[role=dialog]')
+              || document.querySelector('[data-testid=save-status]')?.textContent.includes('konflik')''')
         notes = persisted_notes(a)
         assert 'Sequential A' in notes and 'Sequential B' in notes
         assert ('Concurrent A' in notes) or ('Concurrent B' in notes)
