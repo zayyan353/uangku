@@ -104,3 +104,82 @@ jobs:
             ${{ runner.temp }}/uangku-browser-kerangka
             ${{ runner.temp }}/uangku-browser-performance
             ${{ runner.temp }}/preview.log
+
+  other-browsers:
+    name: Tes browser ${{ matrix.browser }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # WebKit adalah mesin Safari (bukan Safari macOS/iOS sungguhan).
+        browser: [firefox, webkit]
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v6
+      - name: Siapkan Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - name: Pasang dependency dari lockfile
+        run: npm ci
+      - name: Buat build produksi
+        run: npm run build
+      - name: Siapkan Python untuk regresi browser
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Pasang browser pengujian
+        # Firefox dan WebKit butuh pustaka sistemnya; tanpa itu tes tidak bisa jalan sama sekali.
+        run: |
+          python -m pip install playwright==1.64.1
+          python -m playwright install --with-deps ${{ matrix.browser }}
+      - name: Uji build produksi dengan data sintetis
+        env:
+          UANGKU_TEST_URL: http://127.0.0.1:4173
+          UANGKU_BROWSER: ${{ matrix.browser }}
+        # Tes performa hanya di job Chromium: anggaran waktunya diukur untuk Chromium.
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 4173 --strictPort > "$RUNNER_TEMP/preview.log" 2>&1 &
+          PREVIEW_PID=$!
+          trap 'kill "$PREVIEW_PID"' EXIT
+          python - <<'PY'
+          import time, urllib.request
+          for attempt in range(60):
+              try:
+                  with urllib.request.urlopen('http://127.0.0.1:4173', timeout=2) as response:
+                      if response.status == 200:
+                          break
+              except OSError:
+                  time.sleep(.25)
+          else:
+              raise SystemExit('Production preview did not start')
+          PY
+          out="$RUNNER_TEMP/uangku-browser-${{ matrix.browser }}"
+          python tests/browser_smoke.py --output "$out/original"
+          python tests/recovery_browser.py --output "$out/recovery"
+          python tests/ux_browser.py --output "$out/ux"
+          python tests/theme_browser.py --output "$out/theme"
+          python tests/category_browser.py --output "$out/category"
+          python tests/keyword_pack_browser.py --output "$out/keywords"
+          python tests/confirmed_mapping_browser.py --output "$out/confirmed-mappings"
+          python tests/bank_description_browser.py --output "$out/bank-descriptions"
+          python tests/bank_auto_browser.py --output "$out/bank-auto"
+          python tests/bank_review_browser.py --output "$out/bank-review"
+          python tests/wallet_browser.py --output "$out/wallets"
+          python tests/currency_import_browser.py --output "$out/currency-import"
+          python tests/cashflow_browser.py --output "$out/cashflow"
+          python tests/source_browser.py --output "$out/source"
+          python tests/backfill_browser.py --output "$out/backfill"
+          python tests/kerangka_browser.py --output "$out/kerangka"
+      - name: Simpan bukti pengujian browser
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: browser-evidence-${{ matrix.browser }}
+          if-no-files-found: warn
+          path: |
+            ${{ runner.temp }}/uangku-browser-${{ matrix.browser }}
+            ${{ runner.temp }}/preview.log

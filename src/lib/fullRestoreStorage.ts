@@ -9,12 +9,28 @@ export const PROFILE_CHANGED = 'uangku:profile-changed';
 export const restorePending = 'Pemulihan lengkap sedang diperiksa. Tunggu sebelum mengubah atau mencadangkan data.';
 const journalLimit = 2 * 1024 * 1024;
 
+type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown };
+
+/**
+ * Runs a task while holding an exclusive Web Lock and gives back its result or its error.
+ * The lock callback itself never rejects: Firefox reports a rejected lock callback as an
+ * unhandled rejection even when the caller handles the request. The task's error is thrown
+ * here instead, once the lock is released, which is when a rejected callback surfaced too.
+ */
+export async function requestExclusive<T>(manager: Pick<LockManager, 'request'>, name: string,
+  task: () => T | Promise<T>): Promise<T> {
+  const outcome: Settled<T> = await manager.request(name, { mode: 'exclusive' }, async (): Promise<Settled<T>> => {
+    try { return { ok: true, value: await task() }; }
+    catch (error) { return { ok: false, error }; }
+  });
+  if (!outcome.ok) throw outcome.error;
+  return outcome.value;
+}
+
 export function browserLocks(): PersistenceLocks | undefined {
   const manager = globalThis.navigator?.locks;
   if (!manager?.request) return undefined;
-  return { async runExclusive<T>(name: string, task: () => T | Promise<T>) {
-    return await manager.request(name, { mode: 'exclusive' }, async () => await task());
-  } };
+  return { runExclusive: <T>(name: string, task: () => T | Promise<T>) => requestExclusive(manager, name, task) };
 }
 
 export function withProfileLocks<T>(locks: PersistenceLocks, action: () => Promise<T> | T): Promise<T> {

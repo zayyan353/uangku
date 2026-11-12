@@ -101,12 +101,13 @@ def isolated(browser, initial, output, name, *, viewport=None, init_extra=None):
     if init_extra:
         context.add_init_script(init_extra)
     errors = []
+    # page.clock belongs to the context and covers every tab; WebKit refuses a second install.
+    context.clock.install(time=FIXED_TIME)
 
     def add_page():
         page = context.new_page()
         page.set_default_timeout(25_000)
         page.on('pageerror', lambda err: errors.append(str(err)))
-        page.clock.install(time=FIXED_TIME)
         page.goto(URL, wait_until='networkidle')
         expect(page.locator('.balance-card')).to_be_visible()
         return page
@@ -289,12 +290,13 @@ def test_transaction_draft_close(browser, output):
 def test_pending_writer_modal_guard(browser, output):
     with isolated(browser, fixture(), output, 'pending-writer') as (_, new_page, _):
         page = new_page()
+        # Patch the prototype: WebKit can recreate the navigator.locks wrapper and drop an own property.
         page.evaluate('''() => {
-          const request = navigator.locks.request.bind(navigator.locks);
-          navigator.locks.request = (name,options,callback) => request(name,options,async lock => {
+          const manager = Object.getPrototypeOf(navigator.locks), request = manager.request;
+          manager.request = function (name,options,callback) { return request.call(this,name,options,async lock => {
             await new Promise(resolve => { window.__releaseSyntheticWriter = resolve; });
             return callback(lock);
-          });
+          }); };
         }''')
         dlg = open_expense(page, note='Pending original draft')
         dlg.get_by_role('button', name='Simpan transaksi', exact=True).click()

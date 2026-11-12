@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, type CategorySettings } from './categorySettings';
-import { CATEGORY_LOCK, finishInterruptedRestore, RESTORE_JOURNAL } from './fullRestoreStorage';
+import { CATEGORY_LOCK, finishInterruptedRestore, requestExclusive, RESTORE_JOURNAL } from './fullRestoreStorage';
 import { BUDGETS_KEY, serializeBudgets } from './budgets';
 import { serializeTemplates, TEMPLATES_KEY } from './transactionTemplates';
 import { LedgerPersistenceController, type PersistenceLocks, type PersistenceStorage } from './persistence';
@@ -263,5 +263,36 @@ describe('templates travel with full export and restore (MW-13a)', () => {
     expect(await controller.setCandidate(updated, '', { expectedToken: raw,
       restoreCategories: { settings, expectedRaw: previousRaw, templates: [{ ...templates[0], amount: -1 }] } })).toBe(false);
     expect(store.map).toEqual(before);
+  });
+});
+
+describe('requestExclusive', () => {
+  /** Records how each lock callback settled; Firefox reports a rejected one as unhandled. */
+  function recordingManager() {
+    const callbacks: Array<{ name: string; mode?: string; rejected: boolean }> = [];
+    const manager = {
+      async request(name: string, options: { mode?: string }, callback: () => unknown) {
+        const record = { name, mode: options.mode, rejected: false };
+        callbacks.push(record);
+        try { return await callback(); }
+        catch (error) { record.rejected = true; throw error; }
+      },
+    } as unknown as Pick<LockManager, 'request'>;
+    return { manager, callbacks };
+  }
+
+  it('returns the task value from an exclusive lock', async () => {
+    const { manager, callbacks } = recordingManager();
+    await expect(requestExclusive(manager, CATEGORY_LOCK, async () => 'stored')).resolves.toBe('stored');
+    expect(callbacks).toEqual([{ name: CATEGORY_LOCK, mode: 'exclusive', rejected: false }]);
+  });
+
+  it('rethrows a failure without rejecting the lock callback', async () => {
+    const { manager, callbacks } = recordingManager();
+    const quota = new DOMException('Synthetic quota', 'QuotaExceededError');
+    await expect(requestExclusive(manager, 'sync', () => { throw quota; })).rejects.toBe(quota);
+    await expect(requestExclusive(manager, 'async', async () => { throw new Error('Synthetic conflict'); }))
+      .rejects.toThrow('Synthetic conflict');
+    expect(callbacks.map(callback => callback.rejected)).toEqual([false, false]);
   });
 });
