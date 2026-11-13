@@ -159,17 +159,57 @@ function collectRows(pages: PdfTextRun[][]): { rows: (RawRow & { columns: Column
 
 type Operation = Pick<ImportRow, 'classification' | 'category' | 'warning'>;
 
-/** Owner's rule (12 Nov 2026): money into this account is income and money out
- * is expense, whatever the operation, including moves between own Kantong and
- * own accounts. The bank wording only picks a category where it says which. */
-function classify(row: JagoRow, amount: number, earlier: readonly { row: JagoRow; amount: number }[]): Operation {
+/** The owner's own accounts are recognised from the account-holder name the bank prints:
+ * - the name at the top of the statement, matched in the counterparty name (exact, or masked
+ *   with the visible letters in order, e.g. a DANA top-up account printed as "ZAYXXX SYA");
+ * - the bank's own wording for moves to or from their own Kantong and e-wallet top-ups.
+ * An account number alone is not proof: a virtual account can be issued to the owner's
+ * phone for a payment to someone else. Shopee and ShopeePay are never treated as own: the
+ * owner cannot export their statement, so money to them is expense and money from them is
+ * income (owner's decision, 13 Nov 2026). */
+const OWN_TITLES = ['tambah uang kantong', 'tarik uang kantong', 'pemindahan dari akun lama', 'isi saldo dompet digital'];
+const OWN_WARNING = 'Dikenali sebagai rekening atau e-wallet milikmu (nama di rekening sama dengan nama pemilik di PDF). Hanya perubahan saldo yang dicatat; bukan pemasukan atau pengeluaran. Ubah jenisnya bila keliru.';
+
+function ownerNameFrom(pages: PdfTextRun[][]): string | undefined {
+  const top = (pages[0] ?? []).filter(run => run.y > 700 && clean(run.text)).sort((a, b) => b.size - a.size || b.y - a.y)[0];
+  const tokens = top ? folded(top.text).split(' ').filter(Boolean) : [];
+  return tokens.length >= 2 ? tokens.slice(0, 2).join(' ') : undefined;
+}
+
+/** Shopee and ShopeePay statements cannot be exported, so the bank's wording decides
+ * only the sign: money out is expense, money in is income. */
+const isShopee = (row: JagoRow): boolean => /shopee/.test(folded(row.party)) || /shopee/.test(folded(row.partyDetail));
+
+/** Counterparty name is the owner's: the name in full, or masked with its visible letters
+ * matching the owner's name words in order (at least three visible letters each). */
+function nameIsOwner(party: string, owner: string): boolean {
+  const text = folded(party).replace(/^(?:dana|danatopup|go pay|gopay|ovo|linkaja)\s+/, '');
+  if (!owner) return false;
+  if (text.includes(owner)) return true;
+  const tokens = text.split(' ').filter(Boolean), names = owner.split(' ');
+  if (!tokens.some(token => /x{3,}/.test(token)) || tokens.length < 2 || tokens.length > names.length) return false;
+  return tokens.every((token, index) => {
+    const visible = token.replace(/x{3,}.*$/, '');
+    return visible.length >= 3 && names[index].startsWith(visible);
+  });
+}
+
+function isOwnAccount(row: JagoRow, owner: string | undefined): boolean {
+  if (isShopee(row)) return false;
+  if (OWN_TITLES.includes(folded(row.title))) return true;
+  return !!owner && nameIsOwner(row.party, owner);
+}
+
+/** Owner's rule (12 Nov 2026, revised): money from other people is income and money
+ * to other people is expense. Moves to or from the owner's own accounts only change
+ * balances and are not counted in either total. */
+function classify(row: JagoRow, amount: number, own: boolean, earlier: readonly { row: JagoRow; amount: number }[]): Operation {
+  if (own) return { classification: 'movement', category: 'Transfer', warning: OWN_WARNING };
   const operation = folded(row.title);
   const classification = amount > 0 ? 'income' : 'expense';
   let category = UNCATEGORIZED;
   let warning: string | undefined;
-  if (['tambah uang kantong', 'tarik uang kantong', 'pemindahan dari akun lama', 'transfer masuk', 'transfer keluar', 'isi saldo dompet digital'].includes(operation)) {
-    category = 'Transfer';
-  } else if (operation === 'pembayaran dengan jago pay' && amount < 0 && /\bgo ?food/.test(folded(row.note))) {
+  if (operation === 'pembayaran dengan jago pay' && amount < 0 && /\bgo ?food/.test(folded(row.note))) {
     category = 'Makan & minum';
   } else if (operation === 'transaksi pos' && amount > 0 && row.reference
     && earlier.some(item => folded(item.row.title) === 'transaksi pos' && item.row.reference === row.reference && item.amount === -amount)) {
@@ -194,6 +234,8 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
   if (!all.length) fail('PDF ini tidak memuat teks (mungkin hasil pindai atau foto). Unduh PDF "Riwayat Transaksi" langsung dari aplikasi Jago.');
   if (!all.some(run => /\bjago\b/.test(folded(run.text)))) fail('Ini bukan PDF riwayat transaksi Bank Jago. Untuk bank lain, pilih format lain di atas.');
   const { rows: rawRows, header } = collectRows(pages);
+  const readRows = rawRows.map(raw => readRow(raw, raw.columns));
+  const ownerName = ownerNameFrom(pages);
   const headerText = header.map(run => clean(run.text));
   const currency = headerText.map(text => /\btransaksi ([A-Z]{3}) dari\b/i.exec(text)?.[1]?.toUpperCase()).find(Boolean)
     ?? headerText.map(text => /^([A-Z]{3}) [\d.,]+$/.exec(text)?.[1]).find(Boolean);
@@ -205,8 +247,7 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
   const known = new Set(existing.flatMap(entry => [entry.sourceKey, entry.toSourceKey]).filter(Boolean));
   const seen = new Set<string>();
   const parsed: { row: JagoRow; amount: number }[] = [];
-  const rows: ImportRow[] = rawRows.map((raw, index) => {
-    const row = readRow(raw, raw.columns);
+  const rows: ImportRow[] = readRows.map((row, index) => {
     const where = `transaksi ${row.date}${row.time ? ` ${row.time}` : ''}`;
     let amount: number, balance: number;
     try {
@@ -220,7 +261,7 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
     if (seen.has(sourceKey)) fail(`Dua transaksi identik pada ${where}. Unduh ulang PDF dari aplikasi Jago.`);
     seen.add(sourceKey);
     const duplicate = known.has(sourceKey);
-    const operation = classify(row, amount, parsed);
+    const operation = classify(row, amount, isOwnAccount(row, ownerName), parsed);
     parsed.push({ row, amount });
     return { id: `${sourceKey}:${index}`, date: row.date, description, originalDescription: description, amount, balance,
       reference, originalReference: reference, sourceKey, fingerprintVersion: 'generic-v1', ...operation,
@@ -250,7 +291,8 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
       if (parseStatementMoney(latest, wallet.currency, ',') !== newest.balance) warnings.push('Saldo terbaru di bagian atas PDF berbeda dengan saldo transaksi terakhir. Mungkin ada transaksi sesudah periode yang dipilih.');
     } catch { /* the header figure is informational only */ }
   }
-  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Semua uang masuk dicatat sebagai pemasukan dan semua uang keluar sebagai pengeluaran, termasuk pindah uang antar Kantong dan transfer antar rekeningmu sendiri.');
+  if (!ownerName) warnings.push('Nama pemilik rekening tidak terbaca di bagian atas PDF. Transfer ke rekening sendiri hanya dikenali dari jenis operasinya; periksa jenis baris yang dicatat sebagai pemasukan atau pengeluaran.');
+  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Uang dari orang lain dicatat sebagai pemasukan dan uang ke orang lain sebagai pengeluaran. Pindah Kantong dan transfer ke atau dari rekening atau e-wallet milikmu hanya mengubah saldo dan tidak dihitung sebagai pemasukan atau pengeluaran.');
   return { rows, sourceOrder: order, currency: wallet.currency, openingBalance, closingBalance: newest.balance, warnings,
     period: { start: oldest.date, end: newest.date } };
 }

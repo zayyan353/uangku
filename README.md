@@ -75,13 +75,20 @@ per file, ke dompet IDR. PDF dibaca di browser; teksnya harus asli dari aplikasi
 (bukan hasil pindai atau foto) dan tidak terkunci kata sandi. Unduh tanpa filter:
 saldo setiap baris harus sama dengan saldo baris sebelumnya ditambah jumlahnya,
 jadi PDF yang hanya berisi uang masuk, atau yang halamannya hilang, ditolak.
-Semua uang masuk ke Kantong itu dicatat sebagai **pemasukan** dan semua uang
-keluar sebagai **pengeluaran**, termasuk pindah uang antar Kantong dan transfer
-antar rekeningmu sendiri (keputusan pemilik). Kategori diisi bila bank
-menyebutnya: transfer, pindah Kantong, dan isi saldo e-wallet → Transfer;
-GO-FOOD → Makan & minum; transaksi kartu yang masuk kembali dengan ID dan
-nominal sama → Pengembalian dana; bonus → Cashback. Sisanya mengikuti aturan
-kategori. Jenis setiap baris tetap bisa diubah di pratinjau.
+- Uang dari dan ke **orang lain** dicatat sebagai pemasukan dan pengeluaran.
+- Pindah Kantong, transfer dari atau ke **rekening atau e-wallet milikmu**, dan
+  isi saldo e-wallet hanya mengubah saldo; keduanya **tidak** dihitung sebagai
+  pemasukan atau pengeluaran (jenis perpindahan).
+- Rekening milikmu dikenali dari **nama pemilik di bagian atas PDF** yang tercetak
+  di rekening lawan (termasuk yang disamarkan, mis. `DANATOPUP ZAY…SYA`). Nomor
+  rekening saja tidak dianggap bukti, karena virtual account bisa dibuat atas nomor
+  HP kamu untuk bayar pihak lain.
+- **Shopee dan ShopeePay** tidak bisa diekspor mutasinya, jadi uang ke sana
+  dicatat pengeluaran dan uang dari sana dicatat pemasukan, tanpa melihat nama.
+- Kategori diisi bila bank menyebutnya: GO-FOOD → Makan & minum, transaksi kartu
+  yang kembali dengan ID dan nominal sama → Pengembalian dana, bonus → Cashback.
+  Sisanya mengikuti aturan kategori. Jenis setiap baris tetap bisa diubah di
+  pratinjau.
 
 Baris Jago disimpan sebagai fakta bank format umum, jadi format cadangan tidak
 berubah. Mengimpor PDF yang sama atau periode yang tumpang tindih menandai baris

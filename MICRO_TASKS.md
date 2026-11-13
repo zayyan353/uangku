@@ -637,21 +637,30 @@ Dicatat dari uji yang sama, **belum dikerjakan**:
     Rantai saldo antarbaris wajib cocok (urutan lama→baru atau sebaliknya).
   - Fakta disimpan sebagai `generic-v1` (`generic:` + 16 hex) sehingga format
     cadangan dan codec tidak berubah.
-  - Jenis (keputusan pemilik, 12 Nov 2026): semua uang masuk → pemasukan,
-    semua uang keluar → pengeluaran, termasuk pindah Kantong dan transfer antar
-    rekening sendiri. Aturan perpindahan dana/Perlu dicek versi awal PR ini
-    dibatalkan. Kategori dari kata bank: transfer, pindah Kantong, isi saldo
-    e-wallet → Transfer; GO-FOOD → Makan & minum; POS masuk dengan ID+nominal
-    sama → Pengembalian dana; Bonus → Cashback; sisanya aturan kategori.
+  - Jenis (keputusan pemilik, 13 Nov 2026): uang dari dan ke orang lain →
+    pemasukan dan pengeluaran. Pindah Kantong, transfer dari atau ke rekening
+    milik sendiri, dan isi saldo e-wallet → perpindahan (hanya saldo, tidak
+    dihitung). Rekening milik sendiri dikenali dari nama pemilik di bagian atas
+    PDF yang tercetak di rekening lawan, termasuk nama yang disamarkan (3 huruf
+    terlihat berurutan cocok dengan nama pemilik). Nomor rekening saja tidak
+    cukup. Shopee dan ShopeePay selalu mengikuti arah uang (keluar =
+    pengeluaran, masuk = pemasukan), karena mutasinya tidak bisa diekspor
+    (keputusan 13 Nov 2026). Kategori dari kata bank: GO-FOOD → Makan & minum;
+    POS masuk dengan ID+nominal sama → Pengembalian dana; Bonus → Cashback.
   - Tab **Bank Jago PDF · otomatis** di halaman Impor (dompet IDR; dompet bernama
     "jago" dipilih lebih dulu).
   *Hasil pada file pemilik:* 98 dari 98 baris terbaca, saldo akhir sama dengan
-  PDF; 39 pemasukan dan 59 pengeluaran, 0 Perlu dicek; impor ulang → 98
-  duplikat.
+  PDF; 17 pemasukan (Rp19,97 juta) dan 31 pengeluaran (Rp19,09 juta); 50
+  perpindahan (hanya saldo); impor ulang → 98 duplikat. Termasuk di pemasukan:
+  Rp4,49 juta dari ShopeePay pemilik (2026) dan Rp0,73 juta dari ShopeePay-Seabank
+  (2022), karena ShopeePay tidak bisa diekspor. Termasuk di pengeluaran: Rp14,69
+  juta ke Shopee (Jun dan Agt 2022, termasuk Rp13,80 juta untuk laptop) dan
+  Rp0,70 juta ke Mandiri dengan nama `ZXXXXXXXXXXX3`. Tokopedia Rp0,69 juta
+  menjadi pemasukan.
   *Batasan:* hanya tata letak PDF Jago ini (bahasa Indonesia, IDR). Kantong
-  lain diimpor per file. Karena pindah Kantong dan transfer antar rekening
-  sendiri juga dihitung pemasukan/pengeluaran, mengimpor dua Kantong atau dua
-  rekening sendiri membuat perpindahan yang sama tercatat di kedua sisi.
+  lain diimpor per file. Rekening milik sendiri dikenali dari PDF itu saja; dua
+  file dari dua rekening sendiri mencatat perpindahannya sebagai perpindahan di
+  kedua dompet, bukan pemasukan atau pengeluaran.
   Pembelian reksa dana lewat Bibit tetap pengeluaran tanpa kategori.
   *File:* `src/lib/pdfText.ts`, `src/lib/jagoStatement.ts`,
   `src/lib/testing/syntheticPdf.ts`, tes unit, `genericImport.ts` (ekspor
