@@ -637,21 +637,30 @@ Dicatat dari uji yang sama, **belum dikerjakan**:
     Rantai saldo antarbaris wajib cocok (urutan lama→baru atau sebaliknya).
   - Fakta disimpan sebagai `generic-v1` (`generic:` + 16 hex) sehingga format
     cadangan dan codec tidak berubah.
-  - Jenis (keputusan pemilik, 12 Nov 2026): semua uang masuk → pemasukan,
-    semua uang keluar → pengeluaran, termasuk pindah Kantong dan transfer antar
-    rekening sendiri. Aturan perpindahan dana/Perlu dicek versi awal PR ini
-    dibatalkan. Kategori dari kata bank: transfer, pindah Kantong, isi saldo
-    e-wallet → Transfer; GO-FOOD → Makan & minum; POS masuk dengan ID+nominal
-    sama → Pengembalian dana; Bonus → Cashback; sisanya aturan kategori.
+  - Jenis (keputusan pemilik, 13 Nov 2026): uang dari dan ke orang lain →
+    pemasukan dan pengeluaran. Pindah Kantong, transfer dari atau ke rekening
+    milik sendiri, dan isi saldo e-wallet → perpindahan (hanya saldo, tidak
+    dihitung sebagai pemasukan atau pengeluaran). Rekening milik sendiri
+    dikenali dari nama pemilik di PDF atau dari nomor (10 digit terakhir) yang
+    tercetak di baris GoPay, ShopeePay, atau BCA Digital pemilik; virtual account
+    yang memuat nomor itu juga dihitung milik sendiri. Kategori dari kata bank:
+    GO-FOOD → Makan & minum; POS masuk dengan ID+nominal sama → Pengembalian
+    dana; Bonus → Cashback; sisanya aturan kategori.
   - Tab **Bank Jago PDF · otomatis** di halaman Impor (dompet IDR; dompet bernama
     "jago" dipilih lebih dulu).
   *Hasil pada file pemilik:* 98 dari 98 baris terbaca, saldo akhir sama dengan
-  PDF; 39 pemasukan dan 59 pengeluaran, 0 Perlu dicek; impor ulang → 98
-  duplikat.
+  PDF; 9 pemasukan (Rp14,79 juta, termasuk refund dan bonus) dan 21 pengeluaran
+  (Rp3,68 juta); 68 perpindahan (hanya saldo); impor ulang → 98 duplikat.
+  Dikenali sebagai milik sendiri dari nama atau nomor, dan belum dikonfirmasi
+  pemilik: Rp14,69 juta ke rekening Mandiri/Shopee (5 baris, Jun dan Agt 2022,
+  termasuk Rp13,80 juta pada 17 Agt 2022), Rp0,70 juta ke Mandiri lain, Rp0,70
+  juta ke DANA VA, dan Tokopedia Rp0,69 juta lewat ALTOPay pemilik. Pemasukan
+  ShopeePay-Seabank 2022 (Rp0,73 juta, 6 baris) belum punya penanda rekening,
+  sehingga tetap pemasukan.
   *Batasan:* hanya tata letak PDF Jago ini (bahasa Indonesia, IDR). Kantong
-  lain diimpor per file. Karena pindah Kantong dan transfer antar rekening
-  sendiri juga dihitung pemasukan/pengeluaran, mengimpor dua Kantong atau dua
-  rekening sendiri membuat perpindahan yang sama tercatat di kedua sisi.
+  lain diimpor per file. Rekening milik sendiri dikenali dari PDF itu saja; dua
+  file dari dua rekening sendiri mencatat perpindahannya sebagai perpindahan di
+  kedua dompet, bukan pemasukan atau pengeluaran.
   Pembelian reksa dana lewat Bibit tetap pengeluaran tanpa kategori.
   *File:* `src/lib/pdfText.ts`, `src/lib/jagoStatement.ts`,
   `src/lib/testing/syntheticPdf.ts`, tes unit, `genericImport.ts` (ekspor

@@ -46,7 +46,7 @@ const BANK_FORMATS = {
   jago: { currency: 'IDR', walletHint: 'jago', extension: '.pdf', badge: 'Bank Jago · IDR · PDF', fileKind: 'PDF', fileLabel: 'File mutasi Bank Jago',
     help: 'PDF “Riwayat Transaksi” satu Kantong dari aplikasi Jago · maksimal 8 MB', wrongFile: 'Format ini hanya membaca PDF riwayat transaksi Bank Jago (.pdf). Untuk file bank lain, pilih format lain.',
     notice: 'Pembacaan otomatis khusus PDF riwayat transaksi Bank Jago (IDR), satu Kantong per file. Unduh tanpa filter agar saldo antarbaris bisa diperiksa.',
-    rules: 'Semua uang masuk menjadi pemasukan dan semua uang keluar menjadi pengeluaran, termasuk pindah uang antar Kantong dan transfer antar rekeningmu sendiri. Kategori diisi bila bank menyebutnya: transfer dan pindah Kantong → Transfer, GO-FOOD → Makan & minum, transaksi kartu yang dikembalikan → Pengembalian dana, bonus → Cashback; sisanya mengikuti aturan kategori.' },
+    rules: 'Uang dari dan ke orang lain menjadi pemasukan dan pengeluaran. Pindah Kantong, transfer dari atau ke rekening atau e-wallet milikmu (dikenali dari nama di bagian atas PDF atau nomor rekening yang sama), dan isi saldo e-wallet hanya mengubah saldo dan tidak dihitung sebagai pemasukan atau pengeluaran. Kategori diisi bila bank menyebutnya: GO-FOOD → Makan & minum, transaksi kartu yang kembali dengan ID dan nominal sama → Pengembalian dana, bonus → Cashback.' },
 } as const satisfies Record<Exclude<ImportFormat, 'generic'>, Record<string, string>>;
 const formatCurrency = (format: ImportFormat, fallback: Currency): Currency => format === 'generic' ? fallback : BANK_FORMATS[format].currency;
 const preferredWallet = (wallets: readonly Wallet[], format: ImportFormat): Wallet | undefined =>

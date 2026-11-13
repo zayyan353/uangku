@@ -159,17 +159,49 @@ function collectRows(pages: PdfTextRun[][]): { rows: (RawRow & { columns: Column
 
 type Operation = Pick<ImportRow, 'classification' | 'category' | 'warning'>;
 
-/** Owner's rule (12 Nov 2026): money into this account is income and money out
- * is expense, whatever the operation, including moves between own Kantong and
- * own accounts. The bank wording only picks a category where it says which. */
-function classify(row: JagoRow, amount: number, earlier: readonly { row: JagoRow; amount: number }[]): Operation {
+/** Own accounts are recognised only from what the PDF itself prints:
+ * - the account holder's name at the top of the statement, when a counterparty carries it;
+ * - the last ten digits of an account number printed beside the holder's name (their own
+ *   GoPay, ShopeePay, or BCA Digital line). Any other line that shows one of those digits
+ *   (e.g. a virtual account keyed to the same phone number) is treated as their own too.
+ * A masked name without such a number is not treated as theirs. The bank's wording for
+ * moves to their own Kantong and e-wallet top-ups is own by itself. */
+const OWN_TITLES = ['tambah uang kantong', 'tarik uang kantong', 'pemindahan dari akun lama', 'isi saldo dompet digital'];
+const OWN_WARNING = 'Dikenali sebagai rekening atau e-wallet milikmu (nama atau nomor rekening sama dengan rekening lain di PDF). Hanya perubahan saldo yang dicatat; bukan pemasukan atau pengeluaran. Ubah jenisnya bila keliru.';
+
+function ownerNameFrom(pages: PdfTextRun[][]): string | undefined {
+  const top = (pages[0] ?? []).filter(run => run.y > 700 && clean(run.text)).sort((a, b) => b.size - a.size || b.y - a.y)[0];
+  const tokens = top ? folded(top.text).split(' ').filter(Boolean) : [];
+  return tokens.length >= 2 ? tokens.slice(0, 2).join(' ') : undefined;
+}
+const digitRuns = (text: string): string[] => text.match(/\d{9,}/g) ?? [];
+const lastTen = (digits: string): string => digits.slice(-10);
+
+/** Numbers printed beside the holder's own name, e.g. their own e-wallet line. */
+function ownerNumbers(rows: readonly JagoRow[], name: string | undefined): string[] {
+  if (!name) return [];
+  const numbers = new Set<string>();
+  for (const row of rows) {
+    if (folded(row.party).includes(name)) for (const run of digitRuns(row.partyDetail)) numbers.add(lastTen(run));
+  }
+  return [...numbers];
+}
+function isOwnAccount(row: JagoRow, name: string | undefined, numbers: readonly string[]): boolean {
+  if (OWN_TITLES.includes(folded(row.title))) return true;
+  if (name && folded(row.party).includes(name)) return true;
+  return digitRuns(row.partyDetail).some(run => numbers.some(number => run.includes(number)));
+}
+
+/** Owner's rule (12 Nov 2026, revised): money from other people is income and money
+ * to other people is expense. Moves to or from the owner's own accounts only change
+ * balances and are not counted in either total. */
+function classify(row: JagoRow, amount: number, own: boolean, earlier: readonly { row: JagoRow; amount: number }[]): Operation {
+  if (own) return { classification: 'movement', category: 'Transfer', warning: OWN_WARNING };
   const operation = folded(row.title);
   const classification = amount > 0 ? 'income' : 'expense';
   let category = UNCATEGORIZED;
   let warning: string | undefined;
-  if (['tambah uang kantong', 'tarik uang kantong', 'pemindahan dari akun lama', 'transfer masuk', 'transfer keluar', 'isi saldo dompet digital'].includes(operation)) {
-    category = 'Transfer';
-  } else if (operation === 'pembayaran dengan jago pay' && amount < 0 && /\bgo ?food/.test(folded(row.note))) {
+  if (operation === 'pembayaran dengan jago pay' && amount < 0 && /\bgo ?food/.test(folded(row.note))) {
     category = 'Makan & minum';
   } else if (operation === 'transaksi pos' && amount > 0 && row.reference
     && earlier.some(item => folded(item.row.title) === 'transaksi pos' && item.row.reference === row.reference && item.amount === -amount)) {
@@ -194,6 +226,9 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
   if (!all.length) fail('PDF ini tidak memuat teks (mungkin hasil pindai atau foto). Unduh PDF "Riwayat Transaksi" langsung dari aplikasi Jago.');
   if (!all.some(run => /\bjago\b/.test(folded(run.text)))) fail('Ini bukan PDF riwayat transaksi Bank Jago. Untuk bank lain, pilih format lain di atas.');
   const { rows: rawRows, header } = collectRows(pages);
+  const readRows = rawRows.map(raw => readRow(raw, raw.columns));
+  const ownerName = ownerNameFrom(pages);
+  const numbers = ownerNumbers(readRows, ownerName);
   const headerText = header.map(run => clean(run.text));
   const currency = headerText.map(text => /\btransaksi ([A-Z]{3}) dari\b/i.exec(text)?.[1]?.toUpperCase()).find(Boolean)
     ?? headerText.map(text => /^([A-Z]{3}) [\d.,]+$/.exec(text)?.[1]).find(Boolean);
@@ -205,8 +240,7 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
   const known = new Set(existing.flatMap(entry => [entry.sourceKey, entry.toSourceKey]).filter(Boolean));
   const seen = new Set<string>();
   const parsed: { row: JagoRow; amount: number }[] = [];
-  const rows: ImportRow[] = rawRows.map((raw, index) => {
-    const row = readRow(raw, raw.columns);
+  const rows: ImportRow[] = readRows.map((row, index) => {
     const where = `transaksi ${row.date}${row.time ? ` ${row.time}` : ''}`;
     let amount: number, balance: number;
     try {
@@ -220,7 +254,7 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
     if (seen.has(sourceKey)) fail(`Dua transaksi identik pada ${where}. Unduh ulang PDF dari aplikasi Jago.`);
     seen.add(sourceKey);
     const duplicate = known.has(sourceKey);
-    const operation = classify(row, amount, parsed);
+    const operation = classify(row, amount, isOwnAccount(row, ownerName, numbers), parsed);
     parsed.push({ row, amount });
     return { id: `${sourceKey}:${index}`, date: row.date, description, originalDescription: description, amount, balance,
       reference, originalReference: reference, sourceKey, fingerprintVersion: 'generic-v1', ...operation,
@@ -250,7 +284,8 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
       if (parseStatementMoney(latest, wallet.currency, ',') !== newest.balance) warnings.push('Saldo terbaru di bagian atas PDF berbeda dengan saldo transaksi terakhir. Mungkin ada transaksi sesudah periode yang dipilih.');
     } catch { /* the header figure is informational only */ }
   }
-  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Semua uang masuk dicatat sebagai pemasukan dan semua uang keluar sebagai pengeluaran, termasuk pindah uang antar Kantong dan transfer antar rekeningmu sendiri.');
+  if (!ownerName) warnings.push('Nama pemilik rekening tidak terbaca di bagian atas PDF. Transfer ke rekening sendiri hanya dikenali dari jenis operasinya; periksa jenis baris yang dicatat sebagai pemasukan atau pengeluaran.');
+  warnings.push('PDF Bank Jago dibaca untuk satu Kantong. Uang dari orang lain dicatat sebagai pemasukan dan uang ke orang lain sebagai pengeluaran. Pindah Kantong dan transfer ke atau dari rekening atau e-wallet milikmu hanya mengubah saldo dan tidak dihitung sebagai pemasukan atau pengeluaran.');
   return { rows, sourceOrder: order, currency: wallet.currency, openingBalance, closingBalance: newest.balance, warnings,
     period: { start: oldest.date, end: newest.date } };
 }

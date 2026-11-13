@@ -58,29 +58,52 @@ describe('Bank Jago PDF statement', () => {
     expect(rows[11].description).toBe('Transfer Masuk · ORANG LAIN · BNI 0000000000');
   });
 
-  it('records every credit as income and every debit as expense, with categories only where the bank names them', () => {
+  it('records money from or to other people as income or expense, and moves between own accounts as movements', () => {
     const rows = parseJagoStatement(statement(), wallet(), []).rows;
     expect(rows.map(row => [row.classification, row.category])).toEqual([
-      ['income', 'Transfer'], ['income', 'Transfer'], ['expense', 'Transfer'], ['expense', 'Transfer'],
+      ['movement', 'Transfer'], ['movement', 'Transfer'], ['movement', 'Transfer'], ['expense', 'Belum dikategorikan'],
       ['expense', 'Makan & minum'], ['expense', 'Belum dikategorikan'], ['expense', 'Belum dikategorikan'],
-      ['income', 'Pengembalian dana'], ['expense', 'Transfer'], ['income', 'Cashback'],
-      ['expense', 'Belum dikategorikan'], ['income', 'Transfer'],
+      ['income', 'Pengembalian dana'], ['movement', 'Transfer'], ['income', 'Cashback'],
+      ['expense', 'Belum dikategorikan'], ['income', 'Belum dikategorikan'],
     ]);
-    expect(rows.filter(row => row.warning).map(row => row.warning)).toEqual(['Pembayaran kartu dengan ID dan nominal yang sama dikembalikan.']);
+    expect(rows[1].warning).toContain('Dikenali sebagai rekening atau e-wallet milikmu');
+    expect(rows[7].warning).toBe('Pembayaran kartu dengan ID dan nominal yang sama dikembalikan.');
   });
 
-  it('follows the sign even when it runs against the operation wording', () => {
+  it('follows the sign for other people even when it runs against the operation wording', () => {
     const rows: SyntheticJagoRow[] = [
-      { date: '01 Jan 2026', time: '08.00', party: ['BUDI CONTOH'], title: ['Transfer Masuk'], id: ['1'], amount: '-1.000', balance: '9.000,00' },
+      { date: '01 Jan 2026', time: '08.00', party: ['PIHAK KETIGA'], title: ['Transfer Masuk'], id: ['1'], amount: '-1.000', balance: '9.000,00' },
       { date: '02 Jan 2026', time: '08.00', party: ['Bonus Jago'], title: ['Bonus'], id: ['2'], amount: '-1.000', balance: '8.000,00' },
       { date: '03 Jan 2026', time: '08.00', party: ['TOKO'], title: ['Transaksi POS'], id: ['3'], amount: '+1.000,00', balance: '9.000,00' },
       { date: '04 Jan 2026', time: '08.00', party: ['TOKO'], title: ['Pembayaran dengan', 'Jago Pay'], id: ['4'], amount: '+1.000,00', balance: '10.000,00' },
     ];
     const parsed = parseJagoStatement(statement(rows), wallet(), []);
     expect(parsed.rows.map(row => [row.classification, row.category])).toEqual([
-      ['expense', 'Transfer'], ['expense', 'Belum dikategorikan'], ['income', 'Belum dikategorikan'], ['income', 'Belum dikategorikan'],
+      ['expense', 'Belum dikategorikan'], ['expense', 'Belum dikategorikan'], ['income', 'Belum dikategorikan'], ['income', 'Belum dikategorikan'],
     ]);
     expect(parsed.openingBalance).toBe(1_000_000);
+  });
+
+  it('recognises own accounts by the owner name or the owner printed account number, never by a note', () => {
+    const rows: SyntheticJagoRow[] = [
+      { date: '01 Jan 2026', time: '07.00', party: ['BUDI CONTOH SANTOSO'], partyDetail: ['ALTOPay 1234567890'], title: ['Transfer Masuk'], id: ['1'], amount: '+100.000,00', balance: '100.000,00' },
+      { date: '02 Jan 2026', time: '07.00', party: ['PIHAK KETIGA'], partyDetail: ['Mandiri 8961234567890'], title: ['Transfer Masuk'], id: ['2'], amount: '+50.000,00', balance: '150.000,00' },
+      { date: '02 Jan 2026', time: '08.00', party: ['PIHAK KETIGA'], partyDetail: ['BCA 0000000001'], title: ['Transfer Keluar'], id: ['3'], note: ['bayar kursus Budi Contoh Santoso'], amount: '-20.000', balance: '130.000,00' },
+      { date: '03 Jan 2026', time: '08.00', party: ['PIHAK KETIGA'], partyDetail: ['Permata 9876543210'], title: ['Transfer Keluar'], id: ['4'], amount: '-30.000', balance: '100.000,00' },
+    ];
+    const parsed = parseJagoStatement(statement(rows), wallet(), []).rows;
+    expect(parsed.map(row => row.classification)).toEqual(['movement', 'movement', 'expense', 'expense']);
+    expect(parsed[2].description).toContain('bayar kursus Budi Contoh Santoso');
+  });
+
+  it('keeps a masked name without its account number as other people, and an unknown sender as income', () => {
+    const rows: SyntheticJagoRow[] = [
+      { date: '01 Jan 2026', time: '07.00', party: ['BUDI CONTOH SANTOSO'], partyDetail: ['ALTOPay 1234567890'], title: ['Transfer Masuk'], id: ['1'], amount: '+100.000,00', balance: '100.000,00' },
+      { date: '02 Jan 2026', time: '07.00', party: ['DANATOPUP BUDXXX CON'], title: ['Transfer Keluar'], id: ['2'], amount: '-10.000', balance: '90.000,00' },
+      { date: '03 Jan 2026', time: '07.00', party: ['Tokopedia'], partyDetail: ['ALTOPay 2222222222'], title: ['Transfer Masuk'], id: ['3'], amount: '+5.000,00', balance: '95.000,00' },
+    ];
+    const parsed = parseJagoStatement(statement(rows), wallet(), []).rows;
+    expect(parsed.map(row => row.classification)).toEqual(['movement', 'expense', 'income']);
   });
 
   it('reads a statement listed newest first', () => {

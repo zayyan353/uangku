@@ -27,7 +27,7 @@ ROWS = [
     ('08 Mar 2026', '07.00', ['Layanan Contoh'], [], ['Biaya Layanan Contoh'], ['260308-ZZZZ-000001'], [], '-1.000', '349.000,50'),
     ('09 Mar 2026', '07.00', ['ORANG LAIN'], ['BNI 0000000000'], ['Transfer Masuk'], ['260309-ZZZZ-000002'], [], '+5.000,00', '354.000,50'),
 ]
-EXPECTED_TYPES = ['income', 'income', 'expense', 'expense', 'expense', 'expense', 'income', 'income', 'expense', 'income']
+EXPECTED_TYPES = ['movement', 'movement', 'movement', 'expense', 'expense', 'expense', 'income', 'income', 'expense', 'income']
 
 
 def pdf(pages):
