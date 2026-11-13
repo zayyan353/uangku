@@ -159,37 +159,45 @@ function collectRows(pages: PdfTextRun[][]): { rows: (RawRow & { columns: Column
 
 type Operation = Pick<ImportRow, 'classification' | 'category' | 'warning'>;
 
-/** Own accounts are recognised only from what the PDF itself prints:
- * - the account holder's name at the top of the statement, when a counterparty carries it;
- * - the last ten digits of an account number printed beside the holder's name (their own
- *   GoPay, ShopeePay, or BCA Digital line). Any other line that shows one of those digits
- *   (e.g. a virtual account keyed to the same phone number) is treated as their own too.
- * A masked name without such a number is not treated as theirs. The bank's wording for
- * moves to their own Kantong and e-wallet top-ups is own by itself. */
+/** The owner's own accounts are recognised from the account-holder name the bank prints:
+ * - the name at the top of the statement, matched in the counterparty name (exact, or masked
+ *   with the visible letters in order, e.g. a DANA top-up account printed as "ZAYXXX SYA");
+ * - the bank's own wording for moves to or from their own Kantong and e-wallet top-ups.
+ * An account number alone is not proof: a virtual account can be issued to the owner's
+ * phone for a payment to someone else. Shopee and ShopeePay are never treated as own: the
+ * owner cannot export their statement, so money to them is expense and money from them is
+ * income (owner's decision, 13 Nov 2026). */
 const OWN_TITLES = ['tambah uang kantong', 'tarik uang kantong', 'pemindahan dari akun lama', 'isi saldo dompet digital'];
-const OWN_WARNING = 'Dikenali sebagai rekening atau e-wallet milikmu (nama atau nomor rekening sama dengan rekening lain di PDF). Hanya perubahan saldo yang dicatat; bukan pemasukan atau pengeluaran. Ubah jenisnya bila keliru.';
+const OWN_WARNING = 'Dikenali sebagai rekening atau e-wallet milikmu (nama di rekening sama dengan nama pemilik di PDF). Hanya perubahan saldo yang dicatat; bukan pemasukan atau pengeluaran. Ubah jenisnya bila keliru.';
 
 function ownerNameFrom(pages: PdfTextRun[][]): string | undefined {
   const top = (pages[0] ?? []).filter(run => run.y > 700 && clean(run.text)).sort((a, b) => b.size - a.size || b.y - a.y)[0];
   const tokens = top ? folded(top.text).split(' ').filter(Boolean) : [];
   return tokens.length >= 2 ? tokens.slice(0, 2).join(' ') : undefined;
 }
-const digitRuns = (text: string): string[] => text.match(/\d{9,}/g) ?? [];
-const lastTen = (digits: string): string => digits.slice(-10);
 
-/** Numbers printed beside the holder's own name, e.g. their own e-wallet line. */
-function ownerNumbers(rows: readonly JagoRow[], name: string | undefined): string[] {
-  if (!name) return [];
-  const numbers = new Set<string>();
-  for (const row of rows) {
-    if (folded(row.party).includes(name)) for (const run of digitRuns(row.partyDetail)) numbers.add(lastTen(run));
-  }
-  return [...numbers];
+/** Shopee and ShopeePay statements cannot be exported, so the bank's wording decides
+ * only the sign: money out is expense, money in is income. */
+const isShopee = (row: JagoRow): boolean => /shopee/.test(folded(row.party)) || /shopee/.test(folded(row.partyDetail));
+
+/** Counterparty name is the owner's: the name in full, or masked with its visible letters
+ * matching the owner's name words in order (at least three visible letters each). */
+function nameIsOwner(party: string, owner: string): boolean {
+  const text = folded(party).replace(/^(?:dana|danatopup|go pay|gopay|ovo|linkaja)\s+/, '');
+  if (!owner) return false;
+  if (text.includes(owner)) return true;
+  const tokens = text.split(' ').filter(Boolean), names = owner.split(' ');
+  if (!tokens.some(token => /x{3,}/.test(token)) || tokens.length < 2 || tokens.length > names.length) return false;
+  return tokens.every((token, index) => {
+    const visible = token.replace(/x{3,}.*$/, '');
+    return visible.length >= 3 && names[index].startsWith(visible);
+  });
 }
-function isOwnAccount(row: JagoRow, name: string | undefined, numbers: readonly string[]): boolean {
+
+function isOwnAccount(row: JagoRow, owner: string | undefined): boolean {
+  if (isShopee(row)) return false;
   if (OWN_TITLES.includes(folded(row.title))) return true;
-  if (name && folded(row.party).includes(name)) return true;
-  return digitRuns(row.partyDetail).some(run => numbers.some(number => run.includes(number)));
+  return !!owner && nameIsOwner(row.party, owner);
 }
 
 /** Owner's rule (12 Nov 2026, revised): money from other people is income and money
@@ -228,7 +236,6 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
   const { rows: rawRows, header } = collectRows(pages);
   const readRows = rawRows.map(raw => readRow(raw, raw.columns));
   const ownerName = ownerNameFrom(pages);
-  const numbers = ownerNumbers(readRows, ownerName);
   const headerText = header.map(run => clean(run.text));
   const currency = headerText.map(text => /\btransaksi ([A-Z]{3}) dari\b/i.exec(text)?.[1]?.toUpperCase()).find(Boolean)
     ?? headerText.map(text => /^([A-Z]{3}) [\d.,]+$/.exec(text)?.[1]).find(Boolean);
@@ -254,7 +261,7 @@ export function parseJagoStatement(data: ArrayBuffer | Uint8Array, wallet: Walle
     if (seen.has(sourceKey)) fail(`Dua transaksi identik pada ${where}. Unduh ulang PDF dari aplikasi Jago.`);
     seen.add(sourceKey);
     const duplicate = known.has(sourceKey);
-    const operation = classify(row, amount, isOwnAccount(row, ownerName, numbers), parsed);
+    const operation = classify(row, amount, isOwnAccount(row, ownerName), parsed);
     parsed.push({ row, amount });
     return { id: `${sourceKey}:${index}`, date: row.date, description, originalDescription: description, amount, balance,
       reference, originalReference: reference, sourceKey, fingerprintVersion: 'generic-v1', ...operation,

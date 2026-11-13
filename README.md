@@ -79,10 +79,12 @@ jadi PDF yang hanya berisi uang masuk, atau yang halamannya hilang, ditolak.
 - Pindah Kantong, transfer dari atau ke **rekening atau e-wallet milikmu**, dan
   isi saldo e-wallet hanya mengubah saldo; keduanya **tidak** dihitung sebagai
   pemasukan atau pengeluaran (jenis perpindahan).
-- Rekening milikmu dikenali dari nama di bagian atas PDF dan dari nomor rekening
-  yang sama dengan GoPay, ShopeePay, atau BCA Digital kamu. Virtual account yang
-  memuat nomor itu juga dianggap milikmu. Nama yang disamarkan tanpa nomor itu
-  tetap dianggap orang lain.
+- Rekening milikmu dikenali dari **nama pemilik di bagian atas PDF** yang tercetak
+  di rekening lawan (termasuk yang disamarkan, mis. `DANATOPUP ZAY…SYA`). Nomor
+  rekening saja tidak dianggap bukti, karena virtual account bisa dibuat atas nomor
+  HP kamu untuk bayar pihak lain.
+- **Shopee dan ShopeePay** tidak bisa diekspor mutasinya, jadi uang ke sana
+  dicatat pengeluaran dan uang dari sana dicatat pemasukan, tanpa melihat nama.
 - Kategori diisi bila bank menyebutnya: GO-FOOD → Makan & minum, transaksi kartu
   yang kembali dengan ID dan nominal sama → Pengembalian dana, bonus → Cashback.
   Sisanya mengikuti aturan kategori. Jenis setiap baris tetap bisa diubah di
