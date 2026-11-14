@@ -66,6 +66,12 @@ describe('Bank Jago PDF statement', () => {
       ['income', 'Pengembalian dana'], ['expense', 'Belum dikategorikan'], ['income', 'Cashback'],
       ['expense', 'Belum dikategorikan'], ['income', 'Belum dikategorikan'],
     ]);
+    // Rows the bank's wording cannot categorise carry a general category from their direction;
+    // the preview uses it only when no keyword rule applies.
+    expect(rows.map(row => row.fallbackCategory)).toEqual([
+      undefined, undefined, undefined, 'Lainnya', undefined, 'Investasi', 'Lainnya', undefined, 'Belanja', undefined, 'Lainnya', 'Pemasukan',
+    ]);
+    expect(rows.every(row => !row.fallbackCategory === !row.fallbackReason)).toBe(true);
     expect(rows[1].warning).toContain('Dikenali sebagai rekening atau e-wallet milikmu');
     expect(rows[7].warning).toBe('Pembayaran kartu dengan ID dan nominal yang sama dikembalikan.');
   });
@@ -106,6 +112,13 @@ describe('Bank Jago PDF statement', () => {
     ];
     const parsed = parseJagoStatement(statement(rows), wallet(), []).rows;
     expect(parsed.map(row => row.classification)).toEqual(['expense', 'income', 'expense', 'income']);
+    expect(parsed.map(row => [row.category, row.fallbackCategory])).toEqual([
+      ['Belum dikategorikan', 'Belanja'], ['Belum dikategorikan', 'Pemasukan'], ['Belum dikategorikan', 'Belanja'], ['Belum dikategorikan', 'Pemasukan'],
+    ]);
+    const bibit = parseJagoStatement(statement([
+      { date: '01 Jan 2026', time: '07.00', party: ['Bibit'], partyDetail: ['PI0000000ABC'], title: ['Pembayaran dengan', 'Jago Pay'], id: ['PI0000000ABC'], amount: '-10.000', balance: '90.000,00' },
+    ]), wallet(), []).rows;
+    expect(bibit[0].fallbackCategory).toBe('Investasi');
   });
 
   it('reads a statement listed newest first', () => {

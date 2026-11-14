@@ -19,6 +19,9 @@ export interface ImportRow {
   fingerprintVersion?: 'ziraat-v1' | 'generic-v1';
   classification: 'expense' | 'income' | 'transfer' | 'unreviewed' | 'movement';
   category: string;
+  /** Preview only: general category used when no keyword rule fills an empty category. */
+  fallbackCategory?: string;
+  fallbackReason?: string;
   selected: boolean;
   duplicate: boolean;
   warning?: string;

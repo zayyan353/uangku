@@ -87,8 +87,10 @@ jadi PDF yang hanya berisi uang masuk, atau yang halamannya hilang, ditolak.
   dicatat pengeluaran dan uang dari sana dicatat pemasukan, tanpa melihat nama.
 - Kategori diisi bila bank menyebutnya: GO-FOOD → Makan & minum, transaksi kartu
   yang kembali dengan ID dan nominal sama → Pengembalian dana, bonus → Cashback.
-  Sisanya mengikuti aturan kategori. Jenis setiap baris tetap bisa diubah di
-  pratinjau.
+  Sisanya mengikuti aturan kategori. Bila tidak ada aturan yang cocok, baris
+  diberi kategori umum dari arah uangnya: uang masuk → Pemasukan, uang keluar ke
+  Shopee → Belanja, pembelian reksa dana (Bibit) → Investasi, uang keluar lain →
+  Lainnya. Jenis dan kategori setiap baris tetap bisa diubah di pratinjau.
 
 Baris Jago disimpan sebagai fakta bank format umum, jadi format cadangan tidak
 berubah. Mengimpor PDF yang sama atau periode yang tumpang tindih menandai baris
