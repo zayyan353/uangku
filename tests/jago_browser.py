@@ -26,8 +26,9 @@ ROWS = [
     ('07 Mar 2026', '22.20', ['Bonus Jago Debit Card'], [], ['Bonus'], ['260307-ABCD-EFGH12'], ['Promo Debit Card'], '+10.000,00', '350.000,50'),
     ('08 Mar 2026', '07.00', ['Layanan Contoh'], [], ['Biaya Layanan Contoh'], ['260308-ZZZZ-000001'], [], '-1.000', '349.000,50'),
     ('09 Mar 2026', '07.00', ['ORANG LAIN'], ['BNI 0000000000'], ['Transfer Masuk'], ['260309-ZZZZ-000002'], [], '+5.000,00', '354.000,50'),
+    ('10 Mar 2026', '07.00', ['Bibit'], ['PI0000000ABC'], ['Pembayaran dengan', 'Jago Pay'], ['PI0000000ABC'], ['Pembelian Reksa Dana'], '-10.000', '344.000,50'),
 ]
-EXPECTED_TYPES = ['movement', 'movement', 'movement', 'expense', 'expense', 'expense', 'income', 'income', 'expense', 'income']
+EXPECTED_TYPES = ['movement', 'movement', 'movement', 'expense', 'expense', 'expense', 'income', 'income', 'expense', 'income', 'expense']
 
 
 def pdf(pages):
@@ -160,6 +161,8 @@ def import_and_save(browser, out, mobile):
         expect(page.get_by_role('heading', name='Periksa sebelum disimpan')).to_be_visible()
         save = page.get_by_role('button', name=f'Simpan {len(ROWS)} transaksi', exact=True)
         expect(save).to_be_enabled()
+        # Nothing is left to tidy: rows without a keyword get a general category from their direction.
+        expect(page.get_by_test_id('import-review-total')).to_have_attribute('data-count', '0')
         page.screenshot(path=str(out / f'jago-preview{"-mobile" if mobile else ""}.png'), full_page=True)
         width = page.evaluate('() => [document.documentElement.scrollWidth, document.documentElement.clientWidth]')
         assert width[0] <= width[1], f'Halaman impor meluber horizontal: {width}'
@@ -171,11 +174,14 @@ def import_and_save(browser, out, mobile):
         types = [e['type'] for e in sorted(saved['state']['entries'], key=lambda e: next(i for i, f in enumerate(saved['metadata']['facts']) if f['fingerprint'] == e['sourceKey']))]
         assert types == EXPECTED_TYPES, types
         assert all(e['walletId'] == 'jago' for e in entries)
-        assert saldo(saved, 'jago') == 35_400_050, saldo(saved, 'jago')
+        assert saldo(saved, 'jago') == 34_400_050, saldo(saved, 'jago')
         facts = saved['metadata']['facts']
         assert len(facts) == len(ROWS) and all(f['fingerprintVersion'] == 'generic-v1' and f['currency'] == 'IDR' for f in facts)
         assert any(f['reference'] == '900000000001_20260102_9990001112' for f in facts)
         assert any(e['category'] == 'Makan & minum' for e in entries) and any(e['category'] == 'Cashback' for e in entries)
+        by_note = lambda word: [e['category'] for e in entries if word in e['note']]
+        assert by_note('PENJUAL CONTOH') == ['Lainnya'] and by_note('ORANG LAIN') == ['Pemasukan'] and by_note('Bibit') == ['Investasi'], [(e['note'], e['category']) for e in entries]
+        assert not any(e['type'] in ('income', 'expense') and e['category'] in ('', 'Belum dikategorikan') for e in entries)
         # The same file again: every row is already known, nothing to save.
         page.get_by_label('File mutasi Bank Jago', exact=True).set_input_files(path)
         expect(page.get_by_role('heading', name='Periksa sebelum disimpan')).to_be_visible()

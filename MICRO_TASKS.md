@@ -662,6 +662,21 @@ Dicatat dari uji yang sama, **belum dikerjakan**:
   file dari dua rekening sendiri mencatat perpindahannya sebagai perpindahan di
   kedua dompet, bukan pemasukan atau pengeluaran.
   Pembelian reksa dana lewat Bibit tetap pengeluaran tanpa kategori.
+  - **Kategori umum untuk baris tanpa kata kunci** (keputusan pemilik, 14 Nov
+    2026, setelah pratinjau file pemilik menyisakan 36 baris perlu dirapikan):
+    uang masuk dari pihak lain (termasuk ShopeePay dan Tokopedia) → **Pemasukan**;
+    uang keluar ke Shopee/ShopeePay → **Belanja**; pembelian reksa dana (Bibit)
+    → **Investasi**; uang keluar lain → **Lainnya**. Ini cadangan saja: aturan
+    kata kunci (bawaan dan pribadi) didahulukan, alasannya tampil di baris
+    pratinjau, dan kategorinya tetap bisa diubah. Hanya berlaku saat impor PDF
+    Jago; catatan yang sudah tersimpan tidak diubah. "Investasi" tidak ditambahkan
+    ke daftar kategori bawaan (penanda paket kata kunci tetap 7); ia muncul di
+    pilihan begitu dipakai. Menggantikan batasan Bibit di atas.
+    *Belum dibuktikan pada file pemilik* (file asli tidak ada di sesi ini); pada
+    PDF sintetis pratinjau menunjukkan 0 perlu dirapikan.
+    *File:* `jagoStatement.ts`, `importer.ts` (field pratinjau
+    `fallbackCategory`), `RecoveryImportView.tsx`, `jagoStatement.test.ts`,
+    `tests/jago_browser.py`, `README.md`.
   *File:* `src/lib/pdfText.ts`, `src/lib/jagoStatement.ts`,
   `src/lib/testing/syntheticPdf.ts`, tes unit, `genericImport.ts` (ekspor
   fungsi fingerprint), `RecoveryImportView.tsx`, `tests/jago_browser.py`,

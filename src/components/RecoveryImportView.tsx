@@ -228,7 +228,11 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
     const categorized = checked.rows.map(row => {
       if (row.duplicate || checked.sourceReviews[row.id] || !isUncategorized(row.category)) return row;
       const match = suggest(row.originalDescription ?? row.description, row.classification === 'transfer' ? 'unreviewed' : row.classification, row.amount, row.fingerprintVersion);
-      if (match.kind !== 'auto') return row;
+      if (match.kind !== 'auto') {
+        if (!row.fallbackCategory) return row;
+        automatic[row.id] = row.fallbackReason ?? 'Kategori umum dari arah uang.';
+        return { ...row, category: row.fallbackCategory };
+      }
       automatic[row.id] = match.suggestions[0].reason;
       return { ...row, category: match.suggestions[0].category };
     });

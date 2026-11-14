@@ -157,7 +157,7 @@ function collectRows(pages: PdfTextRun[][]): { rows: (RawRow & { columns: Column
   return { rows, header };
 }
 
-type Operation = Pick<ImportRow, 'classification' | 'category' | 'warning'>;
+type Operation = Pick<ImportRow, 'classification' | 'category' | 'warning' | 'fallbackCategory' | 'fallbackReason'>;
 
 /** The owner's own accounts are recognised from the account-holder name the bank prints:
  * - the name at the top of the statement, matched in the counterparty name (exact, or masked
@@ -179,6 +179,17 @@ function ownerNameFrom(pages: PdfTextRun[][]): string | undefined {
 /** Shopee and ShopeePay statements cannot be exported, so the bank's wording decides
  * only the sign: money out is expense, money in is income. */
 const isShopee = (row: JagoRow): boolean => /shopee/.test(folded(row.party)) || /shopee/.test(folded(row.partyDetail));
+const isBibit = (row: JagoRow): boolean => [row.party, row.partyDetail, row.detail, row.note].some(text => /\bbibit\b|\breksa ?dana\b/.test(folded(text)));
+
+/** Owner's decision (14 Nov 2026): a row that neither the bank's wording nor a keyword
+ * rule can categorise still gets a general category from its direction, so nothing is
+ * left to tidy by hand. It is only a fallback: keyword rules win, and it can be changed. */
+function fallbackFor(row: JagoRow, amount: number): Pick<Operation, 'fallbackCategory' | 'fallbackReason'> {
+  if (amount > 0) return { fallbackCategory: 'Pemasukan', fallbackReason: 'Uang masuk dari pihak lain; kategori umum Pemasukan. Ubah bila ini gaji, hadiah, atau pengembalian.' };
+  if (isShopee(row)) return { fallbackCategory: 'Belanja', fallbackReason: 'Uang keluar ke Shopee; dicatat sebagai Belanja.' };
+  if (isBibit(row)) return { fallbackCategory: 'Investasi', fallbackReason: 'Pembelian reksa dana (Bibit); dicatat sebagai Investasi.' };
+  return { fallbackCategory: 'Lainnya', fallbackReason: 'Uang keluar ke pihak lain tanpa kata kunci yang dikenali; kategori umum Lainnya. Ubah bila tujuannya diketahui.' };
+}
 
 /** Counterparty name is the owner's: the name in full, or masked with its visible letters
  * matching the owner's name words in order (at least three visible letters each). */
@@ -218,7 +229,7 @@ function classify(row: JagoRow, amount: number, own: boolean, earlier: readonly 
   } else if (operation === 'bonus' && amount > 0) {
     category = 'Cashback';
   }
-  return { classification, category, warning };
+  return { classification, category, warning, ...(category === UNCATEGORIZED ? fallbackFor(row, amount) : {}) };
 }
 
 function describe(row: JagoRow): string {
