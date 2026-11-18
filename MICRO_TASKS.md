@@ -6,6 +6,9 @@ Dicek: 9 November 2026, commit `b0ddda1` (main). Revisi 2: keputusan alur, lingk
 build lulus, situs publik melayani `b0ddda1`). Angka tes belum dijalankan ulang
 sejak revisi ini; jalankan `npm test` sebagai baseline sebelum MW pertama.
 
+**Tinjauan 18 November 2026** (commit `67efddf`; 65 file tes / 1.807 tes unit
+lulus, build lulus): temuan dan MW baru (MW-87 sampai MW-144) ada di bagian F.
+
 ## Keputusan (9 November 2026)
 
 1. **Alur rilis:** satu PR per MW. Tidak ada push langsung ke `main`.
@@ -683,8 +686,775 @@ Dicatat dari uji yang sama, **belum dikerjakan**:
   `.github/workflows/ci.yml`, `README.md`, `STATUS.md`.
 - [ ] **MW-20 — Impor PDF/XLS lama.** Ini makro; pecah dulu setelah ada contoh file.
 
+## F. Tinjauan menyeluruh (18 November 2026) — daftar saja, belum dikerjakan
+
+Dicek pada commit `67efddf` (main). Baseline yang dijalankan saat tinjauan:
+`npm test` 65 file / 1.807 tes lulus; `npm run build` lulus (satu `index.html`
+893,64 kB, gzip 259,05 kB).
+
+**Cara tinjauan:** empat peninjau (keamanan data, pemakaian langsung di browser,
+produk, kode/CI). Setiap temuan lalu diperiksa ulang oleh peninjau kedua yang
+berusaha membantahnya dengan membaca kode dan mengulang reproduksi. Dari 51
+temuan: 41 terkonfirmasi, 10 benar sebagian, 0 terbantah. Yang benar sebagian
+ditandai *(sebagian)* dan disebut bagian mana yang belum terbukti.
+
+**Batas tinjauan** (berlaku untuk semua angka di bagian ini):
+
+- Hanya Chromium headless (Playwright Node) terhadap `npm run preview`, dengan
+  data sintetis. Firefox, WebKit, Safari, iPhone/Android fisik, aplikasi Layar
+  Utama, dan pembaca layar tidak diuji.
+- `tests/*_browser.py` tidak dijalankan di sesi tinjauan (Python Playwright
+  tidak terpasang di sana); angka CI diambil dari riwayat GitHub Actions.
+- "CPU 4×" berarti perlambatan CPU di Chrome, bukan HP sungguhan.
+- Baris impor dibuat lewat **CSV / Excel umum**, bukan pembaca Jago atau
+  Ziraat; biaya per baris pada file asli bisa berbeda.
+- Usul perbaikan belum dibuat, kecuali disebut "prototipe".
+
+**Aturan bagian ini:** satu MW per PR; sub-huruf (a, b, c) juga PR terpisah.
+Ukuran: **S** kurang dari ±1 jam, **M** satu sesi, **L** beberapa sesi.
+**Butuh keputusan** berarti jangan dimulai sebelum pemilik menjawab.
+
+### F1. Bug dan pesan yang salah
+
+- [ ] **MW-87 — Transaksi manual dan "Cek saldo" bisa dihapus lagi** (S)
+  Transaksi manual (pengeluaran maupun penyesuaian "Cek saldo") yang dibuat
+  **setelah** catatan mempunyai metadata sumber tidak bisa dihapus: toast merah
+  "Metadata sumber tidak valid: Entry creation origin tidak ditemukan.", baris
+  tetap ada, penyimpanan tidak berubah, sama setelah muat ulang (desktop dan
+  HP). Transaksi manual yang dibuat sebelum ada metadata masih bisa dihapus, dan
+  mengubah transaksi tetap bisa. Pemicu yang direproduksi: satu transfer manual
+  lebih dulu. Impor mutasi dan arsip dompet melewati jalur kode yang sama tetapi
+  tidak diulang.
+  *Penyebab:* `deleteSourcedEntry` (`src/lib/sourceCommands.ts:139-148`)
+  membuang baris `creationOrigins` dan `overrides` hanya di dalam cabang
+  `if (link && metadata)`. Untuk entri tanpa tautan bank baris asalnya
+  tertinggal, lalu ditolak validator (`src/lib/sourceModel.ts:427`).
+  *Perbaikan:* buang baris `creationOrigins` dan `overrides` milik entri yang
+  dihapus walau tanpa tautan bank. Fakta bank, tautan, dan disposisi tidak
+  disentuh.
+  *File:* `src/lib/sourceCommands.ts`, tes unit (pengeluaran manual dan
+  penyesuaian pada dokumen yang sudah punya metadata), `tests/source_browser.py`
+  atau `tests/browser_smoke.py` (transfer → pengeluaran manual → hapus → baris
+  hilang dan tetap hilang setelah muat ulang).
+
+- [ ] **MW-88 — Pesan berbahasa Indonesia untuk file cadangan yang salah atau rusak** (S)
+  Memilih file yang bukan cadangan di **Pulihkan cadangan** menampilkan pesan
+  parser mentah berbahasa Inggris; cadangan yang terpotong menampilkan
+  "Unterminated string in JSON at position 900 (line 1 column 901)"; JSON lain
+  menampilkan teks validator internal. Tidak ada yang ditimpa.
+  `src/App.tsx:630` meneruskan `err.message` apa adanya.
+  - **a.** Tangkap `SyntaxError` saat membaca file pemulihan dan tampilkan
+    "File ini bukan cadangan Uangku yang bisa dibaca. Pilih file
+    `uangku-lengkap-….json` atau `uangku-cadangan-….json`."; rincian teknis
+    tetap tersedia di baris yang bisa dibuka. Tambah kasusnya ke tes browser.
+  - **b.** Pesan yang bisa dipahami saat aksi pengguna gagal di validasi
+    metadata (contohnya galat pada MW-87), bukan teks validator mentah.
+
+- [ ] **MW-89 — Unduh CSV: transfer bertanda benar, berbiaya, dan bermata uang tujuan** (S) — **butuh keputusan**
+  Transfer Bank Jago → Ziraat (Rp 1.000.000 → ₺2.500, biaya Rp 6.500) diekspor
+  sebagai satu baris `1000000.00,IDR` bertanda positif tanpa biaya di file IDR,
+  dan file TL berisi baris IDR yang sama, bukan +2500.00 TRY. Transfer
+  semata-uang juga satu baris positif. Akibatnya jumlah kolom Nominal tidak sama
+  dengan saldo dompet, dan file TL memuat angka rupiah.
+  *Keputusan:* dua baris bertanda per transfer (satu per dompet), atau satu
+  baris dengan kolom tambahan (Biaya, Diterima, Mata uang tujuan). Daftar kolom
+  sekarang ditetapkan di MW-11.
+  *File:* `src/lib/csvExport.ts` + tes, `src/App.tsx:349-357`, satu pemeriksaan
+  di tes browser. Hanya ekspor; format tersimpan tidak disentuh.
+
+- [ ] **MW-90 — Impor: catatan manual yang mirip ditawarkan sebagai kemungkinan duplikat** (M)
+  Impor menandai catatan manual hanya bila tanggal **dan** nominal sama persis
+  (`src/lib/importCommit.ts:33-35`, `:107`). Catatan manual sehari lebih awal,
+  atau beda 0,01, tidak memberi tanda apa pun dan keduanya tersimpan. Diperiksa
+  di tingkat pustaka, belum lewat layar impor.
+  *Perbaikan:* tawarkan catatan manual di dompet yang sama dengan nominal
+  bertanda sama dalam ±3 hari sebagai kandidat, tampilkan tanggal kandidatnya,
+  dan pertahankan pilihan eksplisit yang sudah ada ("Lewati" / "Transaksi
+  berbeda"). Tidak pernah melewati baris secara otomatis. Konsekuensi: lebih
+  banyak baris minta keputusan bila nominal yang sama sering berulang.
+  *File:* `src/lib/importCommit.ts` + tes, `tests/currency_import_browser.py`.
+
+- [ ] **MW-91 — Ikon transaksi dan dompet di tema gelap mendapat warna semantiknya** (S) *(sebagian)*
+  Di tema gelap semua varian `.transaction-icon`, `.stat-icon`, dan
+  `.wallet-icon` berwarna sama (rgb(175,194,175) di atas rgb(38,58,45)).
+  Daftar `:is()` di `src/styles.css:1004-1008` memuat
+  `.import-step > span:first-child`, sehingga spesifisitasnya mengalahkan aturan
+  semantik di baris 1009-1028. Mengeluarkan anggota itu dari daftar memulihkan
+  warnanya. Dampaknya kosmetik: baris tetap terbedakan dari bentuk ikon dan
+  warna nominal. Catatan MW-73 "tema gelap sudah punya warna berbeda" saat ini
+  tidak benar untuk ikon, jadi kerjakan ini sebelum MW-73.
+  *File:* `src/styles.css`, `tests/theme_browser.py` (ikon pemasukan, transfer,
+  dan pengeluaran di gelap harus berbeda satu sama lain).
+
+- [ ] **MW-92 — Contoh "Perpindahan dana" di form mengikuti keputusan 13 November** (S)
+  Petunjuk di `src/components/TransactionModal.tsx:30` memberi contoh "kiriman
+  ke rekening orang lain", padahal keputusan 13 Nov 2026 (MW-19a): uang dari dan
+  ke orang lain adalah pemasukan/pengeluaran, dan perpindahan hanya untuk
+  rekening sendiri dan isi saldo e-wallet. Ganti contohnya dengan kasus rekening
+  sendiri. Tes yang memeriksa teks petunjuk ikut diperbarui.
+
+### F2. Keamanan data
+
+- [ ] **MW-93 — Dialog Pulihkan membandingkan file dengan catatan di browser** (S)
+  Pemulihan mengganti semuanya, dan teks konfirmasi dibangun dari file saja
+  (`src/App.tsx:602-611`): jumlah dompet, transaksi, kategori, aturan. Tidak ada
+  jumlah di browser, tanggal transaksi terbaru di kedua sisi, atau berapa
+  catatan yang hanya ada di browser. Direproduksi: browser 10 transaksi, file 10
+  transaksi, satu catatan yang hanya ada di browser hilang tanpa tanda. Tombol
+  **Cadangkan dulu** sudah ada di dialog.
+  *Perbaikan:* tambahkan "Di browser ini: N transaksi, terbaru <tanggal>. Di
+  file: M transaksi, terbaru <tanggal>. K catatan di browser ini tidak ada di
+  file." Bila K > 0, **Cadangkan dulu** menjadi tombol utama. Bandingkan catatan
+  manual lewat id entri dan baris bank lewat sidik jari sumbernya: id baris
+  impor memuat UUID per impor, jadi perbandingan id saja melebih-lebihkan bila
+  mutasi yang sama diimpor terpisah di dua perangkat. Format file tidak berubah.
+  *File:* `src/App.tsx`, pembantu murni baru + tes, `tests/full_backup_browser.py`.
+
+- [ ] **MW-94 — Nama file cadangan memuat jam** (S)
+  Nama sekarang hanya bertanggal (`src/App.tsx:222,228,258`), jadi dua cadangan
+  di hari yang sama hanya dibedakan akhiran " (1)" dari browser. Jadikan
+  `uangku-lengkap-YYYY-MM-DD-HHmm.json` (dan padanannya), lalu sebut nama file di
+  toast sukses. Periksa tes yang mencocokkan nama file. Isi file tidak diubah:
+  skema cadangan tertutup dan menolak field tambahan.
+
+- [ ] **MW-95 — `.gitignore` menutup semua nama unduhan aplikasi** (S)
+  Pola sekarang (`*backup*.json`, `*cadangan*.json`) tidak mengenai
+  `uangku-lengkap-<tanggal>.json`, `uangku-data-asli-<tanggal>.json`,
+  `uangku-pekerjaan-belum-tersimpan.json`, dan
+  `uangku-pengaturan-kategori-<tanggal>.json`. Repo ini publik. Belum ada file
+  seperti itu yang terlacak, dan risikonya baru muncul bila file disalin ke
+  folder repo. Tambahkan `uangku-*.json`.
+  *File:* `.gitignore`. Kalimat tambahan di `AGENTS.md` hanya atas persetujuan
+  pemilik.
+
+- [ ] **MW-96 — Meter penyimpanan dan peringatan dini** (S)
+  Batas nyata di Chromium adalah 5.242.880 karakter UTF-16 untuk **semua** kunci
+  dan nama kunci di satu origin, bukan 8 MiB. Aplikasi membatasi per kunci dalam
+  byte UTF-8 (`src/lib/persistence.ts:11,72-73`, `src/lib/storage.ts:7,101`).
+  Terukur: 322–363 karakter per baris impor; 10.000 baris = 3.605.968 karakter;
+  impor 5.000 baris yang ketiga (15.000 baris) gagal. Kegagalannya aman (data
+  lama utuh, draft bisa diunduh), tetapi tidak ada tampilan pemakaian di mana
+  pun. Belum terbukti: perkiraan "berapa tahun sampai penuh" dan batas Safari.
+  *Perbaikan:* meter di jendela **Privasi dan cadangan** dan banner mulai ±70%,
+  dihitung dari jumlah panjang kunci dan nilai di `localStorage`.
+  *File:* modul kecil baru + tes, `src/components/PrivacyNotice.tsx`, `src/App.tsx`.
+
+- [ ] **MW-97 — Pesan yang jelas saat penyimpanan penuh, dan angka kapasitas di dokumen** (S)
+  Galat kuota dilebur menjadi satu pesan umum "Penyimpanan gagal atau penuh…"
+  (`src/lib/persistence.ts:95-97`). Kenali `QuotaExceededError` dan katakan apa
+  yang terjadi serta apa yang harus dilakukan (unduh cadangan lengkap). Koreksi
+  kalimat 8 MiB di `README.md:172` dan `STATUS.md:26`: batas yang lebih dulu
+  tercapai adalah kuota browser (`README.md:173` sudah menyinggungnya).
+
+- [ ] **MW-98 — Tes browser pada kuota penyimpanan sungguhan** (S–M)
+  Semua tes kuota sekarang memalsukan galatnya (`tests/browser_smoke.py:370`,
+  `tests/category_browser.py:524,566`, `tests/bank_description_browser.py:352`,
+  `tests/recovery_browser.py:180-214`), dan tes "mendekati 8 MiB" hanya tes
+  unit. Tambah satu tes pada build produksi yang mengisi `localStorage` sungguhan
+  sampai simpan berikutnya gagal, lalu memeriksa: label dan pesan gagal, data
+  tersimpan sama persis, unduhan pekerjaan-belum-tersimpan sama dengan draft,
+  dan pemulihan file di atas kuota tidak mengubah catatan, kategori, anggaran,
+  maupun template.
+
+- [ ] **MW-99 — Pengingat cadangan menurut jumlah perubahan** (S) *(sebagian)* — **butuh keputusan**
+  Setelah cadangan lengkap, pengingat diam 7 hari apa pun yang berubah
+  (`src/lib/backupReminder.ts:98,119-122`), termasuk setelah impor satu bulan
+  mutasi. Seberapa mungkin data terhapus browser dalam jeda itu tidak terbukti
+  (tidak ada penghapusan yang teramati).
+  *Usul:* simpan jumlah entri di samping sidik jari pada `uangku:last-backup:v1`
+  (pembaca sekarang hanya memeriksa `at` dan `fingerprint`), munculkan pengingat
+  bila bertambah N entri, dan tawarkan **Cadangkan sekarang** di pesan sukses
+  impor. Ini mengubah aturan MW-08, jadi dicatat sebagai MW baru.
+  *Keputusan:* ambang (mis. 25 entri baru, atau setiap impor).
+
+- [ ] **MW-100 — Penyimpanan kosong menawarkan "Pulihkan cadangan"; status persisten terlihat** (S)
+  Profil yang terhapus dibuka sebagai data contoh tanpa petunjuk pemulihan di
+  area utama (pemulihan tetap ada di sidebar dan menu akun). Jawaban
+  `navigator.storage.persist()` hanya tampil di jendela Privasi
+  (`src/App.tsx:741`, `src/lib/storagePersistence.ts:47-58`).
+  - **a.** Banner data contoh menambah "Punya file cadangan? Pulihkan cadangan".
+  - **b.** Status "penyimpanan persisten: tidak" terlihat di dekat label simpan,
+    dengan tautan ke penjelasannya.
+  - **c.** Kalimat di Privasi tentang Safari yang dapat menghapus data setelah 7
+    hari tidak dibuka. Tulis sebagai fakta hanya sesudah dicek di iPhone asli.
+
+- [ ] **MW-101 — Sesudah memulihkan, tidak muncul "Belum ada cadangan lengkap"** (S) — **butuh keputusan**
+  Tepat setelah pemulihan lengkap di browser baru, banner "Belum ada cadangan
+  lengkap." dan baris "Cadangan terakhir: belum ada" tampil, karena hanya unduhan
+  **Cadangkan semuanya** yang menulis catatan cadangan. Petunjuk iPhone (MW-10)
+  justru menyuruh mencadangkan di Safari lalu memulihkan di Layar Utama.
+  *Keputusan:* apakah pemulihan yang berhasil dihitung sebagai "punya cadangan"
+  sampai data berubah. Ini mengubah arti catatan yang ditetapkan MW-06.
+  *File:* `src/lib/backupReminder.ts` + tes, `src/App.tsx`.
+
+- [ ] **MW-102 — Pengaturan kategori yang tidak terbaca tidak bisa ditimpa sekali klik** (S)
+  Pengaturan kategori dengan `keywordPackVersion` lebih baru dari yang dikenal
+  dianggap tidak terbaca: tidak ada peringatan di Ringkasan, **Cadangkan
+  semuanya** menolak dengan "Versi paket kata kunci belum didukung.", dan
+  **Kelola kategori** terbuka dengan bawaan lalu menimpa pengaturan tersimpan
+  dengan satu klik tanpa menyimpan salinan. Pemicunya sempit: tab atau aplikasi
+  Layar Utama versi lama yang berbagi penyimpanan dengan versi baru, dan
+  pengguna tetap menyimpan walau ada peringatan. Catatan keuangan tidak
+  tersentuh.
+  - **a.** Simpan teks lama ke kunci samping sebelum mengganti, dan sediakan
+    "Unduh pengaturan lama (mentah)"; **Simpan pengaturan** aktif sesudahnya.
+  - **b.** Kenali versi yang lebih baru: "dibuat oleh Uangku versi lebih baru,
+    muat ulang halaman", tanpa tawaran menimpa. Kalimat yang sama untuk cadangan
+    versi lebih baru saat pemulihan.
+  *File:* `src/lib/categorySettings.ts`, `src/hooks/useCategorySettings.tsx`,
+  `src/components/CategoryManager.tsx`, tes terkait.
+
+- [ ] **MW-103 — Pemberitahuan "versi baru tersedia"** (S)
+  Aplikasi tidak pernah memeriksa versi baru; `BUILD_INFO.json` yang ditulis
+  `pages.yml` tidak dibaca. Saat jendela mendapat fokus, ambil `BUILD_INFO.json`
+  tanpa cache dan bandingkan dengan commit build; bila berbeda tampilkan "Versi
+  baru tersedia · Muat ulang". Tidak pernah memuat ulang sendiri saat form
+  terbuka atau ada perubahan belum tersimpan. Ini menjadi permintaan jaringan
+  pertama selain halaman, jadi sebutkan di Privasi; bila MW-107 dipakai,
+  `connect-src` menjadi `'self'`.
+
+- [ ] **MW-104 — Jurnal pemulihan yang tidak terbaca disisihkan, bukan mengunci aplikasi** (S)
+  Bila `uangku:full-restore:v1` tidak bisa dibaca, aplikasi tetap di "Data lama
+  dilindungi · pemulihan diperlukan" selamanya. Muat ulang, cadangan lengkap,
+  pemulihan, dan "Ganti data tersimpan dengan dompet kosong" semuanya gagal
+  (dengan aman: catatan sama persis); hanya unduhan salinan mentah yang jalan.
+  Kemungkinannya sangat kecil karena jurnal ditulis dalam satu langkah.
+  *Perbaikan:* pindahkan teks jurnal ke kunci samping (tidak dihapus), buka
+  kuncinya, dan tampilkan pemberitahuan bahwa data tersimpan tidak diubah dan
+  pengaturan kategori mungkin berasal dari pemulihan yang terputus.
+  *File:* `src/lib/fullRestoreStorage.ts:53-62,73-82`,
+  `src/hooks/useLedgerStorage.ts`, tes terkait.
+
+- [ ] **MW-105 — Unduhan cadangan di HP** *(sebagian)*
+  Tautan blob dicabut 1 detik setelah klik (`src/App.tsx:69-74`), dan cadangan
+  dicatat berhasil tanpa syarat (`src/App.tsx:252-260`). Apakah HP benar-benar
+  gagal menyimpan file **belum terbukti**: di Chromium desktop (juga dengan
+  emulasi HP dan file 3,5 MB) unduhan selalu selesai.
+  - **a.** (S) Biarkan tautan blob hidup 60 detik.
+  - **b.** (pemilik) Jalankan cadangkan → pulihkan sekali di iPhone (Safari dan
+    Layar Utama) dan Android; catat hasilnya di `STATUS.md`.
+  - **c.** (S–M) Bila `navigator.canShare({files})` tersedia, tawarkan "Bagikan /
+    simpan ke Files"; unduhan biasa tetap ada.
+  - **d.** (S) — **butuh keputusan** "Uji file cadangan": pilih file yang sudah
+    disimpan, validasi tanpa menulis, bandingkan dengan catatan tersimpan.
+    Mengubah batasan yang diterima di MW-06.
+
+- [ ] **MW-106 — Batas pembaca PDF dan XLSX agar file rusak tidak membekukan tab** (S)
+  File impor tidak bisa menjalankan kode atau merusak data (bom zip ditolak
+  sebelum dibuka, tidak ada jalur XSS), tetapi pembacaan berjalan di thread
+  utama: PDF 1,3 KB dengan 1.600 rentang peta karakter membekukan tab 15,9 detik
+  (`src/lib/pdfText.ts:482-502`, ±10 ms per rentang), dan XLSX 49,6 KB berisi
+  28,8 MiB sel kosong diterima setelah 11,2 detik. Hanya terjadi pada file yang
+  rusak atau sengaja dibuat jahat.
+  - **a.** Batasi jumlah kode yang dipetakan per font dan per dokumen; gagal
+    dengan "Peta karakter PDF tidak valid."; tes unit dengan banyak rentang.
+  - **b.** Batasi jumlah sel worksheet sebelum baris dibangun.
+  - **c.** (M, opsional) Pembacaan file di Web Worker.
+
+- [ ] **MW-107 — Content-Security-Policy** (S, opsional) *(sebagian)*
+  Halaman tidak punya CSP. CSP meta berbasis hash terbukti jalan dengan build
+  sekarang tanpa pelanggaran (disuntikkan di browser uji). Perlindungannya lebih
+  kecil dari kesan pertama: tidak menahan skrip di path lain pada origin yang
+  sama (`zayyan353.github.io`), dan tidak menahan navigasi yang membawa data di
+  URL. Hash harus dihitung setelah `vite-plugin-singlefile` menyisipkan skrip.
+  *File:* langkah pasca-build di `vite.config.ts`, tes browser (tidak ada
+  pelanggaran selama alur dasar; `fetch` ke host lain diblokir).
+
+- [ ] **MW-108 — Cadangan berfrasa sandi** (M, opsional) — **butuh keputusan**
+  Cadangan lengkap adalah JSON yang bisa dibaca siapa pun yang memegang filenya
+  (sudah disebut di Privasi). Enkripsi dengan WebCrypto murah (PBKDF2 600.000
+  putaran 119 ms; AES-GCM 24 ms pada catatan 3,6 juta karakter) dan tanpa
+  dependensi baru. Risikonya: frasa sandi yang terlupa membuat cadangan tidak
+  bisa dibuka. Ekspor polos tetap bawaan; versi aplikasi lama menolak amplop
+  terenkripsi.
+
+- [ ] **MW-109 — Kapasitas jangka panjang** — **butuh keputusan**
+  30,7% karakter catatan 10.000 baris adalah id entri dan fakta yang membawa
+  UUID impor (±111 karakter per baris); deflate mengecilkannya 4,08×. Codec juga
+  membuang nilai bawaan kolom begitu satu baris berbeda
+  (`src/lib/sourceCodec.ts:60,147`): satu transaksi manual pada catatan 10.000
+  baris satu dompet menambah 150.057 karakter.
+  - **a.** (M) Id lebih pendek untuk impor **baru**; id lama tidak disentuh.
+  - **b.** (L) Pindah ke IndexedDB atau simpan terkompresi, dengan migrasi dan
+    aturan kunci serta token yang sama.
+  Keduanya menyentuh aturan "pertahankan format v1 dan roundtrip metadata".
+  *Keputusan:* cukup `localStorage` dengan meter (MW-96), atau investasi
+  sekarang. Kerjakan MW-96 sebelum MW-19/MW-20 menambah baris secara massal.
+
+**Tindakan pemilik (bukan kode):**
+
+- `main` belum dilindungi di GitHub (`protected: false`, tanpa ruleset), jadi
+  aturan "merge hanya setelah CI hijau" tidak dipaksakan. Dari 40 run PR
+  terakhir, 5 gagal dan 2 dibatalkan. Usul: ruleset yang mewajibkan pull request
+  dan tiga pemeriksaan (`Tes dan build`, `Tes browser firefox`,
+  `Tes browser webkit`). Lakukan sebelum MW-139.
+- Periksa apakah ada repo lain di akun yang menerbitkan Pages di host yang sama
+  (`zayyan353.github.io`), karena semua path di origin itu berbagi penyimpanan.
+
+### F3. Kecepatan
+
+- [ ] **MW-110 — Tes performa mengukur catatan yang berisi baris impor** (S)
+  Menyimpan satu transaksi manual pada catatan berisi baris impor (dokumen
+  versi 2):
+
+  | Baris impor | Tanpa perlambatan | CPU 4× |
+  |---|---|---|
+  | 1.000 | 0,32–0,52 dtk | 1,1–1,3 dtk |
+  | 2.500 | 0,65–0,67 dtk | 2,2–2,6 dtk |
+  | 5.000 | 1,23–1,61 dtk | 6,4–7,3 dtk |
+  | 10.000 | 2,6–3,0 dtk | 10,9–11,8 dtk |
+
+  Catatan versi 1 berisi 5.000 baris: 0,49 dtk / 1,15 dtk. Gate performa CI
+  hanya memakai fixture versi 1 (`tests/performance_browser.py:35-46`), jadi
+  perlambatan ini tidak terlihat oleh CI. Tambah sampel versi 2 (impor CSV
+  sintetis 2.000 baris, lalu ukur satu simpan) dan laporkan milidetiknya.
+
+- [ ] **MW-111 — Percepat jalur simpan** (M–L) — **butuh keputusan**
+  Setiap simpan memvalidasi dan mengemas ulang seluruh catatan
+  (`src/lib/persistence.ts:70-76`). Pada 10.000 baris, biaya pustakanya saja
+  569–592 ms per simpan dan 1.140–1.149 ms saat memuat. Butuh MW-110 lebih dulu
+  supaya hasilnya terukur.
+  - **a.** (S–M) Penghematan codec tanpa mengubah format
+    (`src/lib/sourceCodec.ts:42,60`, `src/lib/jsonBudget.ts:11`).
+  - **b.** (M) Lewati validasi dan pengemasan ulang bagian yang identik dengan
+    snapshot yang sudah tervalidasi. Hitungan ukuran dan penolakan overflow
+    wajib tetap; tes kapasitas harus hijau.
+  - **c.** (S–M) Jalan pintas yang sama saat memuat.
+  *Keputusan:* target, mis. 5.000 baris impor tersimpan di bawah 1 detik di
+  HP-mu; angka itu menjadi anggaran CI. Kerjakan sebelum MW-19/MW-20.
+
+- [ ] **MW-112 — Kotak cari tidak me-render ulang seluruh aplikasi per ketikan** (M) *(sebagian)*
+  Satu ketikan di "Cari transaksi" memakan median 32 ms (maks 72) tanpa
+  perlambatan dan median 160 ms (maks 448) pada CPU 4×. Angkanya sama pada 1.000
+  dan 5.000 baris: biayanya render ulang penuh `App` dua kali per ketikan
+  (`src/App.tsx:107`, `:161`), bukan jumlah baris. Besar perbaikannya belum
+  diukur.
+  - **a.** Pembaruan di `src/App.tsx:161` tidak membuat array baru bila sudah
+    kosong; pindahkan state pencarian keluar dari `App` (lihat MW-144).
+  - **b.** Simpan judul huruf kecil di dalam indeks, bukan dihitung per baris per
+    ketikan (`src/lib/historyView.ts:91-92`).
+  - **c.** Sampel ketikan (median dan maksimum) di `tests/performance_browser.py`.
+
+### F4. Pemakaian di HP dan alur
+
+- [ ] **MW-113 — Halaman ada di URL; Back dan muat ulang berperilaku wajar**
+  Navigasi dan dialog tidak membuat entri riwayat dan URL tidak pernah berubah
+  (`src/App.tsx:101`; tidak ada kode `history`/`popstate` di `src`). Muat ulang
+  selalu kembali ke Ringkasan, Back dari halaman mana pun keluar dari aplikasi,
+  dan form yang sedang diisi hilang tanpa peringatan. Back diuji lewat History
+  API, bukan gestur di HP sungguhan.
+  - **a.** (S–M) Rute hash per halaman (`#/dompet`, `#/transaksi`, `#/impor`),
+    dibaca saat mulai dan mengikuti `popstate`.
+  - **b.** (M) Membuka dialog menambah satu entri riwayat; Back menutupnya lewat
+    penjaga buang-isian yang sudah ada (`src/hooks/useDiscardGuard.tsx`).
+  - **c.** (S) Peringatan `beforeunload` saat form terbuka berisi isian. Penjaga
+    untuk perubahan belum tersimpan sudah ada
+    (`src/hooks/useLedgerStorage.ts:45-54`).
+  - **d.** (S) Kasus di `tests/ux_browser.py`: muat ulang, Back antarhalaman,
+    Back dengan dialog berisi.
+
+- [ ] **MW-114 — Aplikasi bisa dibuka tanpa internet** (M) — **butuh keputusan**
+  Tidak ada service worker dan tidak ada cache: muat ulang atau buka dingin
+  tanpa jaringan gagal (`ERR_INTERNET_DISCONNECTED`), walau manifestnya membuat
+  aplikasi bisa dipasang dan datanya ada di perangkat. Prototipe 25 baris
+  (network-first) di browser uji: muat ulang offline berhasil, catatan utuh,
+  transaksi yang disimpan saat offline bertahan. Prototipe ini tidak diulang
+  oleh pemeriksa kedua.
+  - **a.** `public/sw.js`: halaman network-first dengan cadangan salinan
+    terakhir; manifest dan ikon dari cache. Daftarkan hanya di alamat publik.
+  - **b.** Tes browser baru (muat, offline, muat ulang, simpan, buka dingin).
+    Tes yang ada memblokir service worker (`tests/full_backup_browser.py:33`).
+  - **c.** Satu kalimat di Privasi dan README.
+  *Keputusan:* terima satu file statis tambahan di samping `index.html`, dan
+  bahwa sesi offline menjalankan build terakhir yang pernah dimuat perangkat itu.
+  Jalur pembaruan harus benar supaya tes browser tidak pernah menerima halaman
+  lama (aturan hash build di `AGENTS.md`).
+
+- [ ] **MW-115 — Transaksi yang tersimpan di luar periode yang tampil tidak "hilang"** (S)
+  Menyimpan transaksi bertanggal di luar bulan yang tampil hanya memunculkan
+  "Transaksi tersimpan." dan barisnya tidak terlihat sampai periode diganti.
+  Mengubah tanggal baris ke luar bulan menghapusnya dari tampilan dan fokus
+  jatuh ke `body`. Toast menyebut bulannya ("Tersimpan di Oktober 2026") dan
+  menawarkan **Lihat**.
+  *File:* `src/App.tsx:558`, tes browser.
+
+- [ ] **MW-116 — "Cek saldo" yang cocok berakhir sebagai keberhasilan** (S)
+  Bila saldo sama dengan catatan, petunjuk sudah berkata "Sama dengan catatan,
+  jadi tidak ada selisih untuk dicatat.", tetapi **Simpan transaksi** memunculkan
+  galat merah "Saldo sudah cocok; tidak perlu penyesuaian."
+  (`src/lib/finance.ts:223-225`) dan Esc membuka "Buang isian transaksi?".
+  - **a.** Saat selisih 0, tombol utama menjadi "Saldo cocok · tutup", menutup
+    tanpa pertanyaan buang-isian, dengan toast sukses.
+  - **b.** — **butuh keputusan** Tanggal "terakhir dicek" per dompet. Bila
+    disetujui, simpan di kunci terpisah, bukan di format catatan.
+
+- [ ] **MW-117 — Kurs: contoh mengikuti arah pasangan mata uang**
+  Untuk IDR → TRY kolomnya bertanya "1 IDR = berapa TRY?" dengan contoh statis
+  "400,5" dan "16000" (`src/components/TransactionModal.tsx:371`), yang hanya
+  cocok untuk arah sebaliknya. Mengetik 400 menghasilkan "₺400.000.000
+  diterima" tanpa peringatan. Tidak sepenuhnya diam-diam: pratinjau ada tepat di
+  bawah kolom dan simpan terkunci sampai "Kurs ini sesuai transaksi saya"
+  dicentang.
+  - **a.** (S) Contoh bergantung pasangan, atau tanpa angka statis.
+  - **b.** (M) — **butuh keputusan** Tombol "balik arah" (kurs diketik sebagai
+    "1 TRY = … IDR") dan peringatan bila kurs berbeda lebih dari 100× dari kurs
+    terakhir pasangan itu. Arti kurs yang tersimpan tidak berubah.
+
+- [ ] **MW-118 — Esc selalu menutup dialog** (S)
+  Setelah klik pada teks yang bukan kontrol (judul dialog, paragraf petunjuk)
+  fokus jatuh ke `body` dan Esc tidak lagi menutup dialog
+  (`src/components/Modal.tsx:18-19`). Klik pada label kolom tidak terdampak, dan
+  satu kali Tab memulihkannya. `KERANGKA_HALAMAN.md` 5.9.1 menyatakan Escape
+  menutup jendela. Dengarkan Escape di `document` untuk dialog teratas dan
+  kembalikan fokus ke dialog. Tambah kasus di tes browser.
+
+- [ ] **MW-119 — Catatan transfer lama tidak melebarkan kolom tanggal** (S)
+  Transfer tanpa tanggal per sisi yang tersimpan (data v1 tanpa metadata
+  transfer; bukan data contoh) menempelkan kalimat catatan ke tanggal dalam satu
+  sel tanpa bungkus (`src/components/TransactionTable.tsx:53`,
+  `src/styles.css:417`). Di 1440px kolom tanggal memakan 574px; di 1100px dan
+  900px tabel selebar 936px sehingga Nominal dan tombol ubah berada di luar area
+  yang terlihat. Tidak diketahui apakah catatan pemilik masih memuat transfer
+  seperti itu. Ubah tata letaknya saja (catatan di baris sendiri yang
+  membungkus); kalimatnya ditetapkan 11 Nov dan penandanya harus tetap terlihat.
+
+- [ ] **MW-120 — Konflik dua tab saat form terbuka**
+  Form yang dibuka di tab B sebelum tab A menyimpan selalu gagal disimpan; kotak
+  pemulihan yang ditunjuk toast berada di bawah latar dialog; setelah dialog
+  ditutup, **Coba simpan lagi** aktif tetapi tidak mengubah apa pun dan tanpa
+  pesan. Tidak ada data yang tertimpa dan unduhan pemulihan ditawarkan.
+  - **a.** (S) Tampilkan pemberitahuan konflik dan aksinya di dalam dialog.
+  - **b.** (S) Pada status konflik, ganti **Coba simpan lagi** dengan penjelasan.
+  - **c.** (M) — **butuh keputusan** Untuk entri baru, terapkan ulang perintah
+    tambah ke data terbaru lewat kunci dan validasi yang sama. Perilaku sekarang
+    (berhenti dan simpan draft) mengikuti aturan token di `AGENTS.md`.
+
+- [ ] **MW-121 — Pilihan jenis dan nama kolom terbaca oleh pembaca layar** (S)
+  Lima tombol "Jenis transaksi" dan sakelar "Isi kurs / Isi jumlah diterima"
+  tidak membawa status terpilih (`src/components/TransactionModal.tsx:370`,
+  `:430`). Nama yang diumumkan juga berbeda dari label yang terlihat: di "Cek
+  saldo" kolom saldo bernama "Nominal" dan "Dompet" bernama "Dompet asal"
+  (`:365`, `:368`, `:380`). Tambahkan `role="group"` dan `aria-pressed`, dan
+  buat nama mengikuti label per mode. Kerjakan bersama MW-68 (selektor CSS yang
+  bergantung pada `aria-label` yang sama). Tes browser memakai nama sekarang
+  (`get_by_label("Nominal")` 13 kali, `"Dompet asal"` 17 kali), jadi pertahankan
+  nama untuk mode lain atau perbarui tesnya di PR yang sama.
+
+- [ ] **MW-122 — Di antrean "Perlu dirapikan", filter jenis tidak keluar diam-diam** (S)
+  Memilih jenis lain di dalam antrean menghapus judul antrean dan menampilkan
+  riwayat biasa tanpa pemberitahuan. Ini perubahan desain, bukan regresi:
+  `KERANGKA_HALAMAN.md` 3.6.1 mencatat dropdown Jenis sebagai salah satu jalan
+  keluar dari antrean. Usul: jenis yang dipilih berlaku di dalam antrean; keluar
+  lewat "Semua transaksi" dan "Reset filter". Tes yang keluar lewat dropdown
+  perlu diperbarui.
+
+- [ ] **MW-123 — Toast lama tidak menutupi dialog berikutnya** (S) *(sebagian)*
+  Hanya terjadi bila dialognya tinggi: di 1440×900 pada dialog Pindah uang
+  lintas mata uang toast menutupi bagian atas tombol X (bagian tengahnya tetap
+  bisa diklik); di 390×844 toast menutupi judul dialog. Dialog Catat transaksi
+  biasa tidak tertutup. Tutup toast sukses saat dialog dibuka; toast galat
+  tetap.
+
+- [ ] **MW-124 — Halaman Transaksi di HP: baris pertama lebih dekat ke atas** (M)
+  Di 390×844 baris transaksi pertama berada di y=1112 (dengan pengingat
+  cadangan tampil), dan periode diatur oleh dua kontrol ("Bulan laporan" dan
+  "Periode transaksi"). Melipat filter di balik tombol sudah dicoba dan
+  dibatalkan di MW-44, jadi **tidak** diusulkan lagi.
+  - **a.** "Kelola kategori" dan "Isi kategori otomatis" dalam satu baris ringkas
+    atau menu.
+  - **b.** Di antrean rapikan, lencana pendek menggantikan kalimat per baris.
+  - **c.** — **butuh keputusan** Hapus salah satu dari dua kontrol periode. Tes
+    browser memilih kontrol lewat label "Periode transaksi".
+
+- [ ] **MW-125 — Kontrol form 16px di HP** (S)
+  Di 390×844 ukuran huruf kolom form 12–14px (`src/styles.css:222`, `:225`,
+  `:436`, `:612`); hanya Nominal yang lebih besar. Safari iOS memperbesar
+  halaman saat kolom di bawah 16px mendapat fokus; efek itu **tidak**
+  direproduksi di sini (Chromium tidak melakukannya). Di ≤760px jadikan input,
+  select, dan textarea 16px, lalu periksa ulang grid filter dua kolom MW-44 di
+  360px dan 390px. Konfirmasi di iPhone asli sebelum dan sesudah.
+
+- [ ] **MW-126 — Hapus transaksi: pesan yang benar dan "Urungkan"**
+  Menghapus transaksi manual bersifat permanen, dan toastnya menyebut data bank
+  yang tidak ada (`src/App.tsx:570-578`). Penghapusan butuh tiga langkah sengaja
+  (ubah, Hapus, konfirmasi).
+  - **a.** (S) Toast "Transaksi dihapus." bila entri tidak punya data bank.
+  - **b.** (M) Aksi **Urungkan** di toast untuk entri tanpa tautan bank: tulis
+    kembali lewat controller hanya bila token tersimpan masih token
+    setelah-hapus; selain itu katakan catatan sudah berubah.
+
+- [ ] **MW-127 — Pencarian memberi tahu hasil di mata uang lain** (S)
+  Pencarian meluas ke semua periode tetapi tetap di mata uang yang aktif, dan
+  keadaan kosong tidak menyebut ada hasil di mata uang lain. Tampilkan jumlah
+  hasil per mata uang lain sebagai tombol ("6 hasil di TL") yang berpindah tab
+  dan mempertahankan kata cari.
+  *File:* `src/lib/historyView.ts` + tes, `src/App.tsx:719-722`,
+  `tests/kerangka_browser.py`.
+
+### F5. Fitur
+
+- [ ] **MW-128 — Ringkasan menyebut total pemasukan, pengeluaran, dan selisih**
+  Kartu "Uang masuk/keluar" adalah arus rekening (termasuk transfer keluar,
+  tarik tunai, dan biaya) sesuai keputusan pemilik, jadi bukan angka "berapa
+  pengeluaranku bulan ini". Total pengeluaran berkategori hanya tampil di judul
+  panel saat panel dilipat, dan pemasukan tidak pernah dijumlahkan. Kedua kartu
+  dan labelnya tetap.
+  - **a.** (S) Total pengeluaran tampil juga saat panel kategori terbuka.
+  - **b.** (S–M) `incomeTotal` di `buildCashflowReport`
+    (`src/lib/cashflowReport.ts`) dan satu baris ringkas "Pemasukan · Pengeluaran
+    · Selisih (tanpa pindah uang antar dompetmu)". Baris "Perlu dicek" belum
+    ikut sampai ditinjau.
+  - **c.** (S) Angka bulan sebelumnya di baris itu. Catatan: perbandingannya
+    bulan penuh lawan bulan berjalan (`KERANGKA_HALAMAN.md` 1.3.2).
+  Tidak diusulkan: menyamakan angka "keluar" halaman Transaksi dengan kartu.
+  Angka itu ikut menghitung baris Perpindahan dana, dan perilakunya dicatat di
+  `KERANGKA_HALAMAN.md:751-755`; mengubahnya butuh keputusan tersendiri.
+
+- [ ] **MW-129 — Kesegaran catatan per dompet**
+  Kartu dompet dan Ringkasan memberi label "Saldo aktual <hari ini>" tanpa
+  menyebut sampai tanggal berapa catatan atau mutasi bank yang diimpor; periode
+  mutasi tersimpan hanya tampil di halaman Impor. Memakai tanggal yang sudah
+  tersimpan saja, tidak ada yang ditebak.
+  - **a.** (S) `src/lib/walletFreshness.ts` + tes: tanggal posting terakhir dan
+    akhir periode mutasi terakhir per dompet.
+  - **b.** (S) Satu baris di kartu dompet: "Catatan terakhir 12 Nov · mutasi
+    bank sampai 19 Okt". *File:* `src/components/WalletsPage.tsx`, `src/App.tsx`,
+    `tests/wallet_browser.py`.
+  - **c.** (S–M) Pengingat di Ringkasan untuk dompet yang punya mutasi tersimpan
+    tetapi belum menjangkau bulan lalu; bisa ditutup sampai besok.
+
+- [ ] **MW-130 — Anggaran memberi peringatan**
+  Status anggaran hanya terlihat di panel kategori Ringkasan (terakhir di HP)
+  dan hilang saat satu dompet dipilih. Anggaran hanya menghitung pengeluaran
+  terkonfirmasi, jadi tepat setelah impor angkanya terlalu rendah sampai baris
+  "Perlu dicek" ditinjau.
+  - **a.** (S) Pembantu murni di `src/lib/budgets.ts` + tes: porsi terpakai,
+    porsi bulan berjalan, status (aman / hampir habis dari 80% / lewat).
+  - **b.** (S–M) Satu banner di Ringkasan bila ada anggaran hampir habis atau
+    lewat.
+  - **c.** (M) Di form pengeluaran: "Sisa anggaran Makan & minum bulan ini: Rp
+    40.000".
+  - **d.** (M, opsional) — **butuh keputusan** Batas bulanan keseluruhan atau
+    sisa yang dibawa ke bulan berikutnya; butuh entri baru di format anggaran
+    yang ditolak versi aplikasi lama.
+
+- [ ] **MW-131 — Tren 6 bulan**
+  Tidak ada grafik atau tampilan multi-bulan; satu-satunya pembanding adalah
+  bulan sebelumnya di bawah dua kartu.
+  - **a.** (M) `src/lib/monthlyTrend.ts` + tes: per bulan dan mata uang,
+    pemasukan dan pengeluaran terkonfirmasi (termasuk biaya) serta pengeluaran
+    per kategori.
+  - **b.** (M) Panel lipat "Tren 6 bulan" di Ringkasan dengan tabel kecil dan
+    batang CSS (tanpa pustaka grafik), dihitung hanya saat dibuka supaya
+    anggaran performa tidak terganggu.
+  - **c.** (S) Pilih satu kategori untuk melihat barisnya selama 6 bulan.
+
+- [ ] **MW-132 — Saldo semua mata uang berdampingan**
+  Saldo dan laporan hanya tampil satu mata uang per tab.
+  - **a.** (S, tanpa keputusan) Strip "Semua mata uang" di Ringkasan/Dompet:
+    saldo tiap mata uang berdampingan, **tidak** dijumlahkan.
+  - **b.** (L) — **butuh keputusan** Perkiraan total memakai kurs acuan yang
+    diketik pemilik, berlabel jelas "perkiraan". `README.md:27` menyatakan
+    nominal berbeda mata uang tidak dijumlahkan langsung, jadi aturan itu harus
+    dilonggarkan dulu. Bagian opsional baru di cadangan lengkap ditolak versi
+    aplikasi lama.
+
+- [ ] **MW-133 — Rutin bulanan** (L) — **butuh keputusan**
+  Template tidak punya tanggal jatuh tempo, hanya untuk pengeluaran/pemasukan,
+  dan tidak ada daftar "belum dicatat bulan ini".
+  - **a.** `dueDay` opsional dan `lastRecordedOn` pada template
+    (`src/lib/transactionTemplates.ts`).
+  - **b.** Panel "Rutin bulan ini" dengan tombol **Catat**; tidak ada yang dibuat
+    otomatis (keputusan MW-13a tetap).
+  - **c.** Template untuk transfer.
+  - **d.** "Catat lagi seperti ini" di rincian transaksi.
+  Kelemahan yang diketahui: tagihan yang masuk lewat impor bank tetap terdaftar
+  "belum dicatat", karena tautannya hanya dibuat saat isi cepat dari template.
+  Field template baru ditolak versi aplikasi lama saat pemulihan.
+
+- [ ] **MW-134 — Gabungkan catatan manual dari file cadangan** (L) *(sebagian)* — **butuh keputusan**
+  Pemulihan selalu mengganti seluruh catatan; catatan yang hanya ada di
+  perangkat lain hilang. Dialognya memang menyebut "akan menggantikan" dan
+  menawarkan **Cadangkan dulu**, dan `README.md:193-194` menyarankan mencatat di
+  satu tempat. Belum terbukti bahwa pemilik mencatat di dua perangkat secara
+  bersamaan. MW-93 adalah langkah yang jauh lebih kecil untuk risiko yang sama.
+  *Usul:* aksi ketiga "Gabungkan catatan manual…" yang hanya mengambil
+  pemasukan/pengeluaran/perpindahan ketikan tangan yang id-nya belum ada, dengan
+  daftar centang; data bank dan metadata di file tidak pernah digabung; satu
+  penulisan lewat controller.
+
+- [ ] **MW-135 — Impor file tanpa kolom saldo** (L) *(sebagian)* — **butuh keputusan**
+  Impor umum mewajibkan kolom saldo berjalan (`README.md:104-105`); ini batasan
+  yang didokumentasikan, bukan kelalaian. Belum terbukti bahwa ekspor yang
+  dipakai pemilik tidak punya kolom saldo. Mode tanpa saldo hanya aman bila
+  barisnya disimpan sebagai catatan biasa, **bukan** fakta bank, dan tidak ada
+  saldo awal yang diturunkan. Tunggu contoh file (MW-19) sebelum membangunnya.
+
+### F6. CI, alat, dan dokumen
+
+Angka CI (dari GitHub Actions): 40 run PR terakhir (#66–#105) = 33 sukses, 5
+gagal, 2 dibatalkan; job pada run #105 memakan 9:14, 9:45, dan 11:39; run
+Publikasikan #66 memakan 13:52, dengan build 25 detik dan deploy 13 detik; 12
+run tersusul push yang lebih baru di branch yang sama.
+
+- [ ] **MW-136 — CI: batalkan run PR yang tersusul** (S)
+  `ci.yml` tidak punya blok `concurrency`. Tambahkan, dikunci pada nomor PR,
+  dengan `cancel-in-progress` hanya untuk `pull_request`. Tidak mengubah aturan
+  "merge hanya setelah hijau".
+
+- [ ] **MW-137 — CI: batas waktu pada langkah yang bisa macet** (S)
+  Di run Publikasikan #60 semua tes lulus, lalu langkah unggah bukti macet ±11
+  menit dan job dibatalkan oleh batas 20 menit; build dan deploy dilewati dan
+  deploy berikutnya baru jalan 12 jam 26 menit kemudian (sekali dalam 30 run
+  terakhir). Di run PR #82 langkah pasang browser macet 19 menit 40 detik.
+  Beri batas waktu per langkah pada "Simpan bukti" dan "Pasang browser
+  pengujian" (dengan satu kali coba ulang). Bila unggah bukti gagal, tampilkan
+  anotasi peringatan yang terlihat supaya tidak ada kandidat yang diam-diam
+  tanpa bukti (`AGENTS.md`: hasil per kandidat dicatat jujur).
+
+- [ ] **MW-138 — CI: satu artefak `dist` diuji lalu diterbitkan; tes browser dipecah** (M)
+  Situs dibangun dua kali (sekali di `ci.yml` untuk tes, sekali di `pages.yml`
+  untuk diterbitkan) tanpa perbandingan hash. Satu job build mengunggah `dist`;
+  tes browser berjalan sebagai matriks terhadap artefak itu; deploy menerbitkan
+  artefak yang sama. Ini memenuhi aturan "build produksi dengan hash yang
+  sesuai" lebih baik dari sekarang. Perkiraan waktu (±5 menit, bukan 12) belum
+  diukur.
+
+- [ ] **MW-139 — CI: lewati tes browser untuk perubahan dokumen saja** — **butuh keputusan**
+  Tiga dari merge yang diperiksa hanya mengubah `.md`. Melewati job browser
+  untuk perubahan seperti itu, atau gate Chromium-saja saat push ke `main`,
+  mengubah arti aturan "merge hanya setelah CI hijau" di `AGENTS.md`, jadi
+  pemilik perlu mengubah `AGENTS.md` lebih dulu. Lakukan proteksi branch
+  (lihat F2) sebelum ini.
+
+- [ ] **MW-140 — Izin workflow dan pin action**
+  - **a.** (S) `pages.yml`: `pages: write` dan `id-token: write` hanya pada job
+    `deploy`; sekarang job `build` (yang menjalankan `npm ci` dan
+    `npm run build`) ikut mewarisinya.
+  - **b.** (S) Pin setiap action ke SHA commit, dengan tag di komentar.
+
+- [ ] **MW-141 — Dependensi dan pemeriksaan kompiler**
+  `npm audit` saat tinjauan: 8 temuan; 7 "high" semuanya alat build/tes lewat
+  `picomatch` (tidak ikut dikirim, belum ada perbaikan tanpa perubahan besar), 1
+  "low" di `fast-xml-parser` ≤5.11.2. Yang "low" itu tidak terbukti bisa dipicu
+  di sini: importer tidak memakai `stopNodes` dan menolak XML tidak valid
+  sebelum diurai.
+  - **a.** (S) Naikkan `fast-xml-parser` ke 5.12.1 dan rilis patch vite/vitest.
+  - **b.** (S) Nyalakan `noUnusedLocals` dan `noUnusedParameters`: 16 galat (11
+    impor mati di `src/App.tsx`, 2 parameter di `src/lib/sourceCommands.ts`, 3 di
+    file tes).
+  - **c.** (S) `.github/dependabot.yml`, mingguan dan dikelompokkan. Setiap PR
+    Dependabot memicu gate penuh ±12 menit.
+  - **d.** (S) Skrip `typecheck` dan `check` di `package.json`.
+
+- [ ] **MW-142 — Tes: varian HP `source_browser.py` dan satu daftar suite**
+  - **a.** (S) `python tests/source_browser.py --mobile` didokumentasikan di
+    `LOCAL_WORKFLOW.md:73` tetapi tidak pernah ada di `ci.yml`. Belum diketahui
+    apakah varian ini masih lulus; bisa jadi butuh perbaikan dulu.
+  - **b.** (S) Satu file daftar suite yang dibaca CI dan `LOCAL_WORKFLOW.md`
+    (sekarang `LOCAL_WORKFLOW.md` mendaftar 10 dari 18 suite CI).
+  - **c.** (S–M) — **butuh keputusan** Tes browser bisa dijalankan di sesi agen:
+    penyiapan lingkungan yang memasang Python Playwright 1.64.1, atau satu tes
+    asap Node Playwright (muat, tambah, ubah, cadangkan).
+
+- [ ] **MW-143 — Dokumen status selaras dengan kode**
+  - **a.** (S) `STATUS.md` bertanggal 9 Nov, menyebut 48 file / 1.533 tes, dan
+    berkata `full_backup_browser.py` belum masuk CI (bertentangan dengan catatan
+    MW-03b). Tulis ulang tanpa angka yang cepat usang; tautkan ke Actions.
+  - **b.** (S) Pindahkan `KERANGKA_HALAMAN.md` (104 KB, ditandai selesai) dan 13
+    laporan JSON lama di `docs/` ke `docs/archive/`. Arsipkan, jangan hapus;
+    perbarui tautan di `AGENTS.md`, `README.md`, `LOCAL_WORKFLOW.md`, dan
+    `README_LOCAL.txt` di PR yang sama. `MICRO_TASKS.md` tetap di akar.
+  - **c.** (S) `LOCAL_WORKFLOW.md:11` meminta Node 24 sedangkan `README.md` dan
+    `package.json` menyebut 22.12 ke atas; satukan.
+  - **d.** (S) `vite.config.ts:16` memasang host `0.0.0.0` port 5173 (hanya
+    berlaku untuk `vite` polos; skrip npm menimpanya). Samakan dengan
+    `127.0.0.1:4180` atau hapus bloknya.
+
+- [ ] **MW-144 — Pecah `App.tsx` lanjutan** (L)
+  `src/App.tsx` kembali 746 baris (597 saat pemecahan di bagian D), dengan 8
+  baris di atas 1.000 karakter (terpanjang 2.245 di baris 723). Hanya
+  memindahkan kode; perilaku tidak berubah.
+  - **a.** (M) Hook `useHistoryView`: kata cari, filter, periode, dompet,
+    kategori, halaman, dan pilihan beserta memo-nya.
+  - **b.** (M) Komponen `TransactionsPage` yang memiliki hook itu, sehingga
+    mengetik hanya me-render ulang bagian tersebut (menyelesaikan MW-112).
+  - **c.** (S) Pecah delapan baris di atas 1.000 karakter menjadi satu prop per
+    baris.
+
+### F7. Backlog CSS (D6): usul urutan baru — **keputusan pemilik**
+
+Angka `src/styles.css` saat tinjauan: 1.842 baris, 276 warna hex unik (494
+pemakaian; `#52634f` 122 kali), 59 blok `@media` (760px muncul 16 kali), 9
+`!important`, 11 `style={}` di TSX. Semua angka audit D6 bertambah sejak 10
+November. Satu-satunya cacat yang terbukti adalah MW-91; selebihnya penilaian
+peninjau, bukan cacat. Tidak ada entri D6 yang diubah atau dicentang oleh
+bagian ini.
+
+- **Kerjakan:** MW-91 → MW-62 → MW-63 bagian (d) status/badge/ikon → MW-73 →
+  MW-65 → MW-68 (bersama MW-121).
+- **Tunda:** MW-63 bagian (a)–(c) sampai ada cacat tema gelap lain; MW-64
+  (gabungkan per area hanya saat area itu disentuh); MW-75; MW-81.
+- **Usul dibuang:** MW-66, MW-67, MW-69, MW-71, MW-74, MW-80, MW-82. Tidak ada
+  cacat yang terlihat pengguna yang ditelusuri ke sana, dan MW-71/MW-80 berisiko
+  konflik atau menggeser piksel yang dijaga tes.
+- **Butuh keputusan:** MW-72 (font). MW-76 kecil dan opsional.
+- MW-61 dan MW-70 tetap MW tersendiri. Usul peninjau untuk meleburnya ke MW-63
+  bertentangan dengan aturan satu MW per PR, kecuali pemilik menulis ulang
+  entrinya.
+
+### F8. Dipertimbangkan, tidak diusulkan
+
+- **Dompet cash, rincian tarik tunai, bagi tagihan:** keputusan pemilik "cash
+  tidak dibukukan" tetap; dua catatan manual sudah cukup untuk bagi tagihan.
+- **Tag:** kolom catatan dan pencarian sudah menutup kebutuhannya.
+- **Pengingat terjadwal / notifikasi:** tidak mungkin tanpa server; MW-129c
+  adalah pengganti lokalnya.
+- **Salinan cermin di IndexedDB/OPFS sebagai pelindung penghapusan:** berada di
+  wadah origin yang sama dan ikut terhapus; hanya layak sebagai penyimpanan
+  utama (MW-109b).
+- **Mengecilkan bundle:** JS 773,9 kB dan CSS 117,0 kB dari satu file 893 kB;
+  build satu file tidak bisa memuat malas, jadi tidak ada potongan murah.
+- **`isolate: false` di vitest** (hemat ±1,9 detik, berisiko state bocor
+  antar-tes), **cache browser Playwright di CI** (24–57 detik dari job 9–13
+  menit), **menulis ulang tes browser Python**: tidak sepadan.
+- **Ditunda sampai ada kebutuhan nyata:** utang/piutang (tanyakan dulu ke
+  pemilik cara mencatatnya, lihat MW-92), target tabungan, laporan bulanan yang
+  bisa dicetak (menunggu MW-131).
+
+### Keputusan yang ditunggu dari pemilik
+
+| MW | Pertanyaan |
+|---|---|
+| MW-89 | Format transfer di CSV: dua baris bertanda, atau satu baris dengan kolom tambahan? |
+| MW-99 | Ambang pengingat cadangan: jumlah entri baru, atau setiap impor? |
+| MW-101 | Apakah pemulihan yang berhasil dihitung sebagai "punya cadangan"? |
+| MW-105d | Mau "Uji file cadangan" (mengubah batasan MW-06)? |
+| MW-108 | Mau cadangan berfrasa sandi? |
+| MW-109 | Tetap `localStorage` dengan meter, atau pindah/kompres sekarang? |
+| MW-111 | Target kecepatan simpan (jumlah baris dan perangkat)? |
+| MW-114 | Service worker untuk offline: ya atau tidak? |
+| MW-116b | Simpan tanggal "terakhir dicek" per dompet? |
+| MW-117b | Arah bawaan kurs untuk tiap pasangan? |
+| MW-120c | Boleh menerapkan ulang entri baru otomatis saat konflik dua tab? |
+| MW-124c | Kontrol periode mana yang dipertahankan di Transaksi? |
+| MW-130d | Batas bulanan keseluruhan atau sisa anggaran dibawa? |
+| MW-132b | Boleh ada perkiraan total lintas mata uang dengan kurs acuan? |
+| MW-133 | Mau rutin bulanan dengan kelemahan yang disebut? |
+| MW-134 | Mencatat di dua perangkat? Mau penggabungan catatan manual? |
+| MW-135 | Setujui mode impor tanpa saldo, dan kirim contoh file? |
+| MW-139 | Ubah `AGENTS.md` supaya perubahan dokumen saja boleh melewati tes browser? |
+| MW-142c | Cara menjalankan tes browser di sesi agen? |
+| F7 | Setujui urutan CSS baru dan daftar yang dibuang? MW-72: font? |
+
 ---
 
 **Urutan:**
 MW-00 → 01 → 02 → 03 → 03b → 04 → 05 → 06 → 16 → 07 → 08 → 09 → 10 → 17 → 11,
 lalu sisa C (12a–13b) atau D (14, 15, 18) sesuai kebutuhan.
+
+**Urutan usul bagian F:** MW-87 → 93 → 95 → 96 → 97 → 88 → 90 → 110 → 111 →
+113 → 115 → 116a → 128 → 129, lalu sisanya menurut kebutuhan. MW-87 lebih dulu
+karena bug nyata dan kecil; F2 sebelum F5 karena data hanya ada di browser;
+MW-110/111 sebelum MW-19/MW-20. Yang bertanda **butuh keputusan** menunggu
+jawaban pemilik.
