@@ -4,6 +4,11 @@ on:
   pull_request:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      uji_mirror_cadangan:
+        description: 'Uji jalur cadangan: pasang paket sistem Firefox/WebKit langsung dari archive.ubuntu.com'
+        type: boolean
+        default: false
   workflow_call:
 
 permissions:
@@ -34,6 +39,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Pasang browser pengujian
+        timeout-minutes: 10
         run: |
           python -m pip install playwright==1.64.1
           python -m playwright install chromium
@@ -81,7 +87,13 @@ jobs:
           python tests/kerangka_browser.py --output "$RUNNER_TEMP/uangku-browser-kerangka"
           python tests/performance_browser.py --output "$RUNNER_TEMP/uangku-browser-performance" --median-budget-ms 7000 --frame-budget-ms 350
       - name: Simpan bukti pengujian browser
+        id: evidence
         if: always()
+        # Unggahan bukan tes. Run Publikasikan #60 lulus semua tes, lalu unggahan ini macet sampai job
+        # dibatalkan dan publikasi dilewati. Karena itu dibatasi waktunya dan tidak menggagalkan job;
+        # langkah berikutnya mencatat peringatan supaya kandidat tanpa bukti tetap terlihat.
+        timeout-minutes: 5
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: browser-evidence
@@ -106,11 +118,14 @@ jobs:
             ${{ runner.temp }}/uangku-browser-kerangka
             ${{ runner.temp }}/uangku-browser-performance
             ${{ runner.temp }}/preview.log
+      - name: Catat bila bukti tidak tersimpan
+        if: always() && steps.evidence.outcome != 'success'
+        run: echo "::warning::Bukti pengujian browser untuk kandidat ini tidak terunggah (unggahan gagal atau melewati batas 5 menit). Hasil tes di atas tetap berlaku."
 
   other-browsers:
     name: Tes browser ${{ matrix.browser }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -137,10 +152,43 @@ jobs:
         # Firefox dan WebKit butuh pustaka sistemnya; tanpa itu tes tidak bisa jalan sama sekali.
         # Inter adalah font pertama aplikasi. Tanpa itu runner memakai DejaVu Sans yang jauh lebih lebar dari
         # font sistem HP (SF, Roboto), sehingga batas layar pertama 320x568 mengukur font yang salah.
+        #
+        # Paket sistemnya (±140 MB untuk WebKit) diunduh dari mirror Ubuntu milik runner. Mirror itu kadang
+        # hanya memberi ±100 kB/detik: di run PR #56 langkah ini memakan 26 menit dan job dibatalkan batas
+        # waktunya sebelum tes selesai, tanpa satu pun tes gagal. Mengulang di job yang sama memakai mirror
+        # lambat yang sama, jadi percobaan pertama dibatasi 5 menit; bila lewat atau gagal, sumber apt
+        # dialihkan ke archive.ubuntu.com dan dicoba sekali lagi. Paket yang sudah terunduh dipakai ulang.
+        timeout-minutes: 17
+        env:
+          BROWSER: ${{ matrix.browser }}
+          PAKSA_CADANGAN: ${{ inputs.uji_mirror_cadangan }}
         run: |
           python -m pip install playwright==1.64.1
-          python -m playwright install --with-deps ${{ matrix.browser }}
-          sudo apt-get install -y --no-install-recommends fonts-inter
+          install_system() {
+            timeout "$1" python -m playwright install --with-deps "$BROWSER" &&
+              timeout 120 sudo apt-get install -y --no-install-recommends fonts-inter
+          }
+          if [ "$PAKSA_CADANGAN" != "true" ] && install_system 300; then
+            echo "Paket sistem terpasang dari mirror bawaan runner."
+          else
+            echo "::warning::Mirror Ubuntu bawaan runner lambat, gagal, atau dilewati (uji manual) untuk $BROWSER; memakai archive.ubuntu.com."
+            # timeout hanya menghentikan proses terluar; apt yang masih berjalan dihentikan supaya kunci dpkg lepas.
+            sudo pkill -x apt-get || true
+            sleep 3
+            sudo dpkg --configure -a || true
+            # Runner menaruh daftar mirror di /etc/apt/apt-mirrors.txt: mirror regional lebih dulu, arsip utama
+            # sebagai cadangan. apt hanya pindah ke cadangan bila mirror pertama gagal, bukan bila lambat,
+            # jadi daftarnya diganti supaya arsip utama langsung dipakai.
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              echo "Daftar mirror runner sebelum diganti:"; cat /etc/apt/apt-mirrors.txt
+              printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttp://security.ubuntu.com/ubuntu/\tpriority:2\n' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+              echo "Daftar mirror sesudah diganti:"; cat /etc/apt/apt-mirrors.txt
+            fi
+            # Untuk image yang menulis alamat mirror regional langsung di daftar sumber.
+            sudo sed -i -E 's#https?://[a-z0-9.-]+\.archive\.ubuntu\.com/ubuntu/?#http://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+            grep -hE '^(URIs:|deb )' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null | sort -u || true
+            install_system 420
+          fi
           fc-match Inter
       - name: Uji build produksi dengan data sintetis
         env:
@@ -182,7 +230,11 @@ jobs:
           python tests/backfill_browser.py --output "$out/backfill"
           python tests/kerangka_browser.py --output "$out/kerangka"
       - name: Simpan bukti pengujian browser
+        id: evidence
         if: always()
+        # Sama seperti di job Chromium: dibatasi waktunya dan tidak menggagalkan job.
+        timeout-minutes: 5
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: browser-evidence-${{ matrix.browser }}
@@ -190,3 +242,6 @@ jobs:
           path: |
             ${{ runner.temp }}/uangku-browser-${{ matrix.browser }}
             ${{ runner.temp }}/preview.log
+      - name: Catat bila bukti tidak tersimpan
+        if: always() && steps.evidence.outcome != 'success'
+        run: echo "::warning::Bukti pengujian browser ${{ matrix.browser }} untuk kandidat ini tidak terunggah (unggahan gagal atau melewati batas 5 menit). Hasil tes di atas tetap berlaku."
