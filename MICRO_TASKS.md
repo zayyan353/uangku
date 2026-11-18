@@ -846,7 +846,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
 
 ### F2. Keamanan data
 
-- [ ] **MW-93 — Dialog Pulihkan membandingkan file dengan catatan di browser** (S)
+- [x] **MW-93 — Dialog Pulihkan membandingkan file dengan catatan di browser** (S)
   Pemulihan mengganti semuanya, dan teks konfirmasi dibangun dari file saja
   (`src/App.tsx:602-611`): jumlah dompet, transaksi, kategori, aturan. Tidak ada
   jumlah di browser, tanggal transaksi terbaru di kedua sisi, atau berapa
@@ -861,6 +861,53 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   impor memuat UUID per impor, jadi perbandingan id saja melebih-lebihkan bila
   mutasi yang sama diimpor terpisah di dua perangkat. Format file tidak berubah.
   *File:* `src/App.tsx`, pembantu murni baru + tes, `tests/full_backup_browser.py`.
+  *Selesai 19 Nov 2026:* dialog pulihkan (cadangan lengkap dan transaksi saja)
+  memuat kotak "Di browser ini: N transaksi, terbaru … Di file: M transaksi,
+  terbaru …" dan "K catatan di browser ini tidak ada di file." Bila K > 0
+  kotaknya kuning, kalimat K ditaruh paling depan, dan **Cadangkan dulu**
+  menjadi tombol utama yang langsung terfokus. Bila K = 0 tertulis "Tidak ada
+  catatan yang hanya ada di browser ini. Perubahan pada catatan yang sama tidak
+  dibandingkan." dan tombol tidak berubah. Pembantu murni
+  `src/lib/restoreComparison.ts`, dihitung sekali saat file dipilih: catatan
+  ada di file bila id-nya sama, atau (baris bank) bila sidik jarinya ada pada
+  catatan di file. Format file tidak diubah.
+  *Keputusan agen (mudah dibatalkan):*
+  - Tombol utama **Cadangkan dulu** pindah ke urutan terakhir supaya di HP
+    selebar dialog tanpa mengubah CSS.
+  - Data contoh yang tidak disentuh tidak dihitung ("Di browser ini hanya ada
+    data contoh.").
+  - Bila data tersimpan tidak terbaca, K tidak diketahui dan pemulihan menimpa
+    satu-satunya salinan; dialog memperlakukannya seperti K > 0 (kotak kuning,
+    **Cadangkan dulu** utama, yang mengunduh `uangku-data-asli-…`).
+  - "Terbaru" memakai tanggal posting yang tercatat; sisi transfer yang
+    tanggalnya tercatat belum diketahui tidak ditebak dari tanggal entri, dan
+    bila tidak ada tanggal yang diketahui tertulis "tanggal terbaru belum
+    diketahui".
+  - Satu baris bank di file mewakili satu catatan saja.
+  *Dari tinjauan (empat lensa, lalu diperiksa ulang):* transfer yang dipasangkan
+  lalu dipisah lagi di perangkat yang sama sempat terhitung "tidak ada di file"
+  (diperbaiki, ada tesnya); kalimat K = 0 semula "Semua catatan … juga ada di
+  file", yang menjanjikan lebih dari yang diperiksa; data tak terbaca semula
+  tidak mengedepankan cadangan. Peninjau lensa tes dan pemeriksaan ulang lensa
+  tampilan tidak sempat berjalan (batas pemakaian); temuan lensa tampilan
+  diperiksa sendiri oleh agen.
+  *Tes:* `npm test` 67 file / 1.825 tes (15 baru; tes pasang-pisah gagal bila
+  perbaikannya dicabut), `npm run build` lulus. Chromium: `category_browser.py`
+  27/27 (kasus `full-backup-desktop` dan `-mobile` diperluas, termasuk unduhan
+  data asli pada profil tak terbaca), `browser_smoke.py` 39 skenario,
+  `recovery_browser.py` 16/16. Sebelum perbaikan tinjauan juga dijalankan
+  `source_browser.py` 5/5 dan 5/5 `--mobile`, `wallet_browser.py` 19/19,
+  `currency_import_browser.py` 28/28. 10.000 baris bank di kedua sisi: ±20 ms
+  di Node pada kontainer ini (panggilan pertama ±80 ms), diukur sebelum
+  "terbaru" memakai tanggal posting.
+  *Belum terbukti:* Firefox dan WebKit (hanya Chromium yang dijalankan lokal).
+  Hanya keberadaan catatan yang dibandingkan: catatan yang sama tetapi diubah
+  sesudah file dibuat tidak terhitung (dialog kini mengatakannya), dompet tidak
+  dibandingkan, dan mutasi yang diimpor ke dompet ber-id lain tetap terhitung
+  karena sidik jari memuat id dompet. Pada 320 px dengan layar sangat pendek
+  sebagian kotak masih di bawah lipatan dialog. Deteksi data contoh memakai
+  aturan `reviewDemo` yang sudah ada, yang di zona waktu UTC+12 ke atas bisa
+  menganggap baris contoh sebagai buatan pengguna.
 
 - [ ] **MW-94 — Nama file cadangan memuat jam** (S)
   Nama sekarang hanya bertanggal (`src/App.tsx:222,228,258`), jadi dua cadangan

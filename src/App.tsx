@@ -14,6 +14,7 @@ import {
 } from './lib/finance';
 import { createEmptyState, MAX_RESTORE_BYTES, prepareBackup, serializeBackup, type StoredData } from './lib/storage';
 import { parseRestoreFile } from './lib/fullBackup';
+import { compareRestore, restoreComparisonCopy, restoreNeedsBackupFirst } from './lib/restoreComparison';
 import { carryDemo } from './lib/demoTransition';
 import type { CandidateOptions } from './lib/persistence';
 import { categoryBudgetRows, type BudgetMap } from './lib/budgets';
@@ -140,7 +141,7 @@ export default function App() {
   const [walletView, setWalletView] = useState<'active' | 'archive'>('active');
   const walletEditorBase = useRef<{ data: StoredData; token: string | null; editingId?: string } | null>(null);
   const [txModal, setTxModal] = useState<{ type: TxMode; walletId?: string; existing?: Entry } | null>(null);
-  const [confirm, setConfirm] = useState<{ title: string; text: string; label: string; danger?: boolean; requireReason?: boolean; allowBankAnnotations?: boolean; extra?: { label: string; run: () => void }; action: (reason?: string, useBankAnnotations?: boolean) => void | Promise<void> } | null>(null);
+  const [confirm, setConfirm] = useState<{ title: string; text: string; detail?: ReactNode; label: string; danger?: boolean; requireReason?: boolean; allowBankAnnotations?: boolean; extra?: { label: string; primary?: boolean; run: () => void }; action: (reason?: string, useBankAnnotations?: boolean) => void | Promise<void> } | null>(null);
   const [confirmReason, setConfirmReason] = useState('');
   const [confirmBankAnnotations, setConfirmBankAnnotations] = useState(false);
   useEffect(() => { setConfirmReason(''); setConfirmBankAnnotations(false); }, [confirm]);
@@ -601,14 +602,18 @@ export default function App() {
       const { ledger: restored } = backup;
       const counts = `${restored.state.wallets.length} dompet, ${restored.state.entries.length} transaksi`;
       const options = { replaceBlocked: true, replaceLedger: true, expectedData: data, expectedToken: ledger.revisionToken };
+      // Compared once per chosen file, against the same data the restore is guarded to replace. A blocked browser shows a placeholder, not its own records.
+      const comparison = compareRestore(blocked ? null : data, restored), comparisonCopy = restoreComparisonCopy(comparison), backupForward = restoreNeedsBackupFirst(comparison);
+      // What would be lost comes first: on a short phone screen the end of this box is below the fold.
+      const detail = <p className={`notice${backupForward ? ' warning' : ''}`} role={backupForward ? 'note' : undefined} data-testid="restore-comparison"><span>{backupForward ? <><strong>{comparisonCopy.difference}</strong> {comparisonCopy.counts}</> : <>{comparisonCopy.counts}{comparisonCopy.difference && <> {comparisonCopy.difference}</>}</>}</span></p>;
       // The dialog stays open: the download only reads, so the restore can still be confirmed or cancelled afterwards.
-      const backupFirst = { label: 'Cadangkan dulu', run: () => { if (blocked || data.demo) backupCurrent(); else void backupAll(); } };
+      const backupFirst = { label: 'Cadangkan dulu', primary: backupForward, run: () => { if (blocked || data.demo) backupCurrent(); else void backupAll(); } };
       if (backup.kind === 'full') {
         const settings = backup.categorySettings;
         setConfirm({
           title: 'Pulihkan cadangan lengkap?',
           text: `${counts}, ${settings.names.length} kategori, dan ${settings.rules.length} aturan dari file akan menggantikan catatan dan pengaturan kategori di browser ini. Cadangkan isi saat ini dulu jika masih diperlukan.`,
-          label: 'Pulihkan semuanya', danger: true, extra: backupFirst,
+          detail, label: 'Pulihkan semuanya', danger: true, extra: backupFirst,
           action: async () => {
             const saved = await persistCandidate(restored, {
               ...options, restoreCategories: { settings, expectedRaw: categoryPreferences.raw, ...(backup.budgets ? { budgets: backup.budgets } : {}), ...(backup.templates ? { templates: backup.templates } : {}) },
@@ -621,7 +626,7 @@ export default function App() {
         setConfirm({
           title: 'Pulihkan cadangan?',
           text: `${counts} akan menggantikan catatan di browser ini. Pengaturan kategori dan aturan pribadi tetap dipakai. Cadangkan catatan saat ini dulu jika masih diperlukan.`,
-          label: 'Pulihkan data', danger: true, extra: backupFirst,
+          detail, label: 'Pulihkan data', danger: true, extra: backupFirst,
           action: async () => {
             if (await persistCandidate(restored, options)) notify('Cadangan berhasil dipulihkan dan tersimpan.');
           },
@@ -740,7 +745,7 @@ export default function App() {
     {cashArchiveOpen && <CashArchive data={data} onClose={() => setCashArchiveOpen(false)} />}
     {privacyOpen && <PrivacyNotice persistence={persistence} onClose={() => setPrivacyOpen(false)} />}
     {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={walletIds => void finishStartOwn(demoReview, undefined, false, walletIds)} />}
-    {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua data bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button>{confirm.extra && <button className="button secondary" disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}<button className={`button ${confirm.danger ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button></div></Modal>}
+    {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.detail}{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua data bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button>{confirm.extra && !confirm.extra.primary && <button className="button secondary" disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}<button className={`button ${confirm.danger ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button>{confirm.extra?.primary && <button className="button primary" data-autofocus disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}</div></Modal>}
     {toast && <div className={`toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.error ? <AlertTriangle size={19} /> : <CheckCircle2 size={19} />}<span>{toast.text}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)}><X size={15} /></button></div>}
   </div></CategorySettingsContext.Provider>;
 }
