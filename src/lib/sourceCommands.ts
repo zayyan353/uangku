@@ -144,9 +144,10 @@ export function deleteSourcedEntry(data: SourceDocument, entryId: string, decisi
         { sourceId: ref, kind: 'deleted', reason: decision.reason.trim(), at: decision.at }];
     }
     metadata.links = metadata.links.filter(item => item.entryId !== entryId);
-    if (metadata.overrides) metadata.overrides = metadata.overrides.filter(item => item.entryId !== entryId);
-    if (metadata.creationOrigins) metadata.creationOrigins = metadata.creationOrigins.filter(item => item.entryId !== entryId);
   }
+  // Rows keyed by the entry go with it, bank-linked or not; a leftover origin row fails validation.
+  if (metadata?.overrides) metadata.overrides = metadata.overrides.filter(item => item.entryId !== entryId);
+  if (metadata?.creationOrigins) metadata.creationOrigins = metadata.creationOrigins.filter(item => item.entryId !== entryId);
   next.state.entries = next.state.entries.filter(item => item.id !== entryId);
   return finalDocument(next);
 }
