@@ -32,6 +32,8 @@ itu perubahan dikerjakan per micro-work (lihat `MICRO_TASKS.md`):
 3. Jalankan `npm test` dan `npm run build`; keduanya harus lulus.
 4. Commit, push branch, lalu buka pull request ke `main`.
 5. Merge setelah CI **Periksa Uangku** hijau. Merge itulah yang menerbitkan situs.
+   Agen me-merge PR-nya sendiri lalu melapor ke pemilik (lihat "Wewenang agen"
+   di `AGENTS.md`).
 
 Jangan push langsung ke `main`. Aturan lengkap ada di `AGENTS.md`.
 

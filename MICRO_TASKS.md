@@ -15,10 +15,19 @@ lulus, build lulus): temuan dan MW baru (MW-87 sampai MW-144) ada di bagian F.
 2. **Lingkup MW-03:** versi diperluas (hapus run CI ganda, plus MW-03b).
 3. **Urutan:** refactor dulu. MW-16 sebelum MW-07/08, MW-17 sebelum MW-11.
 
+## Keputusan (18 November 2026)
+
+1. **Merge oleh agen:** agen me-merge PR-nya sendiri setelah CI hijau, lalu
+   melapor. Pemilik meninjau dari laporan, bukan dari PR.
+2. **Keputusan kecil oleh agen:** entri **butuh keputusan** yang pilihannya mudah
+   dibatalkan boleh diputuskan agen dan dicatat di entrinya. Batasnya ada di
+   `AGENTS.md`, bagian "Wewenang agen".
+
 ## Cara pakai daftar ini
 
 - Kerjakan **satu MW per sesi AI**. Jangan gabung.
-- Setiap MW: branch baru → ubah → `npm test` → `npm run build` → commit → PR ke `main`.
+- Setiap MW: branch baru → ubah → `npm test` → `npm run build` → commit → PR ke
+  `main` → CI hijau → merge → laporan ke pemilik.
 - **Masuk ke `main` lewat PR**, bukan push langsung. Alasannya: push ke
   `main` = auto-deploy, dan CI menjalankan 16 tes browser Playwright yang tidak
   ikut di `npm test`. `ci.yml` jalan di `pull_request`, jadi kegagalan ketahuan
@@ -37,6 +46,7 @@ Repo: zayyan353/uangku. Kerjakan HANYA MW-XX dari MICRO_TASKS.md.
 Jangan ubah file lain di luar yang disebut kecuali wajib.
 Jalankan npm test dan npm run build. Kalau lulus, commit dengan pesan
 "MW-XX: <judul>", centang MW-XX di MICRO_TASKS.md, lalu buka PR ke main.
+Merge setelah CI hijau, pastikan publikasi selesai, lalu laporkan hasilnya.
 ```
 
 ---
@@ -728,7 +738,10 @@ bagian nama kolom di MW-121, angka codec di MW-109, dan proteksi branch di F2.
 kecuali entrinya menyebut lain. Tiap sub-huruf punya kotak centang sendiri;
 kotak MW induk dicentang setelah semua sub-hurufnya selesai atau dibatalkan
 pemilik. Ukuran: **S** kurang dari ±1 jam, **M** satu sesi, **L** beberapa
-sesi. **Butuh keputusan** berarti jangan dimulai sebelum pemilik menjawab.
+sesi. **Butuh keputusan** berarti ada pilihan yang harus diambil dulu. Sejak 18
+November 2026 agen boleh mengambilnya sendiri bila mudah dibatalkan, dan
+mencatatnya di entri; selain itu menunggu pemilik. Kolom "Siapa" di tabel
+keputusan menyebut yang mana.
 
 Banner dan pengingat baru (MW-96, MW-103, MW-129c, MW-130b, dan teks tambahan
 MW-100a) mengikuti MW-22 dan MW-47: tidak menumpuk kotak di atas halaman. Bila
@@ -1581,38 +1594,53 @@ ada entri D6 yang diubah atau dicentang oleh bagian ini.
   pemilik cara mencatatnya, lihat MW-92), target tabungan, laporan bulanan yang
   bisa dicetak (menunggu MW-131).
 
-### Keputusan yang ditunggu dari pemilik
+### Keputusan yang perlu diambil
 
-Baris MW-105b (uji oleh pemilik) dan MW-107 (pertanyaan sampingan) tidak
-menahan MW-nya; baris lain menahan entri yang bertanda **butuh keputusan**.
-Tindakan pemilik yang bukan keputusan ada di F2.
+Kolom **Siapa**: *agen* berarti agen boleh memilih sendiri karena pilihannya
+mudah dibatalkan, lalu mencatat pilihan dan alasannya di entri itu; *pemilik*
+berarti menunggu jawaban pemilik, sesuai batas di `AGENTS.md` ("Wewenang
+agen"). Baris MW-105b adalah uji di perangkat pemilik, bukan keputusan, dan
+tidak menahan MW-105a. Baris MW-107 pertanyaan sampingan dan tidak menahan
+MW-107. Tindakan pemilik lain ada di F2.
 
-| MW | Pertanyaan |
-|---|---|
-| MW-89 | Format transfer di CSV: dua baris bertanda, atau satu baris dengan kolom tambahan? |
-| MW-92 | Apakah aturan 13 Nov (uang dari/ke orang lain = pemasukan/pengeluaran) berlaku umum, termasuk form manual dan Ziraat, atau hanya impor Jago? |
-| MW-99 | Ambang pengingat cadangan: jumlah entri baru, atau setiap impor? |
-| MW-100d | Mau cadangan otomatis ke satu file di desktop (hanya Chromium)? |
-| MW-101 | Apakah pemulihan yang berhasil dihitung sebagai "punya cadangan"? |
-| MW-105b | Perangkat dan browser mana yang dipakai, dan apakah **Cadangkan semuanya** menghasilkan file di sana? (uji oleh pemilik) |
-| MW-105d | Mau "Uji file cadangan" (mengubah batasan MW-06)? |
-| MW-107 | Opsional: pindahkan Uangku ke origin sendiri? (tidak diperlukan untuk CSP) |
-| MW-108 | Mau cadangan berfrasa sandi? |
-| MW-109 | Tetap `localStorage` dengan meter, atau pindah/kompres sekarang? |
-| MW-111 | Target kecepatan simpan (jumlah baris dan perangkat)? |
-| MW-114 | Service worker untuk offline: ya atau tidak? |
-| MW-116b | Simpan tanggal "terakhir dicek" per dompet? |
-| MW-117b | Mau tombol "balik arah" kurs dan peringatan bila kurs berbeda lebih dari 100×? |
-| MW-120c | Boleh menerapkan ulang entri baru otomatis saat konflik dua tab? |
-| MW-124c | Kontrol periode mana yang dipertahankan di Transaksi? |
-| MW-130d | Batas bulanan keseluruhan atau sisa anggaran dibawa? |
-| MW-132b | Boleh ada perkiraan total lintas mata uang dengan kurs acuan? |
-| MW-133 | Mau rutin bulanan dengan kelemahan yang disebut? |
-| MW-134 | Mencatat di dua perangkat? Mau penggabungan catatan manual? |
-| MW-135 | Setujui mode impor tanpa saldo, dan kirim contoh file? |
-| MW-139 | Ubah `AGENTS.md` supaya perubahan dokumen saja boleh melewati tes browser? Terima deploy setelah gate Chromium-saja di `main`, atau pertahankan gate penuh ±13 menit? |
-| MW-142c | Cara menjalankan tes browser di sesi agen? |
-| F7 | Setujui urutan CSS baru dan daftar yang dibuang? MW-72: font? |
+| MW | Siapa | Pertanyaan |
+|---|---|---|
+| MW-89 | agen | Format transfer di CSV: dua baris bertanda, atau satu baris dengan kolom tambahan? |
+| MW-92 | pemilik | Apakah aturan 13 Nov (uang dari/ke orang lain = pemasukan/pengeluaran) berlaku umum, termasuk form manual dan Ziraat, atau hanya impor Jago? |
+| MW-99 | agen | Ambang pengingat cadangan: jumlah entri baru, atau setiap impor? |
+| MW-100d | agen | Mau cadangan otomatis ke satu file di desktop (hanya Chromium)? |
+| MW-101 | agen | Apakah pemulihan yang berhasil dihitung sebagai "punya cadangan"? |
+| MW-105b | pemilik | Perangkat dan browser mana yang dipakai, dan apakah **Cadangkan semuanya** menghasilkan file di sana? (uji oleh pemilik) |
+| MW-105d | agen | Mau "Uji file cadangan" (mengubah batasan MW-06)? |
+| MW-107 | pemilik | Opsional: pindahkan Uangku ke origin sendiri? (tidak diperlukan untuk CSP) |
+| MW-108 | pemilik | Mau cadangan berfrasa sandi? |
+| MW-109 | pemilik | Tetap `localStorage` dengan meter, atau pindah/kompres sekarang? |
+| MW-111 | agen | Target kecepatan simpan (jumlah baris dan perangkat)? |
+| MW-114 | agen | Service worker untuk offline: ya atau tidak? |
+| MW-116b | agen | Simpan tanggal "terakhir dicek" per dompet? |
+| MW-117b | agen | Mau tombol "balik arah" kurs dan peringatan bila kurs berbeda lebih dari 100×? |
+| MW-120c | pemilik | Boleh menerapkan ulang entri baru otomatis saat konflik dua tab? |
+| MW-124c | agen | Kontrol periode mana yang dipertahankan di Transaksi? |
+| MW-130d | pemilik | Batas bulanan keseluruhan atau sisa anggaran dibawa? |
+| MW-132b | pemilik | Boleh ada perkiraan total lintas mata uang dengan kurs acuan? |
+| MW-133 | pemilik | Mau rutin bulanan dengan kelemahan yang disebut? |
+| MW-134 | pemilik | Mencatat di dua perangkat? Mau penggabungan catatan manual? |
+| MW-135 | pemilik | Setujui mode impor tanpa saldo, dan kirim contoh file? |
+| MW-139 | pemilik | Ubah `AGENTS.md` supaya perubahan dokumen saja boleh melewati tes browser? Terima deploy setelah gate Chromium-saja di `main`, atau pertahankan gate penuh ±13 menit? |
+| MW-142c | agen | Cara menjalankan tes browser di sesi agen? |
+| F7 | agen | Urutan CSS baru dipakai; entri di daftar "usul dibuang" tidak dihapus dari file, hanya tidak dikerjakan. MW-72: font? |
+
+## G. Alur kerja (18 November 2026)
+
+- [x] **MW-145 — Agen me-merge sendiri dan melapor**
+  Keputusan pemilik (18 November 2026): pemilik tidak punya waktu menunggui PR,
+  jadi agen me-merge PR-nya sendiri setelah CI hijau dan melapor; pemilik
+  meninjau dari laporan. Entri **butuh keputusan** yang mudah dibatalkan boleh
+  diputuskan agen. Batas wewenang (apa yang tetap menunggu pemilik) adalah
+  tafsiran agen atas keputusan itu dan bisa diubah pemilik.
+  *File:* `AGENTS.md` (bagian Rilis dan bagian baru "Wewenang agen"),
+  `LOCAL_WORKFLOW.md`, `MICRO_TASKS.md` (keputusan, cara pakai, template prompt,
+  aturan dan tabel keputusan bagian F).
 
 ---
 
@@ -1622,7 +1650,7 @@ lalu sisa C (12a–13b) atau D (14, 15, 18) sesuai kebutuhan.
 
 **Urutan usul bagian F:** MW-87 → 93 → 95 → 96 → 97 → 88 → 90 → 110 → 113 →
 115 → 116a → 128 → 129, lalu sisanya menurut kebutuhan. MW-111 menyusul sesudah
-MW-110, tetapi baru setelah pemilik menetapkan targetnya (**butuh keputusan**).
-MW-87 lebih dulu karena bug nyata dan kecil; F2 sebelum F5 karena data hanya
-ada di browser; MW-110/111 sebelum MW-19/MW-20. Yang bertanda **butuh
-keputusan** menunggu jawaban pemilik.
+MW-110; targetnya ditetapkan agen dari hasil ukur MW-110 dan dicatat di
+entrinya. MW-87 lebih dulu karena bug nyata dan kecil; F2 sebelum F5 karena
+data hanya ada di browser; MW-110/111 sebelum MW-19/MW-20. Yang bertanda
+**butuh keputusan** mengikuti kolom "Siapa" di tabel keputusan.

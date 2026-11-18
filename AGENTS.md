@@ -7,12 +7,33 @@
 - Jangan push langsung ke `main`. Kerjakan perubahan di branch sendiri, lalu buka
   pull request ke `main`. Merge hanya setelah CI (**Periksa Uangku**, termasuk tes
   browser) hijau.
+- Agen me-merge PR-nya sendiri begitu CI hijau, tanpa menunggu pemilik. CI yang
+  merah bukan karena isi PR tetap harus hijau dulu: cari penyebabnya, dan
+  jalankan ulang job paling banyak sekali. Sesudah merge, pastikan workflow
+  **Publikasikan Uangku** selesai.
 - Kerjakan satu micro-work (MW) dari `MICRO_TASKS.md` per branch/PR. Jangan
   gabungkan beberapa MW, dan jangan ubah file di luar lingkup MW kecuali wajib.
 - Sebelum push: `npm test` dan `npm run build` harus lulus. Untuk perubahan UI,
   jalankan juga tes browser yang relevan di `tests/*_browser.py` terhadap
   `npm run preview` bila memungkinkan.
 - Centang MW di `MICRO_TASKS.md` dalam commit yang sama dengan pekerjaannya.
+
+## Wewenang agen
+
+Keputusan pemilik, 18 November 2026: pemilik tidak menunggui pekerjaan. Agen
+mengerjakan, me-merge, lalu melapor; pemilik meninjau dari laporan dan memberi
+masukan sesudahnya. Batas di bawah ini tafsiran agen atas keputusan itu; pemilik
+boleh melonggarkan atau mempersempitnya.
+
+- Entri bertanda **butuh keputusan** di `MICRO_TASKS.md` boleh diputuskan agen
+  bila pilihannya mudah dibatalkan. Catat pilihan dan alasannya di entri itu dan
+  di laporan.
+- Tetap menunggu jawaban pemilik: perubahan format atau tempat penyimpanan data,
+  kebijakan pembukuan (jenis dan kategori transaksi), penghapusan data atau
+  file, dan perubahan pada bagian "Data dan keamanan" atau bagian ini.
+- Setiap pekerjaan diakhiri laporan singkat ke pemilik: apa yang berubah, PR dan
+  commit, tes yang benar-benar dijalankan beserta hasilnya, keputusan yang
+  diambil, dan apa yang belum terbukti.
 
 ## Data dan keamanan
 
