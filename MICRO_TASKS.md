@@ -749,7 +749,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
 
 ### F1. Bug dan pesan yang salah
 
-- [ ] **MW-87 — Transaksi manual dan "Cek saldo" bisa dihapus lagi** (S)
+- [x] **MW-87 — Transaksi manual dan "Cek saldo" bisa dihapus lagi** (S)
   Transaksi manual (pengeluaran maupun penyesuaian "Cek saldo") yang dibuat
   **setelah** catatan mempunyai metadata sumber tidak bisa dihapus: toast merah
   "Metadata sumber tidak valid: Entry creation origin tidak ditemukan.", baris
@@ -769,6 +769,13 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   penyesuaian pada dokumen yang sudah punya metadata), `tests/source_browser.py`
   atau `tests/browser_smoke.py` (transfer → pengeluaran manual → hapus → baris
   hilang dan tetap hilang setelah muat ulang).
+  *Selesai 18 Nov 2026:* baris `creationOrigins` dan `overrides` milik entri
+  dibuang di luar cabang tautan bank. Tes unit baru `src/lib/manualDelete.test.ts`
+  (3 tes) dan skenario `manual-delete-after-metadata` di `tests/source_browser.py`
+  (transfer → pengeluaran → Cek saldo → hapus keduanya, dengan muat ulang);
+  keduanya gagal tanpa perbaikan dengan pesan yang dilaporkan. Tes browser hanya
+  dijalankan di Chromium (desktop dan emulasi HP). Belum terbukti: pemicu lewat
+  impor mutasi dan arsip dompet tidak diulang di browser.
 
 - [ ] **MW-88 — Pesan berbahasa Indonesia untuk file cadangan yang salah atau rusak** (S)
   Memilih file yang bukan cadangan di **Pulihkan cadangan** menampilkan pesan

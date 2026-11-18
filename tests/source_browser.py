@@ -192,13 +192,60 @@ def quota_metadata_retry(browser,out,initial):
         assert not errors,errors
     finally:context.close()
 
+def manual_delete_after_metadata(browser,out):
+    """MW-87: manual entries made after the document gained source metadata can still be deleted."""
+    initial=fixture();initial['state']['wallets'][0]['openingBalance']=100_000
+    context,page,errors=context_page(browser,initial)
+    try:
+        dialog=lambda:page.get_by_role('dialog')
+        def remove(note,remaining):
+            nav(page,'Transaksi')
+            page.get_by_label('Filter jenis transaksi',exact=True).select_option('all')
+            page.get_by_label('Periode transaksi',exact=True).select_option('all')
+            page.get_by_role('button',name='Ubah '+note,exact=True).click()
+            dialog().get_by_role('button',name='Hapus',exact=True).click()
+            dialog().get_by_role('button',name='Hapus transaksi',exact=True).click()
+            after=wait_doc(page,lambda d:len(d['state']['entries'])==remaining)
+            assert all(e['note']!=note for e in after['state']['entries'])
+            expect(page.get_by_role('button',name='Ubah '+note,exact=True)).to_have_count(0)
+            expect(page.locator('body')).not_to_contain_text('Metadata sumber tidak valid')
+            return after
+        # A manual transfer is what first gives the document source metadata.
+        nav(page,'Ringkasan');page.get_by_role('button',name='Pindah uang',exact=True).click()
+        dialog().get_by_label('Dompet asal',exact=True).select_option('bank')
+        dialog().get_by_label('Dompet tujuan',exact=True).select_option('cash')
+        dialog().get_by_label('Nominal',exact=True).fill('100')
+        dialog().get_by_role('button',name='Simpan transaksi',exact=True).click();expect(dialog()).to_have_count(0)
+        base=wait_doc(page,lambda d:len(d['state']['entries'])==1 and 'metadata' in d)
+        page.get_by_role('button',name='Catat transaksi',exact=True).click()
+        dialog().get_by_label('Dompet asal',exact=True).select_option('bank')
+        dialog().get_by_label('Nominal',exact=True).fill('25')
+        dialog().get_by_label(re.compile('Keterangan')).fill('Makan sintetis MW-87')
+        dialog().get_by_role('button',name='Simpan transaksi',exact=True).click();expect(dialog()).to_have_count(0)
+        wait_doc(page,lambda d:len(d['state']['entries'])==2)
+        nav(page,'Dompet');page.locator('[data-wallet-id="bank"]').get_by_role('button',name='Cek saldo',exact=True).click()
+        dialog().get_by_label('Nominal',exact=True).fill('800')
+        dialog().get_by_label(re.compile('Keterangan')).fill('Cek saldo sintetis MW-87')
+        dialog().get_by_role('button',name='Simpan transaksi',exact=True).click();expect(dialog()).to_have_count(0)
+        full=wait_doc(page,lambda d:len(d['state']['entries'])==3)
+        assert sorted(e['type']for e in full['state']['entries'])==['adjustment','expense','transfer']
+        assert len(full['metadata']['creationOrigins'])==3
+        remove('Makan sintetis MW-87',2)
+        page.reload(wait_until='networkidle')
+        after=remove('Cek saldo sintetis MW-87',1)
+        assert after['state']==base['state'] and after['metadata']==base['metadata']
+        page.reload(wait_until='networkidle');assert stored_document(page)==after
+        nav(page,'Transaksi');expect(page.locator('body')).not_to_contain_text('sintetis MW-87')
+        assert not errors,errors
+    finally:context.close()
+
 def main():
     global MOBILE
     parser=argparse.ArgumentParser();parser.add_argument('--output',type=Path,default=Path('test-results/source'));parser.add_argument('--mobile',action='store_true');args=parser.parse_args();args.output.mkdir(parents=True,exist_ok=True);MOBILE=args.mobile
     build=assert_production_url(URL);results=[]
     with sync_playwright()as p:
         browser=launch_browser(p);initial=None
-        for name,run in [('partial-completion-override-reimport',lambda:partial_completion_override(browser,args.output)),('two-date-transfer-delete-restore-unpair',lambda:transfer_lifecycle(browser,args.output)),('source-quota-recovery-retry',lambda:quota_metadata_retry(browser,args.output,initial)),('metadata-backup-roundtrip-invalid-reference',lambda:metadata_backup_roundtrip(browser,args.output,initial))]:
+        for name,run in [('partial-completion-override-reimport',lambda:partial_completion_override(browser,args.output)),('two-date-transfer-delete-restore-unpair',lambda:transfer_lifecycle(browser,args.output)),('manual-delete-after-metadata',lambda:manual_delete_after_metadata(browser,args.output)),('source-quota-recovery-retry',lambda:quota_metadata_retry(browser,args.output,initial)),('metadata-backup-roundtrip-invalid-reference',lambda:metadata_backup_roundtrip(browser,args.output,initial))]:
             try:
                 result=run()
                 if result:initial=result
