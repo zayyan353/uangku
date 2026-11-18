@@ -1459,7 +1459,10 @@ run tersusul push yang lebih baru di branch yang sama.
   - Job `other-browsers`: percobaan pertama dibatasi 5 menit. Bila lewat atau
     gagal, sumber apt dialihkan ke `archive.ubuntu.com` dan dicoba sekali lagi
     (batas 7 menit); paket yang sudah terunduh dipakai ulang. Langkahnya
-    dibatasi 17 menit dan job 35 menit (sebelumnya 30).
+    dibatasi 17 menit dan job 35 menit (sebelumnya 30). Runner menyimpan daftar
+    mirrornya di `/etc/apt/apt-mirrors.txt` (mirror regional prioritas 1, arsip
+    utama prioritas 2), dan apt hanya pindah bila mirror pertama gagal, bukan
+    bila lambat; karena itu file itulah yang ditulis ulang.
   - Kedua job: "Simpan bukti pengujian browser" dibatasi 5 menit dan tidak
     menggagalkan job; langkah berikutnya menulis anotasi peringatan bila bukti
     tidak terunggah. Job `test-and-build`: langkah pasang browser dibatasi 10
@@ -1468,10 +1471,22 @@ run tersusul push yang lebih baru di branch yang sama.
     cadangan dengan sengaja, supaya jalur itu bisa diuji tanpa menunggu mirror
     lambat.
   *Diuji:* alur langkahnya dengan perintah tiruan di luar CI (normal, mirror
-  lambat, mirror gagal, font gagal, kedua percobaan gagal, dan pemicu manual).
+  lambat, mirror gagal, font gagal, kedua percobaan gagal, dan pemicu manual),
+  lalu di runner pada commit `662db8a`, job WebKit:
+  - jalur normal (run PR): 139 MB dalam 9 detik dari mirror runner, tanpa
+    peringatan;
+  - jalur cadangan (run manual `uji_mirror_cadangan`): daftar mirror diganti,
+    139 MB dalam 28 detik dari `archive.ubuntu.com`, font Inter terpasang, semua
+    tes lulus.
+  Uji manual pertama (commit `29d29a5`) gagal dan menemukan kesalahan di versi
+  awal: alamat mirror diganti di daftar sumber apt, padahal runner memakai
+  `apt-mirrors.txt`, sehingga percobaan kedua tetap memakai mirror lambat dan
+  berhenti di batas 7 menit.
   *Belum terbukti:* bahwa `archive.ubuntu.com` selalu lebih cepat dari mirror
-  runner; bila keduanya lambat, langkah ini gagal dalam ±17 menit dengan pesan
-  yang jelas, bukan dibatalkan diam-diam.
+  runner (satu pengukuran: ±4,9 MB/detik); bila keduanya lambat, langkah ini
+  gagal dalam ±17 menit dengan pesan yang jelas, bukan dibatalkan diam-diam.
+  Jalur "percobaan pertama lewat batas waktu lalu pindah" belum terjadi di
+  runner; yang diuji di sana adalah pindah mirror lewat pemicu manual.
   *File:* `.github/workflows/ci.yml`.
 
 - [ ] **MW-138 — CI: satu artefak `dist` diuji lalu diterbitkan; tes browser dipecah** (M)
