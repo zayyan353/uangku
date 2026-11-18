@@ -176,7 +176,16 @@ jobs:
             sudo pkill -x apt-get || true
             sleep 3
             sudo dpkg --configure -a || true
-            sudo sed -i -E 's#https?://[a-z0-9.-]*archive\.ubuntu\.com/ubuntu/?#http://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+            # Runner menaruh daftar mirror di /etc/apt/apt-mirrors.txt: mirror regional lebih dulu, arsip utama
+            # sebagai cadangan. apt hanya pindah ke cadangan bila mirror pertama gagal, bukan bila lambat,
+            # jadi daftarnya diganti supaya arsip utama langsung dipakai.
+            if [ -f /etc/apt/apt-mirrors.txt ]; then
+              echo "Daftar mirror runner sebelum diganti:"; cat /etc/apt/apt-mirrors.txt
+              printf 'http://archive.ubuntu.com/ubuntu/\tpriority:1\nhttp://security.ubuntu.com/ubuntu/\tpriority:2\n' | sudo tee /etc/apt/apt-mirrors.txt > /dev/null
+              echo "Daftar mirror sesudah diganti:"; cat /etc/apt/apt-mirrors.txt
+            fi
+            # Untuk image yang menulis alamat mirror regional langsung di daftar sumber.
+            sudo sed -i -E 's#https?://[a-z0-9.-]+\.archive\.ubuntu\.com/ubuntu/?#http://archive.ubuntu.com/ubuntu/#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
             grep -hE '^(URIs:|deb )' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null | sort -u || true
             install_system 420
           fi
