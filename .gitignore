@@ -11,6 +11,7 @@ dist/
 *.pdf
 *backup*.json
 *cadangan*.json
+uangku-*.json
 test-results/
 playwright-report/
 screenshots/

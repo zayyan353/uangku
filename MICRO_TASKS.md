@@ -869,7 +869,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   toast sukses. Periksa tes yang mencocokkan nama file. Isi file tidak diubah:
   skema cadangan tertutup dan menolak field tambahan.
 
-- [ ] **MW-95 — `.gitignore` menutup semua nama unduhan aplikasi** (S)
+- [x] **MW-95 — `.gitignore` menutup semua nama unduhan aplikasi** (S)
   Pola sekarang (`*backup*.json`, `*cadangan*.json`) tidak mengenai
   `uangku-lengkap-<tanggal>.json`, `uangku-data-asli-<tanggal>.json`,
   `uangku-pekerjaan-belum-tersimpan.json`, dan
@@ -878,6 +878,12 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   folder repo. Tambahkan `uangku-*.json`.
   *File:* `.gitignore`. Kalimat tambahan di `AGENTS.md` hanya atas persetujuan
   pemilik.
+  *Selesai 18 Nov 2026:* `uangku-*.json` ditambahkan. Diperiksa dengan
+  `git check-ignore` terhadap kelima nama unduhan JSON aplikasi
+  (`uangku-lengkap-…`, `uangku-data-asli-…`, `uangku-cadangan-…`,
+  `uangku-pekerjaan-belum-tersimpan.json`, `uangku-pengaturan-kategori-…`);
+  unduhan CSV (`uangku-riwayat-…csv`) sudah tertutup pola `*.csv`. Tidak ada
+  file terlacak yang cocok dengan pola baru. `AGENTS.md` tidak diubah.
 
 - [ ] **MW-96 — Meter penyimpanan dan peringatan dini** (S)
   Batas nyata di Chromium adalah 5.242.880 karakter UTF-16 untuk **semua** kunci
