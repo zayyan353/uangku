@@ -1435,7 +1435,7 @@ run tersusul push yang lebih baru di branch yang sama.
   dengan `cancel-in-progress` hanya untuk `pull_request`. Tidak mengubah aturan
   "merge hanya setelah hijau".
 
-- [ ] **MW-137 — CI: batas waktu pada langkah yang bisa macet** (S)
+- [x] **MW-137 — CI: batas waktu pada langkah yang bisa macet** (S)
   Di run Publikasikan #60 semua tes lulus, lalu langkah unggah bukti macet ±11
   menit dan job dibatalkan oleh batas 20 menit; build dan deploy dilewati dan
   deploy berikutnya baru jalan 12 jam 26 menit kemudian (sekali dalam 30 run
@@ -1447,6 +1447,32 @@ run tersusul push yang lebih baru di branch yang sama.
   bukti gagal, tampilkan anotasi peringatan yang terlihat supaya tidak ada
   kandidat yang diam-diam tanpa bukti (`AGENTS.md`: hasil per kandidat dicatat
   jujur).
+  *Dikerjakan 18 November 2026, dengan perbaikan yang berbeda dari usul di atas
+  untuk langkah pasang browser.* Hari itu masalahnya muncul tiga kali: di run PR
+  #56 langkah pasang browser WebKit memakan 26 menit 41 detik dan Firefox ±14
+  menit; di run Publikasikan #67 WebKit 22 menit 56 detik, sehingga job
+  dibatalkan batas 30 menit dan publikasi untuk PR #55 dilewati. Tidak ada tes
+  yang gagal. Log run PR #56 menunjukkan penyebabnya: mirror Ubuntu milik runner
+  (`us-east-2.ec2.archive.ubuntu.com`) hanya memberi ±100 kB/detik ("Fetched 139
+  MB in 24min 1s"). Jadi ini unduhan lambat, bukan macet, dan coba ulang di job
+  yang sama akan memakai mirror lambat yang sama.
+  - Job `other-browsers`: percobaan pertama dibatasi 5 menit. Bila lewat atau
+    gagal, sumber apt dialihkan ke `archive.ubuntu.com` dan dicoba sekali lagi
+    (batas 7 menit); paket yang sudah terunduh dipakai ulang. Langkahnya
+    dibatasi 17 menit dan job 35 menit (sebelumnya 30).
+  - Kedua job: "Simpan bukti pengujian browser" dibatasi 5 menit dan tidak
+    menggagalkan job; langkah berikutnya menulis anotasi peringatan bila bukti
+    tidak terunggah. Job `test-and-build`: langkah pasang browser dibatasi 10
+    menit.
+  - Pemicu manual `uji_mirror_cadangan` di **Periksa Uangku** menjalankan jalur
+    cadangan dengan sengaja, supaya jalur itu bisa diuji tanpa menunggu mirror
+    lambat.
+  *Diuji:* alur langkahnya dengan perintah tiruan di luar CI (normal, mirror
+  lambat, mirror gagal, font gagal, kedua percobaan gagal, dan pemicu manual).
+  *Belum terbukti:* bahwa `archive.ubuntu.com` selalu lebih cepat dari mirror
+  runner; bila keduanya lambat, langkah ini gagal dalam ±17 menit dengan pesan
+  yang jelas, bukan dibatalkan diam-diam.
+  *File:* `.github/workflows/ci.yml`.
 
 - [ ] **MW-138 — CI: satu artefak `dist` diuji lalu diterbitkan; tes browser dipecah** (M)
   Situs dibangun empat kali per push ke `main`: tiga job di `ci.yml`
