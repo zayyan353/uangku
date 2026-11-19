@@ -1,7 +1,7 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { FailureText } from './FailureText';
 import { AlertTriangle, ArrowRight, CheckCheck, CheckCircle2, FileSpreadsheet, FolderOpen, Leaf, Search, ShieldCheck, Tags, X } from 'lucide-react';
-import { formatDate, formatMoney, makeId, walletBalance, type Currency, type Entry, type State, type Wallet } from '../lib/finance';
+import { formatDate, formatMoney, makeId, postingDateForWallet, walletBalance, type Currency, type Entry, type State, type Wallet } from '../lib/finance';
 import { parseZiraatWorkbook, type ImportPreview, type ImportRow } from '../lib/importer';
 import { parseJagoStatement } from '../lib/jagoStatement';
 import { inspectSourcedImport, prepareSourcedImport, type SourcedImportDecisions, type SourceResolution } from '../lib/sourceCommands';
@@ -155,11 +155,16 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
   const previewNotes: Array<{ key: string; summary: string; detail: string; info?: boolean; live?: boolean }> = !result ? [] : [
     ...result.warnings.filter(warning => !warning.includes('transaksi disimpan sebagai Perlu ditinjau')).map((warning, index) => ({ key: `file-${index}`, summary: firstSentence(warning), detail: warning })),
     ...(selectedReview.type > 0 ? [{ key: 'type', summary: `${selectedReview.type} jenis transaksi yang dipilih belum dikonfirmasi.`, detail: 'Nominal tetap dicatat agar saldo rekening utuh; pilih jenisnya di kolom Jenis bila sudah jelas, atau rapikan nanti dari Transaksi.' }] : []),
-    ...(inspection?.needsReview ? [{ key: 'manual', live: true, summary: 'Ada perubahan atau kandidat transaksi manual.', detail: 'Kesamaan tanggal dan nominal belum membuktikan duplikasi; tinjau pilihan di setiap baris terkait.' }] : []),
+    ...(inspection?.needsReview ? [{ key: 'manual', live: true, summary: 'Ada perubahan atau kandidat transaksi manual.', detail: 'Nominal yang sama pada tanggal yang sama atau berdekatan belum membuktikan duplikasi; tinjau pilihan di setiap baris terkait.' }] : []),
     ...(futureCount > 0 ? [{ key: 'future', summary: `${futureCount} transaksi terpilih bertanggal masa depan.`, detail: 'Catatan tersebut memengaruhi saldo seluruh catatan, dan masuk saldo aktual ketika tanggalnya tiba.' }] : []),
     ...(omittedCount > 0 ? [{ key: 'omitted', summary: `${omittedCount} mutasi baru dilewati.`, detail: 'Impor sebagian dapat menghasilkan saldo berbeda dari bank. Aslinya tetap disimpan sebagai isi file; periksa kelengkapan mutasi setelah impor.' }] : []),
     { key: 'count', info: true, summary: 'Cara membaca angka di atas', detail: 'Jumlah perlu dirapikan menghitung setiap mutasi yang dipilih sekali, walaupun jenis dan kategorinya sama-sama belum jelas. Kategori umum menjelaskan cara pembayaran, bukan selalu barang yang dibeli.' },
   ];
+  /** The date the candidate was matched on: for a transfer, its posting date in this wallet, which can differ from the record's date. */
+  function candidateDate(entry: Entry): string {
+    const posted = wallet ? postingDateForWallet(entry, wallet.id, data.metadata) : entry.date;
+    return posted ? formatDate(posted) : 'Tanggal belum diketahui';
+  }
   function candidateMovement(entry: Entry): number {
     if (entry.walletId !== walletId) return entry.toAmount ?? 0;
     return entry.type === 'income' || entry.type === 'adjustment' || entry.type === 'unreviewed' || entry.type === 'movement'
@@ -344,7 +349,7 @@ export default function RecoveryImportView({ data, state, demo, onStart, onImpor
             <td><span className="transaction-title">{view.title}</span>{view.title !== view.description && <details className="bank-wording"><summary>Keterangan bank asli</summary><p>{view.description}</p></details>}<span className="transaction-note">{formatDate(row.date)}{row.duplicate ? ' · Sudah diimpor' : row.date > today ? ' · Masa depan' : ''}</span>{row.warning && (row.duplicate || rowReview(row).type) && <span className="import-row-warning">{row.warning}</span>}{row.inference && !row.duplicate && row.classification === 'movement' && <span className="field-help import-row-inference">{row.inference}</span>}{bank.kind !== 'none' && <span className="field-help bank-operation-hint" data-bank-operation={bank.kind}>{bank.label}. {bank.warning}</span>}
               {sourceReview && <div className="import-overlap"><p className="import-row-warning">{sourceReview.message}</p><div role="group" aria-label={`Keputusan sumber ${row.id}`}>{sourceReview.allowedResolutions.map(resolution => <button key={resolution} type="button" className="button secondary small" aria-pressed={decisions[row.id]?.signature === sourceReview.signature && decisions[row.id]?.resolution === resolution} disabled={controlsDisabled} onClick={() => resolveSource(row.id, resolution)}>{resolution === 'restore' ? 'Pulihkan data bank' : resolution === 'distinct' ? 'Transaksi berbeda' : 'Pertahankan catatan'}</button>)}</div></div>}
               {overlap && <div className="import-overlap"><p className="import-row-warning">{overlap.candidates.length ? 'Mungkin sudah dicatat manual:' : 'Kandidat manual sebelumnya berubah atau sudah tidak ada. Tinjau ulang keputusan.'}</p>
-                {overlap.candidates.map(candidate => <p className="field-help" key={candidate.id}>{formatDate(candidate.date)} · {candidate.note || 'Tanpa keterangan'} · {candidate.type === 'transfer' ? 'Transfer' : candidate.type === 'expense' ? 'Pengeluaran' : candidate.type === 'income' ? 'Pemasukan' : 'Catatan'} · {formatMoney(candidateMovement(candidate), wallet.currency)}</p>)}
+                {overlap.candidates.map(candidate => <p className="field-help" key={candidate.id}>{candidateDate(candidate)} · {candidate.note || 'Tanpa keterangan'} · {candidate.type === 'transfer' ? 'Transfer' : candidate.type === 'expense' ? 'Pengeluaran' : candidate.type === 'income' ? 'Pemasukan' : 'Catatan'} · {formatMoney(candidateMovement(candidate), wallet.currency)}</p>)}
                 <div role="group" aria-label={`Keputusan mutasi ${row.id}`}><button type="button" className="button secondary small" aria-pressed={chosen === 'skip'} disabled={controlsDisabled} onClick={() => resolveOverlap(row.id, 'skip')}>Lewati</button>{' '}<button type="button" className="button secondary small" aria-pressed={chosen === 'distinct'} disabled={controlsDisabled} onClick={() => resolveOverlap(row.id, 'distinct')}>Transaksi berbeda</button></div>
               </div>}
             </td>
