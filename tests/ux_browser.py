@@ -803,6 +803,102 @@ def saved_elsewhere_case(browser, args, output, mobile):
         context.close()
 
 
+def statement_fixture(period_end):
+    """A bank wallet kept from one stored statement that ends on `period_end`, and a wallet without statements."""
+    return {'app': 'uangku', 'version': 1, 'demo': False, 'state': {'version': 1,
+        'wallets': [{'id': 'bank', 'name': 'Synthetic statement bank', 'currency': 'TRY', 'kind': 'bank', 'openingBalance': 12_000},
+                    {'id': 'manual', 'name': 'Synthetic manual wallet', 'currency': 'TRY', 'kind': 'bank', 'openingBalance': 0}],
+        'entries': [{'id': 'source-out', 'date': period_end, 'type': 'expense', 'walletId': 'bank', 'amount': 1000,
+                     'category': 'Belanja', 'note': 'Synthetic statement row', 'sourceKey': 'ziraat:0000000000000001'},
+                    {'id': 'manual-old', 'date': '2026-01-05', 'type': 'expense', 'walletId': 'manual', 'amount': 500,
+                     'category': 'Belanja', 'note': 'Synthetic old manual row'}]},
+        'metadata': {'policy': 'unverified-unless-linked',
+            'facts': [{'id': 'synthetic-fact', 'walletId': 'bank', 'currency': 'TRY', 'postedOn': period_end, 'signedAmount': -1000,
+                       'balanceAfter': 11_000, 'description': 'SYNTHETIC STATEMENT ROW', 'reference': 'SYN-STATEMENT-1',
+                       'fingerprintVersion': 'ziraat-v1', 'fingerprint': 'ziraat:0000000000000001'}],
+            'links': [{'entryId': 'source-out', 'source': 'synthetic-fact'}],
+            'statements': [{'id': 'synthetic-statement', 'walletId': 'bank', 'currency': 'TRY', 'periodStart': period_end,
+                            'periodEnd': period_end, 'openingBalance': 12_000, 'closingBalance': 11_000, 'rowIds': ['synthetic-fact']}]}}
+
+
+def statement_reminder_case(browser, args, output, mobile):
+    """MW-129c: on Ringkasan, a wallet whose stored statements stop before last month began gets a reminder.
+
+    The clock is fixed on 31 Oct 2026, so last month began on 1 Sep."""
+    label = 'statement-reminder-mobile' if mobile else 'statement-reminder-desktop'
+
+    def opened(period_end):
+        raw = json.dumps(statement_fixture(period_end), ensure_ascii=False, separators=(',', ':'))
+        context, page, errors = storage_page(browser, mobile, raw)
+        page.goto(args.url, wait_until='networkidle')
+        expect(page.locator('.balance-card')).to_be_visible()
+        return raw, context, page, errors
+
+    def back_up(page):
+        # One box at a time: the backup reminder goes first. A backup of what is stored satisfies it.
+        backup = page.get_by_test_id('backup-reminder')
+        expect(backup).to_be_visible()
+        expect(page.get_by_test_id('statement-reminder')).to_have_count(0)
+        with page.expect_download():
+            backup.get_by_role('button', name='Cadangkan sekarang', exact=True).click()
+        expect(backup).to_have_count(0)
+
+    raw, context, page, errors = opened('2026-08-31')
+    reminder = page.get_by_test_id('statement-reminder')
+    nav = page.locator('.mobile-nav' if mobile else '.sidebar')
+    try:
+        back_up(page)
+        expect(reminder).to_be_visible()
+        expect(reminder).to_have_attribute('data-wallets', '1')
+        expect(reminder.locator('strong')).to_have_text('Mutasi Synthetic statement bank baru tersimpan sampai 31 Agu 2026.')
+        # The wallet that was never kept from statements is not named, however old its last record is.
+        expect(reminder).not_to_contain_text('Synthetic manual wallet')
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), 'The reminder overflows the page'
+        page.screenshot(path=str(output / f'{label}.png'))
+        # It belongs to Ringkasan only.
+        nav.get_by_role('button', name='Dompet', exact=True).click()
+        expect(page.locator('.breadcrumb strong')).to_have_text('Dompet')
+        expect(reminder).to_have_count(0)
+        nav.get_by_role('button', name='Ringkasan', exact=True).click()
+        # Its action opens the import page.
+        reminder.get_by_role('button', name='Impor mutasi', exact=True).click()
+        expect(page.locator('.breadcrumb strong')).to_have_text('Impor mutasi')
+        nav.get_by_role('button', name='Ringkasan', exact=True).click()
+        expect(reminder).to_be_visible()
+        # "Nanti saja" closes it until tomorrow, also after a reload, and nothing in the ledger is touched.
+        reminder.get_by_role('button', name='Nanti saja', exact=True).click()
+        expect(reminder).to_have_count(0)
+        page.reload(wait_until='networkidle')
+        expect(page.locator('.balance-card')).to_be_visible()
+        expect(reminder).to_have_count(0)
+        expect(page.get_by_test_id('backup-reminder')).to_have_count(0)
+        assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'The reminder changed the ledger'
+        # The next day it is back.
+        page.clock.set_fixed_time('2026-11-01T12:00:00Z')
+        page.reload(wait_until='networkidle')
+        expect(reminder).to_be_visible()
+        assert not errors, errors
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+    # A statement that reaches last month, even by one day, asks for nothing.
+    raw, context, page, errors = opened('2026-09-01')
+    try:
+        back_up(page)
+        expect(page.locator('.balance-card')).to_be_visible()
+        expect(page.get_by_test_id('statement-reminder')).to_have_count(0)
+        assert not errors, errors
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-control-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+    return {'name': label, 'status': 'passed'}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -825,7 +921,9 @@ def main():
                                        ('unload-warning-desktop', unload_warning_case, False),
                                        ('unload-warning-mobile', unload_warning_case, True),
                                        ('saved-elsewhere-desktop', saved_elsewhere_case, False),
-                                       ('saved-elsewhere-mobile', saved_elsewhere_case, True)]:
+                                       ('saved-elsewhere-mobile', saved_elsewhere_case, True),
+                                       ('statement-reminder-desktop', statement_reminder_case, False),
+                                       ('statement-reminder-mobile', statement_reminder_case, True)]:
                 began = time.monotonic()
                 try:
                     result = case(browser, args, output, mobile)
