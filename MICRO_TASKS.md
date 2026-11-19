@@ -1694,7 +1694,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Jalur pembaruan harus benar supaya tes browser tidak pernah menerima halaman
   lama (aturan hash build di `AGENTS.md`).
 
-- [ ] **MW-115 — Transaksi yang tersimpan di luar periode yang tampil tidak "hilang"** (S)
+- [x] **MW-115 — Transaksi yang tersimpan di luar periode yang tampil tidak "hilang"** (S)
   Menyimpan transaksi bertanggal di luar bulan yang tampil hanya memunculkan
   "Transaksi tersimpan." dan barisnya tidak terlihat sampai periode diganti.
   Mengubah tanggal baris ke luar bulan menghapusnya dari tampilan dan fokus
@@ -1705,6 +1705,35 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *File:* `src/App.tsx:558` dan toast di `src/App.tsx:156-159,744` (sekarang
   hanya teks dan tombol tutup, belum punya tombol aksi; MW-126b butuh hal yang
   sama), tes browser.
+  *Selesai 24 Nov 2026:* setelah transaksi berhasil disimpan di luar bulan
+  yang sedang tampil, toast menyebut bulan tujuannya. Tombol **Lihat**
+  membuka halaman Transaksi di bulan itu. Bila tanggal yang diedit membuat
+  baris keluar dari daftar, fokus beralih ke status daftar. Bulan dihitung
+  dari tanggal posting tersimpan (`src/lib/savedPeriod.ts` dan `src/App.tsx`).
+  *Keputusan agen (mudah dibatalkan):* toast bertombol bertahan 10 detik.
+  **Lihat** membersihkan filter agar transaksi dapat ditemukan. **Simpan &
+  catat lagi** menyebut bulan di toast dan mempertahankan form untuk isian
+  berikutnya. Pada daftar semua periode tidak ada bulan yang perlu dituju.
+  *Dari tinjauan (benar/aman dan tes/tampilan):* pada kode parkir, transfer
+  IDR yang didebit 31 Oktober dan dikredit 1 November tidak menawarkan
+  **Lihat** di daftar Oktober dompet penerima. Bulan kini mengikuti tanggal
+  posting pada dompet yang dipilih. Bila kedua dompet terlihat, kedua sisi
+  diperiksa. Tanggal yang tidak diketahui tidak ditebak. Mutan yang tidak
+  menghapus filter masih lulus tes parkir. Tes kini memasang filter
+  Pemasukan sebelum menyimpan pengeluaran dan memastikan **Lihat**
+  menampilkan pengeluaran itu. Pada simpan yang ditolak karena kuota,
+  form tetap terbuka dan tombol **Lihat** tidak muncul.
+  *Tes:* `npm test` 74 file / 1.891 tes, termasuk 5 tes bulan tujuan. Build
+  produksi dan 18/18 suite Chromium 154 lulus: UX 13/13, smoke 39 skenario,
+  kerangka 4/4, recovery 16/16, cashflow 19/19. Median performa 4.894,5 ms,
+  celah frame terbesar 219 ms. Sebelum MW, kedua kasus baru gagal karena
+  toast hanya menyebut bahwa transaksi tersimpan. Empat mutan browser
+  menggagalkan kedua kasus: salah bulan, tanpa fokus, tanpa aksi atau tanpa
+  reset filter. Satu mutan unit gagal saat filter dompet diabaikan. **Lihat**
+  dapat diklik pada 1440 terang, 390 gelap, serta 320 terang dan gelap.
+  *Belum terbukti:* HP fisik dan pembaca layar. **Lihat** membuka halaman
+  pertama bulan tujuan. Pada bulan dengan 68 baris, transaksi tertua baru
+  terlihat pada halaman kedua.
 
 - [ ] **MW-116 — "Cek saldo" yang cocok berakhir sebagai keberhasilan** (S)
   Bila saldo sama dengan catatan, petunjuk sudah berkata "Sama dengan catatan,
