@@ -783,13 +783,55 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   "Unterminated string in JSON at position 900 (line 1 column 901)"; JSON lain
   menampilkan teks validator internal. Tidak ada yang ditimpa.
   `src/App.tsx:630` meneruskan `err.message` apa adanya.
-  - [ ] **a.** Tangkap `SyntaxError` (`JSON.parse` di `parseRestoreFile`,
+  - [x] **a.** Tangkap `SyntaxError` (`JSON.parse` di `parseRestoreFile`,
     `src/lib/fullBackup.ts:35`) dan JSON sah yang bukan cadangan Uangku, lalu
     tampilkan "File ini bukan cadangan Uangku yang bisa dibaca. Pilih file
     `uangku-lengkap-….json` atau `uangku-cadangan-….json`."; rincian teknis
     tetap tersedia di baris yang bisa dibuka. Petakan juga pesan parser mentah
     dari **Cadangkan semuanya** saat jurnal pemulihan rusak (lihat MW-104).
     Tambah kasusnya ke tes browser.
+    *Selesai 19 Nov 2026:* file yang ditolak di **Pulihkan cadangan** kini
+    menampilkan "File ini bukan cadangan Uangku yang bisa dibaca. Pilih file
+    uangku-lengkap-….json atau uangku-cadangan-….json." Teks parser atau
+    validator tetap ada di toast itu, tertutup, di bawah **Detail teknis**
+    (label yang sama dengan jendela Privasi). Pemetaannya di lapisan tampilan
+    (`restoreFailure` di `src/lib/fullBackup.ts`); `parseRestoreFile` tetap
+    melempar pesan aslinya, jadi tes lama tidak berubah. Penolakan yang sudah
+    jelas ditampilkan apa adanya tanpa rincian: ukuran di atas 32 MiB,
+    "Selesaikan penyimpanan … sebelum memulihkan", dan semua "Versi … belum
+    didukung." (cadangan lengkap, paket kata kunci, data dalam cadangan),
+    supaya cadangan dari Uangku yang lebih baru tidak dijawab "pilih file
+    lain". Memilih file berikutnya menutup toast penolakan sebelumnya. Jurnal
+    pemulihan yang bukan JSON kini ditolak dengan pesan jurnal yang sudah ada
+    ("Catatan pemulihan lengkap tidak dapat dibaca. Data tersimpan belum
+    diubah."), jadi pada keadaan itu **Cadangkan semuanya** tidak lagi
+    menampilkan teks parser; penguncian aplikasinya tetap urusan MW-104.
+    *Keputusan agen (mudah dibatalkan):* cadangan Uangku yang isinya gagal
+    divalidasi mendapat kalimat yang sama dengan file asing, karena keduanya
+    "bukan cadangan yang bisa dibaca"; bedanya terlihat di detail teknis.
+    *Dari tinjauan (dua peninjau):* penolakan versi paket kata kunci sempat
+    berubah menjadi "bukan cadangan Uangku"; toast penolakan lama tetap tampil
+    di atas dialog pemulihan dan detailnya tetap terbuka untuk file
+    berikutnya; cincin fokus di toast galat nyaris tak terlihat di tema
+    terang; dan dua penolakan yang dilempar di `App.tsx` tidak punya tes.
+    Semuanya diperbaiki.
+    *Tes:* `npm test` 68 file / 1.833 tes (2 baru: `fullBackup.test.ts`,
+    `fullRestoreStorage.test.ts`), `npm run build` lulus. Chromium:
+    `category_browser.py` 27/27 (kasus `full-backup-desktop` dan `-mobile`
+    memeriksa empat file tak terbaca, detail yang bisa dibuka dan tertutup
+    lagi untuk file berikutnya, dua penolakan versi, toast yang hilang saat
+    file baik dipilih, dan **Cadangkan semuanya** pada jurnal rusak; kasus
+    `financial-quota-draft-and-retry` memeriksa penolakan saat ada pekerjaan
+    belum tersimpan), `recovery_browser.py` 16/16, `browser_smoke.py` 39
+    skenario, `theme_browser.py` 21/21. Kasus cadangan-lengkap gagal pada kode
+    lama.
+    *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Detail teknis
+    tetap berbahasa Inggris atau memakai istilah validator. Masih menampilkan
+    teks parser mentah: **Cadangkan semuanya** bila pengaturan kategori yang
+    tersimpan bukan JSON (di luar butir a dan b; belum ada MW-nya). Cadangan
+    transaksi-saja dari codec yang lebih baru masih dijawab "bukan cadangan
+    yang bisa dibaca" dengan alasannya di detail (bagian MW-102b). Pesan mentah
+    di jalur lain (misalnya impor mutasi) tidak disentuh; itu butir b.
   - [ ] **b.** Pesan yang bisa dipahami saat aksi pengguna gagal di validasi
     metadata (contohnya galat pada MW-87), bukan teks validator mentah.
 
