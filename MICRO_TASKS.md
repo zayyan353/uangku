@@ -1883,7 +1883,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
 
 ### F5. Fitur
 
-- [ ] **MW-128 — Ringkasan menyebut total pemasukan, pengeluaran, dan selisih**
+- [x] **MW-128 — Ringkasan menyebut total pemasukan, pengeluaran, dan selisih**
   Kartu "Uang masuk/keluar" adalah arus rekening (termasuk transfer keluar,
   tarik tunai, dan biaya) sesuai keputusan pemilik, jadi bukan angka "berapa
   pengeluaranku bulan ini". Total pengeluaran berkategori hanya tampil di judul
@@ -1935,8 +1935,29 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     muncul bersama panduan awal, atau angka nol muncul saat laporan gagal.
     Delapan pemeriksaan tambahan mencakup 1440 terang dan 320 gelap.
     *Belum terbukti:* HP fisik dan pembaca layar belum diuji.
-  - [ ] **c.** (S) Angka bulan sebelumnya di baris itu. Catatan: perbandingannya
+  - [x] **c.** (S) Angka bulan sebelumnya di baris itu. Catatan: perbandingannya
     bulan penuh lawan bulan berjalan (`KERANGKA_HALAMAN.md` 1.3.2).
+    *Selesai 24 Nov 2026:* Ringkasan menyebut pemasukan, pengeluaran dan
+    selisih untuk bulan kalender sebelumnya pada baris pembanding. Nama
+    bulan, tahun, dan “sebulan penuh” tertulis di situ. `src/App.tsx` dan
+    `CashflowOverview.tsx` memakai cakupan laporan yang dipilih.
+    *Keputusan agen (mudah dibatalkan):* bulan berjalan hanya sampai hari
+    ini. Bulan sebelumnya mencakup tanggal pertama sampai terakhir.
+    Pembanding tersembunyi bila periode seluruh catatan, bulan pilihan belum
+    dimulai, atau kedua total terkonfirmasi bulan sebelumnya nol.
+    *Dari tinjauan (benar/aman dan tes/tampilan):* pada 15 Januari, transaksi
+    31 Desember ikut pembanding, sedangkan 16 Januari belum masuk baris
+    sekarang. Saat total Desember melampaui batas aman, ringkasan Januari
+    tetap berfungsi. Tes awal belum membedakan arus rekening dari pengeluaran
+    dan pemasukan terkonfirmasi. Kasus lintas tahun kini memeriksa keduanya
+    pada tiga dompet, termasuk penerima kredit yang masih perlu dicek.
+    *Tes:* `npm test` 74 file / 1.893 tes dan build produksi lulus.
+    Chromium: cashflow 21/21 dan kerangka 4/4. Dua kasus gagal pada kode
+    sebelum MW. Empat mutan gagal (bulan, tanda selisih, kredit tertunda
+    ikut, atau pembanding nol tetap terlihat). Lebar 1440 terang dan 320
+    gelap menampilkan ₺6, ₺10, dan −₺4 tanpa luapan.
+    *Belum terbukti:* HP fisik dan pembaca layar belum diuji. “Sebulan penuh”
+    menyebut rentang tanggal kalender. Kelengkapan mutasi bank tidak diukur.
 
   Tidak diusulkan: menyamakan angka "keluar" halaman Transaksi dengan total
   kategori di Ringkasan lewat penambahan biaya transfer (usul awal peninjau).

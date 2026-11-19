@@ -290,14 +290,46 @@ def period_cutoff(case):
     # October is compared with September's totals for the same scope.
     expect(previous[0]).to_have_attribute('data-amount', '1000'); expect(previous[0]).to_contain_text('September 2026')
     expect(previous[1]).to_have_attribute('data-amount', '300')
+    # MW-128c: the purpose row carries last month's confirmed income and spending too, named as a full month.
+    purpose(case, 5_000, 2_100)
+    before = case.page.get_by_test_id('purpose-previous')
+    expect(before).to_have_attribute('data-income', '1000'); expect(before).to_have_attribute('data-expense', '300')
+    expect(before).to_have_text(re.compile(r'^September 2026, sebulan penuh: pemasukan \D*10 · pengeluaran \D*3 · selisih \+\D*7$'))
     case.period('all')
     case.totals(8_000, 3_400, 10_000, 14_850, 250)
     expect(previous[0]).to_have_count(0)
+    expect(before).to_have_count(0)
+    purpose(case, 6_000, 2_400)
     case.period('month'); case.month('2026-09')
     case.totals(1_000, 300, 10_000, 10_700)
     expect(previous[0]).to_have_count(0); expect(previous[1]).to_have_count(0)  # August has no flow
     case.month('2026-10')
     case.totals(7_000, 3_100, 10_700, 14_850, 250)
+
+
+def previous_purpose_year_boundary(case):
+    # Both endpoints of December count. The pending credit only belongs to the account-flow card.
+    case.month('2026-01')
+    before = case.page.get_by_test_id('purpose-previous')
+
+    def december(income, expense):
+        # The currency symbol and its spacing can vary with the browser's locale data.
+        unit = r'[^0-9+−-]*'
+        net = income - expense
+        sign = r'\+' if net > 0 else '−' if net < 0 else ''
+        expect(before).to_have_text(re.compile(
+            rf'^Desember 2025, sebulan penuh: pemasukan {unit}{income} · '
+            rf'pengeluaran {unit}{expense} · selisih {sign}{unit}{abs(net)}$'))
+
+    december(6, 10)
+    case.scope('bank')
+    december(6, 6)
+    case.scope('other')
+    december(0, 4)
+    case.scope('pending')
+    expect(case.page.get_by_test_id('cashflow-previous-inflow')).to_have_attribute('data-amount', '300')
+    expect(before).to_have_count(0)
+    case.assert_unchanged()
 
 
 def internal_same_date(case):
@@ -547,6 +579,13 @@ def cases():
     period['state']['entries'] += [entry('prior-in', 1_000, 'income', date='2026-09-20'),
         entry('prior-out', 300, 'expense', date='2026-09-21'),
         entry('future', 9_000, 'income', date='2026-11-01')]
+    year_boundary = document([
+        entry('december-first', 600, 'income', date='2025-12-01'),
+        entry('december-last', 600, 'expense', date='2025-12-31'),
+        entry('december-other', 400, 'expense', date='2025-12-20', wallet_id='other'),
+        entry('december-pending', 300, 'unreviewed', date='2025-12-31', wallet_id='pending'),
+        entry('january-first', 100, 'income', date='2026-01-01'),
+    ], [wallet(), wallet('other', 'Synthetic other bank'), wallet('pending', 'Synthetic pending bank')])
     internal = document([entry('paired', 4_000, 'transfer', category='',
         toWalletId='digital', toAmount=4_000, fee=200)],
         [wallet(), wallet('digital', 'Synthetic ewallet', opening=5_000, kind='ewallet')],
@@ -578,6 +617,7 @@ def cases():
         ('category-report-overflow-with-budget', {'data': overflow}, category_report_overflow),
         ('transfer-out-dominant-no-hidden-funds', {'data': dominant}, transfer_dominant),
         ('month-opening-cutoff-all-history', {'data': period}, period_cutoff),
+        ('previous-purpose-year-boundary', {'data': year_boundary}, previous_purpose_year_boundary),
         ('paired-principal-fee-individual-scopes', {'data': internal}, internal_same_date),
         ('split-date-internal-net-bridge', {'data': split}, split_dates),
         ('dashboard-scoped-activity', {'data': activity}, scoped_activity),
