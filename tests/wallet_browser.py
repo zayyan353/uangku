@@ -535,6 +535,39 @@ def actual_header_cutoff(case):
     case.archived_tab();expect(p.get_by_test_id('wallet-current-total')).to_have_attribute('data-amount','9975')
 
 
+def freshness_line(case):
+    """MW-129b: each wallet card says how far its records reach, from stored dates only."""
+    p=case.page
+    line=lambda wallet_id:p.locator(f'[data-wallet-id="{wallet_id}"]').get_by_test_id('wallet-freshness')
+    # The bank's latest record is the transfer on 31 Oct; the record dated 5 Nov has not happened on the fixed clock
+    # (31 Oct 2026). Its stored statement ends on 30 Oct.
+    expect(line('bank')).to_have_text('Catatan terakhir 31 Okt · mutasi bank sampai 30 Okt')
+    expect(line('bank')).to_have_attribute('data-last-record','2026-10-31')
+    expect(line('bank')).to_have_attribute('data-statement-through','2026-10-30')
+    # The peer has no statement, and its latest record is the receiving side of that transfer.
+    expect(line('peer')).to_have_text('Catatan terakhir 31 Okt')
+    expect(line('peer')).to_have_attribute('data-statement-through','')
+    expect(line('empty')).to_have_text('Belum ada catatan.')
+    for wallet_id in ('bank','peer','empty'):
+        shape=line(wallet_id).evaluate("""el=>{const card=el.closest('.wallet-card').getBoundingClientRect(),r=el.getBoundingClientRect(),
+            balance=el.previousElementSibling.getBoundingClientRect(),footer=el.nextElementSibling.getBoundingClientRect();
+            return {inside:r.left>=card.left&&r.right<=card.right+.5,below:r.top>=balance.bottom-1,above:r.bottom<=footer.top+1};}""")
+        assert shape['inside'] and shape['below'] and shape['above'],(wallet_id,shape)
+    case.unchanged();case.semantic_checks+=1
+    # A new record moves the line without a reload, and an archived wallet keeps its line.
+    p.locator('[data-wallet-id="empty"]').get_by_role('button',name='Catat',exact=True).click()
+    dialog=p.get_by_role('dialog')
+    dialog.get_by_label('Nominal',exact=True).fill('5')
+    dialog.get_by_label(re.compile('^Keterangan')).fill('Synthetic first record')
+    dialog.get_by_role('button',name='Simpan transaksi',exact=True).click()
+    expect(dialog).to_have_count(0);case.saved()
+    nav(p,'Dompet')
+    expect(line('empty')).to_have_text('Catatan terakhir 31 Okt')
+    case.archive();case.archived_tab()
+    expect(line('bank')).to_have_text('Catatan terakhir 31 Okt · mutasi bank sampai 30 Okt')
+    case.semantic_checks+=1
+
+
 def stale_edit_deleted(case):
     p=case.page;other=case.new_page();form=case.form(EMPTY,p)
     form.get_by_label('Nama dompet',exact=True).fill('Synthetic stale edit')
@@ -652,6 +685,7 @@ def cases():
         ('validator-refusal-plain-everywhere',dict(zip(('data','seed'),near_limit_fixture())),validator_refusal_surfaces),
         ('nonzero-wallet-archive-retains-balance',{'data':document(wallets=[wallet('bank',BANK,10000)])},nonzero_archive),
         ('wallet-header-uses-actual-cutoff',{'data':history_fixture()},actual_header_cutoff),
+        ('wallet-card-freshness-line',{'data':history_fixture()},freshness_line),
         ('stale-edit-cannot-resurrect-deleted-wallet',{},stale_edit_deleted),
         ('archive-quota-draft-and-once-retry',{'data':history_fixture()},quota_archive_retry),
         ('import-target-TRY-revalidates-after-archive',{'data':import_data},import_revalidation),

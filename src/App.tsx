@@ -18,6 +18,7 @@ import { compareRestore, restoreComparisonCopy, restoreNeedsBackupFirst } from '
 import { measureStorageUsage } from './lib/storageUsage';
 import { describeFailure, failureClause } from './lib/failureText';
 import { addressForPage, pageFromHash } from './lib/pageRoute';
+import { walletFreshness, type WalletFreshness } from './lib/walletFreshness';
 import { dialogHistory } from './lib/dialogHistory';
 import { monthOutsideView } from './lib/savedPeriod';
 import { carryDemo } from './lib/demoTransition';
@@ -294,6 +295,8 @@ export default function App() {
       return report.inflow || report.outflow ? { label: monthLabel(before), inflow: report.inflow, outflow: report.outflow, income: report.incomeTotal, expense: report.categoryExpenseTotal } : undefined;
     } catch { return undefined; }
   }, [data, currency, month, clockDay, cashflowPeriod, cashflowScope, page, cashflowResult.report]);
+  // Read only on the wallets page: it walks every record once.
+  const walletFreshnessRows = useMemo(() => page === 'wallets' ? walletFreshness(data, clockDay) : new Map<string, WalletFreshness>(), [data, clockDay, page]);
   const mobileOverview = useMobileOverview();
   const balanceCard = page === 'overview' && <CashflowBalance report={cashflowResult.report} currency={currency} month={month} period={cashflowPeriod}
     scope={dashboardWallet?.name ?? `Semua dompet ${currency}`} mobile={mobileOverview} demo={data.demo} />;
@@ -797,7 +800,7 @@ export default function App() {
           })}{(categoryRows.hidden > 0 || allCategoriesShown) && <button type="button" className="text-link category-more" data-testid="category-more" aria-expanded={allCategoriesShown} onClick={() => setAllCategoriesShown(shown => !shown)}>{allCategoriesShown ? 'Tampilkan lebih sedikit' : `+${categoryRows.hidden} kategori lainnya`}</button>}</div> : <div className="empty-state compact"><Leaf size={27} /><p>Belum ada pengeluaran terkonfirmasi dalam cakupan ini.</p></div>}{budgetsHidden && <p className="field-help category-budget-hint">Anggaran bulanan tampil saat periode bulanan dan semua rekening dipilih.</p>}<p className="category-legend">Hanya kategori pengeluaran terkonfirmasi. Semua debit rekening tetap dihitung pada arus di atas.</p></div></section></div>
         {!mobileOverview && overviewRecent}
       </>}
-      {page === 'wallets' && <WalletsPage hasCashArchive={cashWallets.length > 0} onOpenCashArchive={() => setCashArchiveOpen(true)} walletView={walletView} onWalletViewChange={setWalletView} activeCount={availableCurrencyWallets.length} archivedCount={archivedCurrencyWallets.length} currency={currency} currencyName={currencyLabel(currency)} clockDay={clockDay} total={walletPageTotal} wallets={displayedWallets} actualText={actualText} onOpenWallet={openWallet} onRecord={walletId => openTx('expense', walletId)} onCheckBalance={walletId => openTx('adjustment', walletId)} onShowHistory={w => { setCurrency(w.currency); openHistory(w.id, 'all'); }} onRestore={w => requestWalletAction(w, 'restore')} />}
+      {page === 'wallets' && <WalletsPage hasCashArchive={cashWallets.length > 0} onOpenCashArchive={() => setCashArchiveOpen(true)} walletView={walletView} onWalletViewChange={setWalletView} activeCount={availableCurrencyWallets.length} archivedCount={archivedCurrencyWallets.length} currency={currency} currencyName={currencyLabel(currency)} clockDay={clockDay} total={walletPageTotal} wallets={displayedWallets} actualText={actualText} freshness={walletFreshnessRows} onOpenWallet={openWallet} onRecord={walletId => openTx('expense', walletId)} onCheckBalance={walletId => openTx('adjustment', walletId)} onShowHistory={w => { setCurrency(w.currency); openHistory(w.id, 'all'); }} onRestore={w => requestWalletAction(w, 'restore')} />}
       {page === 'transactions' && <section className="panel transactions-panel">{categoryTools}{isReviewQueue && <div className="review-scope"><CircleHelp size={19} /><div><strong>Perlu dirapikan · <span data-testid="review-total" data-count={pendingCount}>{pendingCount}</span> catatan</strong><p>Semua mata uang dan semua periode. <span hidden={!pendingReview.type}><span data-testid="review-types" data-count={pendingReview.type}>{pendingReview.type}</span> jenis perlu dicek{pendingReview.category > 0 ? ' · ' : '. '}</span><span hidden={!pendingReview.category}><span data-testid="review-categories" data-count={pendingReview.category}>{pendingReview.category}</span> kategori belum diisi. </span>Saldo sudah tercatat.</p></div><button className="button secondary small review-back" onClick={resetHistory}><ChevronLeft size={15} /> Semua transaksi</button></div>}<HistoryFilters isReviewQueue={isReviewQueue} query={query} onQueryChange={value => {
         setQuery(value);
         if (value.trim() && !query.trim() && historyPeriod === 'month') { periodBeforeSearch.current = historyPeriod; setHistoryPeriod('all'); }

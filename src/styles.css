@@ -1847,6 +1847,8 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 
 /* Panel kategori di Ringkasan bisa dilipat seperti Perhitungan saldo dan Rincian arus */
 .category-panel-head { display: flex; align-items: flex-start; gap: 10px; }
+/* MW-129b: how far the wallet's records reach, under its balance. */
+.wallet-card-fresh { margin: -8px 0 15px; color: var(--text-muted); font-size: 12px; line-height: 1.5; }
 /* MW-128b: confirmed income, confirmed spending and what is left. The two cards above it are account flow, which also counts transfers. */
 .purpose-summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; margin: -11px 0 28px; padding: 13px 18px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); font-size: 14px; line-height: 1.6; }
 .purpose-summary strong { color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
