@@ -1501,22 +1501,49 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     halaman menambah satu entri riwayat; Back dan Forward berpindah antarhalaman
     dan tidak lagi langsung keluar dari aplikasi. Hash yang diketik di tab yang
     sama juga diikuti. Hash kosong atau tidak dikenal membuka Ringkasan.
+    Alamat baru dibangun dari alamat utuh (`addressForPage`), bukan dari path.
+    Bila browser menolak tulisan ke riwayat, halamannya tetap berganti dan
+    hanya alamatnya yang tertinggal; tidak ada galat.
     *Keputusan agen (mudah dibatalkan):* saat ada penyimpanan yang sedang
     berjalan, Back tidak memindahkan halaman dan alamatnya dikembalikan, sama
     seperti tombol navigasi yang sudah menolak pindah pada keadaan itu. Posisi
     gulir diatur aplikasi sendiri (`history.scrollRestoration = 'manual'`).
     Periode, dompet, dan pencarian tidak ikut masuk alamat.
-    *Tes:* `npm test` 72 file / 1.864 tes (3 baru di `pageRoute.test.ts`),
+    *Dari tinjauan (dua lensa, satu peninjau per lensa, tanpa pemeriksaan
+    ulang oleh pihak kedua; tiap temuan dibuktikan di browser):* lensa
+    benar/aman: path yang diawali `//` dibaca sebagai host lain, `pushState`
+    melempar `SecurityError`, dan halaman menjadi kosong; penjaga Back saat
+    simpan berjalan tidak punya tes. Lensa tes/tampilan: tidak ada tes yang
+    menjaga bahwa Back dan Forward mengembalikan bulan dan posisi gulir
+    Transaksi seperti tombol navigasi, dan penolakan tulisan riwayat tidak
+    diuji. Keempatnya diperbaiki. Lima mutan masing-masing menggagalkan
+    `routes-desktop` dan `routes-mobile`: alamat dari path dan tanpa penjaga
+    (sesi sebelumnya), lalu Back/Forward tanpa `showPage`, tanpa
+    `scrollRestoration = 'manual'`, dan tanpa `try/catch` (sesi ini).
+    *Tes:* `npm test` 72 file / 1.866 tes (4 di `pageRoute.test.ts`),
     `npm run build` lulus. Chromium: `ux_browser.py` 7/7 dengan kasus baru
-    `routes-desktop` dan `routes-mobile` (muat ulang, Back, Forward, hash yang
-    diketik, alamat langsung, hash tak dikenal). Karena perilaku muat ulang
-    berubah, ke-18 suite browser yang dipakai CI dijalankan dan lulus;
+    `routes-desktop` dan `routes-mobile`: muat ulang, Back, Forward, hash yang
+    diketik, alamat langsung, alamat tak dikenal sebagai muat pertama, path
+    `//`, tulisan riwayat yang ditolak, bulan dan posisi gulir Transaksi
+    sesudah Back dan Forward, serta Back dan alamat yang diketik saat simpan
+    berjalan (tab kedua memegang kunci catatan). Karena perilaku muat ulang
+    berubah, ke-18 suite browser yang dipakai CI dijalankan dan lulus
+    (`performance_browser.py`: median 4.769 ms, celah frame 182,7 ms; batas
+    7.000 dan 350). Itu sebelum dua tes terakhir ditambahkan; kode aplikasi
+    tidak berubah sesudahnya dan hanya `ux_browser.py` yang diulang.
     `performance_browser.py` semula mengharapkan Ringkasan sesudah muat ulang
     dari Transaksi dan disesuaikan di dua tempat.
     *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Back diuji
     lewat History API, bukan gestur di HP sungguhan. Dialog yang terbuka tidak
     ditutup oleh Back dan tetap tampil di atas halaman yang berganti; itu butir
     b. Aplikasi Layar Utama (tanpa tombol Back browser) tidak diuji.
+    *Diketahui dari tinjauan, tidak dikerjakan di sini (belum ada MW-nya):*
+    alamat yang ditolak saat simpan berjalan tertinggal sebagai entri
+    riwayat; hash tak dikenal tetap tampil di address bar; keempat halaman
+    berjudul dokumen sama, jadi entri riwayatnya tidak terbedakan di daftar
+    Back; sesudah Back atau Forward fokus papan ketik jatuh ke `body` atau
+    tertinggal di tombol halaman sebelumnya (aplikasi belum memindahkan fokus
+    pada pergantian halaman mana pun).
   - [ ] **b.** (M) Membuka dialog menambah satu entri riwayat; Back menutupnya lewat
     penjaga buang-isian yang sudah ada (`src/hooks/useDiscardGuard.tsx`).
   - [ ] **c.** (S) Peringatan `beforeunload` saat form terbuka berisi isian. Penjaga

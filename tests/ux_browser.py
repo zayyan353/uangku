@@ -447,6 +447,49 @@ def route_case(browser, args, output, mobile):
             assert not doubled_errors, doubled_errors
         finally:
             doubled.close()
+        # A browser may refuse a write to the history (Safari allows 100 in 30 seconds). The page still changes; only
+        # the address lags.
+        refused = new_page(context)
+        refused_errors = []
+        refused.on('pageerror', lambda err: refused_errors.append(str(err)))
+        try:
+            refused.goto(args.url, wait_until='networkidle')
+            refused.evaluate("() => { History.prototype.pushState = () => { throw new DOMException('Synthetic refusal', 'SecurityError'); }; }")
+            refused.locator('.mobile-nav' if mobile else '.sidebar').get_by_role('button', name='Dompet', exact=True).click()
+            at(refused, 'Dompet', '', '.wallet-card')
+            assert not refused_errors, refused_errors
+        finally:
+            refused.close()
+
+        # Transaksi keeps its own month and scroll position while another page is shown. Back and Forward bring them
+        # back the way the navigation buttons do.
+        month = page.get_by_label('Bulan laporan', exact=True)
+
+        def transaksi_as_left():
+            at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+            expect(month).to_have_value('2026-10')
+            page.wait_for_function('() => Math.abs(scrollY - 600) <= 2')
+
+        nav.get_by_role('button', name='Ringkasan', exact=True).click()
+        at(page, 'Ringkasan', '', '.balance-card')
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+        expect(month).to_have_value('2026-10')
+        page.evaluate('window.scrollTo(0, 600)')
+        page.wait_for_function('() => scrollY === 600')
+        # Left by the navigation button, returned to by Back.
+        nav.get_by_role('button', name='Ringkasan', exact=True).click()
+        at(page, 'Ringkasan', '', '.balance-card')
+        month.select_option('2026-09')
+        page.go_back()
+        transaksi_as_left()
+        # Left by Back, returned to by Forward.
+        page.go_back()
+        at(page, 'Ringkasan', '', '.balance-card')
+        month.select_option('2026-08')
+        page.go_forward()
+        transaksi_as_left()
+
         # Moving between pages reads only.
         assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'Navigation changed the ledger'
 
