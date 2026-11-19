@@ -9,8 +9,8 @@ import re
 import time
 import traceback
 
-from browser_support import (FIXED_TIME, assert_production_url, install_playwright_path,
-                             launch_browser, new_page)
+from browser_support import (FIXED_TIME, assert_production_url, backup_action, browser_name,
+                             install_playwright_path, launch_browser, new_page)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
 
@@ -194,6 +194,197 @@ def run_case(browser, args, output, mobile):
         context.close()
 
 
+STORAGE_SUM_JS = """() => { let used = 0;
+ for (let i = 0; i < localStorage.length; i++) { const key = localStorage.key(i); used += key.length + localStorage.getItem(key).length; }
+ return used; }"""
+# Another page's key on the same origin: the quota is per origin, so it counts although it is not Uangku's.
+STORAGE_FILL_JS = """(target) => { const key = 'synthetic-other-page';
+ let used = key.length;
+ for (let i = 0; i < localStorage.length; i++) { const name = localStorage.key(i); used += name.length + localStorage.getItem(name).length; }
+ try { localStorage.setItem(key, 'x'.repeat(target - used)); return 'stored'; } catch (error) { return String(error && error.name); } }"""
+
+
+STORAGE_WARNING_CHARS = 3_145_728  # 60% of 5,242,880
+REJECT_LEDGER_WRITES_JS = """() => { window.__setItem = Storage.prototype.setItem;
+ Storage.prototype.setItem = function (key, value) {
+  if (key === 'uangku:v1') throw new DOMException('Synthetic quota failure', 'QuotaExceededError');
+  return window.__setItem.call(this, key, value); }; }"""
+
+
+def storage_page(browser, mobile, stored):
+    context = browser.new_context(viewport={'width': 390, 'height': 844} if mobile else {'width': 1440, 'height': 1000},
+                                  is_mobile=mobile, has_touch=mobile, timezone_id='Europe/Istanbul')
+    if stored is not None:
+        context.add_init_script('if(localStorage.getItem(' + json.dumps(KEY) + ')===null)localStorage.setItem('
+                                + json.dumps(KEY) + ',' + json.dumps(stored) + ');')
+    page = new_page(context)
+    page.set_default_timeout(15_000)
+    errors = []
+    page.on('pageerror', lambda err: errors.append(str(err)))
+    return context, page, errors
+
+
+def open_privacy(page):
+    privacy = page.get_by_role('button', name='Lokal & pribadi', exact=True)
+    (privacy if privacy.is_visible() else backup_action(page, 'Privasi')).click()
+    dialog = page.get_by_role('dialog', name='Privasi dan cadangan', exact=True)
+    expect(dialog).to_be_visible()
+    return dialog
+
+
+def close_privacy(page, dialog):
+    dialog.get_by_role('button', name='Tutup penjelasan privasi', exact=True).click()
+    expect(page.get_by_role('dialog')).to_have_count(0)
+
+
+def fill_storage(page, target, label):
+    """Fills the origin to exactly `target` characters. Returns False when this engine's own quota refuses it."""
+    filled = page.evaluate(STORAGE_FILL_JS, target)
+    if filled != 'stored':
+        # An engine whose own quota is below the Chromium threshold cannot reach the warning this way. That is a
+        # finding about that engine, not a pass of the warning: it is reported, and Chromium must not get here.
+        assert browser_name() != 'chromium', f'{label}: Chromium rejected the {target}-character filler: {filled}'
+        return False
+    assert page.evaluate(STORAGE_SUM_JS) == target
+    return True
+
+
+def record_expense(page, note):
+    page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+    dialog = page.get_by_role('dialog')
+    dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+    dialog.get_by_label('Nominal', exact=True).fill('7')
+    dialog.get_by_label(re.compile('Keterangan')).fill(note)
+    dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+    return dialog
+
+
+def storage_case(browser, args, output, mobile):
+    """MW-96: the storage meter in "Privasi dan cadangan" and the early warning from 60% of the Chromium quota."""
+    label = 'storage-mobile' if mobile else 'storage-desktop'
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    context, page, errors = storage_page(browser, mobile, raw)
+    warning = page.get_by_test_id('storage-warning')
+    reminder = page.get_by_test_id('backup-reminder')
+    try:
+        page.goto(args.url, wait_until='networkidle')
+        expect(page.locator('.balance-card')).to_be_visible()
+        # A small ledger that was never backed up: the backup reminder shows and the storage warning does not.
+        expect(reminder).to_be_visible()
+        expect(warning).to_have_count(0)
+        dialog = open_privacy(page)
+        used = page.evaluate(STORAGE_SUM_JS)
+        assert len(raw) < used < 100_000, used
+        usage = dialog.get_by_test_id('storage-usage')
+        expect(usage).to_have_attribute('data-level', 'ok')
+        expect(usage).to_contain_text('Ruang penyimpanan: 0% terpakai.')
+        expect(usage).to_contain_text(f'{used:,}'.replace(',', '.') + ' dari 5.242.880 karakter')
+        expect(usage.locator('meter')).to_have_attribute('value', str(used))
+        close_privacy(page, dialog)
+        # The meter only reads: the ledger text is still what the fixture stored.
+        assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'Storage meter changed the ledger'
+
+        # One save through the app first, so the stored text has the app's own shape before sizes are compared.
+        expect(record_expense(page, 'Synthetic storage first')).to_have_count(0)
+        expect(page.get_by_test_id('save-status')).to_contain_text('Tersimpan di browser')
+        if not fill_storage(page, STORAGE_WARNING_CHARS - 20, label):
+            assert not errors, errors
+            return {'name': label, 'status': 'passed', 'used_chars': used, 'warning_checked': False,
+                    'filler_rejected': True}
+        # Twenty characters short of the threshold: the meter, measured again when the window opens, says 59%.
+        dialog = open_privacy(page)
+        expect(dialog.get_by_test_id('storage-usage')).to_have_attribute('data-level', 'ok')
+        expect(dialog.get_by_test_id('storage-usage')).to_contain_text('Ruang penyimpanan: 59% terpakai.')
+        close_privacy(page, dialog)
+        expect(warning).to_have_count(0)
+        expect(reminder).to_be_visible()
+        # The next save crosses the threshold. The warning appears without a reload, and the reminder waits behind it.
+        expect(record_expense(page, 'Synthetic storage second')).to_have_count(0)
+        expect(warning).to_be_visible()
+        expect(warning).to_contain_text('Ruang penyimpanan browser terpakai 60%.')
+        expect(reminder).to_have_count(0)
+        assert not page.evaluate('document.documentElement.scrollWidth>innerWidth')
+        warning.scroll_into_view_if_needed()
+        page.screenshot(path=str(output / f'{label}.png'))
+        dialog = open_privacy(page)
+        expect(dialog.get_by_test_id('storage-usage')).to_have_attribute('data-level', 'warning')
+        expect(dialog.get_by_test_id('storage-usage')).to_contain_text('Ruang penyimpanan: 60% terpakai.')
+        close_privacy(page, dialog)
+
+        # A refused save has its own box with the download that works then; the warning waits behind it.
+        page.evaluate(REJECT_LEDGER_WRITES_JS)
+        dialog = record_expense(page, 'Synthetic storage refused')
+        problem = page.locator('.notice.save-problem')
+        expect(problem).to_contain_text('Belum tersimpan')
+        expect(warning).to_have_count(0)
+        dialog.get_by_role('button', name='Batal', exact=True).click()
+        page.get_by_role('button', name='Buang isian', exact=True).click()
+        expect(warning).to_have_count(0)
+        page.evaluate('() => { Storage.prototype.setItem = window.__setItem; }')
+        problem.get_by_role('button', name='Coba simpan lagi', exact=True).click()
+        expect(page.get_by_test_id('save-status')).to_contain_text('Tersimpan di browser')
+        expect(warning).to_be_visible()
+
+        # "Nanti saja" closes the box for the day, also after a reload, and does not bring the reminder up instead.
+        warning.get_by_role('button', name='Nanti saja', exact=True).click()
+        expect(warning).to_have_count(0)
+        expect(reminder).to_have_count(0)
+        page.reload(wait_until='networkidle')
+        expect(page.locator('.balance-card')).to_be_visible()
+        expect(warning).to_have_count(0)
+        expect(reminder).to_have_count(0)
+        # It was the dismissal that hid it: without that record the warning is back.
+        page.evaluate("() => localStorage.removeItem('uangku:backup-reminder-dismissed:v1')")
+        page.reload(wait_until='networkidle')
+        expect(warning).to_be_visible()
+        # Its own button satisfies it: after a full backup of what is stored now, neither box asks again.
+        with page.expect_download() as pending:
+            warning.get_by_role('button', name='Cadangkan sekarang', exact=True).click()
+        assert pending.value.suggested_filename.startswith('uangku-lengkap-')
+        expect(warning).to_have_count(0)
+        expect(reminder).to_have_count(0)
+        page.reload(wait_until='networkidle')
+        expect(page.locator('.balance-card')).to_be_visible()
+        expect(warning).to_have_count(0)
+        expect(reminder).to_have_count(0)
+        assert not errors, errors
+        return {'name': label, 'status': 'passed', 'used_chars': used, 'warning_checked': True}
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
+def storage_gating_case(browser, args, output, mobile):
+    """MW-96: over the threshold, sample data and unreadable stored data show the meter but not the warning."""
+    label = 'storage-gating'
+    checked = []
+    for name, stored, banner in [('sample', None, '.demo-banner'),
+                                 ('unreadable', json.dumps({'app': 'uangku', 'version': 999}), '.notice.save-problem')]:
+        context, page, errors = storage_page(browser, mobile, stored)
+        try:
+            page.goto(args.url, wait_until='networkidle')
+            expect(page.locator(banner)).to_be_visible()
+            if not fill_storage(page, STORAGE_WARNING_CHARS + 100_000, f'{label}-{name}'):
+                continue
+            page.reload(wait_until='networkidle')
+            expect(page.locator(banner)).to_be_visible()
+            expect(page.get_by_test_id('storage-warning')).to_have_count(0)
+            dialog = open_privacy(page)
+            expect(dialog.get_by_test_id('storage-usage')).to_have_attribute('data-level', 'warning')
+            close_privacy(page, dialog)
+            expect(page.get_by_test_id('storage-warning')).to_have_count(0)
+            assert not errors, errors
+            checked.append(name)
+        except Exception:
+            page.screenshot(path=str(output / f'{label}-{name}-failure.png'), full_page=True)
+            raise
+        finally:
+            context.close()
+    return {'name': label, 'status': 'passed', 'profiles_checked': checked}
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -207,13 +398,14 @@ def main():
         browser = launch_browser(pw)
         version = browser.version
         try:
-            for mobile in [False, True]:
+            for case, mobile in [(run_case, False), (run_case, True), (storage_case, False), (storage_case, True),
+                                 (storage_gating_case, False)]:
                 began = time.monotonic()
                 try:
-                    result = run_case(browser, args, output, mobile)
+                    result = case(browser, args, output, mobile)
                 except Exception as err:
-                    result = {'name': 'mobile' if mobile else 'desktop', 'status': 'failed',
-                              'error': str(err), 'traceback': traceback.format_exc()}
+                    name = 'storage-gating' if case is storage_gating_case else ('storage-' if case is storage_case else '') + ('mobile' if mobile else 'desktop')
+                    result = {'name': name, 'status': 'failed', 'error': str(err), 'traceback': traceback.format_exc()}
                 result['seconds'] = round(time.monotonic() - began, 3)
                 results.append(result)
                 print(json.dumps({k: v for k, v in result.items() if k != 'contrasts'}, ensure_ascii=False), flush=True)
