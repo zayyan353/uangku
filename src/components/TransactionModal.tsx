@@ -34,9 +34,9 @@ const TYPE_HINTS: Record<TxMode, string> = {
 };
 export interface EntrySaveOptions { reason: string; sourceDate: string | null; destinationDate: string | null; declareDates?: true }
 
-export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onSaveTemplate, onRemoveTemplate, onRenameTemplate, templates = [], templatesError = '', onClose, onDelete, onUnpair, disabled = false }: {
+export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onSaveTemplate, onRemoveTemplate, onRenameTemplate, templates = [], templatesError = '', onClose, onBalanceMatched, onDelete, onUnpair, disabled = false }: {
   data: StoredData; state: State; undatedWallets: ReadonlySet<string>; initialMode: TxMode; initialWallet?: string; existing?: Entry;
-  onSave: (entry: Entry, removeIds: string[], keepOpen?: boolean, options?: EntrySaveOptions) => Promise<boolean>; onClose: () => void; onDelete?: () => void; onUnpair?: () => void; disabled?: boolean;
+  onSave: (entry: Entry, removeIds: string[], keepOpen?: boolean, options?: EntrySaveOptions) => Promise<boolean>; onClose: () => void; onBalanceMatched?: (walletId: string) => void; onDelete?: () => void; onUnpair?: () => void; disabled?: boolean;
   /** Saves a template only; it never records a transaction. Rejects with a message on failure. */
   onSaveTemplate?: (template: TransactionTemplate) => Promise<void>;
   /** Template upkeep. Both reject with a message and leave the stored list as it was. */
@@ -101,8 +101,10 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   const draft = { type, walletId, toWalletId, movementDirection, amount, received, rateText, fxMode, fee,
     date, destinationDate, sourceDate, declareDates, reason, note, category, confirmed, pairId };
   const cleanDraft = useRef(draft);
+  /** Whether closing would lose something typed. A balance check that matched has nothing to save, so its figure alone is not work to lose. */
+  const hasUnsavedInput = () => JSON.stringify(draft) !== JSON.stringify(cleanDraft.current) && !(balanceMatches && !note.trim());
   // Closing or reloading the tab would drop a started form without the discard question.
-  useUnloadWarning(() => JSON.stringify(draft) !== JSON.stringify(cleanDraft.current));
+  useUnloadWarning(hasUnsavedInput);
   const saving = useRef(false);
   const [askDiscard, setAskDiscard] = useState(false);
   const [templateName, setTemplateName] = useState<string | null>(null);
@@ -142,7 +144,7 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
 
   function requestClose() {
     if (disabled || saving.current) return;
-    if (JSON.stringify(draft) === JSON.stringify(cleanDraft.current)) return onClose();
+    if (!hasUnsavedInput()) return onClose();
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : amountRef.current;
     setAskDiscard(true);
   }
@@ -174,6 +176,9 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   // A new balance check is always about today; an existing one keeps its own editable date.
   const lockedToday = type === 'adjustment' && !existing;
   const adjustmentDifference = type === 'adjustment' && amount.trim() && minor !== null && adjustment?.beforeEdit != null ? minor - adjustment.beforeEdit : null;
+  // A new balance check that finds no difference is a success with nothing to record: the main button says so and
+  // closes. An existing check is left alone: there a zero difference means its record should go, which is not a close.
+  const balanceMatches = !existing && adjustmentDifference === 0 && !!onBalanceMatched;
   const invalidFx = !!crossCurrency && (conversionFailed || (fxMode === 'rate' && !!rateText.trim() && (!Number.isFinite(rateNumber) || rateNumber <= 0 || minor !== null && toMinor === null)) || (fxMode === 'received' && !!received.trim() && (toMinor === null || toMinor <= 0)) || (toMinor !== null && !Number.isSafeInteger(toMinor)));
   const pairCandidates = type === 'transfer' && existing ? state.entries.filter(e =>
     e.id !== existing.id && !readOnlyEntryIds.has(e.id) && !state.wallets.some(w => w.kind === 'cash' && w.id === e.walletId) && (e.type === 'unreviewed' || e.type === 'movement') && e.walletId === (incomingPending ? walletId : toWalletId)
@@ -264,6 +269,7 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
     if (saving.current || disabled || askDiscard || templateSaving) return;
     setError('');
     if (isWalletArchived(data, walletId) || type === 'transfer' && isWalletArchived(data, toWalletId) || existing && readOnlyEntryIds.has(existing.id)) return setError('Dompet diarsipkan. Pulihkan sebelum mengubah atau mencatat transaksi.');
+    if (balanceMatches) return onBalanceMatched(walletId);
     if (minor === null || !source) return setError('Isi dompet dan nominal yang valid.');
     if (type === 'movement' && minor <= 0) return setError('Isi nominal perpindahan lebih besar dari nol; gunakan pilihan arah untuk masuk atau keluar rekening.');
     if (crossCurrency && (!Number.isFinite(effectiveRate) || effectiveRate <= 0 || toMinor === null || !Number.isSafeInteger(toMinor) || toMinor <= 0)) return setError('Kurs dan nominal diterima harus valid dan lebih besar dari nol. Periksa kolom kurs atau jumlah diterima.');
@@ -399,7 +405,7 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
         {showReason && <label className="field full"><span className="field-label">Alasan perubahan finansial atau tanggal</span><input aria-label="Alasan perubahan" className="field-input" maxLength={2000} value={reason} onChange={e => setReason(e.target.value)} placeholder="Contoh: koreksi nominal sesuai bukti pembayaran" /><span className="field-help">Kategori dan keterangan dapat dirapikan; data bank asli tetap disimpan terpisah.</span></label>}
         {error && <div ref={validationRef} tabIndex={-1} className="notice error full" role="alert">{error}</div>}
       </div>
-    </div><div className={`modal-footer ${!existing && (type === 'expense' || type === 'income') ? 'repeat-entry-footer' : ''}`}>{existing && onDelete && <button type="button" className="button danger small" style={{ marginRight: 'auto' }} onClick={onDelete}><Trash2 size={15} /> Hapus</button>}{existing?.type === 'transfer' && onUnpair && <button type="button" className="button secondary small" onClick={onUnpair}>Pisahkan transfer</button>}<button type="button" className="button secondary" onClick={requestClose}>Batal</button><button className="button primary" type="submit"><Check size={17} /> {importedPending ? 'Simpan hasil cek' : 'Simpan transaksi'}</button>{!existing && (type === 'expense' || type === 'income') && <button className="button secondary" type="submit" data-repeat="true">Simpan &amp; catat lagi</button>}</div></fieldset></form>
+    </div><div className={`modal-footer ${!existing && (type === 'expense' || type === 'income') ? 'repeat-entry-footer' : ''}`}>{existing && onDelete && <button type="button" className="button danger small" style={{ marginRight: 'auto' }} onClick={onDelete}><Trash2 size={15} /> Hapus</button>}{existing?.type === 'transfer' && onUnpair && <button type="button" className="button secondary small" onClick={onUnpair}>Pisahkan transfer</button>}<button type="button" className="button secondary" onClick={requestClose}>Batal</button><button className="button primary" type="submit"><Check size={17} /> {balanceMatches ? 'Saldo cocok · tutup' : importedPending ? 'Simpan hasil cek' : 'Simpan transaksi'}</button>{!existing && (type === 'expense' || type === 'income') && <button className="button secondary" type="submit" data-repeat="true">Simpan &amp; catat lagi</button>}</div></fieldset></form>
   </Modal>;
 }
 

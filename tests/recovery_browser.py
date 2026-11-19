@@ -522,11 +522,54 @@ def test_adjust_today(browser, output):
         expect(hint).to_contain_text('100.000')
         target = dlg.get_by_label('Nominal', exact=True)
         save = dlg.get_by_role('button', name='Simpan transaksi', exact=True)
+        matched = dlg.get_by_role('button', name='Saldo cocok · tutup', exact=True)
+        difference = dlg.get_by_test_id('adjustment-difference')
+        toast = page.locator('.toast')
+        open_check = lambda: card.get_by_role('button', name='Cek saldo', exact=True).click()
+
+        # MW-116a: a balance that matches the record ends as a success. The main button says so, closes without the
+        # discard question, and nothing is written.
+        expect(matched).to_have_count(0)
         target.fill('100000')
-        save.click()
-        expect(dlg.get_by_role('alert')).to_contain_text('Saldo sudah cocok')
+        expect(difference).to_have_text('Sama dengan catatan, jadi tidak ada selisih untuk dicatat.')
+        expect(save).to_have_count(0)
+        matched.click()
+        expect(dlg).to_have_count(0)
+        expect(toast).to_have_text('Saldo Synthetic A cocok dengan catatan. Tidak ada yang perlu dicatat.')
+        expect(toast).not_to_have_class(re.compile(r'\berror\b'))
         assert stored(page) == initial
+        toast.get_by_role('button', name='Tutup pemberitahuan', exact=True).click()
+        # Enter in the field is the same main action.
+        open_check()
+        target.fill('100000')
+        target.press('Enter')
+        expect(dlg).to_have_count(0)
+        expect(toast).to_contain_text('cocok dengan catatan')
+        toast.get_by_role('button', name='Tutup pemberitahuan', exact=True).click()
+        # Escape and Batal leave a matched check without the discard question and without a message.
+        for leave in (lambda: page.keyboard.press('Escape'), lambda: dlg.get_by_role('button', name='Batal', exact=True).click()):
+            open_check()
+            target.fill('100000')
+            expect(matched).to_be_visible()
+            leave()
+            expect(dlg).to_have_count(0)
+            expect(toast).to_have_count(0)
+        # A note typed next to the matched figure is still work: leaving asks first, and the main button still closes.
+        open_check()
+        target.fill('100000')
+        dlg.get_by_label('Keterangan').fill('Synthetic note beside a matched balance')
+        page.keyboard.press('Escape')
+        expect(page.get_by_role('dialog', name='Buang isian transaksi?', exact=True)).to_be_visible()
+        dlg.get_by_role('button', name='Lanjut mengisi', exact=True).click()
+        expect(dlg.get_by_label('Keterangan')).to_have_value('Synthetic note beside a matched balance')
+        # A figure that differs is an adjustment again: the usual button, and leaving asks.
         target.fill('110000')
+        expect(matched).to_have_count(0)
+        expect(save).to_be_visible()
+        page.keyboard.press('Escape')
+        expect(page.get_by_role('dialog', name='Buang isian transaksi?', exact=True)).to_be_visible()
+        dlg.get_by_role('button', name='Lanjut mengisi', exact=True).click()
+        assert stored(page) == initial
         dlg.get_by_label('Keterangan').fill('Saldo uji hari ini')
         save.click()
         expect(dlg).to_have_count(0)
@@ -539,6 +582,14 @@ def test_adjust_today(browser, output):
         page.get_by_role('button', name='Ubah Saldo uji hari ini', exact=True).click()
         expect(hint).to_contain_text('110.000')
         expect(target).to_have_value('110000')
+        # An existing check is not closed as "matched": a zero difference there means its record should go.
+        before_edit = stored(page)
+        target.fill('100000')
+        expect(difference).to_have_text('Sama dengan catatan, jadi tidak ada selisih untuk dicatat.')
+        expect(matched).to_have_count(0)
+        save.click()
+        expect(dlg.get_by_role('alert')).to_contain_text('Saldo sudah cocok')
+        assert stored(page) == before_edit
         target.fill('105000')
         save.click()
         expect(dlg).to_have_count(0)
