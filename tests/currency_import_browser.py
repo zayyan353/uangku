@@ -533,6 +533,29 @@ def cross_scheme(case,distinct=False):
     case.semantic_checks+=5
 
 
+def manual_nearby(case):
+    """MW-90: a manual record of the same amount two days before the bank row is offered, and nothing is skipped silently."""
+    p=case.page;before=stored_document(p);path=case.args.output/f'{case.name}.csv';write_csv(path,EUR_ROWS)
+    case.import_file(path);case.preview();case.unchanged()
+    rows=p.locator('.import-table tbody tr')
+    row=rows.filter(has_text=EUR_ROWS[1][2])
+    expect(row).to_contain_text('Mungkin sudah dicatat manual')
+    # The candidate is shown with its own date, so the two-day gap is visible; no other row is flagged.
+    expect(row.locator('.import-overlap .field-help')).to_have_text(re.compile(r'^27 \S+ 2026 · Synthetic manual euro · Pengeluaran · '))
+    expect(rows.filter(has_text='Mungkin sudah dicatat manual')).to_have_count(1)
+    # The row stays selected: saving asks for a choice instead of storing a possible duplicate or dropping the row.
+    p.get_by_role('button',name='Simpan 3 transaksi',exact=True).click()
+    expect(p.get_by_role('alert')).to_be_visible();case.unchanged()
+    row.get_by_role('button',name='Transaksi berbeda',exact=True).click()
+    saved=case.save_import(3)
+    assert saved['state']['entries'][0]==before['state']['entries'][0]
+    assert len(saved['state']['entries'])==4 and len(saved['metadata']['facts'])==3
+    # Both the manual 25.25 and the bank 25.25 count: 100.00 - 25.25 - 25.25 + 100.00 - 5.00.
+    assert balance(saved,'eur')==14450
+    assert 'sourceKey' not in next(e for e in saved['state']['entries'] if e['id']=='manual')
+    case.semantic_checks+=5
+
+
 def manual_overlap(case):
     p=case.page;before=stored_document(p);path=case.args.output/f'{case.name}.csv';write_csv(path,EUR_ROWS)
     case.import_file(path);case.preview();case.unchanged()
@@ -698,6 +721,7 @@ def cases():
         ('cross-scheme-source-keep-explicit',{'data':cross_fixture()},cross_scheme),
         ('cross-scheme-source-distinct-explicit',{'data':cross_fixture()},lambda case:cross_scheme(case,True)),
         ('manual-overlap-review-no-duplicate',{'data':manual},manual_overlap),
+        ('manual-nearby-offered-not-skipped',{'data':document(extended=True,entries=[entry('manual','eur',2525,date='2026-10-27',note='Synthetic manual euro')])},manual_nearby),
         ('currency-quota-draft-and-once-retry',{},quota_currency_retry),
         ('currency-stale-manager-CAS',{},stale_currency_manager),
         ('generic-target-archive-invalidates-preview',{'data':extended},target_archive_reset),

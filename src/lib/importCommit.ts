@@ -34,6 +34,24 @@ function movementKey(date: string, amount: number): string {
   return `${date}:${amount}`;
 }
 
+/**
+ * A manual record with the same signed amount this many days before or after a bank row is offered as a
+ * possible duplicate: people note a payment on the day they make it, the bank posts it later. It is only
+ * ever offered; the row is never skipped without the user's choice.
+ */
+export const MANUAL_MATCH_DAYS = 3;
+
+/** The date itself first, then outward: one day earlier, one day later, two days earlier, and so on. */
+export function nearbyDates(date: string, days = MANUAL_MATCH_DAYS): string[] {
+  const base = Date.parse(`${date}T12:00:00Z`);
+  if (!Number.isFinite(base)) return [date];
+  const result = [date];
+  for (let offset = 1; offset <= days; offset++) {
+    for (const direction of [-1, 1]) result.push(new Date(base + direction * offset * 86_400_000).toISOString().slice(0, 10));
+  }
+  return result;
+}
+
 /** Only the target wallet's posting determines whether a transfer leg was imported. */
 function manualMovements(state: State, walletId: string): Map<string, Entry[]> {
   const index = new Map<string, Entry[]>();
@@ -104,7 +122,8 @@ export function inspectImport(
       warning: duplicate ? duplicateWarning : original.warning === duplicateWarning ? undefined : original.warning,
     };
     if (duplicate) return row;
-    const candidates = manual.get(movementKey(row.date, row.amount)) ?? [];
+    // Closest date first. An entry is indexed once per date, so the lists never share an entry.
+    const candidates = nearbyDates(row.date).flatMap(day => manual.get(movementKey(day, row.amount)) ?? []);
     const decision = decisions[row.id];
     if (!candidates.length && !decision) return row;
     const signature = decisionSignature(row, candidates);

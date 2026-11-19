@@ -874,7 +874,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *File:* `src/lib/csvExport.ts` + tes, `src/App.tsx:349-357`, satu pemeriksaan
   di tes browser. Hanya ekspor; format tersimpan tidak disentuh.
 
-- [ ] **MW-90 — Impor: catatan manual yang mirip ditawarkan sebagai kemungkinan duplikat** (M)
+- [x] **MW-90 — Impor: catatan manual yang mirip ditawarkan sebagai kemungkinan duplikat** (M)
   Impor menandai catatan manual hanya bila tanggal **dan** nominal sama persis
   (`src/lib/importCommit.ts:33-35`, `:107`). Catatan manual sehari lebih awal,
   atau beda 0,01, tidak memberi tanda apa pun dan keduanya tersimpan. Diperiksa
@@ -886,6 +886,48 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   berbeda"). Tidak pernah melewati baris secara otomatis. Konsekuensi: lebih
   banyak baris minta keputusan bila nominal yang sama sering berulang.
   *File:* `src/lib/importCommit.ts` + tes, `tests/currency_import_browser.py`.
+  *Selesai 19 Nov 2026:* catatan manual di dompet yang sama dengan nominal
+  bertanda sama dalam ±3 hari (`MANUAL_MATCH_DAYS`) kini ditawarkan sebagai
+  kandidat, tanggal terdekat lebih dulu. Barisnya tetap terpilih dan impor
+  menunggu **Lewati** atau **Transaksi berbeda**; tidak ada yang dilewati
+  otomatis. Untuk transfer manual yang dipakai dan ditampilkan adalah tanggal
+  posting di dompet itu. Ringkasan di layar impor kini menyebut "tanggal yang
+  sama atau berdekatan".
+  *Lebih luas dari daftar file di atas, karena perlu:* layar impor memakai
+  jalur bersumber (`inspectSourcedImport` di `src/lib/sourceCommands.ts`),
+  bukan `importCommit.ts` saja. Jendela yang sama juga dipakai untuk baris yang
+  sudah dikenal aplikasi (sesudah **Lewati**, tidak dicentang, atau "Simpan isi
+  file saja") dan untuk pelengkapan mutasi (`src/lib/reconciliation.ts`), yang
+  kini menolak menambah baris bila ada catatan manual bernominal sama di
+  tanggal berdekatan. Tanpa itu, baris yang tidak dicentang berakhir kembar
+  lewat pelengkapan tanpa tanda apa pun.
+  *Keputusan agen (mudah dibatalkan):* saat menyimpan, kandidat manual
+  ditentukan oleh pemeriksaan yang tampil di layar. Pemeriksaan lama di
+  `importCommit.ts` juga menghitung yang bukan catatan manual di sana (catatan
+  bank yang tanggal atau nominalnya dikoreksi); temuan seperti itu mengikuti
+  pilihan baris saat ini dan tidak lagi meminta keputusan yang tombolnya tidak
+  ada di layar.
+  *Dari tinjauan (dua peninjau):* temuan memblokir: sesudah catatan bank
+  dikoreksi, baris baru bernominal sama dalam 3 hari membuat impor menolak
+  menyimpan sambil menunjuk pilihan yang tidak tampil (jalan buntu yang sudah
+  ada untuk tanggal yang sama, dan melebar karena jendela ini). Juga: baris
+  yang sudah dikenal dan pelengkapan mutasi masih memeriksa tanggal yang sama
+  saja; petunjuk kandidat transfer menampilkan tanggal kirim, bukan tanggal
+  yang dicocokkan; tes transfer tidak bisa membedakan keduanya. Semuanya
+  diperbaiki dan tiap perbaikan punya tes yang gagal bila perbaikannya dicabut.
+  *Tes:* `npm test` 71 file / 1.861 tes (23 baru: 10 di `importCommit.test.ts`,
+  13 di `importNearbyManual.test.ts` lewat jalur yang dipakai layar; 14 dari
+  20 yang pertama gagal pada kode lama, 7 di tiap file), `npm run build`
+  lulus. Chromium: `currency_import_browser.py` 29/29 dengan kasus baru
+  `manual-nearby-offered-not-skipped` (catatan manual dua hari sebelum mutasi;
+  gagal bila jendelanya 0 hari), `bank_review_browser.py` 12/12,
+  `jago_browser.py` 3/3, `backfill_browser.py` 2/2, `source_browser.py` 5/5,
+  `recovery_browser.py` 16/16, `browser_smoke.py` 39 skenario.
+  *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Nominal tetap
+  harus sama persis: beda 0,01 tidak ditawarkan (di luar perbaikan yang
+  diminta). Baris yang sudah dikenal dan penolakan pelengkapan mutasi hanya
+  diuji di tingkat unit, belum lewat layar. Seberapa sering jendela ±3 hari
+  menambah permintaan keputusan pada data asli belum diukur.
 
 - [ ] **MW-91 — Ikon transaksi dan dompet di tema gelap mendapat warna semantiknya** (S) *(sebagian)*
   Di tema gelap semua varian `.transaction-icon`, `.stat-icon`, dan

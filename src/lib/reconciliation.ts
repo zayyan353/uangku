@@ -2,6 +2,7 @@ import { createPostingDateIndex, entryPostings, walletBalanceAt, type Entry } fr
 import { serializeSourceWire } from './sourceCodec';
 import { validateSourceDocument, type SourceDocument, type SourceFact, type SourceStatement } from './sourceModel';
 import { manualSourceCandidates } from './sourceCommands';
+import { nearbyDates } from './importCommit';
 
 export interface CompletionDecision { reason: string; at: string; rebase?: boolean; includeExcluded?: boolean }
 export interface StatementInspection {
@@ -114,7 +115,7 @@ export function prepareStatementCompletion(data: SourceDocument,statementId: str
     if(disposition?.kind==='deleted'||disposition?.kind==='excluded'&&!decision.includeExcluded)continue;
     if(m.deletedTransfers?.some(row=>refs(row.link??{}).includes(sourceId)))continue;
     if(aliases.has(fact.fingerprint))throw new Error('Catatan impor lama atau file lain sudah memakai mutasi ini. Tinjau lewat impor ulang sebelum pelengkapan.');
-    if(manual.has(`${fact.walletId}:${fact.postedOn}:${fact.signedAmount}`)||manual.has(`${fact.walletId}:?:${fact.signedAmount}`))throw new Error('Ada kandidat catatan manual pada tanggal dan nominal sumber yang sama, atau transfer dengan tanggal sisi terkait belum diketahui. Tinjau impor ulang dan pilih transaksi berbeda secara eksplisit bila ini mutasi lain; asosiasi tidak ditebak.');
+    if(nearbyDates(fact.postedOn).some(day=>manual.has(`${fact.walletId}:${day}:${fact.signedAmount}`))||manual.has(`${fact.walletId}:?:${fact.signedAmount}`))throw new Error('Ada kandidat catatan manual dengan nominal sumber yang sama pada tanggal yang sama atau berdekatan, atau transfer dengan tanggal sisi terkait belum diketahui. Tinjau impor ulang dan pilih transaksi berbeda secara eksplisit bila ini mutasi lain; asosiasi tidak ditebak.');
     if(fact.postedOn<baseline!.boundary.date)throw new Error('Mutasi sebelum titik awal saldo harus masuk lewat pelengkapan mutasi lama, bukan ditambahkan langsung.');
     let id=`complete:${sourceId}`;for(let suffix=1;ids.has(id);suffix++)id=`complete:${sourceId}:${suffix}`;
     const saved=annotations.get(sourceId),chosen=saved?.confirmedType??'unreviewed';

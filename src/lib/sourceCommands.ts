@@ -1,7 +1,7 @@
 /** Source-aware commands. No command invents bank facts from mutable entries. */
 import { validateEntry, walletBalance, transferPostingDates, createPostingDateIndex, entryPostings, type Entry, type State, type Wallet } from './finance';
 import { executeTransferCommand } from './transferCommands';
-import { inspectImport, prepareImport, type ImportDecisions, type ImportInspection } from './importCommit';
+import { inspectImport, MANUAL_MATCH_DAYS, nearbyDates, prepareImport, type ImportDecisions, type ImportInspection } from './importCommit';
 import { entriesFromImport, type ImportPreview, type ImportRow } from './importer';
 import { serializeSourceWire } from './sourceCodec';
 import { decodeXmlCharacterReference } from './xmlCharacterReferences';
@@ -221,8 +221,10 @@ export function manualSourceCandidates(data:SourceDocument):Map<string,Entry[]> 
   }
   return result;
 }
-function manualMatches(index:SourceIndex,walletId:string,date:string,amount:number):Entry[]{
-  return [...new Map([...(index.manualByMovement.get(`${walletId}:${date}:${amount}`)??[]),...(index.manualByMovement.get(`${walletId}:?:${amount}`)??[])].map(entry=>[entry.id,entry])).values()];
+/** `days` widens the date to the same window the import check uses; a posting whose date is unknown always counts. */
+function manualMatches(index:SourceIndex,walletId:string,date:string,amount:number,days=0):Entry[]{
+  const keys=[...nearbyDates(date,days).map(day=>`${walletId}:${day}:${amount}`),`${walletId}:?:${amount}`];
+  return [...new Map(keys.flatMap(key=>index.manualByMovement.get(key)??[]).map(entry=>[entry.id,entry])).values()];
 }
 function sourceContentKey(fact: SourceFact): string {
   return canonical([fact.walletId, fact.currency, fact.postedOn, fact.signedAmount, fact.balanceAfter,
@@ -341,8 +343,8 @@ function reviewFor(data: SourceDocument,wallet: Wallet,row: ImportRow,match: Mat
     'identity-ambiguous':'Mutasi ini cocok dengan beberapa kandidat atau datanya berbeda. Identitasnya belum pasti; tidak ada penautan otomatis.',
     'transfer-limited':'Koreksi atau sumber transfer dari impor lama tidak dipulihkan per satu baris. Gunakan pengaturan seluruh transfer; fakta dan tanggal tetap dipertahankan.',
   };
-  const manual=manualMatches(index,wallet.id,row.date,row.amount);
-  const message=messages[status]+(manual.length?` Ada ${manual.length} kandidat catatan manual pada tanggal dan nominal yang sama. Pilih transaksi berbeda hanya bila ini mutasi lain; untuk asosiasi yang belum pasti, pertahankan catatan.`:'');
+  const manual=manualMatches(index,wallet.id,row.date,row.amount,MANUAL_MATCH_DAYS);
+  const message=messages[status]+(manual.length?` Ada ${manual.length} kandidat catatan manual dengan nominal yang sama pada tanggal yang sama atau berdekatan. Pilih transaksi berbeda hanya bila ini mutasi lain; untuk asosiasi yang belum pasti, pertahankan catatan.`:'');
   return{status,message,signature:canonical([factSignature(factFor(row,wallet,'')),match.signatureParts,match.fact??null,match.link??null,match.entry??null,match.legacyEntry??null,disposition??null,index.annotations.get(match.fact?.id??'')??null,index.overrides.get(match.entry?.id??'')??null,manual.map(entry=>[entry,entry.type==='transfer'?transferPostingDates(entry,index.dates):null])]),
     ...(match.fact?{sourceId:match.fact.id}:{}),...((match.entry??match.legacyEntry??match.deletedTransfer?.entry)?{entryId:(match.entry??match.legacyEntry??match.deletedTransfer?.entry)!.id}:{}),
     allowedResolutions:status==='alternate-source'?['keep','distinct']:status==='identity-ambiguous'||status==='transfer-limited'?['keep']:manual.length?['keep','distinct']:['keep','restore']};
@@ -356,7 +358,7 @@ export function inspectSourcedImport(data:SourceDocument,wallet:Wallet,preview:I
     if(!(decision?.signature===review.signature&&review.allowedResolutions.includes(decision.resolution)&&(original.selected?decision.resolution==='restore'||decision.resolution==='distinct':decision.resolution==='keep'||decision.resolution==='skip')))needsReview=true;
     return{...original,duplicate:false,warning:review.message};});
   const overlaps:ImportInspection['overlaps']={};
-  for(const row of rows){if(sourceReviews[row.id]||row.duplicate)continue;const candidates=manualMatches(index,wallet.id,row.date,row.amount),decision=decisions[row.id];if(!candidates.length&&!decision)continue;
+  for(const row of rows){if(sourceReviews[row.id]||row.duplicate)continue;const candidates=manualMatches(index,wallet.id,row.date,row.amount,MANUAL_MATCH_DAYS),decision=decisions[row.id];if(!candidates.length&&!decision)continue;
     if(index.manualByMovement.has(`${wallet.id}:?:${row.amount}`))row.warning=[row.warning,'Kandidat transfer mempunyai tanggal sisi terkait yang belum diketahui; tanggal tidak diasumsikan dari sisi lain.'].filter(Boolean).join(' ');
     const signature=canonical([[row.id,row.sourceKey,row.date,row.amount,row.balance,row.originalDescription??row.description,row.originalReference??row.reference],candidates.map(entry=>[entry,entry.type==='transfer'?transferPostingDates(entry,index.dates):null]).sort((a,b)=>canonical(a).localeCompare(canonical(b)))]);
     overlaps[row.id]={signature,candidates:candidates.map(entry=>structuredClone(entry))};
@@ -407,7 +409,12 @@ export function prepareSourcedImport(data:SourceDocument,wallet:Wallet,preview:I
     if(freshRows.some(row=>row.selected&&!row.duplicate)){
       const projected=projectedState(data,wallet.id),freshPreview={...preview,rows:freshRows};
       const legacy=inspectImport(projected,wallet,freshPreview,legacyDecisions(decisions)),translated=legacyDecisions(decisions);
-      for(const [id,overlap]of Object.entries(legacy.overlaps))if(translated[id])translated[id]={...translated[id]!,signature:overlap.signature};
+      // The inspection above already demanded a choice for every manual candidate the screen shows. The legacy index
+      // also counts what is not one there: a bank record whose date or amount was corrected (the projection drops its
+      // source key) and a transfer by its record date instead of its posting date in this wallet. Those must not ask
+      // for a choice no row offers, so they follow the row's current selection.
+      const selectedRows=new Set(freshRows.filter(row=>row.selected).map(row=>row.id));
+      for(const [id,overlap]of Object.entries(legacy.overlaps))translated[id]={signature:overlap.signature,resolution:translated[id]?.resolution??(selectedRows.has(id)?'distinct':'skip')};
       const prepared=prepareImport(projected,wallet,freshPreview,translated,useOpening,batchId);
       if(prepared.status!=='ready')return prepared.status==='review'?{status:'review',inspection}:{status:'invalid',inspection,message:prepared.message};
       next.state.wallets=prepared.state.wallets;
