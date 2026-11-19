@@ -777,7 +777,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dijalankan di Chromium (desktop dan emulasi HP). Belum terbukti: pemicu lewat
   impor mutasi dan arsip dompet tidak diulang di browser.
 
-- [ ] **MW-88 — Pesan berbahasa Indonesia untuk file cadangan yang salah atau rusak** (S)
+- [x] **MW-88 — Pesan berbahasa Indonesia untuk file cadangan yang salah atau rusak** (S)
   Memilih file yang bukan cadangan di **Pulihkan cadangan** menampilkan pesan
   parser mentah berbahasa Inggris; cadangan yang terpotong menampilkan
   "Unterminated string in JSON at position 900 (line 1 column 901)"; JSON lain
@@ -832,8 +832,91 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     transaksi-saja dari codec yang lebih baru masih dijawab "bukan cadangan
     yang bisa dibaca" dengan alasannya di detail (bagian MW-102b). Pesan mentah
     di jalur lain (misalnya impor mutasi) tidak disentuh; itu butir b.
-  - [ ] **b.** Pesan yang bisa dipahami saat aksi pengguna gagal di validasi
+  - [x] **b.** Pesan yang bisa dipahami saat aksi pengguna gagal di validasi
     metadata (contohnya galat pada MW-87), bukan teks validator mentah.
+    *Selesai 19 Nov 2026:* teks yang diawali "Metadata sumber tidak valid: "
+    (awalan semua penolakan validator) kini tampil sebagai "Tindakan ini
+    ditolak oleh pemeriksaan data, jadi tidak ada yang disimpan atau diubah."
+    dengan alasan validatornya tertutup di bawah **Detail teknis**. Berlaku
+    untuk semua toast galat di `src/App.tsx` dan untuk kotak galat di jendela
+    dompet, impor mutasi, pelengkapan mutasi, kelola mata uang, dan isi
+    kategori otomatis (`src/lib/failureText.ts`, komponen `FailureText`). Teks
+    lain tidak diubah.
+    Batas yang benar-benar dicapai catatan yang terus tumbuh adalah ukuran
+    8 MB, jadi penolakan ukuran mendapat kalimatnya sendiri tanpa rincian:
+    "Catatan sudah mencapai batas ukuran 8 MB, jadi perubahan ini tidak
+    disimpan. Catatan yang sudah tersimpan tetap utuh." Toast sesudah ganti
+    nama kategori menyelipkan penyebab di tengah kalimatnya; penyebab itu kini
+    ditulis sebagai anak kalimat ("… belum ikut berganti: catatan sudah
+    mencapai batas ukuran 8 MB. …"), dan titik gandanya hilang.
+    *Keputusan agen (mudah dibatalkan):* batas 100 dompet juga mendapat
+    kalimatnya sendiri ("Jumlah dompet sudah mencapai batas 100, jadi dompet
+    baru tidak disimpan."). Kalimat untuk batas 100.000 transaksi dibiarkan
+    ada, tetapi batas itu tidak bisa dicapai: catatan dengan transaksi
+    terkecil sudah ditolak karena ukuran pada sekitar 84 ribu transaksi
+    (diukur peninjau: 84.364 dan 84.771 menurut bentuk transaksinya).
+    *Dari tinjauan (dua peninjau, tiap temuan dibuktikan di browser):*
+    (1) penolakan ukuran 8 MB sebelumnya hanya mendapat kalimat umum,
+    sedangkan sebelum MW ini kata "8 MB" masih terlihat; (2) di lebar desktop
+    **Detail teknis** tampil sebagai kolom kedua di samping kalimat, terjepit
+    58 px; (3) toast ganti nama kategori masih menampilkan teks validator
+    mentah, dan satu tes unit justru mengunci perilaku itu; (4) dari delapan
+    tempat yang dipasangi, hanya jendela dompet yang dijaga tes; (5) kotak
+    galat di kartu file mutasi berubah ukuran huruf dan jaraknya untuk semua
+    galat; (6) teks alasan di kotak galat tema terang hanya 3,98:1 karena
+    `opacity: .9`. Semuanya diperbaiki. Klaim lama di catatan ini bahwa jalur
+    umum "tidak bisa dipicu lewat layar" keliru: catatan di dekat batas 8 MB
+    memicunya dari pemakaian biasa.
+    *Tes:* `npm test` 70 file / 1.839 tes (6 baru di `failureText.test.ts` dan
+    `FailureText.test.tsx`), `npm run build` lulus. Tes unit memakai
+    penolakan yang sungguh dilempar validator untuk batas dompet dan batas
+    ukuran; dua kalimat ukuran dari codec dicocokkan dengan teks di
+    `sourceCodec.ts`. Chromium: `wallet_browser.py` 21/21 dengan kasus
+    `wallet-limit-plain-message` (kalimat batas dompet; di kotak galat itu
+    juga diukur letak **Detail teknis** di bawah kalimat dan `opacity` teks
+    alasannya) dan kasus baru `validator-refusal-plain-everywhere` (catatan
+    sintetis 40 byte di bawah batas: jendela dompet, toast transaksi, kotak
+    simpan impor, dan toast ganti nama kategori semuanya menampilkan kalimat
+    batas ukuran, tanpa teks validator di layar, dan byte tersimpan tidak
+    berubah). Enam mutan (kalimat ukuran dicabut, toast tidak dipetakan, kotak
+    impor tidak dipasangi, toast ganti nama seperti semula, tanpa elemen
+    pembungkus, aturan `opacity` dicabut) masing-masing menggagalkan kasus
+    yang menjaganya.
+    *WebKit (run CI pertama PR #66 merah):* catatan sintetis itu, ±2,85 juta
+    karakter, ditolak kuota `localStorage` WebKit (`QuotaExceededError`)
+    saat Playwright mengisi `storage_state`, jadi kasusnya gagal sebelum
+    halaman dibuka. Salahnya di tes. Catatan itu kini ditulis oleh skrip awal
+    halaman saja. Di mesin yang menolaknya kasus melaporkan
+    `size_limit_checked: false` dan nama galat mesinnya, tanpa menjalankan
+    langkahnya; Chromium dan Firefox wajib menyimpan catatan itu dan
+    menjalankan semua langkah. Pengukuran letak **Detail teknis** dipindah ke
+    `wallet-limit-plain-message` supaya berjalan di ketiga mesin; mutan
+    `opacity` dan mutan tanpa-pembungkus diulang di tempat barunya dan
+    keduanya gagal. Cabang "mesin menolak" dibuktikan di Chromium dengan
+    penolakan buatan: kasusnya gagal selama penjaga Chromium ada, dan melapor
+    seperti di atas bila penjaga itu dicabut.
+    Juga lulus: `currency_import_browser.py` 28/28, `category_browser.py`
+    27/27, `bank_review_browser.py` 12/12, `source_browser.py` 5/5,
+    `recovery_browser.py` 16/16, `browser_smoke.py` 39 skenario,
+    `theme_browser.py` 21/21.
+    *Belum terbukti:* Firefox dan WebKit hanya lewat CI (lokal hanya
+    Chromium). Di WebKit empat tempat penolakan ukuran tidak diuji: kuotanya
+    menolak catatan sintetis itu, jadi batas 8 MB validator tidak terjangkau
+    di sana dengan catatan ini; apakah catatan berbentuk lain bisa
+    menjangkaunya di WebKit tidak diperiksa. Kalimat umum
+    dengan rincian tidak lagi bisa dipicu lewat layar sesudah batas ukuran
+    mendapat kalimatnya sendiri, jadi letak rinciannya diuji dengan markup
+    `FailureText` yang disisipkan ke kotak galat jendela dompet, bukan lewat
+    penolakan sungguhan. Kotak galat di kelola mata uang, pelengkapan mutasi,
+    dan isi kategori otomatis tidak dipicu di browser (yang terakhir tidak
+    pernah menerima teks validator karena galatnya ditangkap menjadi toast).
+    Saat sebuah dialog terbuka, **Detail teknis** di toast tidak bisa dicapai
+    dengan Tab (perangkap fokus dialog sudah ada sebelumnya), dan pada lebar
+    320 toast menutupi judul dialog. Bila catatan yang tersimpan sendiri
+    ditolak saat dimuat, kotak status masih menampilkan teks validator mentah
+    (bukan aksi pengguna; belum ada MW-nya). Kotak galat di formulir
+    transaksi, kelola kategori, dan pemeta CSV tidak diubah karena galatnya
+    berasal dari pemeriksaan formulir, bukan validator.
 
 - [ ] **MW-89 — Unduh CSV: transfer bertanda benar, berbiaya, dan bermata uang tujuan** (S) — **butuh keputusan**
   Transfer Bank Jago → Ziraat (Rp 1.000.000 → ₺2.500, biaya Rp 6.500) diekspor

@@ -17,7 +17,7 @@ import time
 import traceback
 from urllib.parse import urlsplit
 
-from browser_support import (backup_action, assert_production_url, install_playwright_path,
+from browser_support import (backup_action, assert_production_url, browser_name, install_playwright_path,
     launch_browser, new_page, read_document, stored_document)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
@@ -89,23 +89,33 @@ def without_archives(data):
     return result
 
 
+SEED_REFUSED = '__uangkuSeedRefused'
+
+
 class Case:
-    def __init__(self,browser,args,name,*,data=None,width=1440,theme='light',init=None):
+    def __init__(self,browser,args,name,*,data=None,width=1440,theme='light',init=None,seed=None):
+        """`data` normally travels in the context's storage_state. With `seed`, a script that writes the same bytes
+        itself, the ledger is left out of storage_state: a value an engine's quota refuses would otherwise fail the
+        whole context before any page exists. The script reports a refusal in window[SEED_REFUSED]; the case then
+        has no ledger and `seed_refused` names the engine's error."""
         self.args,self.name,self.width = args,name,width
         self.data = copy.deepcopy(data if data is not None else document())
         self.raw = compact(self.data)
         self.byte_checks,self.semantic_checks = 0,0
-        self.errors,self.contrasts = [],[]
+        self.errors,self.contrasts,self.notes = [],[],{}
         parts = urlsplit(args.url)
+        stored = [{'name':'uangku:theme:v1','value':theme},
+            {'name':'uangku:preferences:v1','value':compact({'currency':'TRY','lastWallets':{'TRY':'bank'}})}]
+        if seed is None:stored.insert(0,{'name':FINANCE,'value':self.raw})
         self.context = browser.new_context(viewport={'width':width,'height':1000 if width>600 else 844},
             is_mobile=width<600,has_touch=width<600,color_scheme=theme,
             timezone_id='Europe/Istanbul',accept_downloads=True,
-            storage_state={'cookies':[],'origins':[{'origin':f'{parts.scheme}://{parts.netloc}',
-                'localStorage':[{'name':FINANCE,'value':self.raw},
-                    {'name':'uangku:theme:v1','value':theme},
-                    {'name':'uangku:preferences:v1','value':compact({'currency':'TRY','lastWallets':{'TRY':'bank'}})}]}]})
+            storage_state={'cookies':[],'origins':[{'origin':f'{parts.scheme}://{parts.netloc}','localStorage':stored}]})
+        if seed:self.context.add_init_script(seed)
         if init:self.context.add_init_script(init)
         self.page = self.new_page()
+        self.seed_refused = self.page.evaluate('(name)=>window[name]||null',SEED_REFUSED) if seed else None
+        if self.seed_refused:return
         nav(self.page,'Dompet')
         self.unchanged()
 
@@ -299,6 +309,170 @@ def archive_history(case):
 
 
 
+def wallet_limit_plain(case):
+    """MW-88b: the validator's refusal of a 101st wallet is shown as a plain sentence, not as validator text."""
+    p=case.page;dialog=case.form()
+    dialog.get_by_label('Nama dompet',exact=True).fill('Synthetic wallet 101')
+    dialog.get_by_role('button',name='Simpan dompet',exact=True).click()
+    expect(dialog.get_by_role('alert')).to_have_text('Jumlah dompet sudah mencapai batas 100, jadi dompet baru tidak disimpan.')
+    expect(p.locator('body')).not_to_contain_text('Metadata sumber tidak valid')
+    expect(dialog.locator('details')).to_have_count(0)
+    expect(dialog).to_be_visible()
+    case.unchanged();case.semantic_checks+=1
+    detail_under_sentence(case,dialog.get_by_role('alert'))
+
+
+def detail_under_sentence(case, box):
+    """MW-88b: a refusal that keeps a reason shows it under the sentence, not beside it.
+
+    That markup cannot be reached from the screen without a bug, so an error box the app has put up is given what
+    FailureText renders for it (pinned in FailureText.test.tsx). The box used is one every engine can reach."""
+    box.evaluate("""(box) => { box.innerHTML = '<span class="failure-text">Tindakan ini ditolak oleh pemeriksaan data, jadi tidak ada yang disimpan atau diubah.'
+        + '<details class="failure-detail"><summary>Detail teknis</summary><span>Entry creation origin tidak ditemukan.</span></details></span>'; }""")
+    for opened in (False, True):
+        if opened: box.locator('summary').click()
+        shape = box.evaluate("""(box) => { const text = document.createRange(); text.selectNode(box.querySelector('.failure-text').firstChild);
+            const sentence = text.getBoundingClientRect(), details = box.querySelector('details').getBoundingClientRect(), summary = box.querySelector('summary').getBoundingClientRect();
+            return { below: details.top >= sentence.bottom - 1, left: Math.abs(details.left - sentence.left) <= 2, summaryHeight: summary.height,
+                     sentenceWidth: sentence.width, boxWidth: box.getBoundingClientRect().width, opacity: getComputedStyle(box.querySelector('details > span')).opacity }; }""")
+        assert shape['below'] and shape['left'], f'Detail teknis is beside the sentence: {shape}'
+        assert shape['summaryHeight'] < 30, f'Detail teknis wraps onto two lines: {shape}'
+        assert shape['sentenceWidth'] > shape['boxWidth'] * .6, f'The sentence is squeezed: {shape}'
+        assert shape['opacity'] == '1', shape
+    expect(box.locator('details > span')).to_be_visible()
+    box.screenshot(path=str(case.args.output / f'{case.name}-detail-under-sentence.png'))
+    case.semantic_checks += 1
+
+
+LEDGER_LIMIT = 8 * 1024 * 1024
+LEDGER_TOO_LARGE = 'Catatan sudah mencapai batas ukuran 8 MB, jadi perubahan ini tidak disimpan. Catatan yang sudah tersimpan tetap utuh.'
+
+
+def near_limit_fixture():
+    """A valid ledger 40 bytes below the validator's 8 MiB limit, so any change that adds bytes is refused for size.
+
+    The notes are 3-byte characters: the limit counts UTF-8 bytes, and this keeps the text near 2.85 million UTF-16
+    units. Chromium and Firefox store that. WebKit does not: its localStorage quota is smaller and it refuses the
+    value with QuotaExceededError. Returns the document and a seed script for Case that writes the same bytes, or
+    records the engine's refusal in window[SEED_REFUSED]. storage_state is not used for it: a value this large does
+    not always arrive that way, and one the engine refuses fails the whole context there."""
+    def row(id_, amount, note):
+        return {'id': id_, 'date': '2026-10-31', 'type': 'expense', 'walletId': 'bank', 'amount': amount,
+                'category': 'Pendidikan', 'note': note}
+    size = lambda value: len(compact(value).encode('utf-8'))
+    data = document(wallets=[wallet('bank', BANK, 10000)], entries=[])
+    rows = data['state']['entries']
+    target = LEDGER_LIMIT - 40
+    big = 0
+    while size(data) + 12200 < target:
+        rows.append(row(f'big-{big:04d}', 1000 + big, '€' * 4000)); big += 1
+    pads = []
+    while True:
+        rows.append(row(f'pad-{len(pads)}', 5, ''))
+        missing = target - size(data)
+        assert missing >= 0, missing
+        pads.append(min(missing, 3800))
+        rows[-1]['note'] = 'y' * pads[-1]
+        if missing <= 3800: break
+    assert size(data) == target, (size(data), target)
+    script = ('(() => { const key = %s; if (localStorage.getItem(key) !== null) return; const entries = [];'
+              "const row = (id, amount, note) => ({ id, date: '2026-10-31', type: 'expense', walletId: 'bank', amount, category: 'Pendidikan', note });"
+              "for (let i = 0; i < %d; i++) entries.push(row('big-' + String(i).padStart(4, '0'), 1000 + i, '€'.repeat(4000)));"
+              "%s.forEach((length, i) => entries.push(row('pad-' + i, 5, 'y'.repeat(length))));"
+              "try { localStorage.setItem(key, JSON.stringify({ app: 'uangku', version: 1, demo: false, state: { version: 1,"
+              " wallets: [{ id: 'bank', name: %s, currency: 'TRY', kind: 'bank', openingBalance: 10000 }], entries } })); }"
+              " catch (error) { window[%s] = (error && error.name) || String(error); } })()"
+              ) % (json.dumps(FINANCE), big, json.dumps(pads), json.dumps(BANK), json.dumps(SEED_REFUSED))
+    return data, script
+
+
+def validator_refusal_surfaces(case):
+    """MW-88b: at the ledger's size limit every place that reports a refused save says so in plain words.
+
+    The limit is what a growing ledger reaches by ordinary use, so each place is driven for real: the wallet window,
+    the transaction toast, the import box, and the toast after a category rename. Nothing is written in any of them.
+
+    An engine whose own storage quota refuses the near-limit ledger never gets to the validator's limit with it. That
+    is a finding about that engine, not a pass of these messages: it is reported and no step runs. Chromium and
+    Firefox hold the ledger and must not get there."""
+    if case.seed_refused:
+        assert browser_name() not in ('chromium', 'firefox'), f'{browser_name()} refused the near-limit ledger: {case.seed_refused}'
+        case.notes.update(size_limit_checked=False, ledger_refused_by_engine=case.seed_refused)
+        return
+    case.notes['size_limit_checked'] = True
+    p = case.page
+    body = p.locator('body')
+
+    def plain(place):
+        expect(place).to_contain_text('batas ukuran 8 MB')
+        expect(body).not_to_contain_text('Metadata sumber tidak valid')
+        expect(body).not_to_contain_text('Proyeksi finansial')
+        expect(place.locator('details')).to_have_count(0)
+        case.unchanged(); case.semantic_checks += 1
+
+    # 1. The wallet window: its own error box.
+    dialog = case.form()
+    dialog.get_by_label('Nama dompet', exact=True).fill('Synthetic wallet at the limit')
+    dialog.get_by_role('button', name='Simpan dompet', exact=True).click()
+    box = dialog.get_by_role('alert')
+    expect(box).to_have_text(LEDGER_TOO_LARGE)
+    plain(box)
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    dialog.get_by_role('button', name='Buang perubahan', exact=True).click()
+    expect(p.get_by_role('dialog')).to_have_count(0)
+
+    # 2. A transaction: the toast, with the form left open.
+    nav(p, 'Ringkasan')
+    p.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+    dialog = p.get_by_role('dialog')
+    dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+    dialog.get_by_label('Nominal', exact=True).fill('25')
+    dialog.get_by_label(re.compile('^Keterangan')).fill('Synthetic at the limit')
+    dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+    toast = p.locator('.toast.error')
+    expect(toast).to_have_text(LEDGER_TOO_LARGE)
+    plain(toast)
+    expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('25')
+    toast.get_by_role('button', name='Tutup pemberitahuan', exact=True).click()
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    p.get_by_role('button', name='Buang isian', exact=True).click()
+    expect(p.get_by_role('dialog')).to_have_count(0)
+
+    # 3. An import: the box next to the save button, with the preview kept.
+    path = case.args.output / f'{case.name}-import.csv'
+    path.write_text('date,reference,description,amount,balance,currency\n2026-10-31,SYN-LIMIT-1,SYNTHETIC limit import row,-25.25,74.75,TRY\n', encoding='utf-8')
+    nav(p, 'Impor mutasi')
+    p.get_by_role('button', name='CSV / Excel umum', exact=True).click()
+    p.get_by_label('Dompet impor', exact=True).select_option('bank')
+    p.get_by_label('File mutasi umum', exact=True).set_input_files(str(path))
+    expect(p.get_by_label('Baris judul kolom', exact=True)).to_be_visible()
+    p.get_by_label('Format tanggal', exact=True).select_option('iso')
+    p.get_by_label('Pemisah desimal', exact=True).select_option('.')
+    p.get_by_label('Urutan mutasi', exact=True).select_option('oldest')
+    p.get_by_label('Konfirmasi mata uang file', exact=True).check()
+    p.get_by_role('button', name='Buat pratinjau impor', exact=True).click()
+    expect(p.get_by_role('heading', name='Periksa sebelum disimpan', exact=True)).to_be_visible()
+    p.get_by_role('button', name='Simpan 1 transaksi', exact=True).click()
+    saving = p.locator('.import-save-error')
+    expect(saving).to_have_text(LEDGER_TOO_LARGE)
+    plain(saving)
+    expect(p.get_by_role('heading', name='Periksa sebelum disimpan', exact=True)).to_be_visible()
+
+    # 4. A category rename that cannot follow into the old records: the cause sits inside the toast's sentence.
+    nav(p, 'Transaksi')
+    p.get_by_role('button', name='Kelola kategori', exact=True).click()
+    dialog = p.get_by_role('dialog', name='Kelola kategori', exact=True)
+    dialog.get_by_role('button', name='Ganti nama kategori Pendidikan', exact=True).click()
+    rename = dialog.get_by_test_id('category-rename')
+    rename.get_by_label('Nama baru untuk kategori Pendidikan', exact=True).fill('Pendidikan dan kursus')
+    expect(rename.get_by_label('Ganti juga di catatan lama', exact=True)).to_be_checked()
+    rename.get_by_role('button', name='Terapkan nama', exact=True).click()
+    dialog.get_by_role('button', name='Simpan pengaturan', exact=True).click()
+    expect(toast).to_have_text('Nama kategori sudah tersimpan, tetapi catatan lama atau template belum ikut berganti: catatan sudah mencapai batas ukuran 8 MB. '
+                               'Catatan itu tetap memakai nama lama dan bisa diganti lewat kategori massal di Transaksi.')
+    plain(toast)
+
+
 def archive_last_active_newrecord(case):
     p=case.page;before=stored_document(p);after=case.archive();raw=case.raw_now()
     assert archives(after)=={'bank'} and without_archives(after)==without_archives(before)
@@ -474,6 +648,8 @@ def cases():
         ('archive-backup-v5-restore-roundtrip',{'data':history_fixture()},archive_export_restore),
         ('archive-last-active-new-record-route',{'data':document(wallets=[wallet('bank',BANK,10000)],entries=[entry('old',1000)])},archive_last_active_newrecord),
         ('used-delete-blocked',{'data':history_fixture()},used_delete_blocked),
+        ('wallet-limit-plain-message',{'data':document(wallets=[wallet(f'limit-{i}',f'Synthetic limit {i:03d}') for i in range(100)])},wallet_limit_plain),
+        ('validator-refusal-plain-everywhere',dict(zip(('data','seed'),near_limit_fixture())),validator_refusal_surfaces),
         ('nonzero-wallet-archive-retains-balance',{'data':document(wallets=[wallet('bank',BANK,10000)])},nonzero_archive),
         ('wallet-header-uses-actual-cutoff',{'data':history_fixture()},actual_header_cutoff),
         ('stale-edit-cannot-resurrect-deleted-wallet',{},stale_edit_deleted),
@@ -511,7 +687,7 @@ def main():
                 finally:
                     if case:
                         result.update(exact_financial_byte_checks=case.byte_checks,semantic_checks=case.semantic_checks,
-                            page_errors=case.errors,contrasts=case.contrasts);case.context.close()
+                            page_errors=case.errors,contrasts=case.contrasts,**case.notes);case.context.close()
                 result['seconds']=round(time.monotonic()-start,3);results.append(result)
                 print(compact({k:v for k,v in result.items() if k not in ['traceback','contrasts']}),flush=True)
         finally:browser.close()
