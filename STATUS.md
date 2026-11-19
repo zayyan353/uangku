@@ -24,6 +24,7 @@ Diperbarui: 9 November 2026 (MW-02). Status terkini yang pasti ada di GitHub Act
   CSV/TSV/XLSX umum dengan kolom saldo berjalan. PDF bank lain, XLS lama, dan
   file tanpa saldo belum didukung. Impor tidak menukar mata uang.
 - Batas: file impor 8 MiB, data keuangan 8 MiB, pengaturan kategori 128 KiB.
+  Kuota browser lebih dulu tercapai: 5.242.880 karakter per situs di Chrome/Edge.
 - Fakta sumber, tanggal, dan asosiasi legacy yang hilang tidak ditebak.
 - Belum diuji di Safari/iOS/Android fisik maupun screen reader manual.
 

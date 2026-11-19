@@ -75,6 +75,19 @@ export function prepareCandidate(value: unknown): PreparedCandidate {
   return { data: freezeData(data), raw };
 }
 
+/** A write the browser refused for lack of room. Chromium and WebKit name it QuotaExceededError (legacy code 22); Firefox also uses NS_ERROR_DOM_QUOTA_REACHED (code 1014). */
+export function isQuotaError(reason: unknown): boolean {
+  if (reason === null || typeof reason !== 'object') return false;
+  const { name, code } = reason as { name?: unknown; code?: unknown };
+  return name === 'QuotaExceededError' || name === 'NS_ERROR_DOM_QUOTA_REACHED' || code === 22 || code === 1014;
+}
+/**
+ * Says what happened and what to do. The advice is the one download that works while a save is pending:
+ * a full backup is refused until the unsaved work is resolved. Deleting bank rows is not suggested: bank
+ * facts are kept, and it is untested whether that frees room.
+ */
+export const STORAGE_FULL_MESSAGE = 'Penyimpanan browser penuh, jadi perubahan ini belum tersimpan. Catatan yang sudah tersimpan tetap utuh. Unduh pekerjaan yang belum tersimpan: file itu memuat seluruh transaksi termasuk perubahan ini.';
+
 async function commitPrepared(
   prepared: PreparedCandidate, expectedToken: string | null,
   storage: PersistenceStorage | undefined, locks: PersistenceLocks | undefined,
@@ -92,8 +105,8 @@ async function commitPrepared(
       storage.setItem(STORAGE_KEY, prepared.raw);
       return { status: 'saved' as const, data: prepared.data, token: prepared.raw };
     });
-  } catch {
-    return { status: 'failed', message: 'Penyimpanan gagal atau penuh. Perubahan lokal belum tersimpan; unduh pemulihan atau coba lagi.' };
+  } catch (reason) {
+    return { status: 'failed', message: isQuotaError(reason) ? STORAGE_FULL_MESSAGE : 'Penyimpanan gagal. Perubahan lokal belum tersimpan; unduh pemulihan atau coba lagi.' };
   }
 }
 

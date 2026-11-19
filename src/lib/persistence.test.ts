@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { commitCandidate, LedgerPersistenceController, prepareCandidate, type PersistenceLocks, type PersistencePorts, type PersistenceStorage } from './persistence';
+import { commitCandidate, isQuotaError, LedgerPersistenceController, prepareCandidate, STORAGE_FULL_MESSAGE, type PersistenceLocks, type PersistencePorts, type PersistenceStorage } from './persistence';
 import { STORAGE_KEY, makeDemoData, serializeBackup, validateBackup, type StoredData, type StoredRead } from './storage';
 import { RESTORE_JOURNAL } from './fullRestoreStorage';
 
@@ -335,6 +335,39 @@ describe('coordinated persistence: fresh minimum reconstruction', () => {
     expect(env.storage.writes).toBe(0);
     const throwingLocks: PersistenceLocks = { runExclusive: async () => { throw new Error('lock error'); } };
     expect((await commitCandidate(data(['one']), null, env.storage, throwingLocks)).status).toBe('failed');
+  });
+
+  it('MW-97: names a full browser store and keeps the generic message for other failures', async () => {
+    const refusing = (reason: unknown): PersistenceStorage => ({ getItem: () => null, removeItem: () => undefined, setItem: () => { throw reason; } });
+    const locks = environment().locks;
+    const full = 'Penyimpanan browser penuh, jadi perubahan ini belum tersimpan. Catatan yang sudah tersimpan tetap utuh. Unduh pekerjaan yang belum tersimpan: file itu memuat seluruh transaksi termasuk perubahan ini.';
+    const generic = 'Penyimpanan gagal. Perubahan lokal belum tersimpan; unduh pemulihan atau coba lagi.';
+    expect(STORAGE_FULL_MESSAGE).toBe(full);
+    // Chromium and WebKit, Firefox's legacy name, and the legacy numeric codes on an object without a usable name.
+    for (const reason of [new DOMException('The quota has been exceeded.', 'QuotaExceededError'), { name: 'NS_ERROR_DOM_QUOTA_REACHED', code: 1014 }, { name: 'Error', code: 22 }]) {
+      expect(isQuotaError(reason)).toBe(true);
+      expect(await commitCandidate(data(['one']), null, refusing(reason), locks)).toEqual({ status: 'failed', message: full });
+    }
+    for (const reason of [new Error('QuotaExceededError'), new DOMException('Denied', 'SecurityError'), 'QuotaExceededError', null, undefined]) {
+      expect(isQuotaError(reason)).toBe(false);
+      expect(await commitCandidate(data(['one']), null, refusing(reason), locks)).toEqual({ status: 'failed', message: generic });
+    }
+    // The advice never includes deleting records to make room.
+    expect(full).not.toMatch(/hapus/i);
+  });
+
+  it('MW-97: a refused write leaves the stored ledger and the unsaved draft as they were', async () => {
+    const env = environment();
+    expect((await commitCandidate(data(['kept']), null, env.storage, env.locks)).status).toBe('saved');
+    const before = env.storage.raw;
+    const controller = env.controller();
+    const original = env.storage.setItem.bind(env.storage);
+    env.storage.setItem = () => { throw new DOMException('The quota has been exceeded.', 'QuotaExceededError'); };
+    expect(await controller.setCandidate(data(['kept', 'new']))).toBe(false);
+    expect(env.storage.raw).toBe(before);
+    expect(controller.getSnapshot()).toMatchObject({ status: 'failed', dirty: true, error: STORAGE_FULL_MESSAGE });
+    expect(controller.getSnapshot().data.state.entries.map(entry => entry.id)).toEqual(['kept', 'new']);
+    env.storage.setItem = original;
   });
 
   it('uses compact JSON without changing Unicode or the v1 envelope', async () => {
