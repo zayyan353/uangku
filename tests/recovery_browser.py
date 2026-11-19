@@ -168,13 +168,23 @@ def test_clean_sync_and_concurrent_forms(browser, output):
         for tab in (a, b):
             tab.wait_for_function('''() => !document.querySelector('[role=dialog]')
               || document.querySelector('[data-testid=save-status]')?.textContent.includes('konflik')''')
-        notes = persisted_notes(a)
-        assert 'Sequential A' in notes and 'Sequential B' in notes
-        assert ('Concurrent A' in notes) or ('Concurrent B' in notes)
-        assert len(notes) in [3, 4]
-        if len(notes) == 3:
-            loser = a if 'Concurrent A' not in notes else b
-            expect(loser.get_by_test_id('save-status')).to_contain_text('konflik')
+        # Who won is read from each tab itself: a form closes only after its save succeeded. Reading the
+        # ledger through one tab is not enough to tell, because in Firefox a tab's view of localStorage can
+        # trail another tab's write; that once named a tab that had saved as the loser.
+        tabs = ((a, 'Concurrent A'), (b, 'Concurrent B'))
+        saved = [note for tab, note in tabs if tab.get_by_role('dialog').count() == 0]
+        assert saved, 'Neither concurrent save succeeded'
+        expected = sorted(['Sequential A', 'Sequential B', *saved])
+        # Then both tabs must come to hold exactly the records of the saves that reported success.
+        for tab, _ in tabs:
+            tab.wait_for_function('''({key, expected}) => JSON.stringify(JSON.parse(localStorage.getItem(key))
+              .state.entries.map(entry => entry.note).sort()) === JSON.stringify(expected)''',
+                                  arg={'key': KEY, 'expected': expected})
+        assert sorted(persisted_notes(a)) == expected == sorted(persisted_notes(b))
+        for tab, note in tabs:
+            if note not in saved:
+                expect(tab.get_by_test_id('save-status')).to_contain_text('konflik')
+                expect(tab.get_by_role('dialog')).to_be_visible()
 
 
 def test_quota_retry(browser, output):
