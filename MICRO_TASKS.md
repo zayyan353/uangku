@@ -872,20 +872,38 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     penolakan yang sungguh dilempar validator untuk batas dompet dan batas
     ukuran; dua kalimat ukuran dari codec dicocokkan dengan teks di
     `sourceCodec.ts`. Chromium: `wallet_browser.py` 21/21 dengan kasus
-    `wallet-limit-plain-message` dan kasus baru
-    `validator-refusal-plain-everywhere` (catatan sintetis 40 byte di bawah
-    batas: jendela dompet, toast transaksi, kotak simpan impor, dan toast ganti
-    nama kategori semuanya menampilkan kalimat batas ukuran, tanpa teks
-    validator di layar, dan byte tersimpan tidak berubah; letak **Detail
-    teknis** di bawah kalimat dan `opacity` teks alasannya diukur). Enam
-    mutan (kalimat ukuran dicabut, toast tidak dipetakan, kotak impor tidak
-    dipasangi, toast ganti nama seperti semula, tanpa elemen pembungkus,
-    aturan `opacity` dicabut) masing-masing menggagalkan kasus itu.
+    `wallet-limit-plain-message` (kalimat batas dompet; di kotak galat itu
+    juga diukur letak **Detail teknis** di bawah kalimat dan `opacity` teks
+    alasannya) dan kasus baru `validator-refusal-plain-everywhere` (catatan
+    sintetis 40 byte di bawah batas: jendela dompet, toast transaksi, kotak
+    simpan impor, dan toast ganti nama kategori semuanya menampilkan kalimat
+    batas ukuran, tanpa teks validator di layar, dan byte tersimpan tidak
+    berubah). Enam mutan (kalimat ukuran dicabut, toast tidak dipetakan, kotak
+    impor tidak dipasangi, toast ganti nama seperti semula, tanpa elemen
+    pembungkus, aturan `opacity` dicabut) masing-masing menggagalkan kasus
+    yang menjaganya.
+    *WebKit (run CI pertama PR #66 merah):* catatan sintetis itu, ±2,85 juta
+    karakter, ditolak kuota `localStorage` WebKit (`QuotaExceededError`)
+    saat Playwright mengisi `storage_state`, jadi kasusnya gagal sebelum
+    halaman dibuka. Salahnya di tes. Catatan itu kini ditulis oleh skrip awal
+    halaman saja. Di mesin yang menolaknya kasus melaporkan
+    `size_limit_checked: false` dan nama galat mesinnya, tanpa menjalankan
+    langkahnya; Chromium dan Firefox wajib menyimpan catatan itu dan
+    menjalankan semua langkah. Pengukuran letak **Detail teknis** dipindah ke
+    `wallet-limit-plain-message` supaya berjalan di ketiga mesin; mutan
+    `opacity` dan mutan tanpa-pembungkus diulang di tempat barunya dan
+    keduanya gagal. Cabang "mesin menolak" dibuktikan di Chromium dengan
+    penolakan buatan: kasusnya gagal selama penjaga Chromium ada, dan melapor
+    seperti di atas bila penjaga itu dicabut.
     Juga lulus: `currency_import_browser.py` 28/28, `category_browser.py`
     27/27, `bank_review_browser.py` 12/12, `source_browser.py` 5/5,
     `recovery_browser.py` 16/16, `browser_smoke.py` 39 skenario,
     `theme_browser.py` 21/21.
-    *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Kalimat umum
+    *Belum terbukti:* Firefox dan WebKit hanya lewat CI (lokal hanya
+    Chromium). Di WebKit empat tempat penolakan ukuran tidak diuji: kuotanya
+    menolak catatan sintetis itu, jadi batas 8 MB validator tidak terjangkau
+    di sana dengan catatan ini; apakah catatan berbentuk lain bisa
+    menjangkaunya di WebKit tidak diperiksa. Kalimat umum
     dengan rincian tidak lagi bisa dipicu lewat layar sesudah batas ukuran
     mendapat kalimatnya sendiri, jadi letak rinciannya diuji dengan markup
     `FailureText` yang disisipkan ke kotak galat jendela dompet, bukan lewat
