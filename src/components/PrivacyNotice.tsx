@@ -1,13 +1,15 @@
 import { Modal } from './Modal';
 import { persistenceLabel, type PersistenceStatus } from '../lib/storagePersistence';
+import { storageUsageText, STORAGE_WARNING_PERCENT, type StorageUsage } from '../lib/storageUsage';
 /** Plain-language boundary disclosure. This component performs no storage writes. */
-export function PrivacyNotice({ onClose, persistence = 'not-requested' }: { onClose: () => void; persistence?: PersistenceStatus }) {
+export function PrivacyNotice({ onClose, persistence = 'not-requested', usage = null }: { onClose: () => void; persistence?: PersistenceStatus; usage?: StorageUsage | null }) {
   const persistenceText = persistenceLabel(persistence);
   return <Modal title="Privasi dan cadangan" subtitle="Pahami tempat catatanmu disimpan" onClose={onClose}>
     <div className="modal-body privacy-notice">
       <h3>Di mana catatanmu disimpan</h3>
       <p>Hanya di browser ini, di perangkat ini. Tidak ada akun dan tidak ada yang dikirim ke server. Browser atau profil lain, juga alamat situs lain, punya catatannya sendiri.</p>
       <p data-testid="storage-persistence" data-status={persistence}><strong>Penyimpanan persisten: {persistenceText.answer}.</strong> {persistenceText.detail}</p>
+      {usage && <p data-testid="storage-usage" data-level={usage.level}><strong>Ruang penyimpanan: {usage.percent}% terpakai.</strong><meter className="storage-meter" aria-label="Ruang penyimpanan terpakai" min={0} max={usage.quotaChars} low={usage.quotaChars * STORAGE_WARNING_PERCENT / 100} high={usage.quotaChars * 0.9} optimum={0} value={Math.min(usage.usedChars, usage.quotaChars)} /> {storageUsageText(usage)}, dihitung dari semua yang tersimpan di alamat situs ini. Bila penuh, simpan atau impor berikutnya ditolak dan catatan yang sudah tersimpan tetap utuh. Batas ini berlaku di Chrome dan Edge; batas browser lain belum diukur dan bisa lebih kecil.</p>}
       <h3>Supaya tidak hilang</h3>
       <p>Menghapus data situs di browser ikut menghapus catatan. Pilih <strong>Cadangkan semuanya</strong> secara berkala dan simpan filenya di tempat pribadi. File cadangan berisi transaksi dan data mutasi bank dalam bentuk yang bisa dibaca siapa pun yang memegangnya; jangan dibagikan atau diunggah ke tempat umum.</p>
       <h3>Pindah perangkat atau browser</h3>

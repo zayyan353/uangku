@@ -932,7 +932,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   unduhan CSV (`uangku-riwayat-…csv`) sudah tertutup pola `*.csv`. Tidak ada
   file terlacak yang cocok dengan pola baru. `AGENTS.md` tidak diubah.
 
-- [ ] **MW-96 — Meter penyimpanan dan peringatan dini** (S)
+- [x] **MW-96 — Meter penyimpanan dan peringatan dini** (S)
   Batas nyata di Chromium adalah 5.242.880 karakter UTF-16 untuk **semua** kunci
   dan nama kunci di satu origin, bukan 8 MiB. Aplikasi membatasi per kunci dalam
   byte UTF-8 (`src/lib/persistence.ts:11,72-73`, `src/lib/storage.ts:7,101`).
@@ -950,6 +950,55 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   browser mana pun; kunci sementara itu selalu dihapus lagi, juga bila uji
   gagal.
   *File:* modul kecil baru + tes, `src/components/PrivacyNotice.tsx`, `src/App.tsx`.
+  *Selesai 19 Nov 2026:* `src/lib/storageUsage.ts` menjumlahkan panjang semua
+  nama kunci dan nilai di `localStorage` (hanya membaca) terhadap 5.242.880
+  karakter. Jendela **Privasi dan cadangan** menampilkan "Ruang penyimpanan: N%
+  terpakai", batang meter, dan angkanya ("3.145.800 dari 5.242.880 karakter"),
+  dengan keterangan bahwa batas itu berlaku di Chrome dan Edge. Mulai 60%
+  muncul banner "Ruang penyimpanan browser terpakai N%." dengan **Cadangkan
+  sekarang** dan **Nanti saja**. Dihitung ulang sesudah tiap simpan dan tiap
+  kali jendela Privasi dibuka.
+  *Keputusan agen (mudah dibatalkan):*
+  - Ambang 60%, bukan 70%. Catatan 10.000 baris impor terukur 64–69%, dan impor
+    5.000 baris sesudahnya yang ditolak; pada 70% sisa ruang (±1,57 juta
+    karakter) tidak cukup untuk satu impor 5.000 baris (1,5–1,9 juta), pada 60%
+    (±2,1 juta) cukup. Satu konstanta di `storageUsage.ts`.
+  - Satu kotak saja di atas halaman (MW-22): peringatan penyimpanan tampil lebih
+    dulu dan pengingat cadangan menunggu. **Nanti saja** menutup keduanya sampai
+    besok, memakai kunci pengingat yang sudah ada (tidak ada kunci baru).
+  - **Cadangkan sekarang** memenuhi peringatan itu: banner hilang selama catatan
+    yang tersimpan sama dengan yang terakhir dicadangkan, dan kembali sesudah
+    simpan berikutnya.
+  - Banner tidak tampil pada data contoh, saat penyimpanan perlu dipulihkan,
+    atau saat ada simpan yang gagal (kotak merahnya sudah memuat unduhan yang
+    bisa dipakai saat itu).
+  - Persen dibulatkan ke bawah dan paling tinggi 100. Uji tulis-lalu-hapus
+    (opsional) tidak dikerjakan.
+  *Dari tinjauan (dua peninjau):* **Cadangkan sekarang** semula tidak menutup
+  banner; ambang 70% tidak memperingatkan pada kasus yang memicu MW ini; banner
+  semula menumpuk di bawah kotak "Belum tersimpan"; dan tes semula tidak
+  mencakup munculnya banner sesudah simpan. Keempatnya diperbaiki.
+  *Tes:* `npm test` 68 file / 1.829 tes (4 baru di
+  `src/lib/storageUsage.test.ts`), `npm run build` lulus. Chromium:
+  `ux_browser.py` 5/5 dengan kasus baru `storage-desktop`, `storage-mobile`,
+  dan `storage-gating`: meter cocok dengan jumlah yang dihitung di halaman;
+  origin diisi sampai 20 karakter di bawah ambang lewat kunci milik halaman
+  lain (meter 59%, tanpa banner), lalu satu simpan lewat aplikasi memunculkan
+  banner tanpa muat ulang; banner menunggu di belakang simpan yang gagal;
+  **Nanti saja** bertahan sesudah muat ulang; **Cadangkan sekarang**
+  menutupnya; data contoh dan data tak terbaca menampilkan meter tanpa banner.
+  Empat perilaku itu dicabut satu per satu dan tiap kali kasusnya gagal.
+  `theme_browser.py` 21/21 dan `browser_smoke.py` 39 skenario; sebelum
+  perbaikan tinjauan juga `kerangka_browser.py`.
+  *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Batas browser
+  lain tidak diukur, jadi di sana persennya bisa terlalu rendah; WebKit
+  menghitung kuota dalam byte, sehingga catatan berisi huruf di luar Latin-1
+  (misalnya keterangan mutasi Ziraat) bisa penuh jauh sebelum meter mencapai
+  100%. Bila mesin lain menolak pengisi ±3,1 juta karakter, kasus browser
+  melaporkan `warning_checked: false` dan tidak menguji banner di mesin itu.
+  Banner mencerminkan yang sudah tersimpan, bukan ukuran impor berikutnya:
+  impor yang lebih besar dari sisa ruang tetap ditolak. Banner menambah ±180 px
+  di layar pertama HP saat tampil.
 
 - [ ] **MW-97 — Pesan yang jelas saat penyimpanan penuh, dan angka kapasitas di dokumen** (S)
   Galat kuota dilebur menjadi satu pesan umum "Penyimpanan gagal atau penuh…"

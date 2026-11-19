@@ -1415,6 +1415,7 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
 /* MW-56: isi modal Privasi selaras dengan modal lain. */
 .privacy-notice p { margin: 0 0 14px; font-size: 14px; line-height: 1.7; color: var(--text-muted); }
 .privacy-notice p:last-child { margin-bottom: 0; }
+.storage-meter { display: block; width: 100%; height: 8px; margin: 4px 0 6px; }
 .privacy-notice p > strong { color: var(--text); font-weight: 620; }
 .privacy-notice p > strong:first-child { display: block; margin-bottom: 2px; }
 @media (max-width: 420px) { .privacy-notice p { font-size: 13px; } }
