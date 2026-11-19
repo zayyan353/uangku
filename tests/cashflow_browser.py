@@ -205,8 +205,27 @@ def reference(case):
     case.totals(19_489_724, 19_038_042, 3_330, 455_012)
 
 
+def purpose(case, income, expense):
+    """MW-128b: the row under the cards reads the period by purpose: confirmed income, confirmed spending, the rest."""
+    row = case.page.get_by_test_id('purpose-summary')
+    net = income - expense
+    for field, value in [('income-total', income), ('expense-total', expense), ('purpose-net', net)]:
+        shown = row.get_by_test_id('cashflow-' + field)
+        expect(shown).to_be_visible()
+        expect(shown).to_have_attribute('data-amount', str(value))
+        text = shown.inner_text()
+        assert re.findall(r'\d[\d.,]*', text) == [money_text(abs(value))], (field, text)
+        signs = ['+' if net > 0 else '−'] if field == 'purpose-net' and net else []
+        assert re.findall(r'[+−-]', text) == signs, (field, text)
+    expect(row).to_contain_text('tanpa pindah uang antar dompetmu')
+    expect(row).to_contain_text('“Perlu dicek” belum ikut sampai ditinjau')
+
+
 def pending_and_adjustment(case):
     case.totals(7_000, 3_100, 10_000, 14_150, 250)
+    # The cards count everything that moved through the account; by purpose the month is 5.000 in and 2.100 out.
+    # The rows that wait for a check, the one-sided movements and the balance adjustment are in neither figure.
+    purpose(case, 5_000, 2_100)
     panel = case.page.locator('.panel').filter(has=case.page.get_by_role(
         'heading', name=re.compile('^Kategori pengeluaran terkonfirmasi')))
     expect(panel).to_be_visible()
@@ -250,6 +269,7 @@ def category_report_overflow(case):
     p.reload(wait_until='networkidle')
     expect(p.get_by_test_id('save-status')).to_contain_text('Tersimpan di browser')
     expect(p.get_by_text('Total laporan arus rekening melewati batas nominal aman.', exact=True)).to_be_visible()
+    expect(p.get_by_test_id('purpose-summary')).to_have_count(0)
     panel = p.locator('.category-panel')
     expect(panel.get_by_text('Total pengeluaran belum dapat dihitung.', exact=True)).to_be_visible()
     expect(panel.get_by_test_id('category-total')).to_have_count(0)
@@ -282,10 +302,14 @@ def period_cutoff(case):
 
 def internal_same_date(case):
     case.totals(0, 200, 15_000, 14_800)
+    # Money moved between the user's own wallets is neither income nor spending in any scope; its fee is spending.
+    purpose(case, 0, 200)
     case.scope('bank')
     case.totals(0, 4_200, 10_000, 5_800)
+    purpose(case, 0, 200)
     case.scope('digital')
     case.totals(4_000, 0, 5_000, 9_000)
+    purpose(case, 0, 0)
     case.scope('all')
     case.totals(0, 200, 15_000, 14_800)
 
@@ -372,6 +396,8 @@ def future_month(case):
     expect(case.page.get_by_test_id('cashflow-reconciliation')).to_have_attribute('data-complete', 'false')
     case.period('all')
     case.totals(7_000, 3_100, 10_000, 14_150, 250)
+    # The income dated after today is not in the figure for "all records up to today".
+    purpose(case, 5_000, 2_100)
 
 
 def cash_archive(case):

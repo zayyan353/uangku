@@ -1910,10 +1910,31 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     Tes profil yang melampaui batas gagal pada kode parkir.
     *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Pada galat
     perhitungan, judul panel lipat masih memakai pesan kosong lama.
-  - [ ] **b.** (S–M) `incomeTotal` di `buildCashflowReport`
+  - [x] **b.** (S–M) `incomeTotal` di `buildCashflowReport`
     (`src/lib/cashflowReport.ts`) dan satu baris ringkas "Pemasukan · Pengeluaran
     · Selisih (tanpa pindah uang antar dompetmu)". Baris "Perlu dicek" belum
     ikut sampai ditinjau.
+    *Selesai 24 Nov 2026:* Ringkasan menampilkan Pemasukan, Pengeluaran,
+    dan Selisih di bawah kartu arus rekening. Ketiganya mengikuti dompet,
+    mata uang, dan periode yang dipilih. Saat panduan awal tampil atau laporan
+    gagal dihitung, baris ini disembunyikan (`CashflowOverview.tsx`).
+    *Keputusan agen (mudah dibatalkan):* `buildCashflowReport` menjumlahkan
+    posting biasa positif yang sudah berjenis `income`. Perlu dicek,
+    perpindahan dana, transfer, dan penyesuaian tidak ikut pemasukan.
+    Pengeluaran memakai `categoryExpenseTotal`, termasuk biaya transfer.
+    Ringkasan hanya membaca jenis dan kategori yang sudah tersimpan.
+    *Dari tinjauan (benar/aman dan tes/tampilan):* transfer TRY ke USD
+    menampilkan pengeluaran biaya ₺2 di sisi pengirim dan pemasukan $0 di
+    penerima. Di batas nominal aman, selisih satu kuruş tampil +₺0,01 pada
+    lebar 320 gelap. Byte catatan tetap identik. Tes membaca nominal dan
+    tanda di layar, termasuk nol tanpa tanda.
+    *Tes:* `npm test` 74 file / 1.893 tes dan build produksi lulus.
+    Chromium: cashflow 20/20, kategori 28/28, kerangka 4/4. Kasus pada kode lama gagal di tiga tes unit dan tiga
+    kasus browser. Mutan semua kredit gagal di dua tes unit dan ketiga kasus
+    browser. Tiga mutan tampilan gagal saat label pemasukan salah, baris
+    muncul bersama panduan awal, atau angka nol muncul saat laporan gagal.
+    Delapan pemeriksaan tambahan mencakup 1440 terang dan 320 gelap.
+    *Belum terbukti:* HP fisik dan pembaca layar belum diuji.
   - [ ] **c.** (S) Angka bulan sebelumnya di baris itu. Catatan: perbandingannya
     bulan penuh lawan bulan berjalan (`KERANGKA_HALAMAN.md` 1.3.2).
 

@@ -43,6 +43,8 @@ export interface CashflowReport {
   /** Confirmed expense purpose only; deliberately narrower than all bank debits. */
   categoryTotals: Array<[string, number]>;
   categoryExpenseTotal: number;
+  /** Confirmed income only: no transfers in, no one-sided movements, no rows that still wait for a check. */
+  incomeTotal: number;
 }
 
 const MAX = BigInt(Number.MAX_SAFE_INTEGER);
@@ -137,6 +139,7 @@ export function buildCashflowReport(data: SourceDocument, query: CashflowQuery):
   let unknownDatePostings = 0, openingUnavailable = false, closingUnavailable = false;
   const groups = new Map<GroupId, { inflow: bigint; outflow: bigint; entries: Set<string> }>();
   const categories = new Map<string, bigint>();
+  let income = 0n;
   const descriptions = indexBankWording(data);
   for (const wallet of wallets) {
     const initial = money(wallet.openingBalance);
@@ -186,6 +189,7 @@ export function buildCashflowReport(data: SourceDocument, query: CashflowQuery):
         const category = posting.role === 'fee' ? 'Biaya transfer' : entry.category.trim() || 'Belum dikategorikan';
         categories.set(category, (categories.get(category) ?? 0n) - amount);
       }
+      if (amount > 0n && posting.role === 'ordinary' && entry.type === 'income') income += amount;
     }
   }
   if (unknownDatePostings && !notStarted) {
@@ -210,5 +214,6 @@ export function buildCashflowReport(data: SourceDocument, query: CashflowQuery):
     categoryTotals: [...categories].map(([name, amount]): [string, number] => [name, safeNumber(amount)])
       .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])),
     categoryExpenseTotal: safeNumber([...categories.values()].reduce((sum, amount) => sum + amount, 0n)),
+    incomeTotal: safeNumber(income),
   };
 }

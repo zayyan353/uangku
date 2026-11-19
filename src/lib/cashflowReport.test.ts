@@ -48,6 +48,8 @@ describe('account cashflow reconciles every signed bank posting', () => {
     expect(result).toMatchObject({ openingBalance: 1_000, inflow: 6_475, outflow: 2_075, closingBalance: 5_400,
       internalNet: 0, adjustment: 0, categoryExpenseTotal: 375, balanceWarning: null });
     expect(result.categoryTotals).toEqual([['Pilihan saya', 350], ['Biaya bank', 25]]);
+    // MW-128b: confirmed income only. The unknown credit and the incoming transfer are money in, not income.
+    expect(result.incomeTotal).toBe(5_075);
     expect(result.breakdown.find(row => row.id === 'transfer')).toMatchObject({ inflow: 800, outflow: 1_500, entryCount: 2 });
     expect(result.breakdown.find(row => row.id === 'other')).toMatchObject({ inflow: 600, outflow: 200, entryCount: 2 });
     reconciles(result);
@@ -317,5 +319,29 @@ describe('safe immutable projection boundaries', () => {
     const result = report(data([ordinary('cash', 100, 'income', '', DATE, 'cash')], [wallet('cash', 'TRY', 'cash', 500)]));
     expect(result).toMatchObject({ scopeWalletIds: [], openingBalance: 0, closingBalance: 0, inflow: 0, outflow: 0, allRecordsBalance: 0 });
     reconciles(result);
+  });
+});
+
+describe('MW-128b confirmed income total', () => {
+  it('counts income entries in the period and scope, and nothing else that came in', () => {
+    const source = data([
+      ordinary('salary', 4_000, 'income'),
+      ordinary('gift', 250, 'income', '', '2026-10-31'),
+      ordinary('earlier', 900, 'income', '', '2026-09-30'),
+      ordinary('later', 700, 'income', '', '2026-11-01'),
+      ordinary('elsewhere', 60, 'income', '', DATE, 'b'),
+      ordinary('waiting', 300, 'unreviewed'),
+      ordinary('moved-in', 800, 'movement'),
+      ordinary('correction', 120, 'adjustment'),
+      transfer('from-b', 'b', 'a', 500, 10),
+      { ...ordinary('bought', 40, 'expense'), category: 'Belanja' },
+    ], [wallet('a', 'TRY', 'bank', 1_000), wallet('b', 'TRY', 'bank', 2_000)]);
+    expect(report(source, { walletId: 'a' })).toMatchObject({ incomeTotal: 4_250, categoryExpenseTotal: 40 });
+    expect(report(source)).toMatchObject({ incomeTotal: 4_310, categoryExpenseTotal: 50 });
+    expect(report(source, { period: 'all', walletId: 'a' }).incomeTotal).toBe(5_150);
+    expect(report(source, { month: '2026-12' }).incomeTotal).toBe(0);
+  });
+  it('is zero for a ledger without income', () => {
+    expect(report(data([{ ...ordinary('bought', 40, 'expense'), category: 'Belanja' }])).incomeTotal).toBe(0);
   });
 });
