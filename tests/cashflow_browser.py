@@ -214,12 +214,24 @@ def pending_and_adjustment(case):
     # The panel folds and opens like the two cashflow panels; folding only hides, it changes no data.
     fold = panel.locator('[data-category-fold]')
     expect(fold).to_have_attribute('aria-expanded', 'true')
+    # MW-128a: the confirmed-expense total is on screen while the panel is open, not only in the folded header.
+    total = panel.get_by_test_id('category-total')
+    expect(total).to_be_visible()
+    expect(total).to_have_attribute('data-amount', '2100')
+    expect(total.locator('span')).to_have_text('Total pengeluaran · 1 kategori')
+    expect(total.locator('strong')).to_contain_text(money_text(2_100))
+    shown = total.locator('strong').inner_text()
+    assert total.evaluate('el => el.getBoundingClientRect().bottom <= el.parentElement.querySelector(".category-row").getBoundingClientRect().top'), 'The total is not above the category rows'
     fold.click()
     expect(fold).to_have_attribute('aria-expanded', 'false')
     expect(panel.locator('.category-row').first).to_be_hidden()
+    expect(total).to_be_hidden()
     expect(fold).to_contain_text('ketuk untuk melihat')
+    # Folded, the header line carries the same figure.
+    expect(fold).to_contain_text(shown)
     fold.click()
     expect(panel.locator('.category-row').first).to_be_visible()
+    expect(total).to_be_visible()
     case.assert_unchanged()
     expect(panel).to_contain_text('21')
     expect(panel).not_to_contain_text('Transfer')
