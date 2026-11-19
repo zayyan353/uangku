@@ -2028,6 +2028,26 @@ MW-107. Tindakan pemilik lain ada di F2.
   `LOCAL_WORKFLOW.md`, `MICRO_TASKS.md` (keputusan, cara pakai, template prompt,
   aturan dan tabel keputusan bagian F).
 
+- [x] **MW-146 — Tes dua tab membaca hasil dari kedua tab** (ditambahkan 19 November 2026)
+  Pada PR #65 job Firefox gagal sekali di `two-tabs-sync-and-concurrent`
+  (`tests/recovery_browser.py`), sedangkan Chromium dan WebKit lulus dan isi PR
+  itu tidak menyentuh penyimpanan. Tes membaca catatan tersimpan lewat tab A
+  saja, lalu menganggap tab yang catatannya belum terlihat di sana sebagai tab
+  yang kalah dan menuntut status "konflik". Di Firefox pandangan satu tab atas
+  `localStorage` bisa tertinggal dari tulisan tab lain, jadi tab yang berhasil
+  menyimpan bisa dituduh kalah. Di log, status tab yang dituduh adalah
+  "Tersimpan di browser".
+  *Perbaikan:* pemenang dibaca dari tiap tab sendiri (form tertutup hanya
+  sesudah simpan berhasil), lalu kedua tab ditunggu sampai memuat persis
+  catatan dari simpanan yang berhasil; tab yang kalah harus menampilkan
+  "konflik" dengan form tetap terbuka. Kode aplikasi tidak diubah.
+  *Tes:* `npm test` 71 file / 1.862 tes dan `npm run build` lulus. Chromium
+  lokal: `recovery_browser.py` 16/16, lalu kasus itu sendiri 5/5
+  berturut-turut.
+  *Belum terbukti:* penyebabnya disimpulkan dari log, tidak direproduksi
+  (Firefox tidak terpasang lokal); Firefox dan WebKit hanya lewat CI.
+  *File:* `tests/recovery_browser.py`.
+
 ---
 
 **Urutan:**
