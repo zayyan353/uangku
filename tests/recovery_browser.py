@@ -507,6 +507,52 @@ def test_future_balance(browser, output):
         assert len(stored(page)['state']['entries']) == 3
 
 
+def test_adjust_unavailable(browser, output):
+    """A zero difference must be based on a current wallet and a readable, saved ledger."""
+    for scenario in ('failed-write', 'removed-wallet', 'unreadable', 'midnight'):
+        tomorrow = {**expense('tomorrow', 50_000, date='2026-10-31'), 'type': 'income'}
+        with isolated(browser, fixture([tomorrow]), output, 'adjust-' + scenario) as (_, new_page, _):
+            page = new_page()
+            other = new_page() if scenario in ('removed-wallet', 'unreadable') else None
+            nav(page, 'Dompet')
+            wallet_id = 'cash-idr' if scenario == 'removed-wallet' else 'bca-idr'
+            page.locator(f'[data-wallet-id="{wallet_id}"]').get_by_role('button', name='Cek saldo', exact=True).click()
+            dialog = page.get_by_role('dialog')
+            amount = dialog.get_by_label('Nominal', exact=True)
+            matched = dialog.get_by_role('button', name='Saldo cocok · tutup', exact=True)
+            save = dialog.get_by_role('button', name='Simpan transaksi', exact=True)
+            amount.fill('0' if scenario == 'removed-wallet' else '1000')
+            expect(matched).to_be_visible()
+            if scenario == 'failed-write':
+                # The controller retains the requested balance of 1,100 in its recovery draft only.
+                page.evaluate("""(key) => { const write = Storage.prototype.setItem; Storage.prototype.setItem = function(k,v) {
+                    if (k === key) throw new DOMException('Synthetic quota', 'QuotaExceededError'); write.call(this,k,v); }; }""", KEY)
+                amount.fill('1100')
+                save.click()
+                expect(page.get_by_test_id('save-status')).to_contain_text('penyimpanan gagal')
+            elif scenario == 'removed-wallet':
+                other.evaluate("""(key) => { const data = JSON.parse(localStorage.getItem(key));
+                    data.state.wallets = data.state.wallets.filter(w => w.id !== 'cash-idr');
+                    localStorage.setItem(key, JSON.stringify(data)); }""", KEY)
+                expect(dialog.get_by_label('Dompet asal').locator('option:checked')).to_contain_text('tidak tersedia')
+            elif scenario == 'unreadable':
+                other.evaluate("(key) => localStorage.setItem(key, '{broken')", KEY)
+                expect(page.get_by_test_id('save-status')).to_contain_text('pemulihan diperlukan')
+            else:
+                # No render between the change of day and Enter. Tomorrow's income now belongs to the actual balance.
+                page.clock.set_system_time(datetime(2026, 10, 31, 12, tzinfo=timezone.utc))
+
+            before = page.evaluate('(key) => localStorage.getItem(key)', KEY)
+            if scenario != 'midnight':
+                expect(matched).to_have_count(0)
+            amount.press('Enter')
+            expect(dialog).to_be_visible()
+            expected = {'midnight': 'tanggal hari ini', 'removed-wallet': 'Dompet ini tidak tersedia lagi'}
+            expect(dialog.get_by_role('alert')).to_contain_text(expected.get(scenario, 'pemulihan di status penyimpanan'))
+            expect(page.locator('.toast').filter(has_text='cocok dengan catatan')).to_have_count(0)
+            assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == before, scenario
+
+
 def test_adjust_today(browser, output):
     tomorrow = {**expense('tomorrow', 5_000_000, date='2026-10-31'), 'type': 'income'}
     initial = fixture([tomorrow])
@@ -522,11 +568,77 @@ def test_adjust_today(browser, output):
         expect(hint).to_contain_text('100.000')
         target = dlg.get_by_label('Nominal', exact=True)
         save = dlg.get_by_role('button', name='Simpan transaksi', exact=True)
+        matched = dlg.get_by_role('button', name='Saldo cocok · tutup', exact=True)
+        difference = dlg.get_by_test_id('adjustment-difference')
+        toast = page.locator('.toast')
+        open_check = lambda: card.get_by_role('button', name='Cek saldo', exact=True).click()
+
+        warns = """() => {
+            const event = new Event('beforeunload', { cancelable: true });
+            window.dispatchEvent(event);
+            return event.defaultPrevented;
+        }"""
+        # Comparing the ledger's contents alone would miss a write of the same bytes.
+        page.evaluate("""() => {
+            window.__balanceStorageCalls = [];
+            for (const method of ['setItem', 'removeItem', 'clear']) {
+                const original = Storage.prototype[method];
+                Storage.prototype[method] = function (...args) {
+                    if (this === localStorage) window.__balanceStorageCalls.push([method, args[0]]);
+                    return original.apply(this, args);
+                };
+            }
+        }""")
+
+        # MW-116a: a balance that matches the record ends as a success. The main button says so, closes without the
+        # discard question, and nothing is written.
+        expect(matched).to_have_count(0)
         target.fill('100000')
-        save.click()
-        expect(dlg.get_by_role('alert')).to_contain_text('Saldo sudah cocok')
+        expect(difference).to_have_text('Sama dengan catatan, jadi tidak ada selisih untuk dicatat.')
+        expect(save).to_have_count(0)
+        assert not page.evaluate(warns), 'The matching figure alone warned on unload'
+        matched.click()
+        expect(dlg).to_have_count(0)
+        expect(toast).to_have_text('Saldo Synthetic A cocok dengan catatan. Tidak ada yang perlu dicatat.')
+        expect(toast).not_to_have_class(re.compile(r'\berror\b'))
         assert stored(page) == initial
+        toast.get_by_role('button', name='Tutup pemberitahuan', exact=True).click()
+        # Enter in the field is the same main action.
+        open_check()
+        target.fill('100000')
+        target.press('Enter')
+        expect(dlg).to_have_count(0)
+        expect(toast).to_contain_text('cocok dengan catatan')
+        toast.get_by_role('button', name='Tutup pemberitahuan', exact=True).click()
+        # Escape and Batal leave a matched check without the discard question and without a message.
+        for leave in (lambda: page.keyboard.press('Escape'), lambda: dlg.get_by_role('button', name='Batal', exact=True).click()):
+            open_check()
+            target.fill('100000')
+            expect(matched).to_be_visible()
+            leave()
+            expect(dlg).to_have_count(0)
+            expect(toast).to_have_count(0)
+        # A note typed next to the matched figure is still work: leaving asks first, and the main button still closes.
+        open_check()
+        target.fill('100000')
+        dlg.get_by_label('Keterangan').fill('Synthetic note beside a matched balance')
+        assert page.evaluate(warns), 'A note beside the matching figure did not warn on unload'
+        page.keyboard.press('Escape')
+        expect(page.get_by_role('dialog', name='Buang isian transaksi?', exact=True)).to_be_visible()
+        dlg.get_by_role('button', name='Lanjut mengisi', exact=True).click()
+        expect(dlg.get_by_label('Keterangan')).to_have_value('Synthetic note beside a matched balance')
+        calls = page.evaluate('window.__balanceStorageCalls')
+        assert calls == [], f'A matched balance changed localStorage: {calls}'
+        # A different figure alone is an unsaved adjustment, even after the note has been cleared.
+        dlg.get_by_label('Keterangan').fill('')
         target.fill('110000')
+        assert page.evaluate(warns), 'The differing figure alone did not warn on unload'
+        expect(matched).to_have_count(0)
+        expect(save).to_be_visible()
+        page.keyboard.press('Escape')
+        expect(page.get_by_role('dialog', name='Buang isian transaksi?', exact=True)).to_be_visible()
+        dlg.get_by_role('button', name='Lanjut mengisi', exact=True).click()
+        assert stored(page) == initial
         dlg.get_by_label('Keterangan').fill('Saldo uji hari ini')
         save.click()
         expect(dlg).to_have_count(0)
@@ -539,6 +651,14 @@ def test_adjust_today(browser, output):
         page.get_by_role('button', name='Ubah Saldo uji hari ini', exact=True).click()
         expect(hint).to_contain_text('110.000')
         expect(target).to_have_value('110000')
+        # An existing check is not closed as "matched": a zero difference there means its record should go.
+        before_edit = stored(page)
+        target.fill('100000')
+        expect(difference).to_have_text('Sama dengan catatan, jadi tidak ada selisih untuk dicatat.')
+        expect(matched).to_have_count(0)
+        save.click()
+        expect(dlg.get_by_role('alert')).to_contain_text('Saldo sudah cocok')
+        assert stored(page) == before_edit
         target.fill('105000')
         save.click()
         expect(dlg).to_have_count(0)
@@ -616,6 +736,7 @@ def main():
         ('backup-large-and-legacy-pretty', test_backup_large),
         ('future-actual-vs-all-records', test_future_balance),
         ('adjust-today-with-future-income', test_adjust_today),
+        ('adjust-unavailable', test_adjust_unavailable),
         ('manual-before-preview', lambda b, o: test_import_overlap(b, o, after_preview=False)),
         ('manual-after-preview', lambda b, o: test_import_overlap(b, o, after_preview=True)),
     ]
