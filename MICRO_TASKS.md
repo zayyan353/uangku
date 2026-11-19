@@ -1567,8 +1567,68 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     Back; sesudah Back atau Forward fokus papan ketik jatuh ke `body` atau
     tertinggal di tombol halaman sebelumnya (aplikasi belum memindahkan fokus
     pada pergantian halaman mana pun).
-  - [ ] **b.** (M) Membuka dialog menambah satu entri riwayat; Back menutupnya lewat
+  - [x] **b.** (M) Membuka dialog menambah satu entri riwayat; Back menutupnya lewat
     penjaga buang-isian yang sudah ada (`src/hooks/useDiscardGuard.tsx`).
+    *Selesai 19 Nov 2026:* dialog pertama yang dibuka di sebuah halaman
+    menambah satu entri riwayat beralamat sama; dialog berikutnya di halaman
+    itu memakai entri yang sama (`src/lib/dialogHistory.ts`, dipasang di
+    `Modal`, jadi berlaku untuk semua dialog). Back saat dialog terbuka
+    meminta dialog paling atas menutup seperti Esc: form yang belum diisi
+    langsung tertutup, form berisi menampilkan pertanyaan buang-isian dan
+    isinya utuh. Dialog yang tetap terbuka kembali ke entrinya lewat
+    Forward. Bila browser melaporkan Forward dibatalkan, dialog mendapat
+    entri pengganti. Back saat tidak ada dialog terbuka
+    tetap meninggalkan halaman dengan satu tekanan. Pindah halaman mengubah
+    entri dialog menjadi entri halaman baru. Muat ulang saat dialog terbuka:
+    halaman tetap dan dialog hilang.
+    *Keputusan agen (mudah dibatalkan):* (1) membuka atau menutup dialog lewat
+    tombolnya sendiri tidak pernah bergerak di riwayat. Rancangan pertama
+    melepas entri dengan `history.back()` begitu dialog ditutup; langkah itu
+    selesai belakangan, sehingga muat ulang yang datang tepat sesudahnya
+    dibatalkan (`wallet_browser.py` gagal dengan `ERR_ABORTED`). Sekarang entri
+    dialog dibiarkan dan baru dilewati saat Back ditekan. (2) Saat pertanyaan
+    buang-isian tampil, Back berarti "lanjut mengisi", sama seperti Esc.
+    (3) Bila browser menolak tulisan ke riwayat (Safari membatasi 100 per 30
+    detik), dialog itu tidak punya entri dan Back berperilaku seperti sebelum
+    MW ini; tidak ada galat.
+    (4) Bila dua Back sudah mendarat di dalam aplikasi sebelum dialog sempat
+    kembali ke entrinya, halaman mengikuti tujuan kedua. Pertanyaan hanya
+    diajukan sekali dan isian tetap utuh. Entri dialog di halaman tujuan
+    dapat menggantikan riwayat Forward ke halaman asal.
+    *Dari tinjauan 23 Nov 2026 (dua lensa, diuji dengan mutan dan Chromium):*
+    klik halaman saat Back tambahan masih berjalan bisa hilang. Mesin kini
+    membedakan Back yang buntu di awal tab dari Back yang belum mendarat.
+    Saat dua Back berlomba dengan Forward, alamat bisa tertinggal sesudah
+    form dibuang atau selesai disimpan. Mesin kini melepas pengembalian yang
+    tertunda ketika semua dialog ditutup. Bila tersedia, `navigation.forward()`
+    memberi tahu bila gerakan dibatalkan selagi form masih terbuka. Pada
+    Chromium, Back berikutnya kembali ke isian meski ada dokumen lain sebelum
+    aplikasi. Dalam percobaan simpan yang ditahan kunci, hanya satu catatan
+    tersimpan setelah kunci dilepas. Back juga menutup dialog saat toast
+    sukses tampil, dan toast tetap terlihat.
+    *Tes:* `npm test` 73 file / 1.886 tes lulus, termasuk 20 tes
+    `dialogHistory.test.ts`. Build produksi lulus. Pada kode sebelum MW,
+    kedua kasus dialog gagal karena entri tambahan tidak ada. Pada kode
+    parkir, dua Back lalu pindah ke Dompet menyisakan hash Transaksi di
+    desktop dan HP. Delapan mutan unit gagal pada penjagaan alamat, urutan
+    Back, awal tab dan pengembalian yang dibatalkan. Empat mutan browser
+    masing-masing menggagalkan kedua ukuran layar. Tes membedakan
+    `pushState` baru dari Forward, menguji fokus pembuka dan form dompet,
+    pilihan saat pertanyaan tampil, dan pindah halaman sesudah Back buntu.
+    Chromium 154 lulus 18/18 suite CI, termasuk UX 9/9. Performa lima
+    sampel: median 4.873,5 ms dan celah frame terbesar 264,1 ms.
+    *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Back diuji
+    lewat History API (`history.back()`), bukan tombol atau gestur browser.
+    Chrome melewati entri yang dibuat tanpa interaksi pengguna saat tombol
+    Back ditekan; entri dialog dibuat sesudah klik dan dialog yang tetap
+    terbuka tidak membuat entri baru, tetapi tombol Back sungguhan di Chrome,
+    Android, dan iOS tidak diuji. Bila tab langsung dibuka di aplikasi (tidak
+    ada halaman sebelumnya) dan sebuah dialog pernah dibuka lalu ditutup,
+    Back kembali ke entri pertama. Tombol navigasi tetap dapat mengganti
+    halaman beserta alamatnya. Forward ke
+    entri dialog tidak membuka dialog lagi. Pada mesin tanpa Navigation API,
+    Forward yang dibatalkan diam-diam masih bisa membiarkan form terbuka
+    tanpa entri pelindung. Aplikasi Layar Utama tidak diuji.
   - [ ] **c.** (S) Peringatan `beforeunload` saat form terbuka berisi isian. Penjaga
     untuk perubahan belum tersimpan sudah ada
     (`src/hooks/useLedgerStorage.ts:45-54`).
