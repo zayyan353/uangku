@@ -8,7 +8,7 @@ import {
   Sparkles, Tags, Wallet as WalletIcon, X, Search,
 } from 'lucide-react';
 import {
-  CATEGORY_NAMES, formatMoney, makeId,
+  CATEGORY_NAMES, formatDate, formatMoney, makeId,
   validateEntry, walletBalanceAt,
   type Currency, type Entry, type State, type Wallet,
 } from './lib/finance';
@@ -18,7 +18,7 @@ import { compareRestore, restoreComparisonCopy, restoreNeedsBackupFirst } from '
 import { measureStorageUsage } from './lib/storageUsage';
 import { describeFailure, failureClause } from './lib/failureText';
 import { addressForPage, pageFromHash } from './lib/pageRoute';
-import { walletFreshness } from './lib/walletFreshness';
+import { staleStatements, walletFreshness } from './lib/walletFreshness';
 import { dialogHistory } from './lib/dialogHistory';
 import { monthOutsideView } from './lib/savedPeriod';
 import { carryDemo } from './lib/demoTransition';
@@ -260,6 +260,17 @@ export default function App() {
   // It waits behind a failed save, whose own box carries the download that works then, and it is satisfied by a backup of
   // exactly what is stored now; the next save brings it back.
   const storageWarning = !data.demo && !blocked && !ledger.dirty && !storageError && storageUsage?.level === 'warning' && reminderDismissedOn !== clockDay && lastBackup?.fingerprint !== currentFingerprint;
+  // Import advice waits until the ledger is readable and saved and the other reminders are clear.
+  const canShowStatementReminder = page === 'overview' && !data.demo && !blocked && !ledger.dirty
+    && !storageError && !storageWarning && !reminderReason && reminderDismissedOn !== clockDay;
+  const staleWallets = useMemo(() => {
+    if (!canShowStatementReminder) return [];
+    const names = new Map(availableWallets.map(wallet => [wallet.id, wallet.name]));
+    return staleStatements(data, clockDay).flatMap(({ walletId, statementThrough }) => {
+      const name = names.get(walletId);
+      return name === undefined ? [] : [{ name, through: statementThrough }];
+    });
+  }, [canShowStatementReminder, data, clockDay, availableWallets]);
   function closeReminder() {
     dismissReminder(clockDay);
     setReminderDismissedOn(clockDay);
@@ -786,6 +797,21 @@ export default function App() {
   const monthControl = page !== 'wallets' && page !== 'import' ? <div className="month-stepper" role="group" aria-label="Periode laporan"><button type="button" className="icon-button" aria-label="Bulan sebelumnya" disabled={periodAll} onClick={() => setMonth(priorMonth(month))}><ChevronLeft size={16} /></button><label className="date-pill"><History size={15} aria-hidden="true" /><select aria-label="Bulan laporan" value={periodAll ? 'all' : month} onChange={e => choosePeriod(e.target.value)}><option value="all">Seluruh catatan</option>{monthChoices.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button type="button" className="icon-button" aria-label="Bulan berikutnya" disabled={periodAll} onClick={() => setMonth(nextMonth(month))}><ChevronRight size={16} /></button></div> : null;
   const banners = <>
       {storageWarning ? <div className="backup-reminder" role="status" data-testid="storage-warning"><span className="demo-banner-icon"><AlertTriangle size={20} /></span><div className="demo-banner-copy"><strong>Ruang penyimpanan browser terpakai {storageUsage.percent}%.</strong><span>Bila penuh, simpan atau impor berikutnya ditolak; catatan yang sudah tersimpan tetap utuh. Unduh cadangan lengkap sekarang.</span></div><button className="button ghost small" onClick={() => void backupAll()}>Cadangkan sekarang</button><button className="button ghost small" onClick={closeReminder}>Nanti saja</button></div> : reminderReason && <div className="backup-reminder" role="status" data-testid="backup-reminder" data-reason={reminderReason}><span className="demo-banner-icon"><Download size={20} /></span><div className="demo-banner-copy"><strong>{reminderReason === 'never' ? 'Belum ada cadangan lengkap.' : 'Sudah lebih dari 7 hari sejak cadangan terakhir.'}</strong><span>{reminderReason === 'never' ? 'Catatan hanya tersimpan di browser ini. Unduh satu file cadangan supaya tidak hilang bila data situs terhapus.' : 'Catatan sudah berubah sejak itu. Unduh cadangan lengkap yang baru.'}</span></div><button className="button ghost small" onClick={() => void backupAll()}>Cadangkan sekarang</button><button className="button ghost small" onClick={closeReminder}>Nanti saja</button></div>}
+      {staleWallets.length > 0 && (
+        <div className="backup-reminder statement-reminder" role="status" data-testid="statement-reminder" data-wallets={staleWallets.length}>
+          <span className="demo-banner-icon"><History size={20} /></span>
+          <div className="demo-banner-copy">
+            <strong>{staleWallets.length === 1
+              ? `Mutasi ${staleWallets[0].name} baru tersimpan sampai ${formatDate(staleWallets[0].through)}.`
+              : `Mutasi ${staleWallets.length} dompet belum menjangkau bulan lalu.`}</strong>{' '}
+            <span>{staleWallets.length === 1
+              ? 'Impor mutasi yang lebih baru supaya catatan dompet itu tidak tertinggal.'
+              : `${staleWallets.map(wallet => `${wallet.name} sampai ${formatDate(wallet.through)}`).join(' · ')}. Impor mutasi yang lebih baru supaya catatannya tidak tertinggal.`}</span>
+          </div>
+          <button className="button ghost small" onClick={() => navigate('import')}>Impor mutasi</button>
+          <button className="button ghost small" onClick={closeReminder}>Nanti saja</button>
+        </div>
+      )}
       {data.demo ? <div className="demo-banner"><span className="demo-banner-icon"><Sparkles size={20} /></span><div className="demo-banner-copy"><strong>Kenalan dulu pakai data contoh.</strong><span className={blocked ? 'demo-banner-alert' : page === 'import' ? 'demo-banner-import' : 'demo-banner-detail'}>{blocked ? 'Penyimpanan perlu dipulihkan. Yang tampil adalah contoh sementara.' : page === 'import' ? 'Mulai dengan data sendiri sebelum mengimpor mutasi asli.' : 'Transaksi yang kamu tambahkan di sini bisa dibawa saat mulai memakai data sendiri.'}</span></div><button className="button ghost small" disabled={ledger.pending || ledger.dirty} onClick={startOwn}>Mulai pakai data sendiri <ArrowRight size={16} /></button></div> : null}
   </>;
   return <CategorySettingsContext.Provider value={categoryPreferences.settings}><div className="app-shell">
