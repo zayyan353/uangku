@@ -1145,7 +1145,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
 
 ### F3. Kecepatan
 
-- [ ] **MW-110 — Tes performa mengukur catatan yang berisi baris impor** (S)
+- [x] **MW-110 — Tes performa mengukur catatan yang berisi baris impor** (S)
   Menyimpan satu transaksi manual pada catatan berisi baris impor (dokumen
   versi 2):
 
@@ -1160,9 +1160,51 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   tertutup; baris 10.000 diukur pemeriksa lain sampai `localStorage` berubah,
   pada catatan satu dompet, jadi keduanya bukan satu seri. Catatan versi 1
   berisi 5.000 baris: 0,49 dtk / 1,15 dtk. Gate performa CI
-  hanya memakai fixture versi 1 (`tests/performance_browser.py:35-46`), jadi
+  hanya memakai fixture versi 1 (`make_fixture` di `tests/performance_browser.py`), jadi
   perlambatan ini tidak terlihat oleh CI. Tambah sampel versi 2 (impor CSV
   sintetis 2.000 baris, lalu ukur satu simpan) dan laporkan milidetiknya.
+  *Selesai 19 Nov 2026:* sesudah lima sampel versi 1 yang beranggaran,
+  `tests/performance_browser.py` menjalankan satu sampel versi 2: catatan kosong
+  → impor CSV sintetis 2.000 baris lewat **CSV / Excel umum** → **Transaksi**
+  → **Catat transaksi** → satu simpan. `summary.json` (kunci `version2`) dan
+  baris terakhir keluaran, yang terbaca di log CI, memuat `save_ms` (klik
+  **Simpan transaksi** sampai dialog hilang, seperti baris 1.000–5.000 di
+  tabel) dan `stored_ms` (sampai `localStorage` berisi dokumen baru); keduanya
+  memakai jam halaman. Tanpa anggaran waktu: pemeriksaan baru
+  `version2_samples_passed` hanya menuntut sampelnya selesai dan datanya benar.
+  Gate versi 1, anggarannya, perintah CI, dan kode aplikasi tidak diubah. Opsi
+  baru: `--import-rows` (bawaan 2000, paling banyak 15.000 karena kuota
+  `localStorage` Chromium tercapai di antara 16.500 dan 17.000 baris CSV ini),
+  `--import-samples` (bawaan 1; 0 melewati).
+  *Dijalankan* (hanya Chromium, kontainer 4 CPU yang dipakai bersama pekerjaan
+  lain; bukan angka CI): `npm test` 66 file / 1.810 tes lulus; `npm run build`
+  lulus; `performance_browser.py` dengan flag CI dua kali, 6/6 pemeriksaan
+  lulus (versi 1: median 5.174 dan 5.649 ms, jeda frame 236 dan 310 ms). Sampel
+  versi 2: `save_ms` 422,5 dan 470,2; `stored_ms` 287,3 dan 302,8; menambah
+  ±4,3 detik. Sembilan sampel lokal pada 2.000 baris: 416,5–473,7 ms; dengan
+  `--import-rows` 1.000 / 2.500 / 5.000 (tiga sampel masing-masing): 272–352 /
+  468–512 / 854–886 ms.
+  *Uji kepekaan* (kode aplikasi tidak berubah, jadi tidak ada "gagal di kode
+  lama"): dengan jeda buatan 300 ms di `prepareBackup` hanya untuk dokumen
+  bermetadata, gate versi 1 tetap lulus sedangkan `save_ms` naik ke
+  1.033–1.035 ms dan `stored_ms` ke 596–616 ms; jeda itu sudah dibuang. Jeda
+  terhitung dua kali sebelum dialog tertutup karena `saveEntry` (`src/App.tsx`)
+  mengemas ulang seluruh catatan lewat `serializeBackup` sesudah penyimpanan:
+  bahan MW-111, belum diubah.
+  *Keputusan:* satu sampel saja supaya waktu CI kecil; sampel yang tidak bisa
+  dijalankan menggagalkan tes supaya angkanya tidak hilang diam-diam.
+  *Belum terbukti:* angka di runner CI (baru ada setelah run CI pertama);
+  Firefox dan WebKit (tes ini hanya ada di job Chromium); CPU 4× dan HP
+  sungguhan. Satu sampel tidak cukup untuk membandingkan dua run: sembilan
+  sampel di atas berada dalam ±7% dari mediannya, tetapi saat pekerjaan browser
+  lain berjalan di kontainer yang sama peninjau mengukur 457–580 ms pada 2.000
+  baris dan 902–1.169 ms pada 5.000 baris (sampai ±30% lebih tinggi). Angka
+  tunggal di log CI hanya indikatif; untuk MW-111 bandingkan median atau
+  minimum beberapa sampel (`--import-samples N`) di host yang sama. Angka
+  sampel ini juga tidak sebanding dengan tabel di atas (host, isi CSV, dan sesi
+  ukur berbeda): pada 2.500 dan 5.000 baris hasilnya ±20–47% lebih rendah dan
+  sebabnya belum diketahui, jadi baseline dan target MW-111 harus diukur dengan
+  sampel ini.
 
 - [ ] **MW-111 — Percepat jalur simpan** (M–L) — **butuh keputusan**
   Setiap simpan memvalidasi dan mengemas ulang seluruh catatan
