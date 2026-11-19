@@ -1434,8 +1434,30 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   selalu kembali ke Ringkasan, Back dari halaman mana pun keluar dari aplikasi,
   dan form yang sedang diisi hilang tanpa peringatan. Back diuji lewat History
   API, bukan gestur di HP sungguhan.
-  - [ ] **a.** (S–M) Rute hash per halaman (`#/dompet`, `#/transaksi`, `#/impor`),
+  - [x] **a.** (S–M) Rute hash per halaman (`#/dompet`, `#/transaksi`, `#/impor`),
     dibaca saat mulai dan mengikuti `popstate`.
+    *Selesai 19 Nov 2026:* halaman kini ada di alamat: Ringkasan tanpa hash,
+    lalu `#/dompet`, `#/transaksi`, `#/impor` (`src/lib/pageRoute.ts`). Alamat
+    dibaca saat mulai, jadi muat ulang tetap di halaman yang sama. Berpindah
+    halaman menambah satu entri riwayat; Back dan Forward berpindah antarhalaman
+    dan tidak lagi langsung keluar dari aplikasi. Hash yang diketik di tab yang
+    sama juga diikuti. Hash kosong atau tidak dikenal membuka Ringkasan.
+    *Keputusan agen (mudah dibatalkan):* saat ada penyimpanan yang sedang
+    berjalan, Back tidak memindahkan halaman dan alamatnya dikembalikan, sama
+    seperti tombol navigasi yang sudah menolak pindah pada keadaan itu. Posisi
+    gulir diatur aplikasi sendiri (`history.scrollRestoration = 'manual'`).
+    Periode, dompet, dan pencarian tidak ikut masuk alamat.
+    *Tes:* `npm test` 72 file / 1.864 tes (3 baru di `pageRoute.test.ts`),
+    `npm run build` lulus. Chromium: `ux_browser.py` 7/7 dengan kasus baru
+    `routes-desktop` dan `routes-mobile` (muat ulang, Back, Forward, hash yang
+    diketik, alamat langsung, hash tak dikenal). Karena perilaku muat ulang
+    berubah, ke-18 suite browser yang dipakai CI dijalankan dan lulus;
+    `performance_browser.py` semula mengharapkan Ringkasan sesudah muat ulang
+    dari Transaksi dan disesuaikan di dua tempat.
+    *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Back diuji
+    lewat History API, bukan gestur di HP sungguhan. Dialog yang terbuka tidak
+    ditutup oleh Back dan tetap tampil di atas halaman yang berganti; itu butir
+    b. Aplikasi Layar Utama (tanpa tombol Back browser) tidak diuji.
   - [ ] **b.** (M) Membuka dialog menambah satu entri riwayat; Back menutupnya lewat
     penjaga buang-isian yang sudah ada (`src/hooks/useDiscardGuard.tsx`).
   - [ ] **c.** (S) Peringatan `beforeunload` saat form terbuka berisi isian. Penjaga

@@ -385,6 +385,63 @@ def storage_gating_case(browser, args, output, mobile):
     return {'name': label, 'status': 'passed', 'profiles_checked': checked}
 
 
+def route_case(browser, args, output, mobile):
+    """MW-113a: the page is in the address. A reload stays on it; Back and Forward move between pages."""
+    label = 'routes-mobile' if mobile else 'routes-desktop'
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    context, page, errors = storage_page(browser, mobile, raw)
+    nav = page.locator('.mobile-nav' if mobile else '.sidebar')
+
+    def at(target, name, address, landmark):
+        expect(target.locator('.breadcrumb strong')).to_have_text(name)
+        expect(target.locator(landmark).first).to_be_visible()
+        assert target.evaluate('location.hash') == address, target.evaluate('location.href')
+
+    try:
+        page.goto(args.url, wait_until='networkidle')
+        at(page, 'Ringkasan', '', '.balance-card')
+        entries = page.evaluate('history.length')
+        nav.get_by_role('button', name='Dompet', exact=True).click()
+        at(page, 'Dompet', '#/dompet', '.wallet-card')
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+        # Choosing the page that is already open adds no history entry.
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        assert page.evaluate('history.length') == entries + 2
+        # A reload stays on the page instead of returning to Ringkasan.
+        page.reload(wait_until='networkidle')
+        at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+        # Back and Forward walk the pages; the first Back does not leave the app.
+        page.go_back()
+        at(page, 'Dompet', '#/dompet', '.wallet-card')
+        page.go_back()
+        at(page, 'Ringkasan', '', '.balance-card')
+        page.go_forward()
+        at(page, 'Dompet', '#/dompet', '.wallet-card')
+        # An address typed into the same tab is followed too.
+        page.evaluate("location.hash = '#/impor'")
+        at(page, 'Impor mutasi', '#/impor', '.import-format-tabs, .tab-list, [aria-label="Dompet impor"]')
+        # A page opened directly on an address starts there; an unknown address opens Ringkasan.
+        direct = new_page(context)
+        try:
+            direct.goto(args.url + '#/dompet', wait_until='networkidle')
+            at(direct, 'Dompet', '#/dompet', '.wallet-card')
+            direct.goto(args.url + '#/tidak-ada', wait_until='networkidle')
+            expect(direct.locator('.breadcrumb strong')).to_have_text('Ringkasan')
+            expect(direct.locator('.balance-card')).to_be_visible()
+        finally:
+            direct.close()
+        # Moving between pages reads only.
+        assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'Navigation changed the ledger'
+        assert not errors, errors
+        return {'name': label, 'status': 'passed'}
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -398,13 +455,14 @@ def main():
         browser = launch_browser(pw)
         version = browser.version
         try:
-            for case, mobile in [(run_case, False), (run_case, True), (storage_case, False), (storage_case, True),
-                                 (storage_gating_case, False)]:
+            for name, case, mobile in [('desktop', run_case, False), ('mobile', run_case, True),
+                                       ('storage-desktop', storage_case, False), ('storage-mobile', storage_case, True),
+                                       ('storage-gating', storage_gating_case, False),
+                                       ('routes-desktop', route_case, False), ('routes-mobile', route_case, True)]:
                 began = time.monotonic()
                 try:
                     result = case(browser, args, output, mobile)
                 except Exception as err:
-                    name = 'storage-gating' if case is storage_gating_case else ('storage-' if case is storage_case else '') + ('mobile' if mobile else 'desktop')
                     result = {'name': name, 'status': 'failed', 'error': str(err), 'traceback': traceback.format_exc()}
                 result['seconds'] = round(time.monotonic() - began, 3)
                 results.append(result)
