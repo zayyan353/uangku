@@ -16,3 +16,13 @@ export function pageFromHash(hash: string): RoutePage {
   const found = (Object.keys(HASHES) as RoutePage[]).find(page => HASHES[page] !== '' && HASHES[page] === hash);
   return found ?? 'overview';
 }
+
+/**
+ * The current address with the hash of `page`. It is built from the whole address, not from the
+ * path: a path that starts with two slashes would be read as another host and refused.
+ */
+export function addressForPage(href: string, page: RoutePage): string {
+  const url = new URL(href);
+  url.hash = hashForPage(page);
+  return url.href;
+}

@@ -17,7 +17,7 @@ import { parseRestoreFile, restoreFailure, RestoreRefusal } from './lib/fullBack
 import { compareRestore, restoreComparisonCopy, restoreNeedsBackupFirst } from './lib/restoreComparison';
 import { measureStorageUsage } from './lib/storageUsage';
 import { describeFailure } from './lib/failureText';
-import { hashForPage, pageFromHash } from './lib/pageRoute';
+import { addressForPage, pageFromHash } from './lib/pageRoute';
 import { carryDemo } from './lib/demoTransition';
 import type { CandidateOptions } from './lib/persistence';
 import { categoryBudgetRows, type BudgetMap } from './lib/budgets';
@@ -665,17 +665,21 @@ export default function App() {
     }
     setPage(next);
   }
+  /** Adds the page's address to the history. A browser may refuse the write (Safari allows 100 in 30 seconds); the page shown is right either way and only the address lags. */
+  function writeAddress(next: Page) {
+    try { window.history.pushState(null, '', addressForPage(window.location.href, next)); } catch { /* see above */ }
+  }
   // The page is part of the address: a reload stays on it, and Back and Forward move between pages
   // instead of leaving the app. Only a real change of page adds a history entry.
   useEffect(() => {
-    if (pageFromHash(window.location.hash) !== page) window.history.pushState(null, '', `${window.location.pathname}${window.location.search}${hashForPage(page)}`);
+    if (pageFromHash(window.location.hash) !== page) writeAddress(page);
   }, [page]);
   const followAddress = useRef(() => {});
   followAddress.current = () => {
     const next = pageFromHash(window.location.hash);
     if (next === page) return;
     // A save is running and the page must not change under it: put the address back to where the app is.
-    if (mutationInFlight.current) window.history.pushState(null, '', `${window.location.pathname}${window.location.search}${hashForPage(page)}`);
+    if (mutationInFlight.current) writeAddress(page);
     else showPage(next);
   };
   useEffect(() => {

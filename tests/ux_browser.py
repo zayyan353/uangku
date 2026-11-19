@@ -421,18 +421,67 @@ def route_case(browser, args, output, mobile):
         # An address typed into the same tab is followed too.
         page.evaluate("location.hash = '#/impor'")
         at(page, 'Impor mutasi', '#/impor', '.import-format-tabs, .tab-list, [aria-label="Dompet impor"]')
-        # A page opened directly on an address starts there; an unknown address opens Ringkasan.
+        # A page opened directly on an address starts there.
         direct = new_page(context)
         try:
             direct.goto(args.url + '#/dompet', wait_until='networkidle')
             at(direct, 'Dompet', '#/dompet', '.wallet-card')
-            direct.goto(args.url + '#/tidak-ada', wait_until='networkidle')
-            expect(direct.locator('.breadcrumb strong')).to_have_text('Ringkasan')
-            expect(direct.locator('.balance-card')).to_be_visible()
         finally:
             direct.close()
+        # An unknown address opens Ringkasan. A new page, so this is a first load and not a hash change.
+        unknown = new_page(context)
+        try:
+            unknown.goto(args.url + '#/tidak-ada', wait_until='networkidle')
+            expect(unknown.locator('.breadcrumb strong')).to_have_text('Ringkasan')
+            expect(unknown.locator('.balance-card')).to_be_visible()
+        finally:
+            unknown.close()
+        # A path that starts with two slashes is still this site: changing page works there too.
+        doubled = new_page(context)
+        doubled_errors = []
+        doubled.on('pageerror', lambda err: doubled_errors.append(str(err)))
+        try:
+            doubled.goto(args.url.rstrip('/') + '//', wait_until='networkidle')
+            (doubled.locator('.mobile-nav' if mobile else '.sidebar')).get_by_role('button', name='Dompet', exact=True).click()
+            at(doubled, 'Dompet', '#/dompet', '.wallet-card')
+            assert not doubled_errors, doubled_errors
+        finally:
+            doubled.close()
         # Moving between pages reads only.
         assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'Navigation changed the ledger'
+
+        # While a save is running the page stays: Back and a typed address are put back, and the save finishes once.
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+        holder = new_page(context)
+        try:
+            holder.goto(args.url, wait_until='networkidle')
+            # A second tab of the same profile holds the ledger's lock, so the save below has to wait.
+            holder.evaluate('''(name) => new Promise(held => { navigator.locks.request(name, () => new Promise(release => {
+                window.__release = release; held(true); })); })''', 'uangku:v1:coordinated-write')
+            page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+            dialog = page.get_by_role('dialog')
+            dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+            dialog.get_by_label('Nominal', exact=True).fill('7')
+            dialog.get_by_label(re.compile('Keterangan')).fill('Synthetic saved while Back was pressed')
+            dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+            page.evaluate('''() => { window.__moves = 0; for (const type of ['popstate', 'hashchange']) addEventListener(type, () => { window.__moves += 1; }); }''')
+            for leave in ('history.back()', "location.hash = '#/dompet'"):
+                seen = page.evaluate('window.__moves')
+                page.evaluate(leave)
+                page.wait_for_function('(seen) => window.__moves > seen', arg=seen)
+                page.wait_for_function("() => location.hash === '#/transaksi'")
+                at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+                expect(dialog).to_be_visible()
+                assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'The waiting save was written early'
+            holder.evaluate('window.__release()')
+            expect(page.get_by_role('dialog')).to_have_count(0)
+            at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+            saved = json.loads(page.evaluate('(key)=>localStorage.getItem(key)', KEY))['state']['entries']
+            assert [entry['note'] for entry in saved if entry['note'].startswith('Synthetic saved while')] == ['Synthetic saved while Back was pressed']
+            assert len(saved) == len(fixture()['state']['entries']) + 1
+        finally:
+            holder.close()
         assert not errors, errors
         return {'name': label, 'status': 'passed'}
     except Exception:
