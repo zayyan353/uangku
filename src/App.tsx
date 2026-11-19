@@ -19,6 +19,7 @@ import { measureStorageUsage } from './lib/storageUsage';
 import { describeFailure, failureClause } from './lib/failureText';
 import { addressForPage, pageFromHash } from './lib/pageRoute';
 import { dialogHistory } from './lib/dialogHistory';
+import { monthOutsideView } from './lib/savedPeriod';
 import { carryDemo } from './lib/demoTransition';
 import type { CandidateOptions } from './lib/persistence';
 import { categoryBudgetRows, type BudgetMap } from './lib/budgets';
@@ -149,7 +150,7 @@ export default function App() {
   const [confirmReason, setConfirmReason] = useState('');
   const [confirmBankAnnotations, setConfirmBankAnnotations] = useState(false);
   useEffect(() => { setConfirmReason(''); setConfirmBankAnnotations(false); }, [confirm]);
-  const [toast, setToast] = useState<{ text: string; error: boolean; detail?: string } | null>(null);
+  const [toast, setToast] = useState<{ text: string; error: boolean; detail?: string; action?: { label: string; run: () => void } } | null>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
   const state = data.state;
   const activeState = useMemo(() => activeAccountState(state), [state]);
@@ -158,10 +159,12 @@ export default function App() {
   const cashWallets = useMemo(() => state.wallets.filter(wallet => wallet.kind === 'cash'), [state.wallets]);
   const postingContext = useMemo(() => createPostingDateIndex(data.metadata), [data.metadata]);
   const undatedWallets = useMemo(() => new Set(state.entries.flatMap(entry => entryPostings(entry, postingContext).filter(posting => posting.date === null).map(posting => posting.walletId))), [state, postingContext]);
-  const notify = (text: string) => setToast({ text, error: false });
+  /** `action` puts one button in the toast, for a success the user may want to follow. */
+  const notify = (text: string, action?: { label: string; run: () => void }) => setToast({ text, error: false, ...(action ? { action } : {}) });
   /** A failure stays on screen until it is closed; it is not styled or timed like a success. */
   const notifyError = (text: string, detail?: string) => { const shown = detail === undefined ? describeFailure(text) : { message: text, detail }; setToast({ text: shown.message, error: true, ...(shown.detail ? { detail: shown.detail } : {}) }); };
-  useEffect(() => { if (toast && !toast.error) { const id = setTimeout(() => setToast(null), 5500); return () => clearTimeout(id); } }, [toast]);
+  // A toast that offers an action stays longer, so there is time to reach its button.
+  useEffect(() => { if (toast && !toast.error) { const id = setTimeout(() => setToast(null), toast.action ? 10000 : 5500); return () => clearTimeout(id); } }, [toast]);
   useEffect(() => { writePreferences({ ...preferences, currency }); }, [preferences, currency]);
   useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, historyPeriod, historyPage, reviewReason, historyWallet, historyCategory, historySort]);
   useEffect(() => { setHistoryPage(1); }, [query, filter, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet, historyCategory, historySort]);
@@ -560,17 +563,45 @@ export default function App() {
     } catch (error) { notifyError(error instanceof Error ? error.message : 'Transaksi belum bisa disimpan.'); return false; }
     if (!await saveDocument(next, editorBaseToken.current)) return false;
     editorBaseToken.current = serializeBackup(next);
+    let shownCurrency = currency;
     if (!txModal?.existing && !entry.sourceKey) {
       const usedWallet = state.wallets.find(w => w.id === entry.walletId);
       if (usedWallet) {
         setPreferences(p => ({ ...p, lastWallets: { ...p.lastWallets, [usedWallet.currency]: usedWallet.id } }));
         setCurrency(usedWallet.currency);
+        shownCurrency = usedWallet.currency;
       }
     }
-    if (!keepOpen) setTxModal(null);
-    notify(entry.type === 'transfer' ? 'Transfer tersimpan. Kedua saldo sudah diperbarui.' : keepOpen ? 'Tersimpan. Lanjut catat berikutnya.' : 'Transaksi tersimpan.');
+    // A transaction dated outside the month on screen is saved but not in the list: the toast says where it went.
+    const shownMonth = (page === 'transactions' ? historyPeriod === 'month' && !isReviewQueue : page === 'overview' && cashflowPeriod === 'month') ? month : null;
+    const saved = shownMonth ? next.state.entries.find(item => item.id === entry.id) : undefined;
+    const went = shownMonth && saved ? monthOutsideView(entryPostings(saved, createPostingDateIndex(next.metadata))
+      .filter(posting => next.state.wallets.find(wallet => wallet.id === posting.walletId)?.currency === shownCurrency).map(posting => posting.date), shownMonth) : null;
+    const where = went ? ` di ${monthLabel(went)}` : '';
+    if (!keepOpen) {
+      // The row that opened the form may have left the list; the effect below keeps focus from falling to the page.
+      focusListStatus.current = !!txModal?.existing;
+      setTxModal(null);
+    }
+    notify(entry.type === 'transfer' ? `Transfer tersimpan${where}. Kedua saldo sudah diperbarui.` : keepOpen ? `Tersimpan${where}. Lanjut catat berikutnya.` : went ? `Tersimpan${where}.` : 'Transaksi tersimpan.',
+      went && !keepOpen ? { label: 'Lihat', run: () => showSavedMonth(went, shownCurrency) } : undefined);
     return true;
   }
+  /** Opens Transaksi on the month a saved transaction went to, with the filters that could hide it cleared. */
+  function showSavedMonth(target: string, shown: Currency) {
+    if (mutationInFlight.current) return;
+    setCurrency(shown);
+    openHistory('all', 'month');
+    setMonth(target);
+  }
+  const focusListStatus = useRef(false);
+  useEffect(() => {
+    if (txModal || !focusListStatus.current) return;
+    focusListStatus.current = false;
+    // An edit can take the row out of the list (its date moved to another month). The button that opened the form
+    // is gone then, and focus would be left on the page body: it goes to the list's status line instead.
+    if (document.activeElement === document.body) document.querySelector<HTMLElement>('[data-testid="history-scope"]')?.focus();
+  }, [txModal]);
   function editEntry(entry: Entry) {
     if (mutationInFlight.current) return;
     if (isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id)) { setAmountDetail(entry); return; }
@@ -771,7 +802,7 @@ export default function App() {
         setQuery(value);
         if (value.trim() && !query.trim() && historyPeriod === 'month') { periodBeforeSearch.current = historyPeriod; setHistoryPeriod('all'); }
         else if (!value.trim() && periodBeforeSearch.current) { setHistoryPeriod(periodBeforeSearch.current); periodBeforeSearch.current = null; }
-      }} period={historyPeriod} periodMonthLabel={reportMonth} onPeriodChange={value => { periodBeforeSearch.current = null; setHistoryPeriod(value); }} sort={historySort} onSortChange={setHistorySort} category={historyCategory} categoryOptions={categoryPreferences.settings.names} onCategoryChange={setHistoryCategory} walletId={validHistoryWallet ?? 'all'} walletOptions={activeState.wallets.filter(wallet => isReviewQueue ? !isWalletArchived(data, wallet.id) : wallet.currency === currency).map(wallet => ({ id: wallet.id, name: wallet.name, archived: isWalletArchived(data, wallet.id) }))} onWalletChange={setHistoryWallet} typeFilter={filter} onTypeFilterChange={setFilter} reviewReason={reviewReason} onReviewReasonChange={setReviewReason} onReset={resetHistory} onDownloadCsv={downloadHistoryCsv} transactionCount={allTransactions.length} pendingCount={pendingCount} />{selectedEntries.length > 0 && <BulkReviewPanel entries={selectedEntries} onApply={applyBulkCategory} onClear={() => setSelectedEntryIds([])} selectableCount={selectableIds.length} onSelectAll={() => setSelectedEntryIds(selectableIds)} />}<p className="field-help history-scope" role="status" data-testid="history-scope"><strong>{allTransactions.length} transaksi</strong> · {isReviewQueue ? 'Semua mata uang · semua periode' : `${currency === 'TRY' ? 'TL' : currency} · ${historyPeriod === 'all' ? query.trim() && periodBeforeSearch.current ? 'mencari di semua periode' : 'Semua periode' : reportMonth}`}{historyTotals && <> · <span data-testid="history-inflow" data-amount={historyTotals.inflow}>masuk {formatMoney(historyTotals.inflow, currency)}</span> · <span data-testid="history-outflow" data-amount={historyTotals.outflow}>keluar {formatMoney(historyTotals.outflow, currency)}</span></>}. Pilih catatan di halaman ini untuk kategori massal.</p><TransactionTable entries={historySlice.entries} state={state} data={data} onEdit={editEntry} onDetail={setAmountDetail} selection={selection} groupByDate={historySort === 'newest' || historySort === 'oldest'} quickCategory={isReviewQueue ? { names: categoryPreferences.settings.names, apply: (entry, category) => void applyQuickCategory(entry, category) } : undefined} empty={isReviewQueue && pendingCount === 0
+      }} period={historyPeriod} periodMonthLabel={reportMonth} onPeriodChange={value => { periodBeforeSearch.current = null; setHistoryPeriod(value); }} sort={historySort} onSortChange={setHistorySort} category={historyCategory} categoryOptions={categoryPreferences.settings.names} onCategoryChange={setHistoryCategory} walletId={validHistoryWallet ?? 'all'} walletOptions={activeState.wallets.filter(wallet => isReviewQueue ? !isWalletArchived(data, wallet.id) : wallet.currency === currency).map(wallet => ({ id: wallet.id, name: wallet.name, archived: isWalletArchived(data, wallet.id) }))} onWalletChange={setHistoryWallet} typeFilter={filter} onTypeFilterChange={setFilter} reviewReason={reviewReason} onReviewReasonChange={setReviewReason} onReset={resetHistory} onDownloadCsv={downloadHistoryCsv} transactionCount={allTransactions.length} pendingCount={pendingCount} />{selectedEntries.length > 0 && <BulkReviewPanel entries={selectedEntries} onApply={applyBulkCategory} onClear={() => setSelectedEntryIds([])} selectableCount={selectableIds.length} onSelectAll={() => setSelectedEntryIds(selectableIds)} />}<p className="field-help history-scope" role="status" tabIndex={-1} data-testid="history-scope"><strong>{allTransactions.length} transaksi</strong> · {isReviewQueue ? 'Semua mata uang · semua periode' : `${currency === 'TRY' ? 'TL' : currency} · ${historyPeriod === 'all' ? query.trim() && periodBeforeSearch.current ? 'mencari di semua periode' : 'Semua periode' : reportMonth}`}{historyTotals && <> · <span data-testid="history-inflow" data-amount={historyTotals.inflow}>masuk {formatMoney(historyTotals.inflow, currency)}</span> · <span data-testid="history-outflow" data-amount={historyTotals.outflow}>keluar {formatMoney(historyTotals.outflow, currency)}</span></>}. Pilih catatan di halaman ini untuk kategori massal.</p><TransactionTable entries={historySlice.entries} state={state} data={data} onEdit={editEntry} onDetail={setAmountDetail} selection={selection} groupByDate={historySort === 'newest' || historySort === 'oldest'} quickCategory={isReviewQueue ? { names: categoryPreferences.settings.names, apply: (entry, category) => void applyQuickCategory(entry, category) } : undefined} empty={isReviewQueue && pendingCount === 0
         ? <div className="empty-state" data-testid="review-empty"><CheckCircle2 size={30} /><h3>Semua sudah rapi</h3><p>Tidak ada catatan yang perlu dicek atau diisi kategorinya.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Kembali ke semua transaksi</button></div></div>
         : historyFiltered
         ? <div className="empty-state" data-testid="history-empty-filtered"><Search size={30} /><h3>Tidak ada yang cocok</h3><p>Tidak ada transaksi untuk filter atau pencarian ini.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Reset filter</button>{historyPeriod === 'month' && <button className="button secondary small" onClick={() => setHistoryPeriod('all')}>Lihat semua periode</button>}</div></div>
@@ -792,6 +823,6 @@ export default function App() {
     {privacyOpen && <PrivacyNotice persistence={persistence} usage={storageUsage} onClose={() => setPrivacyOpen(false)} />}
     {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={walletIds => void finishStartOwn(demoReview, undefined, false, walletIds)} />}
     {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.detail}{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua data bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button>{confirm.extra && !confirm.extra.primary && <button className="button secondary" disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}<button className={`button ${confirm.danger ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button>{confirm.extra?.primary && <button className="button primary" data-autofocus disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}</div></Modal>}
-    {toast && <div className={`toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.error ? <AlertTriangle size={19} /> : <CheckCircle2 size={19} />}<span>{toast.text}{toast.detail && <details key={`${toast.text}\n${toast.detail}`} className="toast-detail"><summary>Detail teknis</summary><span>{toast.detail}</span></details>}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)}><X size={15} /></button></div>}
+    {toast && <div className={`toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.error ? <AlertTriangle size={19} /> : <CheckCircle2 size={19} />}<span>{toast.text}{toast.detail && <details key={`${toast.text}\n${toast.detail}`} className="toast-detail"><summary>Detail teknis</summary><span>{toast.detail}</span></details>}</span>{toast.action && <button type="button" className="toast-action" onClick={() => { const run = toast.action!.run; setToast(null); run(); }}>{toast.action.label}</button>}<button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)}><X size={15} /></button></div>}
   </div></CategorySettingsContext.Provider>;
 }

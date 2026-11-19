@@ -719,6 +719,90 @@ def unload_warning_case(browser, args, output, mobile):
         context.close()
 
 
+def saved_elsewhere_case(browser, args, output, mobile):
+    """MW-115: a transaction saved outside the month on screen says where it went and offers to show it."""
+    label = 'saved-elsewhere-mobile' if mobile else 'saved-elsewhere-desktop'
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    context, page, errors = storage_page(browser, mobile, raw)
+    nav = page.locator('.mobile-nav' if mobile else '.sidebar')
+    dialogs = page.get_by_role('dialog')
+    toast = page.locator('.toast')
+    scope = page.get_by_test_id('history-scope')
+    rows = page.locator('.transactions-table tbody tr')
+
+    def record(note, date):
+        page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+        dialog = page.get_by_role('dialog')
+        dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+        dialog.get_by_label('Nominal', exact=True).fill('7')
+        dialog.get_by_label(re.compile('Keterangan')).fill(note)
+        if date:
+            dialog.get_by_label('Tanggal', exact=True).fill(date)
+        dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+        expect(dialogs).to_have_count(0)
+
+    def stored_dates():
+        return page.evaluate('(key) => Object.fromEntries(JSON.parse(localStorage.getItem(key)).state.entries'
+                             '.filter(entry => entry.note.startsWith("Synthetic elsewhere")).map(entry => [entry.note, entry.date]))', KEY)
+
+    try:
+        page.goto(args.url, wait_until='networkidle')
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        expect(scope).to_contain_text('Oktober 2026')
+
+        # Dated in the month on screen: the usual words, no button, and the row is there.
+        record('Synthetic elsewhere same month', '')
+        expect(toast).to_have_text('Transaksi tersimpan.')
+        expect(toast.get_by_role('button', name='Lihat', exact=True)).to_have_count(0)
+        expect(rows.filter(has_text='Synthetic elsewhere same month')).to_have_count(1)
+
+        # Dated in another month: the toast names it, and Lihat opens that month with the row in it.
+        record('Synthetic elsewhere march', '2025-03-15')
+        expect(toast).to_contain_text('Tersimpan di Maret 2025.')
+        expect(rows.filter(has_text='Synthetic elsewhere march')).to_have_count(0)
+        expect(scope).to_contain_text('Oktober 2026')
+        toast.get_by_role('button', name='Lihat', exact=True).click()
+        expect(toast).to_have_count(0)
+        expect(scope).to_contain_text('Maret 2025')
+        expect(rows.filter(has_text='Synthetic elsewhere march')).to_have_count(1)
+        expect(scope).to_contain_text('1 transaksi')
+
+        # An edit that moves the row to another month: the toast names it, and focus goes to the list's status line
+        # instead of being left on the page body.
+        page.get_by_role('button', name=re.compile('^Ubah .*Synthetic elsewhere march')).first.click()
+        dialog = page.get_by_role('dialog')
+        dialog.get_by_label('Tanggal', exact=True).fill('2025-01-20')
+        dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+        expect(dialogs).to_have_count(0)
+        expect(toast).to_contain_text('Tersimpan di Januari 2025.')
+        expect(toast.get_by_role('button', name='Lihat', exact=True)).to_be_visible()
+        expect(rows.filter(has_text='Synthetic elsewhere march')).to_have_count(0)
+        expect(scope).to_be_focused()
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), 'The toast with a button widened the page'
+        toast.screenshot(path=str(output / f'{label}-toast.png'))
+
+        # From Ringkasan the same toast leads to the row on Transaksi.
+        nav.get_by_role('button', name='Ringkasan', exact=True).click()
+        expect(page.locator('.breadcrumb strong')).to_have_text('Ringkasan')
+        record('Synthetic elsewhere from overview', '2025-02-10')
+        expect(toast).to_contain_text('Tersimpan di Februari 2025.')
+        toast.get_by_role('button', name='Lihat', exact=True).click()
+        expect(page.locator('.breadcrumb strong')).to_have_text('Transaksi')
+        expect(scope).to_contain_text('Februari 2025')
+        expect(rows.filter(has_text='Synthetic elsewhere from overview')).to_have_count(1)
+
+        # Exactly what was typed is what was stored.
+        assert stored_dates() == {'Synthetic elsewhere same month': '2026-10-31', 'Synthetic elsewhere march': '2025-01-20',
+                                  'Synthetic elsewhere from overview': '2025-02-10'}, stored_dates()
+        assert not errors, errors
+        return {'name': label, 'status': 'passed'}
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -739,7 +823,9 @@ def main():
                                        ('dialog-back-desktop', dialog_back_case, False),
                                        ('dialog-back-mobile', dialog_back_case, True),
                                        ('unload-warning-desktop', unload_warning_case, False),
-                                       ('unload-warning-mobile', unload_warning_case, True)]:
+                                       ('unload-warning-mobile', unload_warning_case, True),
+                                       ('saved-elsewhere-desktop', saved_elsewhere_case, False),
+                                       ('saved-elsewhere-mobile', saved_elsewhere_case, True)]:
                 began = time.monotonic()
                 try:
                     result = case(browser, args, output, mobile)
