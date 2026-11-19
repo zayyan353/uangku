@@ -659,6 +659,66 @@ def dialog_back_case(browser, args, output, mobile):
         context.close()
 
 
+def unload_warning_case(browser, args, output, mobile):
+    """MW-113c: closing or reloading the tab asks first while a form holds something typed."""
+    label = 'unload-warning-mobile' if mobile else 'unload-warning-desktop'
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    context, page, errors = storage_page(browser, mobile, raw)
+    nav = page.locator('.mobile-nav' if mobile else '.sidebar')
+    dialogs = page.get_by_role('dialog')
+    # What the browser reads to decide whether to ask: did a listener cancel `beforeunload`?
+    warns = "() => { const event = new Event('beforeunload', { cancelable: true }); window.dispatchEvent(event); return event.defaultPrevented; }"
+    try:
+        page.goto(args.url, wait_until='networkidle')
+        assert page.evaluate(warns) is False, 'A page without a form warned'
+        # The transaction form: silent while untouched, warns once something is typed.
+        page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+        dialog = page.get_by_role('dialog')
+        expect(dialog.get_by_label('Nominal', exact=True)).to_be_visible()
+        assert page.evaluate(warns) is False, 'An untouched transaction form warned'
+        dialog.get_by_label('Nominal', exact=True).fill('7')
+        assert page.evaluate(warns) is True, 'A filled transaction form did not warn'
+        if browser_name() == 'chromium':
+            # The real thing: the browser's own question appears, and staying keeps the form as it was.
+            seen = []
+            def stay(prompt):
+                seen.append(prompt.type)
+                prompt.dismiss()
+            page.on('dialog', stay)
+            page.close(run_before_unload=True)
+            page.wait_for_timeout(500)
+            page.remove_listener('dialog', stay)
+            assert seen == ['beforeunload'], seen
+            assert not page.is_closed()
+            expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('7')
+        dialog.get_by_role('button', name='Batal', exact=True).click()
+        page.get_by_role('button', name='Buang isian', exact=True).click()
+        expect(dialogs).to_have_count(0)
+        assert page.evaluate(warns) is False, 'A discarded transaction form still warned'
+
+        # The forms that share the discard question (wallet, currencies, categories) warn the same way.
+        nav.get_by_role('button', name='Dompet', exact=True).click()
+        page.get_by_role('button', name='Tambah dompet', exact=True).first.click()
+        wallet = page.get_by_role('dialog', name='Tambah dompet', exact=True)
+        expect(wallet.get_by_label('Nama dompet', exact=True)).to_be_visible()
+        assert page.evaluate(warns) is False, 'An untouched wallet form warned'
+        wallet.get_by_label('Nama dompet', exact=True).fill('Synthetic unload')
+        assert page.evaluate(warns) is True, 'A filled wallet form did not warn'
+        wallet.get_by_role('button', name='Batal', exact=True).click()
+        wallet.get_by_role('button', name='Buang perubahan', exact=True).click()
+        expect(dialogs).to_have_count(0)
+        assert page.evaluate(warns) is False, 'A discarded wallet form still warned'
+
+        assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'The warning changed the ledger'
+        assert not errors, errors
+        return {'name': label, 'status': 'passed', 'browser_prompt_checked': browser_name() == 'chromium'}
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -677,7 +737,9 @@ def main():
                                        ('storage-gating', storage_gating_case, False),
                                        ('routes-desktop', route_case, False), ('routes-mobile', route_case, True),
                                        ('dialog-back-desktop', dialog_back_case, False),
-                                       ('dialog-back-mobile', dialog_back_case, True)]:
+                                       ('dialog-back-mobile', dialog_back_case, True),
+                                       ('unload-warning-desktop', unload_warning_case, False),
+                                       ('unload-warning-mobile', unload_warning_case, True)]:
                 began = time.monotonic()
                 try:
                     result = case(browser, args, output, mobile)
