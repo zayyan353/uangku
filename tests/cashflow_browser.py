@@ -214,12 +214,24 @@ def pending_and_adjustment(case):
     # The panel folds and opens like the two cashflow panels; folding only hides, it changes no data.
     fold = panel.locator('[data-category-fold]')
     expect(fold).to_have_attribute('aria-expanded', 'true')
+    # MW-128a: the confirmed-expense total is on screen while the panel is open, not only in the folded header.
+    total = panel.get_by_test_id('category-total')
+    expect(total).to_be_visible()
+    expect(total).to_have_attribute('data-amount', '2100')
+    expect(total.locator('span')).to_have_text('Total pengeluaran · 1 kategori')
+    expect(total.locator('strong')).to_contain_text(money_text(2_100))
+    shown = total.locator('strong').inner_text()
+    assert total.evaluate('el => el.getBoundingClientRect().bottom <= el.parentElement.querySelector(".category-row").getBoundingClientRect().top'), 'The total is not above the category rows'
     fold.click()
     expect(fold).to_have_attribute('aria-expanded', 'false')
     expect(panel.locator('.category-row').first).to_be_hidden()
+    expect(total).to_be_hidden()
     expect(fold).to_contain_text('ketuk untuk melihat')
+    # Folded, the header line carries the same figure.
+    expect(fold).to_contain_text(shown)
     fold.click()
     expect(panel.locator('.category-row').first).to_be_visible()
+    expect(total).to_be_visible()
     case.assert_unchanged()
     expect(panel).to_contain_text('21')
     expect(panel).not_to_contain_text('Transfer')
@@ -229,6 +241,21 @@ def pending_and_adjustment(case):
     case.assert_unchanged()
     nav(case.page, 'Ringkasan')
     case.totals(7_000, 3_100, 10_000, 14_150, 250)
+
+
+def category_report_overflow(case):
+    p = case.page
+    budgets = compact({'TRY': {'Pendidikan': 5000}})
+    p.evaluate('(value) => localStorage.setItem("uangku:budgets:v1", value)', budgets)
+    p.reload(wait_until='networkidle')
+    expect(p.get_by_test_id('save-status')).to_contain_text('Tersimpan di browser')
+    expect(p.get_by_text('Total laporan arus rekening melewati batas nominal aman.', exact=True)).to_be_visible()
+    panel = p.locator('.category-panel')
+    expect(panel.get_by_text('Total pengeluaran belum dapat dihitung.', exact=True)).to_be_visible()
+    expect(panel.get_by_test_id('category-total')).to_have_count(0)
+    expect(panel.locator('.category-row')).to_have_count(0)
+    assert p.evaluate('localStorage.getItem("uangku:budgets:v1")') == budgets
+    case.assert_unchanged()
 
 
 def transfer_dominant(case):
@@ -480,6 +507,11 @@ def source_fixture():
 
 
 def cases():
+    # Signed pending postings cancel in the balance, but absolute flows exceed the safe integer limit.
+    limit = 2**53 - 1
+    overflow = document([entry('pending-in', limit), entry('pending-out', -limit),
+        entry('confirmed-in', 100, 'income'), entry('confirmed-out', 100, 'expense', category='Pendidikan')],
+        [wallet(opening=0)])
     dominant = document([entry('available', 25_000, 'income'),
         entry('transfer-away', -22_500, 'movement', category='Transfer',
               note='HAVALE SYNTHETIC OUTBOUND FIXTURE'),
@@ -517,6 +549,7 @@ def cases():
     result = [
         ('aggregate-generated-reference', {'data': reference_fixture()}, reference),
         ('pending-and-adjustment-separate', {}, pending_and_adjustment),
+        ('category-report-overflow-with-budget', {'data': overflow}, category_report_overflow),
         ('transfer-out-dominant-no-hidden-funds', {'data': dominant}, transfer_dominant),
         ('month-opening-cutoff-all-history', {'data': period}, period_cutoff),
         ('paired-principal-fee-individual-scopes', {'data': internal}, internal_same_date),
