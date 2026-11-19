@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CATEGORY_SETTINGS_LIMIT, UNCATEGORIZED, validateCategorySettings, type CategorySettings } from './categorySettings';
-import { parseRestoreFile, serializeFullBackup } from './fullBackup';
+import { parseRestoreFile, restoreFailure, RestoreRefusal, serializeFullBackup, UNREADABLE_RESTORE_FILE } from './fullBackup';
 import { BUDGETS_LIMIT } from './budgets';
 import { TEMPLATES_LIMIT } from './transactionTemplates';
 import { MAX_RESTORE_BYTES, parseBackupText, serializeBackup, type StoredData } from './storage';
@@ -86,6 +86,38 @@ describe('full and legacy backup files', () => {
       { ...full, categorySettings: { ...categories, extra: true } },
     ]) expect(() => parseRestoreFile(JSON.stringify(payload))).toThrow();
     expect(() => parseRestoreFile('{"app":')).toThrow();
+  });
+
+  it('MW-88a: a file that is not a readable Uangku backup gets one plain message, with the parser text only as a detail', () => {
+    const failure = (text: string) => { try { parseRestoreFile(text); } catch (reason) { return restoreFailure(reason); } throw new Error('Expected a refusal'); };
+    const plain = 'File ini bukan cadangan Uangku yang bisa dibaca. Pilih file uangku-lengkap-….json atau uangku-cadangan-….json.';
+    expect(UNREADABLE_RESTORE_FILE).toBe(plain);
+    const whole = serializeFullBackup(ledger(), categories);
+    // Not JSON, a backup cut off mid-file, JSON of another kind, and an Uangku file whose content fails validation.
+    for (const text of ['Ini bukan cadangan', whole.slice(0, Math.floor(whole.length / 2)), '{"halo":"dunia"}', '[]', 'null', '42', '"teks"',
+      JSON.stringify({ ...JSON.parse(whole), added: true }), JSON.stringify({ app: 'uangku', version: 1, demo: false, state: null })]) {
+      const shown = failure(text);
+      expect(shown.message, text.slice(0, 40)).toBe(plain);
+      expect(shown.detail.length, text.slice(0, 40)).toBeGreaterThan(0);
+      expect(shown.message).not.toMatch(/JSON|Unexpected|Unterminated|position/);
+    }
+    expect(failure(whole.slice(0, Math.floor(whole.length / 2))).detail).toMatch(/JSON/);
+    // Refusals that already say what is wrong are shown as they are, with nothing to open.
+    expect(failure(' '.repeat(MAX_RESTORE_BYTES + 1))).toEqual({ message: 'Ukuran mentah file pemulihan maksimal 32 MiB.', detail: '' });
+    expect(failure(JSON.stringify({ ...JSON.parse(whole), version: 2 }))).toEqual({ message: 'Versi cadangan lengkap belum didukung.', detail: '' });
+    // A backup written by a newer Uangku is a readable backup this version is too old for: each section's own
+    // refusal says so and must not turn into "pick another file".
+    const parsed = JSON.parse(whole);
+    expect(failure(JSON.stringify({ ...parsed, categorySettings: { ...parsed.categorySettings, keywordPackVersion: 999 } }))).toEqual({ message: 'Versi paket kata kunci belum didukung.', detail: '' });
+    expect(failure(JSON.stringify({ app: 'uangku', version: 1, demo: false, state: { version: 2, wallets: [], entries: [] } }))).toEqual({ message: 'Versi data dalam cadangan belum didukung.', detail: '' });
+    expect(restoreFailure(new Error('Versi cadangan perpindahan belum didukung.'))).toEqual({ message: 'Versi cadangan perpindahan belum didukung.', detail: '' });
+    // The rule is the whole sentence, not the words inside a longer validator text.
+    expect(restoreFailure(new Error('Metadata sumber tidak valid: Versi fingerprint sumber belum didukung.')).message).toBe(plain);
+    expect(restoreFailure(new RestoreRefusal('Selesaikan penyimpanan dulu.'))).toEqual({ message: 'Selesaikan penyimpanan dulu.', detail: '' });
+    // Anything else thrown on the way is treated as unreadable, never passed through.
+    expect(restoreFailure(new TypeError('Cannot read properties of null'))).toEqual({ message: plain, detail: 'Cannot read properties of null' });
+    expect(restoreFailure(undefined)).toEqual({ message: plain, detail: '' });
+    expect(() => parseRestoreFile(whole)).not.toThrow();
   });
 
   it('enforces raw-file, nested category-byte and nesting limits before applying any restore', () => {

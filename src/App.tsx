@@ -13,7 +13,7 @@ import {
   type Currency, type Entry, type State, type Wallet,
 } from './lib/finance';
 import { createEmptyState, MAX_RESTORE_BYTES, prepareBackup, serializeBackup, type StoredData } from './lib/storage';
-import { parseRestoreFile } from './lib/fullBackup';
+import { parseRestoreFile, restoreFailure, RestoreRefusal } from './lib/fullBackup';
 import { compareRestore, restoreComparisonCopy, restoreNeedsBackupFirst } from './lib/restoreComparison';
 import { measureStorageUsage } from './lib/storageUsage';
 import { carryDemo } from './lib/demoTransition';
@@ -146,7 +146,7 @@ export default function App() {
   const [confirmReason, setConfirmReason] = useState('');
   const [confirmBankAnnotations, setConfirmBankAnnotations] = useState(false);
   useEffect(() => { setConfirmReason(''); setConfirmBankAnnotations(false); }, [confirm]);
-  const [toast, setToast] = useState<{ text: string; error: boolean } | null>(null);
+  const [toast, setToast] = useState<{ text: string; error: boolean; detail?: string } | null>(null);
   const restoreRef = useRef<HTMLInputElement>(null);
   const state = data.state;
   const activeState = useMemo(() => activeAccountState(state), [state]);
@@ -157,7 +157,7 @@ export default function App() {
   const undatedWallets = useMemo(() => new Set(state.entries.flatMap(entry => entryPostings(entry, postingContext).filter(posting => posting.date === null).map(posting => posting.walletId))), [state, postingContext]);
   const notify = (text: string) => setToast({ text, error: false });
   /** A failure stays on screen until it is closed; it is not styled or timed like a success. */
-  const notifyError = (text: string) => setToast({ text, error: true });
+  const notifyError = (text: string, detail?: string) => setToast({ text, error: true, ...(detail ? { detail } : {}) });
   useEffect(() => { if (toast && !toast.error) { const id = setTimeout(() => setToast(null), 5500); return () => clearTimeout(id); } }, [toast]);
   useEffect(() => { writePreferences({ ...preferences, currency }); }, [preferences, currency]);
   useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, historyPeriod, historyPage, reviewReason, historyWallet, historyCategory, historySort]);
@@ -600,11 +600,13 @@ export default function App() {
   }
   async function restore(file?: File) {
     if (!file) return;
+    // A refusal of the previous file must not stay over the dialog, or pass for the answer to this one.
+    setToast(null);
     try {
       if (ledger.pending || ledger.dirty || mutationInFlight.current) {
-        throw new Error('Selesaikan penyimpanan atau unduh pekerjaan yang belum tersimpan sebelum memulihkan cadangan.');
+        throw new RestoreRefusal('Selesaikan penyimpanan atau unduh pekerjaan yang belum tersimpan sebelum memulihkan cadangan.');
       }
-      if (file.size > MAX_RESTORE_BYTES) throw new Error('Ukuran mentah file pemulihan maksimal 32 MiB.');
+      if (file.size > MAX_RESTORE_BYTES) throw new RestoreRefusal('Ukuran mentah file pemulihan maksimal 32 MiB.');
       const backup = parseRestoreFile(await file.text());
       const { ledger: restored } = backup;
       const counts = `${restored.state.wallets.length} dompet, ${restored.state.entries.length} transaksi`;
@@ -639,7 +641,7 @@ export default function App() {
           },
         });
       }
-    } catch (err) { notifyError(err instanceof Error ? err.message : 'File cadangan tidak valid.'); }
+    } catch (err) { const failure = restoreFailure(err); notifyError(failure.message, failure.detail); }
     finally { if (restoreRef.current) restoreRef.current.value = ''; }
   }
   const titles = { overview: [greeting(sanitizeNickname(nickname)), 'Uangmu di mana-mana. Catatannya cukup di sini.'], wallets: ['Semua dompetmu.', 'Rekening dan e-wallet. Cash tidak dibukukan.'], transactions: ['Catatan kecil, lebih tenang.', 'Lihat uang yang masuk, keluar, dan berpindah.'], import: ['Biar file yang bantu.', 'Kurangi ketik satu-satu. Mulai dari mutasi rekening.'] };
@@ -753,6 +755,6 @@ export default function App() {
     {privacyOpen && <PrivacyNotice persistence={persistence} usage={storageUsage} onClose={() => setPrivacyOpen(false)} />}
     {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={walletIds => void finishStartOwn(demoReview, undefined, false, walletIds)} />}
     {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.detail}{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua data bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button>{confirm.extra && !confirm.extra.primary && <button className="button secondary" disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}<button className={`button ${confirm.danger ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button>{confirm.extra?.primary && <button className="button primary" data-autofocus disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}</div></Modal>}
-    {toast && <div className={`toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.error ? <AlertTriangle size={19} /> : <CheckCircle2 size={19} />}<span>{toast.text}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)}><X size={15} /></button></div>}
+    {toast && <div className={`toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.error ? <AlertTriangle size={19} /> : <CheckCircle2 size={19} />}<span>{toast.text}{toast.detail && <details key={`${toast.text}\n${toast.detail}`} className="toast-detail"><summary>Detail teknis</summary><span>{toast.detail}</span></details>}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)}><X size={15} /></button></div>}
   </div></CategorySettingsContext.Provider>;
 }

@@ -53,7 +53,9 @@ async function digest(raw: string | null) {
 function parseJournal(raw: string): Journal {
   const fail = () => { throw new Error('Catatan pemulihan lengkap tidak dapat dibaca. Data tersimpan belum diubah.'); };
   if (raw.length > journalLimit) return fail();
-  const j = JSON.parse(raw);
+  // A journal that is not JSON gets the same message as one of the wrong shape, not the parser's own text.
+  let j;
+  try { j = JSON.parse(raw); } catch { return fail(); }
   const isDigest = (value: unknown) => typeof value === 'string' && /^[a-f0-9]{64}$/.test(value);
   if (!j || Object.keys(j).length !== 4 || !isDigest(j.afterLedger) ||
       (j.beforeLedger !== null && !isDigest(j.beforeLedger)) || typeof j.afterCategories !== 'string' ||

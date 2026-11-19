@@ -572,6 +572,13 @@ def financial_quota(case):
     case.unchanged()
     dialog.get_by_role('button', name='Batal', exact=True).click()
     expect(p.get_by_test_id('save-status')).to_contain_text(re.compile('belum tersimpan', re.I))
+    # MW-88a: with unsaved work a restore is refused in its own words, not as an unreadable file.
+    from full_backup_browser import pick_backup
+    pick_backup(p, 'synthetic-any.json', b'{"halo":"dunia"}')
+    refusal = p.locator('.toast.error')
+    expect(refusal).to_have_text('Selesaikan penyimpanan atau unduh pekerjaan yang belum tersimpan sebelum memulihkan cadangan.')
+    expect(refusal.locator('details')).to_have_count(0)
+    refusal.get_by_role('button', name='Tutup pemberitahuan').click()
     draft_path = case.args.output / f'{case.name}-draft.json'
     with p.expect_download() as download:
         p.get_by_role('button', name='Unduh pekerjaan yang belum tersimpan', exact=True).click()
