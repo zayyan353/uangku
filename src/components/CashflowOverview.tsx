@@ -88,6 +88,8 @@ export default function CashflowOverview({ report, error, currency, month, perio
   const reconciliationId = useId(), breakdownId = useId();
   const matched = !!report?.isComplete && report.difference === 0;
   const breakdownCount = report?.breakdown.length ?? 0;
+  // By purpose, not by account flow: confirmed income against confirmed spending (transfer fees included).
+  const purposeNet = report ? report.incomeTotal - report.categoryExpenseTotal : 0;
   // When the sum does not close, name the cause instead of a general "not certain".
   const verdict = matched ? 'Perhitungan saldo periode cocok. Ini mencocokkan catatan aplikasi, belum membuktikan mutasi bank sudah lengkap.'
     : !report ? 'Laporan belum dapat dihitung, jadi saldo periode belum tersedia.'
@@ -107,6 +109,12 @@ export default function CashflowOverview({ report, error, currency, month, perio
       {balanceCard}
       <div className="stats-stack"><section className="stat-card"><span className="stat-icon income"><ArrowDownLeft size={22} /></span><div><span className="stat-label">Uang masuk rekening</span><strong className="stat-value">{amount(report?.inflow, 'inflow')}</strong><span className="stat-foot">Termasuk transfer masuk dan catatan belum dikategorikan</span>{previous && <span className="stat-compare" data-testid="cashflow-previous-inflow" data-amount={previous.inflow}>{previous.label}: {formatMoney(previous.inflow, currency)}</span>}</div></section><section className="stat-card"><span className="stat-icon expense"><ArrowUpRight size={22} /></span><div><span className="stat-label">Uang keluar rekening</span><strong className="stat-value">{amount(report?.outflow, 'outflow')}</strong><span className="stat-foot">Termasuk transfer keluar, tarik tunai, dan biaya</span>{previous && <span className="stat-compare" data-testid="cashflow-previous-outflow" data-amount={previous.outflow}>{previous.label}: {formatMoney(previous.outflow, currency)}</span>}</div></section></div>
     </div>
+    {report && !startGuide && <div className="purpose-summary" data-testid="purpose-summary" role="group" aria-label="Pemasukan dan pengeluaran terkonfirmasi">
+      <span>Pemasukan <strong>{amount(report.incomeTotal, 'income-total')}</strong></span>
+      <span>Pengeluaran <strong>{amount(report.categoryExpenseTotal, 'expense-total')}</strong></span>
+      <span>Selisih <strong data-testid="cashflow-purpose-net" data-amount={purposeNet}>{purposeNet > 0 ? '+' : purposeNet < 0 ? '−' : ''}{formatMoney(Math.abs(purposeNet), currency)}</strong></span>
+      <span className="purpose-note">Hanya yang terkonfirmasi, tanpa pindah uang antar dompetmu. Catatan “Perlu dicek” belum ikut sampai ditinjau.</span>
+    </div>}
     {afterCards}
     {startGuide ?? <>
     <section className="panel cashflow-reconciliation" data-testid="cashflow-reconciliation" data-complete={report?.isComplete ? 'true' : 'false'} aria-label="Perhitungan saldo periode">
