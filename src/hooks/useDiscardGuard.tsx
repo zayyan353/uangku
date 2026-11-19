@@ -1,14 +1,17 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { useUnloadWarning } from './useUnloadWarning';
 
 /**
  * Asks before a form with unsaved changes is closed, the way the transaction
  * form does. `request` is what Escape, the backdrop, the close button and
  * Batal call; `prompt` is rendered inside the window. Nothing is written here.
  */
-export function useDiscardGuard(dirty: boolean, onClose: () => void, busy = false) {
+export function useDiscardGuard(dirty: boolean, onClose: () => void, busy = false, unappliedInput = false) {
   const [asking, setAsking] = useState(false);
   const keep = useRef<HTMLButtonElement>(null);
   const before = useRef<HTMLElement | null>(null);
+  // Closing the tab also loses text that has not yet been applied to the draft.
+  useUnloadWarning(() => dirty || unappliedInput);
   // Focus goes to "Lanjut mengisi" while asking and back to where it was afterwards, so Escape and Tab keep working.
   useLayoutEffect(() => {
     if (asking) keep.current?.focus();

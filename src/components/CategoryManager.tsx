@@ -72,7 +72,8 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
   useEffect(() => { if (error) errorRef.current?.focus(); }, [error]);
 
   const dirty = useMemo(() => JSON.stringify(draft) !== JSON.stringify(settings), [draft, settings]) || Object.keys(budgetDraft).length > 0 || renames.length > 0;
-  const guard = useDiscardGuard(dirty, onClose, pending !== null);
+  const unappliedInput = !!newName.trim() || !!keyword.trim() || (renaming !== null && renaming.to !== renaming.from);
+  const guard = useDiscardGuard(dirty, onClose, pending !== null, unappliedInput);
   const close = guard.request;
   function update(next: CategorySettings, notice = ''): boolean {
     if (busyRef.current) return false;

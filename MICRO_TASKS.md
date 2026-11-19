@@ -1486,7 +1486,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
 
 ### F4. Pemakaian di HP dan alur
 
-- [ ] **MW-113 — Halaman ada di URL; Back dan muat ulang berperilaku wajar**
+- [x] **MW-113 — Halaman ada di URL; Back dan muat ulang berperilaku wajar**
   Navigasi dan dialog tidak membuat entri riwayat dan URL tidak pernah berubah
   (`src/App.tsx:101`; tidak ada `pushState`, `popstate`, `hashchange`, atau
   `location.hash` di `src`). Muat ulang
@@ -1629,9 +1629,37 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     entri dialog tidak membuka dialog lagi. Pada mesin tanpa Navigation API,
     Forward yang dibatalkan diam-diam masih bisa membiarkan form terbuka
     tanpa entri pelindung. Aplikasi Layar Utama tidak diuji.
-  - [ ] **c.** (S) Peringatan `beforeunload` saat form terbuka berisi isian. Penjaga
+  - [x] **c.** (S) Peringatan `beforeunload` saat form terbuka berisi isian. Penjaga
     untuk perubahan belum tersimpan sudah ada
     (`src/hooks/useLedgerStorage.ts:45-54`).
+    *Selesai 24 Nov 2026:* saat tab ditutup atau dimuat ulang, aplikasi
+    meminta browser memperingatkan pengguna bila form masih berisi perubahan.
+    Form transaksi dan penjaga bersama untuk dompet, mata uang dan kategori
+    memakai `src/hooks/useUnloadWarning.ts`. Peringatan mengikuti isian
+    terbaru dan pendengarnya dilepas saat form ditutup. Tombol untuk tetap
+    di halaman pada pertanyaan browser mempertahankan isian.
+    Browser memilih teks peringatannya. Aplikasi tidak menulis draf ke
+    penyimpanan saat tab hendak ditutup.
+    *Keputusan agen (mudah dibatalkan):* nama template baru dibandingkan dengan usulan saat panel dibuka. Nama
+    template yang diedit dibandingkan dengan nama tersimpan. Pada dompet
+    baru, form dianggap mulai diisi setelah ada nama atau saldo selain nilai
+    awal, mengikuti penjaga form yang sudah ada.
+    *Dari tinjauan 24 Nov 2026:* pada kode parkir, mengetik nama kategori,
+    nama pengganti atau kata kunci sebelum menekan Tambah/Terapkan tidak
+    memicu peringatan. Begitu pula dengan nama template pada transaksi
+    yang belum diubah. Kini teks tersebut ikut dijaga. Pencarian aturan
+    dan mata uang serta usulan nama template yang belum diubah tetap hening.
+    *Tes:* `npm test` 73 file / 1.886 tes, build produksi dan 18/18 suite
+    Chromium 154 lulus. Smoke 39 skenario, recovery 16/16, UX 11/11, dompet
+    21/21, kategori 28/28, impor mata uang 29/29. Median performa 4.838,7 ms,
+    celah frame terbesar 195,3 ms. Pada kode sebelum MW, kedua kasus unload
+    gagal saat form berisi. Dua mutan yang mencabut masing-masing pemasangan
+    hook juga menggagalkan kedua kasus. Dua mutan nama template masing-masing
+    menggagalkan kedua ukuran layar. Tiga mutan kategori gagal pada kolomnya
+    sendiri. Di Chromium, membatalkan penutupan tab menjaga isian transaksi.
+    *Belum terbukti:* prompt asli hanya diuji di Chromium. Firefox dan WebKit
+    di CI memeriksa peristiwa yang dibatalkan. HP fisik, penutupan paksa oleh
+    sistem operasi dan aplikasi Layar Utama tidak diuji.
 
   Tes ikut di PR masing-masing butir, di `tests/ux_browser.py`: butir a menambah
   kasus muat ulang dan Back antarhalaman, butir b kasus Back dengan dialog
