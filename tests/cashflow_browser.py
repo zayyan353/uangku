@@ -273,9 +273,16 @@ def period_cutoff(case):
     # October is compared with September's totals for the same scope.
     expect(previous[0]).to_have_attribute('data-amount', '1000'); expect(previous[0]).to_contain_text('September 2026')
     expect(previous[1]).to_have_attribute('data-amount', '300')
+    # MW-128c: the purpose row carries last month's confirmed income and spending too, named as a full month.
+    purpose(case, 5_000, 2_100)
+    before = case.page.get_by_test_id('purpose-previous')
+    expect(before).to_have_attribute('data-income', '1000'); expect(before).to_have_attribute('data-expense', '300')
+    expect(before).to_have_text(re.compile(r'^September 2026, sebulan penuh: pemasukan \D*10 · pengeluaran \D*3 · selisih \+\D*7$'))
     case.period('all')
     case.totals(8_000, 3_400, 10_000, 14_850, 250)
     expect(previous[0]).to_have_count(0)
+    expect(before).to_have_count(0)
+    purpose(case, 6_000, 2_400)
     case.period('month'); case.month('2026-09')
     case.totals(1_000, 300, 10_000, 10_700)
     expect(previous[0]).to_have_count(0); expect(previous[1]).to_have_count(0)  # August has no flow

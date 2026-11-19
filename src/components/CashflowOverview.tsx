@@ -20,7 +20,7 @@ interface Props {
   startGuide?: ReactNode;
   /** Phone layout: the month field sits with scope and period, and banners follow the cards. */
   /** Last month's full totals for the same scope; absent when that month has no flow. */
-  previous?: { label: string; inflow: number; outflow: number };
+  previous?: { label: string; inflow: number; outflow: number; income: number; expense: number };
   monthControl?: ReactNode;
   afterCards?: ReactNode;
 }
@@ -90,6 +90,7 @@ export default function CashflowOverview({ report, error, currency, month, perio
   const breakdownCount = report?.breakdown.length ?? 0;
   // By purpose, not by account flow: confirmed income against confirmed spending (transfer fees included).
   const purposeNet = report ? report.incomeTotal - report.categoryExpenseTotal : 0;
+  const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatMoney(Math.abs(value), currency)}`;
   // When the sum does not close, name the cause instead of a general "not certain".
   const verdict = matched ? 'Perhitungan saldo periode cocok. Ini mencocokkan catatan aplikasi, belum membuktikan mutasi bank sudah lengkap.'
     : !report ? 'Laporan belum dapat dihitung, jadi saldo periode belum tersedia.'
@@ -112,7 +113,8 @@ export default function CashflowOverview({ report, error, currency, month, perio
     {report && !startGuide && <div className="purpose-summary" data-testid="purpose-summary" role="group" aria-label="Pemasukan dan pengeluaran terkonfirmasi">
       <span>Pemasukan <strong>{amount(report.incomeTotal, 'income-total')}</strong></span>
       <span>Pengeluaran <strong>{amount(report.categoryExpenseTotal, 'expense-total')}</strong></span>
-      <span>Selisih <strong data-testid="cashflow-purpose-net" data-amount={purposeNet}>{purposeNet > 0 ? '+' : purposeNet < 0 ? '−' : ''}{formatMoney(Math.abs(purposeNet), currency)}</strong></span>
+      <span>Selisih <strong data-testid="cashflow-purpose-net" data-amount={purposeNet}>{signed(purposeNet)}</strong></span>
+      {previous && (previous.income !== 0 || previous.expense !== 0) && <span className="purpose-previous" data-testid="purpose-previous" data-income={previous.income} data-expense={previous.expense}>{previous.label}, sebulan penuh: pemasukan {formatMoney(previous.income, currency)} · pengeluaran {formatMoney(previous.expense, currency)} · selisih {signed(previous.income - previous.expense)}</span>}
       <span className="purpose-note">Hanya yang terkonfirmasi, tanpa pindah uang antar dompetmu. Catatan “Perlu dicek” belum ikut sampai ditinjau.</span>
     </div>}
     {afterCards}
