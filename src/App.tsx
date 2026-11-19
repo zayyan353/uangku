@@ -18,6 +18,7 @@ import { compareRestore, restoreComparisonCopy, restoreNeedsBackupFirst } from '
 import { measureStorageUsage } from './lib/storageUsage';
 import { describeFailure, failureClause } from './lib/failureText';
 import { addressForPage, pageFromHash } from './lib/pageRoute';
+import { dialogHistory } from './lib/dialogHistory';
 import { carryDemo } from './lib/demoTransition';
 import type { CandidateOptions } from './lib/persistence';
 import { categoryBudgetRows, type BudgetMap } from './lib/budgets';
@@ -667,9 +668,9 @@ export default function App() {
     }
     setPage(next);
   }
-  /** Adds the page's address to the history. A browser may refuse the write (Safari allows 100 in 30 seconds); the page shown is right either way and only the address lags. */
+  /** Puts the page's address in the history. Every write goes through the dialog history, which also holds the entry Back closes a dialog on. */
   function writeAddress(next: Page) {
-    try { window.history.pushState(null, '', addressForPage(window.location.href, next)); } catch { /* see above */ }
+    dialogHistory().showPage(addressForPage(window.location.href, next));
   }
   // The page is part of the address: a reload stays on it, and Back and Forward move between pages
   // instead of leaving the app. Only a real change of page adds a history entry.
@@ -678,6 +679,8 @@ export default function App() {
   }, [page]);
   const followAddress = useRef(() => {});
   followAddress.current = () => {
+    // Back with a dialog open closes the dialog and leaves the address where it was (src/lib/dialogHistory.ts).
+    dialogHistory().moved();
     const next = pageFromHash(window.location.hash);
     if (next === page) return;
     // A save is running and the page must not change under it: put the address back to where the app is.
@@ -690,6 +693,7 @@ export default function App() {
     const follow = () => followAddress.current();
     window.addEventListener('popstate', follow);
     window.addEventListener('hashchange', follow);
+    dialogHistory().start();
     return () => { window.removeEventListener('popstate', follow); window.removeEventListener('hashchange', follow); };
   }, []);
   function openHistory(walletId: string, period: HistoryPeriod, type = 'all') {

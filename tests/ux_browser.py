@@ -543,6 +543,122 @@ def route_case(browser, args, output, mobile):
         context.close()
 
 
+def dialog_back_case(browser, args, output, mobile):
+    """MW-113b: an open dialog has a history entry of its own; Back closes it through the discard question."""
+    label = 'dialog-back-mobile' if mobile else 'dialog-back-desktop'
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    context, page, errors = storage_page(browser, mobile, raw)
+    nav = page.locator('.mobile-nav' if mobile else '.sidebar')
+    dialogs = page.get_by_role('dialog')
+    on_entry = '() => !!(history.state && history.state.uangkuDialog)'
+
+    def at(name, address):
+        expect(page.locator('.breadcrumb strong')).to_have_text(name)
+        assert page.evaluate('location.hash') == address, page.evaluate('location.href')
+
+    def record():
+        page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+        expect(dialogs).to_have_count(1)
+        page.wait_for_function(on_entry)
+        return page.get_by_role('dialog')
+
+    def back():
+        # The dialog's entry has the page's own address, so this is the History API's Back, as in MW-113a's note.
+        page.evaluate('history.back()')
+
+    try:
+        page.goto(args.url, wait_until='networkidle')
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        at('Transaksi', '#/transaksi')
+        entries = page.evaluate('history.length')
+
+        # An untouched dialog: Back closes it and the page stays.
+        record()
+        assert page.evaluate('history.length') == entries + 1
+        at('Transaksi', '#/transaksi')
+        back()
+        expect(dialogs).to_have_count(0)
+        at('Transaksi', '#/transaksi')
+
+        # A filled form: Back asks first, and what was typed is still there afterwards.
+        dialog = record()
+        dialog.get_by_label('Nominal', exact=True).fill('7')
+        dialog.get_by_label(re.compile('Keterangan')).fill('Synthetic back draft')
+        back()
+        expect(page.get_by_role('dialog', name='Buang isian transaksi?', exact=True)).to_be_visible()
+        page.get_by_role('button', name='Lanjut mengisi', exact=True).click()
+        expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('7')
+        expect(dialog.get_by_label(re.compile('Keterangan'))).to_have_value('Synthetic back draft')
+        # The dialog is back on the entry it had; nothing was added to the history.
+        page.wait_for_function(on_entry)
+        assert page.evaluate('history.length') == entries + 1
+        back()
+        expect(page.get_by_role('dialog', name='Buang isian transaksi?', exact=True)).to_be_visible()
+        page.get_by_role('button', name='Buang isian', exact=True).click()
+        expect(dialogs).to_have_count(0)
+        at('Transaksi', '#/transaksi')
+
+        # Dialogs closed by their own button: three rounds add one entry in all, and one Back still leaves the page.
+        for _ in range(3):
+            dialog = record()
+            dialog.get_by_role('button', name='Batal', exact=True).click()
+            expect(dialogs).to_have_count(0)
+        assert page.evaluate('history.length') == entries + 1
+        back()
+        at('Ringkasan', '')
+        page.go_forward()
+        at('Transaksi', '#/transaksi')
+        # Forward once more reaches the entry the dialogs used: no dialog comes back, and the page is the same.
+        page.evaluate('history.forward()')
+        page.wait_for_function(on_entry)
+        expect(dialogs).to_have_count(0)
+        at('Transaksi', '#/transaksi')
+
+        # One dialog replaced by another keeps the entry: Back from Kelola mata uang returns to the wallet form.
+        nav.get_by_role('button', name='Dompet', exact=True).click()
+        at('Dompet', '#/dompet')
+        entries = page.evaluate('history.length')
+        page.get_by_role('button', name='Tambah dompet', exact=True).first.click()
+        wallet = page.get_by_role('dialog', name='Tambah dompet', exact=True)
+        expect(wallet).to_be_visible()
+        page.wait_for_function(on_entry)
+        wallet.get_by_role('button', name='Mata uang lain…', exact=True).click()
+        expect(page.get_by_role('dialog', name='Kelola mata uang', exact=True)).to_be_visible()
+        page.wait_for_function(on_entry)
+        assert page.evaluate('history.length') == entries + 1
+        back()
+        expect(wallet).to_be_visible()
+        expect(dialogs).to_have_count(1)
+        page.wait_for_function(on_entry)
+        back()
+        expect(dialogs).to_have_count(0)
+        at('Dompet', '#/dompet')
+
+        # A reload with a dialog open: the page stays, the dialog is gone, and one Back leaves the page.
+        page.get_by_role('button', name='Tambah dompet', exact=True).first.click()
+        expect(wallet).to_be_visible()
+        page.wait_for_function(on_entry)
+        page.reload(wait_until='networkidle')
+        expect(dialogs).to_have_count(0)
+        at('Dompet', '#/dompet')
+        back()
+        at('Transaksi', '#/transaksi')
+        # A reload right after a dialog closes is not cut short by anything the dialog left behind.
+        record().get_by_role('button', name='Batal', exact=True).click()
+        page.reload(wait_until='networkidle')
+        at('Transaksi', '#/transaksi')
+
+        # Opening and closing dialogs reads only.
+        assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'A dialog closed by Back changed the ledger'
+        assert not errors, errors
+        return {'name': label, 'status': 'passed'}
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -559,7 +675,9 @@ def main():
             for name, case, mobile in [('desktop', run_case, False), ('mobile', run_case, True),
                                        ('storage-desktop', storage_case, False), ('storage-mobile', storage_case, True),
                                        ('storage-gating', storage_gating_case, False),
-                                       ('routes-desktop', route_case, False), ('routes-mobile', route_case, True)]:
+                                       ('routes-desktop', route_case, False), ('routes-mobile', route_case, True),
+                                       ('dialog-back-desktop', dialog_back_case, False),
+                                       ('dialog-back-mobile', dialog_back_case, True)]:
                 began = time.monotonic()
                 try:
                     result = case(browser, args, output, mobile)
