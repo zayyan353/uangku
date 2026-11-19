@@ -75,7 +75,9 @@ export const SOURCE_STATEMENT_ROWS = 50_000;
 
 export const hasOwn = (value: object, key: PropertyKey): boolean => Object.hasOwn(value, key);
 export const utf8Size = utf8Bytes;
-export function sourceError(message: string): never { throw new Error(`Metadata sumber tidak valid: ${message}`); }
+/** Every validator refusal starts with this; the user-facing layer recognises it (see failureText.ts). */
+export const SOURCE_ERROR_PREFIX = 'Metadata sumber tidak valid: ';
+export function sourceError(message: string): never { throw new Error(`${SOURCE_ERROR_PREFIX}${message}`); }
 export function sourceCheck(test: unknown, message: string): asserts test { if (!test) sourceError(message); }
 export type JsonRecord = Record<string, unknown>;
 export function sourceRecord(value: unknown, label: string): JsonRecord {

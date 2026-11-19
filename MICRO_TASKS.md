@@ -777,7 +777,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dijalankan di Chromium (desktop dan emulasi HP). Belum terbukti: pemicu lewat
   impor mutasi dan arsip dompet tidak diulang di browser.
 
-- [ ] **MW-88 — Pesan berbahasa Indonesia untuk file cadangan yang salah atau rusak** (S)
+- [x] **MW-88 — Pesan berbahasa Indonesia untuk file cadangan yang salah atau rusak** (S)
   Memilih file yang bukan cadangan di **Pulihkan cadangan** menampilkan pesan
   parser mentah berbahasa Inggris; cadangan yang terpotong menampilkan
   "Unterminated string in JSON at position 900 (line 1 column 901)"; JSON lain
@@ -832,8 +832,35 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     transaksi-saja dari codec yang lebih baru masih dijawab "bukan cadangan
     yang bisa dibaca" dengan alasannya di detail (bagian MW-102b). Pesan mentah
     di jalur lain (misalnya impor mutasi) tidak disentuh; itu butir b.
-  - [ ] **b.** Pesan yang bisa dipahami saat aksi pengguna gagal di validasi
+  - [x] **b.** Pesan yang bisa dipahami saat aksi pengguna gagal di validasi
     metadata (contohnya galat pada MW-87), bukan teks validator mentah.
+    *Selesai 19 Nov 2026:* teks yang diawali "Metadata sumber tidak valid: "
+    (awalan semua penolakan validator) kini tampil sebagai "Tindakan ini
+    ditolak oleh pemeriksaan data, jadi tidak ada yang disimpan atau diubah."
+    dengan alasan validatornya tertutup di bawah **Detail teknis**. Berlaku
+    untuk semua toast galat di `src/App.tsx` dan untuk kotak galat di jendela
+    dompet, impor mutasi, pelengkapan mutasi, kelola mata uang, dan isi
+    kategori otomatis (`src/lib/failureText.ts`, komponen `FailureText`). Teks
+    lain tidak diubah.
+    *Keputusan agen (mudah dibatalkan):* dua batas yang bisa dicapai pengguna
+    sendiri mendapat kalimatnya sendiri tanpa rincian: dompet ke-101 ("Jumlah
+    dompet sudah mencapai batas 100, jadi dompet baru tidak disimpan.") dan
+    transaksi ke-100.001.
+    *Tes:* `npm test` 70 file / 1.838 tes (5 baru: `failureText.test.ts`
+    memakai penolakan yang sungguh dilempar validator, `FailureText.test.tsx`
+    memeriksa markup-nya), `npm run build` lulus. Chromium: `wallet_browser.py`
+    20/20 dengan kasus baru `wallet-limit-plain-message` (gagal tanpa
+    perubahannya, menampilkan teks validator mentah), `currency_import_browser.py`
+    28/28, `category_browser.py` 27/27, `bank_review_browser.py` 12/12,
+    `source_browser.py` 5/5, `recovery_browser.py` 16/16, `browser_smoke.py`
+    39 skenario.
+    *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Jalur umum
+    (kalimat plus rincian) tidak bisa dipicu lewat layar tanpa bug seperti
+    MW-87, jadi hanya diuji di tingkat unit dan markup; yang diuji di browser
+    adalah batas dompet. Impor CSV sudah punya pesannya sendiri untuk
+    keterangan terlalu panjang. Kotak galat di formulir transaksi, kelola
+    kategori, dan pemeta CSV tidak diubah karena galatnya berasal dari
+    pemeriksaan formulir, bukan validator.
 
 - [ ] **MW-89 — Unduh CSV: transfer bertanda benar, berbiaya, dan bermata uang tujuan** (S) — **butuh keputusan**
   Transfer Bank Jago → Ziraat (Rp 1.000.000 → ₺2.500, biaya Rp 6.500) diekspor

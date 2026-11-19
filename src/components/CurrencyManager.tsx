@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import { FailureText } from './FailureText';
 import { ArrowDown, ArrowUp, Check, Eye, EyeOff, Plus, Search } from 'lucide-react';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
 import Modal from './Modal';
@@ -52,7 +53,7 @@ export default function CurrencyManager({ data, onSave, onView, onClose, disable
       <h3>Daftar tampil · {codes.length}</h3><p className="field-help">Sisakan setidaknya satu mata uang. Urutan ini dipakai pada tab mata uang; ubah dengan panah naik dan turun.</p><ul className="currency-manager-list">{codes.map(code => row(code, true))}</ul>
       {[...used.keys()].some(code => !codes.includes(code)) && <><h3>Tercatat tetapi disembunyikan</h3><ul className="currency-manager-list">{[...used.keys()].filter(code => !codes.includes(code)).map(code => row(code, false))}</ul></>}
       {changed && <p className="field-help">Simpan atau batalkan perubahan sebelum membuka laporan.</p>}
-      {error && <p className="notice error" role="alert">{error}</p>}
+      {error && <div className="notice error" role="alert"><FailureText text={error} /></div>}
     </div>{guard.prompt}<div className="modal-footer"><button className="button secondary" disabled={busy} onClick={guard.request}>Batal</button><button className="button primary" disabled={busy || disabled} onClick={save}><Check size={16} /> {busy ? 'Menyimpan…' : 'Simpan mata uang'}</button></div>
   </Modal>;
 }

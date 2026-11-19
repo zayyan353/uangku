@@ -1,4 +1,5 @@
 import { useContext, useMemo, useRef, useState } from 'react';
+import { FailureText } from './FailureText';
 import { CheckCheck } from 'lucide-react';
 import Modal from './Modal';
 import { CategorySettingsContext } from '../hooks/useCategorySettings';
@@ -39,7 +40,7 @@ export default function CategoryAutomation({ data, onApply, onClose, disabled = 
     {rows.length > 0 && <><div className="notice success">{auto} cocok dengan aturan otomatis · {rows.length - auto} perlu pilihan. Catatan tanpa kecocokan tetap belum dikategorikan.</div>
     <details className="automation-rules"><summary>Apa yang terjadi saat Terapkan?</summary><p className="field-help">Semua periode dan mata uang. Kategori manual dipertahankan. Saat Terapkan, mutasi bank yang dikenali juga dikonfirmasi: tarik ATM menjadi pengeluaran, setor ATM menjadi pemasukan, dan transfer bank tetap perpindahan dana; PREPAID masuk menjadi pemasukan Cashback; refund masalah ATM yang jelas menjadi Pengembalian dana. Pembayaran kartu tanpa kecocokan merchant memakai Belanja sebagai kategori umum, tanpa menebak barang yang dibeli. Nominal, saldo rekening, tanggal, dan data bank tetap. Mutasi lainnya tetap perlu dicek.</p></details></>}
     {settings !== basis.settings && <div className="notice warning">Pengaturan kategori berubah. Tutup lalu buka kembali pratinjau agar memakai aturan terbaru.</div>}
-    {error && <div className="notice error" role="alert">{error}</div>}
+    {error && <div className="notice error" role="alert"><FailureText text={error} /></div>}
     {!rows.length ? <div className="empty-state compact" data-testid="automation-empty"><CheckCheck size={26} /><p>Tidak ada catatan yang cocok dengan aturan saat ini. Tambahkan kata atau frasa merchant lewat Kelola kategori bila ada yang ingin diisi otomatis.</p></div> : <>
       <div className="category-automation-list">{rows.slice((page - 1) * 50, page * 50).map((row, index) => {
         const wallet = wallets.get(row.entry.walletId);

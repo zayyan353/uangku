@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { FailureText } from './FailureText';
 import { formatDate, formatMoney } from '../lib/finance';
 import { inspectStoredStatement, prepareStatementCompletion } from '../lib/reconciliation';
 import { executeTransferCommand } from '../lib/transferCommands';
@@ -58,7 +59,7 @@ function StatementCard({ data, statement, commit, disabled, order }: { data: Sto
         <button className="button secondary small" onClick={preview}>Pratinjau pelengkapan</button>
         {after && proposal && <div className={`notice completion-preview ${after.difference === 0 ? 'success' : 'warning'}`} role="status"><strong>Hasil pratinjau, belum disimpan</strong><p>{proposal.next.state.entries.length - data.state.entries.length} transaksi akan ditambahkan. Saldo penutupan usulan: <strong>{after.projectedBalance === null ? 'Belum dapat dipastikan' : formatMoney(after.projectedBalance, wallet.currency)}</strong> · selisih dengan file: {after.difference === null ? 'belum dapat dipastikan' : formatMoney(after.difference, wallet.currency)}.</p><p className="field-help">Periksa sebelum menyimpan. Data bank dan koreksi pengguna tetap disimpan terpisah.</p><button className="button primary small" onClick={() => void save()}>{saving ? 'Menyimpan…' : 'Lengkapi dan simpan'}</button></div>}
       </fieldset>}
-      {error && <p className="notice error" role="alert">{error}</p>}
+      {error && <div className="notice error" role="alert"><FailureText text={error} /></div>}
     </div>}
   </details>;
 }
@@ -88,6 +89,6 @@ export default function StatementReview({ data, onCommit, disabled }: { data: St
       const from = data.state.wallets.find(wallet => wallet.id === item.entry.walletId), to = data.state.wallets.find(wallet => wallet.id === item.entry.toWalletId);
       return <li key={item.entry.id}><span className="deleted-transfer-copy"><strong>{item.entry.note || 'Transfer'}</strong><span>{formatDate(item.entry.date)}{from ? ` · ${formatMoney(item.entry.amount, from.currency)} · ${from.name}${to ? ` → ${to.name}` : ''}` : ''}</span><span>Alasan dihapus: {item.reason}</span></span><button className="button secondary small" disabled={disabled || !reason.trim() || readOnlyEntryIds.has(item.entry.id) || isWalletArchived(data, item.entry.walletId) || !!item.entry.toWalletId && isWalletArchived(data, item.entry.toWalletId)} onClick={() => void restore(item.entry.id)}>Pulihkan seluruh transfer</button></li>;
     })}</ul>{deleted.length > 20 && <p className="field-help">{deleted.length - 20} transfer lain belum ditampilkan; pulihkan yang di atas dulu.</p>}</div>}
-    {error && <p className="notice error" role="alert">{error}</p>}
+    {error && <div className="notice error" role="alert"><FailureText text={error} /></div>}
   </section>;
 }
