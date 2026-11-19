@@ -1992,9 +1992,32 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     impor, serialisasi, dan buka ulang.
     *Belum terbukti:* fungsi belum dipakai halaman aplikasi pada butir ini.
     Tidak ada pengujian browser lokal untuk helper ini.
-  - [ ] **b.** (S) Satu baris di kartu dompet: "Catatan terakhir 12 Nov · mutasi
+  - [x] **b.** (S) Satu baris di kartu dompet: "Catatan terakhir 12 Nov · mutasi
     bank sampai 19 Okt". *File:* `src/components/WalletsPage.tsx`, `src/App.tsx`,
     `tests/wallet_browser.py`.
+    *Selesai 24 Nov 2026:* kartu Dompet menampilkan tanggal catatan terakhir
+    dan akhir periode mutasi yang tersimpan di bawah saldo, termasuk pada
+    tab Arsip. Tahun ditulis untuk tanggal di luar tahun berjalan.
+    `src/App.tsx` menghitungnya saat berada di Dompet. `WalletsPage.tsx`
+    menampilkan hasil dan ikut diperbarui ketika tanggal lokal berubah.
+    *Keputusan agen (mudah dibatalkan):* dompet kosong bertuliskan “Belum
+    ada catatan.” Dompet dengan histori yang hanya memuat tanggal mendatang
+    atau yang tidak diketahui menyebut tanggal terakhir belum tersedia.
+    Saat data belum berhasil disimpan atau sumber perlu dipulihkan,
+    “Tanggal catatan dan mutasi belum dapat dipastikan.” menggantikan tanggal.
+    *Dari tinjauan (benar/aman dan tes/tampilan):* transaksi 30 Oktober yang
+    gagal karena kuota sempat ditampilkan sebagai catatan terakhir meski
+    penyimpanan masih berakhir 3 Oktober. Tanggal juga sempat ditampilkan
+    ketika tab lain membuat data tidak terbaca. Sesudah perbaikan, tanggal
+    baru muncul setelah simpan ulang berhasil. Pada lebar 320 gelap, teks
+    panjang membungkus di antara saldo dan tombol. Saat Istanbul berganti
+    hari, transaksi yang tadinya di masa depan muncul tanpa muat ulang.
+    *Tes:* `npm test` 76 file / 1.906 tes dan build produksi lulus.
+    Chromium: dompet 24/24, pemulihan 17/17, kerangka 4/4. Sebelum MW,
+    empat tes format dan kasus kartu gagal. Enam mutan tampilan gagal.
+    Kedua regresi tanggal/penyimpanan gagal pada kode parkir.
+    *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Arsip uang
+    tunai lama memakai tampilan tersendiri. Kelengkapan mutasi tidak diukur.
   - [ ] **c.** (S–M) Pengingat di Ringkasan untuk dompet yang punya mutasi tersimpan
     tetapi belum menjangkau bulan lalu; bisa ditutup sampai besok.
 

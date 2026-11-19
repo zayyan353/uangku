@@ -1,5 +1,6 @@
 import { ArrowRight, CircleHelp, History, Landmark, Plus, Settings2, Wallet as WalletIcon } from 'lucide-react';
 import { formatDate, type Currency, type Wallet } from '../lib/finance';
+import type { WalletFreshness } from '../lib/walletFreshness';
 
 export const kindLabel = (kind: Wallet['kind']) => kind === 'cash' ? 'Uang tunai' : kind === 'ewallet' ? 'E-wallet' : 'Rekening bank';
 
@@ -14,10 +15,27 @@ function WalletBalance({ text }: { text: string }) {
   return <strong className={`wallet-card-balance${/\d/.test(text) ? '' : ' wallet-card-balance-note'}`}>{text}</strong>;
 }
 
+const shortDay = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+/**
+ * How far a wallet's records reach, in one line: "Catatan terakhir 12 Nov · mutasi bank sampai 19 Okt".
+ * The year is left out while it is this year's. A wallet without stored statements says nothing about them.
+ */
+export function freshnessText(freshness: WalletFreshness | undefined, today: string): string {
+  const day = (date: string) => date.slice(0, 4) === today.slice(0, 4)
+    ? shortDay.format(new Date(`${date}T12:00:00Z`))
+    : formatDate(date);
+  let record = 'Belum ada catatan';
+  if (freshness?.lastRecordOn) record = `Catatan terakhir ${day(freshness.lastRecordOn)}`;
+  else if (freshness?.hasRecords) record = 'Tanggal catatan terakhir belum tersedia';
+  if (freshness?.statementThrough) return `${record} · mutasi bank sampai ${day(freshness.statementThrough)}`;
+  return freshness?.lastRecordOn ? record : `${record}.`;
+}
+
 /** Wallets page: active/archive tabs, total, and the grid of wallet cards. */
 export default function WalletsPage({
   hasCashArchive, onOpenCashArchive, walletView, onWalletViewChange, activeCount, archivedCount,
-  currency, currencyName, clockDay, total, wallets, actualText,
+  currency, currencyName, clockDay, total, wallets, actualText, freshness,
   onOpenWallet, onRecord, onCheckBalance, onShowHistory, onRestore,
 }: {
   hasCashArchive: boolean;
@@ -33,6 +51,8 @@ export default function WalletsPage({
   /** Wallets shown in the current tab. */
   wallets: Wallet[];
   actualText: (walletId: string, currency: Currency) => string;
+  /** Per wallet: its latest record and how far its stored bank statements reach. */
+  freshness: ReadonlyMap<string, WalletFreshness> | null;
   onOpenWallet: (wallet: Wallet | 'new') => void;
   onRecord: (walletId: string) => void;
   onCheckBalance: (walletId: string) => void;
@@ -44,7 +64,14 @@ export default function WalletsPage({
         <div className="wallet-view-tabs tab-group" role="group" aria-label="Status dompet"><button className={walletView === 'active' ? 'active' : ''} data-testid="wallet-active-tab" aria-pressed={walletView === 'active'} onClick={() => onWalletViewChange('active')}>Aktif ({activeCount})</button><button className={walletView === 'archive' ? 'active' : ''} data-testid="wallet-archive-tab" aria-pressed={walletView === 'archive'} onClick={() => onWalletViewChange('archive')}>Arsip ({archivedCount})</button></div>
         <div className="section-heading"><div><h2 className="section-title">Dompet {currencyName} · {walletView === 'archive' ? 'Arsip' : 'Aktif'}</h2><p className="section-description">{wallets.length} dompet</p></div>{(walletView === 'active' || wallets.length > 0) && <p className="wallet-total"><span>Saldo aktual {formatDate(clockDay)}</span><strong className={/\d/.test(total.text) ? undefined : 'wallet-total-note'} data-testid="wallet-current-total" data-amount={total.value ?? undefined}>{total.text}</strong></p>}</div>
         {walletView === 'archive' && wallets.length > 0 && <div className="notice">Dompet arsip tetap masuk saldo dan laporan. Histori dapat dibaca; pulihkan dompet untuk mencatat, mengimpor, atau mengubah transaksi.</div>}
-        <div className="wallet-grid">{wallets.map(w => <section key={w.id} className="wallet-card" data-wallet-id={w.id}><div className="wallet-card-top"><WalletSymbol wallet={w} /><span className="wallet-info"><strong>{w.name}</strong><span>{kindLabel(w.kind)}{walletView === 'archive' ? ' · Arsip' : ''}</span></span>{walletView === 'active' && <button className="text-link wallet-edit" aria-label={`Atur dompet ${w.name}`} onClick={() => onOpenWallet(w)}><Settings2 size={14} /> Atur</button>}</div><span className="wallet-card-label">Saldo aktual {formatDate(clockDay)}</span><WalletBalance text={actualText(w.id, w.currency)} /><div className="wallet-card-footer"><div className="wallet-card-actions">{walletView === 'active' ? <><button className="text-link" onClick={() => onRecord(w.id)}><Plus size={14} /> Catat</button><button className="text-link" aria-label={`Riwayat ${w.name}`} onClick={() => onShowHistory(w)}><History size={14} /> Riwayat</button><button className="text-link" onClick={() => onCheckBalance(w.id)}>Cek saldo <ArrowRight size={14} /></button></> : <><button className="text-link" aria-label={`Lihat histori ${w.name}`} onClick={() => onShowHistory(w)}>Lihat histori</button><button className="text-link" aria-label={`Pulihkan dompet ${w.name}`} onClick={() => onRestore(w)}>Pulihkan dompet</button></>}</div></div></section>)}
+        <div className="wallet-grid">{wallets.map(w => {
+          const row = freshness?.get(w.id);
+          return <section key={w.id} className="wallet-card" data-wallet-id={w.id}><div className="wallet-card-top"><WalletSymbol wallet={w} /><span className="wallet-info"><strong>{w.name}</strong><span>{kindLabel(w.kind)}{walletView === 'archive' ? ' · Arsip' : ''}</span></span>{walletView === 'active' && <button className="text-link wallet-edit" aria-label={`Atur dompet ${w.name}`} onClick={() => onOpenWallet(w)}><Settings2 size={14} /> Atur</button>}</div><span className="wallet-card-label">Saldo aktual {formatDate(clockDay)}</span><WalletBalance text={actualText(w.id, w.currency)} />
+            <p className="wallet-card-fresh" data-testid="wallet-freshness" data-last-record={row?.lastRecordOn ?? ''} data-statement-through={row?.statementThrough ?? ''}>
+              {freshness ? freshnessText(row, clockDay) : 'Tanggal catatan dan mutasi belum dapat dipastikan.'}
+            </p>
+            <div className="wallet-card-footer"><div className="wallet-card-actions">{walletView === 'active' ? <><button className="text-link" onClick={() => onRecord(w.id)}><Plus size={14} /> Catat</button><button className="text-link" aria-label={`Riwayat ${w.name}`} onClick={() => onShowHistory(w)}><History size={14} /> Riwayat</button><button className="text-link" onClick={() => onCheckBalance(w.id)}>Cek saldo <ArrowRight size={14} /></button></> : <><button className="text-link" aria-label={`Lihat histori ${w.name}`} onClick={() => onShowHistory(w)}>Lihat histori</button><button className="text-link" aria-label={`Pulihkan dompet ${w.name}`} onClick={() => onRestore(w)}>Pulihkan dompet</button></>}</div></div></section>;
+        })}
           {walletView === 'active' && <button className="wallet-card add-wallet-card" onClick={() => onOpenWallet('new')}><span className="add-wallet-icon"><Plus size={24} /></span><strong>Tambah dompet</strong><span>Rekening bank atau e-wallet baru.</span></button>}
         </div>
         {walletView === 'archive' && !wallets.length && <div className="empty-state compact"><WalletIcon size={28} /><p>Belum ada dompet arsip {currency}.</p></div>}

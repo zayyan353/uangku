@@ -535,6 +535,106 @@ def actual_header_cutoff(case):
     case.archived_tab();expect(p.get_by_test_id('wallet-current-total')).to_have_attribute('data-amount','9975')
 
 
+def freshness_line(case):
+    """MW-129b: each wallet card says how far its records reach, from stored dates only."""
+    p=case.page
+    line=lambda wallet_id:p.locator(f'[data-wallet-id="{wallet_id}"]').get_by_test_id('wallet-freshness')
+    # The bank's latest record is the transfer on 31 Oct; the record dated 5 Nov has not happened on the fixed clock
+    # (31 Oct 2026). Its stored statement ends on 30 Oct.
+    expect(line('bank')).to_have_text('Catatan terakhir 31 Okt · mutasi bank sampai 30 Okt')
+    expect(line('bank')).to_have_attribute('data-last-record','2026-10-31')
+    expect(line('bank')).to_have_attribute('data-statement-through','2026-10-30')
+    # The peer has no statement, and its latest record is the receiving side of that transfer.
+    expect(line('peer')).to_have_text('Catatan terakhir 31 Okt')
+    expect(line('peer')).to_have_attribute('data-statement-through','')
+    expect(line('empty')).to_have_text('Belum ada catatan.')
+    for wallet_id in ('bank','peer','empty'):
+        expect(line(wallet_id)).to_be_visible()
+        shape=line(wallet_id).evaluate("""el=>{
+            const card=el.closest('.wallet-card'),bounds=card.getBoundingClientRect(),r=el.getBoundingClientRect();
+            const balance=card.querySelector('.wallet-card-balance').getBoundingClientRect();
+            const footer=card.querySelector('.wallet-card-footer').getBoundingClientRect();
+            return {inside:r.left>=bounds.left&&r.right<=bounds.right+.5,below:r.top>=balance.bottom-1,above:r.bottom<=footer.top+1};
+        }""")
+        assert shape['inside'] and shape['below'] and shape['above'],(wallet_id,shape)
+    case.unchanged();case.semantic_checks+=1
+    # A new record moves the line without a reload, and an archived wallet keeps its line.
+    p.locator('[data-wallet-id="empty"]').get_by_role('button',name='Catat',exact=True).click()
+    dialog=p.get_by_role('dialog')
+    dialog.get_by_label('Nominal',exact=True).fill('5')
+    dialog.get_by_label('Tanggal',exact=True).fill('2025-12-31')
+    dialog.get_by_label(re.compile('^Keterangan')).fill('Synthetic first record')
+    dialog.get_by_role('button',name='Simpan transaksi',exact=True).click()
+    expect(dialog).to_have_count(0);case.saved()
+    nav(p,'Dompet')
+    expect(line('empty')).to_have_text('Catatan terakhir 31 Des 2025')
+    case.archive();case.archived_tab()
+    expect(line('bank')).to_have_text('Catatan terakhir 31 Okt · mutasi bank sampai 30 Okt')
+    case.semantic_checks+=1
+
+
+def freshness_undated_and_future(case):
+    p = case.page
+    bank = p.locator('[data-wallet-id="bank"]').get_by_test_id('wallet-freshness')
+    future = p.locator('[data-wallet-id="empty"]').get_by_test_id('wallet-freshness')
+    peer = p.locator('[data-wallet-id="peer"]').get_by_test_id('wallet-freshness')
+    expect(bank).to_have_text('Tanggal catatan terakhir belum tersedia.')
+    expect(future).to_have_text('Tanggal catatan terakhir belum tersedia.')
+    assert not bank.get_attribute('data-last-record') and not future.get_attribute('data-last-record')
+    expect(peer).to_have_text('Catatan terakhir 30 Okt')
+    case.unchanged()
+
+    # Midnight in Istanbul is still 31 October in UTC.
+    p.clock.set_system_time('2026-10-31T21:00:01Z')
+    p.evaluate("window.dispatchEvent(new Event('focus'))")
+    expect(future).to_have_text('Catatan terakhir 1 Nov')
+    expect(future).to_have_attribute('data-last-record', '2026-11-01')
+    expect(bank).to_have_text('Tanggal catatan terakhir belum tersedia.')
+    case.unchanged()
+
+
+def freshness_recovery(case):
+    p = case.page
+    card = p.locator('[data-wallet-id="bank"]')
+    line = card.get_by_test_id('wallet-freshness')
+    def unavailable():
+        expect(line).to_have_text('Tanggal catatan dan mutasi belum dapat dipastikan.')
+        assert not line.get_attribute('data-last-record') and not line.get_attribute('data-statement-through')
+    expect(line).to_have_text('Catatan terakhir 3 Okt')
+    p.evaluate("""key => {
+      const write = Storage.prototype.setItem;
+      window.resumeStorage = () => { Storage.prototype.setItem = write; };
+      Storage.prototype.setItem = function(k, v) {
+        if (k === key) throw new DOMException('Synthetic quota failure', 'QuotaExceededError');
+        write.call(this, k, v);
+      };
+    }""", FINANCE)
+    card.get_by_role('button', name='Catat', exact=True).click()
+    dialog = p.get_by_role('dialog')
+    dialog.get_by_label('Nominal', exact=True).fill('1')
+    dialog.locator('input[type=date]').fill('2026-10-30')
+    dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+    expect(p.get_by_test_id('save-status')).to_contain_text('penyimpanan gagal')
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    p.get_by_role('button', name='Buang isian', exact=True).click()
+    unavailable()
+    case.unchanged()
+
+    p.evaluate('() => window.resumeStorage()')
+    p.get_by_role('button', name='Coba simpan lagi', exact=True).click()
+    saved = case.saved()
+    assert sorted(row['date'] for row in saved['state']['entries']) == ['2026-10-03', '2026-10-30']
+    expect(line).to_have_text('Catatan terakhir 30 Okt')
+    expect(line).to_have_attribute('data-last-record', '2026-10-30')
+
+    other = case.new_page()
+    other.evaluate('(key) => localStorage.setItem(key, "{broken")', FINANCE)
+    expect(p.get_by_test_id('save-status')).to_contain_text('pemulihan diperlukan')
+    unavailable()
+    case.unchanged('{broken')
+    case.semantic_checks += 3
+
+
 def stale_edit_deleted(case):
     p=case.page;other=case.new_page();form=case.form(EMPTY,p)
     form.get_by_label('Nama dompet',exact=True).fill('Synthetic stale edit')
@@ -630,6 +730,13 @@ def visual(case):
 
 
 def cases():
+    unknown = document(entries=[
+        entry('split', 100, 'transfer', toWalletId='peer', toAmount=100, date='2026-10-30', category=''),
+        entry('tomorrow', 200, 'income', 'empty', date='2026-11-01'),
+    ], metadata={'policy':'unverified-unless-linked', 'facts':[], 'links':[], 'statements':[], 'transfers':[{
+        'entryId':'split', 'sourceDate':None, 'destinationDate':'2026-10-30',
+        'decision':{'reason':'Synthetic unknown debit date', 'at':'2026-10-31T12:00:00Z'},
+    }]})
     empty=document(wallets=[wallet('ziraat-try',BANK)])
     import_data=history_fixture()
     import_data['state']['wallets']=[wallet('usd','Ziraat USD',currency='USD'),
@@ -652,6 +759,9 @@ def cases():
         ('validator-refusal-plain-everywhere',dict(zip(('data','seed'),near_limit_fixture())),validator_refusal_surfaces),
         ('nonzero-wallet-archive-retains-balance',{'data':document(wallets=[wallet('bank',BANK,10000)])},nonzero_archive),
         ('wallet-header-uses-actual-cutoff',{'data':history_fixture()},actual_header_cutoff),
+        ('wallet-card-freshness-line',{'data':history_fixture()},freshness_line),
+        ('wallet-freshness-unknown-and-future',{'data':unknown},freshness_undated_and_future),
+        ('wallet-freshness-storage-recovery',{'data':document(entries=[entry('old',100,date='2026-10-03')])},freshness_recovery),
         ('stale-edit-cannot-resurrect-deleted-wallet',{},stale_edit_deleted),
         ('archive-quota-draft-and-once-retry',{'data':history_fixture()},quota_archive_retry),
         ('import-target-TRY-revalidates-after-archive',{'data':import_data},import_revalidation),
