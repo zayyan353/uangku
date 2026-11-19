@@ -842,25 +842,63 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     dompet, impor mutasi, pelengkapan mutasi, kelola mata uang, dan isi
     kategori otomatis (`src/lib/failureText.ts`, komponen `FailureText`). Teks
     lain tidak diubah.
-    *Keputusan agen (mudah dibatalkan):* dua batas yang bisa dicapai pengguna
-    sendiri mendapat kalimatnya sendiri tanpa rincian: dompet ke-101 ("Jumlah
-    dompet sudah mencapai batas 100, jadi dompet baru tidak disimpan.") dan
-    transaksi ke-100.001.
-    *Tes:* `npm test` 70 file / 1.838 tes (5 baru: `failureText.test.ts`
-    memakai penolakan yang sungguh dilempar validator, `FailureText.test.tsx`
-    memeriksa markup-nya), `npm run build` lulus. Chromium: `wallet_browser.py`
-    20/20 dengan kasus baru `wallet-limit-plain-message` (gagal tanpa
-    perubahannya, menampilkan teks validator mentah), `currency_import_browser.py`
-    28/28, `category_browser.py` 27/27, `bank_review_browser.py` 12/12,
-    `source_browser.py` 5/5, `recovery_browser.py` 16/16, `browser_smoke.py`
-    39 skenario.
-    *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Jalur umum
-    (kalimat plus rincian) tidak bisa dipicu lewat layar tanpa bug seperti
-    MW-87, jadi hanya diuji di tingkat unit dan markup; yang diuji di browser
-    adalah batas dompet. Impor CSV sudah punya pesannya sendiri untuk
-    keterangan terlalu panjang. Kotak galat di formulir transaksi, kelola
-    kategori, dan pemeta CSV tidak diubah karena galatnya berasal dari
-    pemeriksaan formulir, bukan validator.
+    Batas yang benar-benar dicapai catatan yang terus tumbuh adalah ukuran
+    8 MB, jadi penolakan ukuran mendapat kalimatnya sendiri tanpa rincian:
+    "Catatan sudah mencapai batas ukuran 8 MB, jadi perubahan ini tidak
+    disimpan. Catatan yang sudah tersimpan tetap utuh." Toast sesudah ganti
+    nama kategori menyelipkan penyebab di tengah kalimatnya; penyebab itu kini
+    ditulis sebagai anak kalimat ("… belum ikut berganti: catatan sudah
+    mencapai batas ukuran 8 MB. …"), dan titik gandanya hilang.
+    *Keputusan agen (mudah dibatalkan):* batas 100 dompet juga mendapat
+    kalimatnya sendiri ("Jumlah dompet sudah mencapai batas 100, jadi dompet
+    baru tidak disimpan."). Kalimat untuk batas 100.000 transaksi dibiarkan
+    ada, tetapi batas itu tidak bisa dicapai: catatan dengan transaksi
+    terkecil sudah ditolak karena ukuran pada sekitar 84 ribu transaksi
+    (diukur peninjau: 84.364 dan 84.771 menurut bentuk transaksinya).
+    *Dari tinjauan (dua peninjau, tiap temuan dibuktikan di browser):*
+    (1) penolakan ukuran 8 MB sebelumnya hanya mendapat kalimat umum,
+    sedangkan sebelum MW ini kata "8 MB" masih terlihat; (2) di lebar desktop
+    **Detail teknis** tampil sebagai kolom kedua di samping kalimat, terjepit
+    58 px; (3) toast ganti nama kategori masih menampilkan teks validator
+    mentah, dan satu tes unit justru mengunci perilaku itu; (4) dari delapan
+    tempat yang dipasangi, hanya jendela dompet yang dijaga tes; (5) kotak
+    galat di kartu file mutasi berubah ukuran huruf dan jaraknya untuk semua
+    galat; (6) teks alasan di kotak galat tema terang hanya 3,98:1 karena
+    `opacity: .9`. Semuanya diperbaiki. Klaim lama di catatan ini bahwa jalur
+    umum "tidak bisa dipicu lewat layar" keliru: catatan di dekat batas 8 MB
+    memicunya dari pemakaian biasa.
+    *Tes:* `npm test` 70 file / 1.839 tes (6 baru di `failureText.test.ts` dan
+    `FailureText.test.tsx`), `npm run build` lulus. Tes unit memakai
+    penolakan yang sungguh dilempar validator untuk batas dompet dan batas
+    ukuran; dua kalimat ukuran dari codec dicocokkan dengan teks di
+    `sourceCodec.ts`. Chromium: `wallet_browser.py` 21/21 dengan kasus
+    `wallet-limit-plain-message` dan kasus baru
+    `validator-refusal-plain-everywhere` (catatan sintetis 40 byte di bawah
+    batas: jendela dompet, toast transaksi, kotak simpan impor, dan toast ganti
+    nama kategori semuanya menampilkan kalimat batas ukuran, tanpa teks
+    validator di layar, dan byte tersimpan tidak berubah; letak **Detail
+    teknis** di bawah kalimat dan `opacity` teks alasannya diukur). Enam
+    mutan (kalimat ukuran dicabut, toast tidak dipetakan, kotak impor tidak
+    dipasangi, toast ganti nama seperti semula, tanpa elemen pembungkus,
+    aturan `opacity` dicabut) masing-masing menggagalkan kasus itu.
+    Juga lulus: `currency_import_browser.py` 28/28, `category_browser.py`
+    27/27, `bank_review_browser.py` 12/12, `source_browser.py` 5/5,
+    `recovery_browser.py` 16/16, `browser_smoke.py` 39 skenario,
+    `theme_browser.py` 21/21.
+    *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Kalimat umum
+    dengan rincian tidak lagi bisa dipicu lewat layar sesudah batas ukuran
+    mendapat kalimatnya sendiri, jadi letak rinciannya diuji dengan markup
+    `FailureText` yang disisipkan ke kotak galat jendela dompet, bukan lewat
+    penolakan sungguhan. Kotak galat di kelola mata uang, pelengkapan mutasi,
+    dan isi kategori otomatis tidak dipicu di browser (yang terakhir tidak
+    pernah menerima teks validator karena galatnya ditangkap menjadi toast).
+    Saat sebuah dialog terbuka, **Detail teknis** di toast tidak bisa dicapai
+    dengan Tab (perangkap fokus dialog sudah ada sebelumnya), dan pada lebar
+    320 toast menutupi judul dialog. Bila catatan yang tersimpan sendiri
+    ditolak saat dimuat, kotak status masih menampilkan teks validator mentah
+    (bukan aksi pengguna; belum ada MW-nya). Kotak galat di formulir
+    transaksi, kelola kategori, dan pemeta CSV tidak diubah karena galatnya
+    berasal dari pemeriksaan formulir, bukan validator.
 
 - [ ] **MW-89 — Unduh CSV: transfer bertanda benar, berbiaya, dan bermata uang tujuan** (S) — **butuh keputusan**
   Transfer Bank Jago → Ziraat (Rp 1.000.000 → ₺2.500, biaya Rp 6.500) diekspor

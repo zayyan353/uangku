@@ -59,7 +59,7 @@ function StatementCard({ data, statement, commit, disabled, order }: { data: Sto
         <button className="button secondary small" onClick={preview}>Pratinjau pelengkapan</button>
         {after && proposal && <div className={`notice completion-preview ${after.difference === 0 ? 'success' : 'warning'}`} role="status"><strong>Hasil pratinjau, belum disimpan</strong><p>{proposal.next.state.entries.length - data.state.entries.length} transaksi akan ditambahkan. Saldo penutupan usulan: <strong>{after.projectedBalance === null ? 'Belum dapat dipastikan' : formatMoney(after.projectedBalance, wallet.currency)}</strong> · selisih dengan file: {after.difference === null ? 'belum dapat dipastikan' : formatMoney(after.difference, wallet.currency)}.</p><p className="field-help">Periksa sebelum menyimpan. Data bank dan koreksi pengguna tetap disimpan terpisah.</p><button className="button primary small" onClick={() => void save()}>{saving ? 'Menyimpan…' : 'Lengkapi dan simpan'}</button></div>}
       </fieldset>}
-      {error && <div className="notice error" role="alert"><FailureText text={error} /></div>}
+      {error && <div className="notice error statement-card-error" role="alert"><FailureText text={error} /></div>}
     </div>}
   </details>;
 }
