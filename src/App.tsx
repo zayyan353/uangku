@@ -16,6 +16,7 @@ import { createEmptyState, MAX_RESTORE_BYTES, prepareBackup, serializeBackup, ty
 import { parseRestoreFile, restoreFailure, RestoreRefusal } from './lib/fullBackup';
 import { compareRestore, restoreComparisonCopy, restoreNeedsBackupFirst } from './lib/restoreComparison';
 import { measureStorageUsage } from './lib/storageUsage';
+import { describeFailure } from './lib/failureText';
 import { carryDemo } from './lib/demoTransition';
 import type { CandidateOptions } from './lib/persistence';
 import { categoryBudgetRows, type BudgetMap } from './lib/budgets';
@@ -157,7 +158,7 @@ export default function App() {
   const undatedWallets = useMemo(() => new Set(state.entries.flatMap(entry => entryPostings(entry, postingContext).filter(posting => posting.date === null).map(posting => posting.walletId))), [state, postingContext]);
   const notify = (text: string) => setToast({ text, error: false });
   /** A failure stays on screen until it is closed; it is not styled or timed like a success. */
-  const notifyError = (text: string, detail?: string) => setToast({ text, error: true, ...(detail ? { detail } : {}) });
+  const notifyError = (text: string, detail?: string) => { const shown = detail === undefined ? describeFailure(text) : { message: text, detail }; setToast({ text: shown.message, error: true, ...(shown.detail ? { detail: shown.detail } : {}) }); };
   useEffect(() => { if (toast && !toast.error) { const id = setTimeout(() => setToast(null), 5500); return () => clearTimeout(id); } }, [toast]);
   useEffect(() => { writePreferences({ ...preferences, currency }); }, [preferences, currency]);
   useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, historyPeriod, historyPage, reviewReason, historyWallet, historyCategory, historySort]);

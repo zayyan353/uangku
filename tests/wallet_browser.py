@@ -299,6 +299,18 @@ def archive_history(case):
 
 
 
+def wallet_limit_plain(case):
+    """MW-88b: the validator's refusal of a 101st wallet is shown as a plain sentence, not as validator text."""
+    p=case.page;dialog=case.form()
+    dialog.get_by_label('Nama dompet',exact=True).fill('Synthetic wallet 101')
+    dialog.get_by_role('button',name='Simpan dompet',exact=True).click()
+    expect(dialog.get_by_role('alert')).to_have_text('Jumlah dompet sudah mencapai batas 100, jadi dompet baru tidak disimpan.')
+    expect(p.locator('body')).not_to_contain_text('Metadata sumber tidak valid')
+    expect(dialog.locator('details')).to_have_count(0)
+    expect(dialog).to_be_visible()
+    case.unchanged();case.semantic_checks+=1
+
+
 def archive_last_active_newrecord(case):
     p=case.page;before=stored_document(p);after=case.archive();raw=case.raw_now()
     assert archives(after)=={'bank'} and without_archives(after)==without_archives(before)
@@ -474,6 +486,7 @@ def cases():
         ('archive-backup-v5-restore-roundtrip',{'data':history_fixture()},archive_export_restore),
         ('archive-last-active-new-record-route',{'data':document(wallets=[wallet('bank',BANK,10000)],entries=[entry('old',1000)])},archive_last_active_newrecord),
         ('used-delete-blocked',{'data':history_fixture()},used_delete_blocked),
+        ('wallet-limit-plain-message',{'data':document(wallets=[wallet(f'limit-{i}',f'Synthetic limit {i:03d}') for i in range(100)])},wallet_limit_plain),
         ('nonzero-wallet-archive-retains-balance',{'data':document(wallets=[wallet('bank',BANK,10000)])},nonzero_archive),
         ('wallet-header-uses-actual-cutoff',{'data':history_fixture()},actual_header_cutoff),
         ('stale-edit-cannot-resurrect-deleted-wallet',{},stale_edit_deleted),

@@ -1780,9 +1780,9 @@ html[data-theme="dark"] .discard-guard { background: #3a241d; border-color: #6b4
 /* 5.9.3 pemberitahuan galat; saat jendela terbuka pemberitahuan pindah ke atas agar tombol di dasar jendela tidak tertutup */
 .toast.error { background: #7a2e1d; color: #fff3ee; }
 .toast.error :is(summary, button):focus-visible { outline-color: #ffd0c2; }
-.toast-detail { margin-top: 4px; font-size: 12px; }
-.toast-detail summary { cursor: pointer; width: fit-content; }
-.toast-detail > span { display: block; margin-top: 2px; max-height: 30vh; overflow: auto; overflow-wrap: anywhere; opacity: .9; }
+:is(.toast-detail, .failure-detail) { margin-top: 4px; font-size: 12px; }
+:is(.toast-detail, .failure-detail) summary { cursor: pointer; width: fit-content; }
+:is(.toast-detail, .failure-detail) > span { display: block; margin-top: 2px; max-height: 30vh; overflow: auto; overflow-wrap: anywhere; opacity: .9; }
 .toast.error svg:first-child { color: #ffd0c2; }
 .toast.error button { color: #ffd0c2; }
 html[data-theme="dark"] .toast.error { background: #5a261a; border-color: #b0614c; color: #ffe7df; }
