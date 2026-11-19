@@ -1970,8 +1970,28 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   menyebut sampai tanggal berapa catatan atau mutasi bank yang diimpor; periode
   mutasi tersimpan hanya tampil di halaman Impor. Memakai tanggal yang sudah
   tersimpan saja, tidak ada yang ditebak.
-  - [ ] **a.** (S) `src/lib/walletFreshness.ts` + tes: tanggal posting terakhir dan
+  - [x] **a.** (S) `src/lib/walletFreshness.ts` + tes: tanggal posting terakhir dan
     akhir periode mutasi terakhir per dompet.
+    *Selesai 24 Nov 2026:* `walletFreshness(data, today)` menghitung tanggal
+    posting terakhir sampai hari acuan dan akhir periode mutasi terbaru untuk
+    tiap dompet. Keduanya bisa kosong secara terpisah. Fungsi hanya membaca
+    dokumen dan mengembalikan hasil mengikuti urutan dompet.
+    *Keputusan agen (mudah dibatalkan):* transfer memakai tanggal tiap sisi
+    dari konteks transfer atau tautan sumber. Sisi tanpa tanggal dilewati.
+    Transfer lama tanpa keduanya memakai tanggal transaksi untuk kedua
+    dompet, mengikuti perhitungan saldo. Akhir periode mutasi mengikuti
+    dokumen yang tersimpan meskipun melewati hari acuan.
+    *Dari tinjauan (benar/aman dan tes):* pada data yang diterima validator,
+    debit tanggal 18 sudah dihitung pada tanggal 19. Kredit tanggal 20 baru
+    dihitung pada tanggal 20, meski periode mutasinya sudah tersimpan.
+    Urutan catatan dan mutasi dalam dokumen tidak menentukan tanggal terbaru.
+    *Tes:* `npm test` 75 file / 1.902 tes dan build produksi lulus.
+    Sembilan tes fokus lulus. Pada kode sebelumnya, modul belum ada dan tes
+    gagal dimuat. Sepuluh mutan gagal pada tanggal, urutan, atau periode.
+    Profil sintetis Jago PDF, Ziraat XLSX, dan CSV umum diuji melalui jalur
+    impor, serialisasi, dan buka ulang.
+    *Belum terbukti:* fungsi belum dipakai halaman aplikasi pada butir ini.
+    Tidak ada pengujian browser lokal untuk helper ini.
   - [ ] **b.** (S) Satu baris di kartu dompet: "Catatan terakhir 12 Nov · mutasi
     bank sampai 19 Okt". *File:* `src/components/WalletsPage.tsx`, `src/App.tsx`,
     `tests/wallet_browser.py`.
