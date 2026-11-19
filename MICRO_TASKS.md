@@ -1458,8 +1458,39 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     lewat History API, bukan gestur di HP sungguhan. Dialog yang terbuka tidak
     ditutup oleh Back dan tetap tampil di atas halaman yang berganti; itu butir
     b. Aplikasi Layar Utama (tanpa tombol Back browser) tidak diuji.
-  - [ ] **b.** (M) Membuka dialog menambah satu entri riwayat; Back menutupnya lewat
+  - [x] **b.** (M) Membuka dialog menambah satu entri riwayat; Back menutupnya lewat
     penjaga buang-isian yang sudah ada (`src/hooks/useDiscardGuard.tsx`).
+    *Selesai 19 Nov 2026:* dialog pertama yang dibuka di sebuah halaman
+    menambah satu entri riwayat beralamat sama; dialog berikutnya di halaman
+    itu memakai entri yang sama (`src/lib/dialogHistory.ts`, dipasang di
+    `Modal`, jadi berlaku untuk semua dialog). Back saat dialog terbuka
+    meminta dialog paling atas menutup seperti Esc: form yang belum diisi
+    langsung tertutup, form berisi menampilkan pertanyaan buang-isian dan
+    isinya utuh. Dialog yang tetap terbuka kembali ke entrinya lewat
+    `history.forward()`, tanpa entri baru. Back saat tidak ada dialog terbuka
+    tetap meninggalkan halaman dengan satu tekanan. Pindah halaman mengubah
+    entri dialog menjadi entri halaman baru. Muat ulang saat dialog terbuka:
+    halaman tetap dan dialog hilang.
+    *Keputusan agen (mudah dibatalkan):* (1) membuka atau menutup dialog lewat
+    tombolnya sendiri tidak pernah bergerak di riwayat. Rancangan pertama
+    melepas entri dengan `history.back()` begitu dialog ditutup; langkah itu
+    selesai belakangan, sehingga muat ulang yang datang tepat sesudahnya
+    dibatalkan (`wallet_browser.py` gagal dengan `ERR_ABORTED`). Sekarang entri
+    dialog dibiarkan dan baru dilewati saat Back ditekan. (2) Saat pertanyaan
+    buang-isian tampil, Back berarti "lanjut mengisi", sama seperti Esc.
+    (3) Bila browser menolak tulisan ke riwayat (Safari membatasi 100 per 30
+    detik), dialog itu tidak punya entri dan Back berperilaku seperti sebelum
+    MW ini; tidak ada galat.
+    *Tes:* __TES__
+    *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Back diuji
+    lewat History API (`history.back()`), bukan tombol atau gestur browser.
+    Chrome melewati entri yang dibuat tanpa interaksi pengguna saat tombol
+    Back ditekan; entri dialog dibuat sesudah klik dan dialog yang tetap
+    terbuka tidak membuat entri baru, tetapi tombol Back sungguhan di Chrome,
+    Android, dan iOS tidak diuji. Bila tab langsung dibuka di aplikasi (tidak
+    ada halaman sebelumnya) dan sebuah dialog pernah dibuka, Back pertama
+    tidak mengubah apa pun dan baru Back berikutnya yang keluar. Forward ke
+    entri dialog tidak membuka dialog lagi. Aplikasi Layar Utama tidak diuji.
   - [ ] **c.** (S) Peringatan `beforeunload` saat form terbuka berisi isian. Penjaga
     untuk perubahan belum tersimpan sudah ada
     (`src/hooks/useLedgerStorage.ts:45-54`).
