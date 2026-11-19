@@ -295,4 +295,15 @@ describe('requestExclusive', () => {
       .rejects.toThrow('Synthetic conflict');
     expect(callbacks.map(callback => callback.rejected)).toEqual([false, false]);
   });
+  it('MW-88a: a journal that is not JSON is refused with the journal message, not the parser\'s text, and nothing is changed', async () => {
+    const store = new Store(), locks = new Locks();
+    store.map.set(STORAGE_KEY, serializeBackup(initial)); store.map.set(CATEGORY_SETTINGS_KEY, previousRaw);
+    for (const journal of ['{', 'bukan jurnal', '{"beforeLedger":null}']) {
+      store.map.set(RESTORE_JOURNAL, journal);
+      const before = new Map(store.map);
+      await expect(finishInterruptedRestore(store, locks)).rejects.toThrow('Catatan pemulihan lengkap tidak dapat dibaca. Data tersimpan belum diubah.');
+      expect(store.map).toEqual(before);
+      expect(store.writes).toEqual([]);
+    }
+  });
 });

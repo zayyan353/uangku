@@ -173,6 +173,56 @@ def round_trip(destination, url, width, *, route=None, verify=None):
         expect(destination.get_by_role('dialog')).to_have_count(0)
         assert raw_pair(destination) == dest_before, f'Invalid {invalid_key} caused a partial restore'
 
+    # MW-88a: a file that is not a readable Uangku backup gets one plain sentence. The parser's or the
+    # validator's own wording stays available, closed, under "Detail teknis".
+    unreadable = ('File ini bukan cadangan Uangku yang bisa dibaca. '
+                  'Pilih file uangku-lengkap-….json atau uangku-cadangan-….json.')
+    for name, value in [('not-json.json', b'Ini bukan cadangan'), ('cut-off.json', file_bytes[:len(file_bytes) // 2]),
+                        ('other-json.json', b'{"halo":"dunia"}'),
+                        ('invalid-ledger.json', json.dumps({**full, 'ledger': {'version': 999}}).encode())]:
+        close_toast(destination)
+        pick_backup(destination, f'synthetic-{name}', value)
+        toast = destination.locator('.toast.error')
+        expect(toast).to_be_visible()
+        detail = toast.locator('details')
+        expect(detail).to_have_count(1)
+        expect(detail).not_to_have_attribute('open', '')
+        technical = detail.locator('span').text_content()  # not rendered while closed, so read from the DOM
+        assert technical.strip(), f'{name}: no technical detail kept'
+        shown = toast.inner_text()
+        assert unreadable in shown and technical.strip() not in shown, f'{name}: {shown!r}'
+        detail.locator('summary').click()
+        expect(detail.locator('span')).to_be_visible()
+        expect(toast).to_contain_text(technical.strip())
+        expect(destination.get_by_role('dialog')).to_have_count(0)
+        assert raw_pair(destination) == dest_before, f'{name} changed stored data'
+    # The toast was left up with its detail open. The next refused file starts closed again, and the
+    # previous refusal does not stay behind as if it were the answer.
+    pick_backup(destination, 'synthetic-second.json', b'[1, 2, 3]')
+    toast = destination.locator('.toast.error')
+    expect(toast).to_contain_text(unreadable)
+    expect(toast.locator('details')).not_to_have_attribute('open', '')
+    expect(toast.locator('details span')).to_be_hidden()
+    # A backup written by a newer Uangku is not "not a backup": its own refusal is shown, with nothing to open.
+    for name, value, refusal in [
+            ('newer-file.json', {**full, 'version': 2}, 'Versi cadangan lengkap belum didukung.'),
+            ('newer-keywords.json', {**full, 'categorySettings': {**full['categorySettings'], 'keywordPackVersion': 999}},
+             'Versi paket kata kunci belum didukung.')]:
+        pick_backup(destination, f'synthetic-{name}', json.dumps(value).encode())
+        toast = destination.locator('.toast.error')
+        expect(toast).to_have_text(refusal)
+        expect(toast.locator('details')).to_have_count(0)
+        expect(destination.get_by_role('dialog')).to_have_count(0)
+        assert raw_pair(destination) == dest_before, f'{name} changed stored data'
+    # Choosing a good file clears the refusal before the dialog opens.
+    pick_backup(destination, 'synthetic-full.json', file_bytes)
+    dialog = destination.get_by_role('dialog', name='Pulihkan cadangan lengkap?', exact=True)
+    expect(dialog).to_be_visible()
+    expect(destination.locator('.toast')).to_have_count(0)
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    expect(destination.get_by_role('dialog')).to_have_count(0)
+    assert raw_pair(destination) == dest_before
+
     # A regular category edit after the preview prevents that stale restore.
     stale = full_preview()
     peer = new_page(destination.context)
@@ -319,8 +369,20 @@ def round_trip(destination, url, width, *, route=None, verify=None):
             dialog.get_by_role('button', name='Batal', exact=True).click()
             expect(other_profile.get_by_role('dialog')).to_have_count(0)
             assert raw_pair(other_profile) == before_other
+    # MW-88a: with a restore journal that is not JSON, "Cadangkan semuanya" answers in plain words, not the
+    # parser's, and nothing stored is touched.
+    with synthetic_page(browser, url, width, ledger, settings, route=route, verify=verify) as journal_profile:
+        journal_profile.evaluate("() => localStorage.setItem('uangku:full-restore:v1', '{')")
+        journal_profile.reload(wait_until='networkidle')
+        before_journal = raw_pair(journal_profile)
+        backup_action(journal_profile, 'Cadangkan semuanya').click()
+        toast = journal_profile.locator('.toast.error')
+        expect(toast).to_contain_text('Catatan pemulihan lengkap tidak dapat dibaca. Data tersimpan belum diubah.')
+        expect(toast.locator('details')).to_have_count(0)
+        assert raw_pair(journal_profile) == before_journal
+        assert journal_profile.evaluate("() => localStorage.getItem('uangku:full-restore:v1')") == '{'
     return {'downloads': 1, 'restored_wallets': 2, 'restored_entries': 2, 'restored_bank_facts': 2,
-            'unused_category_restored': True, 'ordered_rules': 2, 'malformed_sections_rejected': 2,
+            'unused_category_restored': True, 'ordered_rules': 2, 'malformed_sections_rejected': 2, 'unreadable_files_explained': 4, 'newer_version_refusals_shown_plainly': 2, 'stale_refusal_cleared': True, 'corrupt_journal_backup_explained': True,
             'preview_and_cancel_unchanged': True, 'stale_preview_preserved_peer_edit': True,
             'same_tab_refreshed_before_reload': True, 'legacy_preserved_category_settings': True,
             'restore_comparisons': {'full_file_missing_records': 9, 'bank_rows_matched_by_fingerprint': 2,

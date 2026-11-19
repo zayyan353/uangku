@@ -27,16 +27,33 @@ export function serializeFullBackup(ledger: StoredData, categorySettings: Catego
   return `{"app":"${FULL_BACKUP_APP}","version":1,"ledger":${serializeBackup(ledger)},"categorySettings":${JSON.stringify(settings)}${budgetSection}${templateSection}}`;
 }
 
+/** A refusal whose own text already tells the user what is wrong; it is shown as it is. */
+export class RestoreRefusal extends Error {}
+
+/** A file written by a newer Uangku. The validators already say so in plain words, each for its own section. */
+const UNSUPPORTED_VERSION = /^Versi [^:]+ belum didukung\.$/;
+
+export const UNREADABLE_RESTORE_FILE = 'File ini bukan cadangan Uangku yang bisa dibaca. Pilih file uangku-lengkap-….json atau uangku-cadangan-….json.';
+
+/**
+ * What to show when a chosen restore file was refused. Parser and validator text is internal wording,
+ * often English: it is kept as a detail the user can open, never shown as the message.
+ */
+export function restoreFailure(reason: unknown): { message: string; detail: string } {
+  if (reason instanceof RestoreRefusal || reason instanceof Error && UNSUPPORTED_VERSION.test(reason.message)) return { message: reason.message, detail: '' };
+  return { message: UNREADABLE_RESTORE_FILE, detail: reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : '' };
+}
+
 /** Decode both sections before any caller can offer to apply the restore. */
 export function parseRestoreFile(text: string): RestoreFile {
   if (text.length > MAX_RESTORE_BYTES || utf8Bytes(text) > MAX_RESTORE_BYTES) {
-    throw new Error('Ukuran mentah file pemulihan maksimal 32 MiB.');
+    throw new RestoreRefusal('Ukuran mentah file pemulihan maksimal 32 MiB.');
   }
   const file = JSON.parse(text);
   if (file?.app !== FULL_BACKUP_APP) return { kind: 'ledger', ledger: validateBackup(file) };
 
   const full = sourceKeys(file, [...FULL_BACKUP_FIELDS, ...FULL_BACKUP_OPTIONAL], FULL_BACKUP_FIELDS, 'cadangan lengkap');
-  if (full.version !== 1) throw new Error('Versi cadangan lengkap belum didukung.');
+  if (full.version !== 1) throw new RestoreRefusal('Versi cadangan lengkap belum didukung.');
   assertJsonBudget(full.categorySettings, CATEGORY_SETTINGS_LIMIT, 'pengaturan kategori cadangan');
   const categorySettings = validateCategorySettings(full.categorySettings);
   let budgets: BudgetMap | undefined;
