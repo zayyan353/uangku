@@ -16,6 +16,7 @@ import { isWalletArchived, archivedReadOnlyEntryIds } from '../lib/walletLifecyc
 import { templateFill, type TransactionTemplate } from '../lib/transactionTemplates';
 import { dayBefore, deviceDay } from '../lib/today';
 import Modal from './Modal';
+import { useUnloadWarning } from '../hooks/useUnloadWarning';
 import MoneyEcho from './MoneyEcho';
 import SourceDetails from './SourceDetails';
 export type TxMode = 'expense' | 'income' | 'transfer' | 'adjustment' | 'movement';
@@ -100,6 +101,8 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   const draft = { type, walletId, toWalletId, movementDirection, amount, received, rateText, fxMode, fee,
     date, destinationDate, sourceDate, declareDates, reason, note, category, confirmed, pairId };
   const cleanDraft = useRef(draft);
+  // Closing or reloading the tab would drop a started form without the discard question.
+  useUnloadWarning(() => JSON.stringify(draft) !== JSON.stringify(cleanDraft.current));
   const saving = useRef(false);
   const [askDiscard, setAskDiscard] = useState(false);
   const [templateName, setTemplateName] = useState<string | null>(null);

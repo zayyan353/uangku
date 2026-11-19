@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react';
+import { useUnloadWarning } from './useUnloadWarning';
 
 /**
  * Asks before a form with unsaved changes is closed, the way the transaction
@@ -9,6 +10,8 @@ export function useDiscardGuard(dirty: boolean, onClose: () => void, busy = fals
   const [asking, setAsking] = useState(false);
   const keep = useRef<HTMLButtonElement>(null);
   const before = useRef<HTMLElement | null>(null);
+  // Closing or reloading the tab would drop the same changes without the question below.
+  useUnloadWarning(() => dirty);
   // Focus goes to "Lanjut mengisi" while asking and back to where it was afterwards, so Escape and Tab keep working.
   useLayoutEffect(() => {
     if (asking) keep.current?.focus();
