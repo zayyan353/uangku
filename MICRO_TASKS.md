@@ -1533,6 +1533,12 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     tidak berubah sesudahnya dan hanya `ux_browser.py` yang diulang.
     `performance_browser.py` semula mengharapkan Ringkasan sesudah muat ulang
     dari Transaksi dan disesuaikan di dua tempat.
+    *WebKit (run CI pertama PR #69 merah):* `routes-desktop` dan
+    `routes-mobile` gagal saat membuka tab kedua, karena pembantu tes memasang
+    jam tetap sekali lagi pada konteks yang sama; WebKit menolaknya bila
+    catatan diisi lewat skrip awal. Salahnya di tes: tab tambahan kini dibuka
+    tanpa memasang jam lagi (jam milik konteks dan berlaku untuk semua tab),
+    seperti di `recovery_browser.py`.
     *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Back diuji
     lewat History API, bukan gestur di HP sungguhan. Dialog yang terbuka tidak
     ditutup oleh Back dan tetap tampil di atas halaman yang berganti; itu butir

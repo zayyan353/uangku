@@ -385,6 +385,15 @@ def storage_gating_case(browser, args, output, mobile):
     return {'name': label, 'status': 'passed', 'profiles_checked': checked}
 
 
+def another_page(context):
+    """A further tab of a context whose first tab came from new_page().
+
+    The clock installed there belongs to the context and covers every tab. Installing it again fails in WebKit when the
+    context seeds its ledger through an init script (CI on PR #69: "undefined is not an object (evaluating
+    'globalThis.__pwClock.controller')"); recovery_browser.py installs it once for the same reason."""
+    return context.new_page()
+
+
 def route_case(browser, args, output, mobile):
     """MW-113a: the page is in the address. A reload stays on it; Back and Forward move between pages."""
     label = 'routes-mobile' if mobile else 'routes-desktop'
@@ -422,14 +431,14 @@ def route_case(browser, args, output, mobile):
         page.evaluate("location.hash = '#/impor'")
         at(page, 'Impor mutasi', '#/impor', '.import-format-tabs, .tab-list, [aria-label="Dompet impor"]')
         # A page opened directly on an address starts there.
-        direct = new_page(context)
+        direct = another_page(context)
         try:
             direct.goto(args.url + '#/dompet', wait_until='networkidle')
             at(direct, 'Dompet', '#/dompet', '.wallet-card')
         finally:
             direct.close()
         # An unknown address opens Ringkasan. A new page, so this is a first load and not a hash change.
-        unknown = new_page(context)
+        unknown = another_page(context)
         try:
             unknown.goto(args.url + '#/tidak-ada', wait_until='networkidle')
             expect(unknown.locator('.breadcrumb strong')).to_have_text('Ringkasan')
@@ -437,7 +446,7 @@ def route_case(browser, args, output, mobile):
         finally:
             unknown.close()
         # A path that starts with two slashes is still this site: changing page works there too.
-        doubled = new_page(context)
+        doubled = another_page(context)
         doubled_errors = []
         doubled.on('pageerror', lambda err: doubled_errors.append(str(err)))
         try:
@@ -449,7 +458,7 @@ def route_case(browser, args, output, mobile):
             doubled.close()
         # A browser may refuse a write to the history (Safari allows 100 in 30 seconds). The page still changes; only
         # the address lags.
-        refused = new_page(context)
+        refused = another_page(context)
         refused_errors = []
         refused.on('pageerror', lambda err: refused_errors.append(str(err)))
         try:
@@ -496,7 +505,7 @@ def route_case(browser, args, output, mobile):
         # While a save is running the page stays: Back and a typed address are put back, and the save finishes once.
         nav.get_by_role('button', name='Transaksi', exact=True).click()
         at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
-        holder = new_page(context)
+        holder = another_page(context)
         try:
             holder.goto(args.url, wait_until='networkidle')
             # A second tab of the same profile holds the ledger's lock, so the save below has to wait.
