@@ -169,8 +169,15 @@ antarperangkat. File mutasi dibaca di browser, tanpa dikirim ke server aplikasi.
 - **Cadangkan transaksi saja** memakai format keuangan sebelumnya. Memulihkan
   file lama ini mengganti catatan keuangan dan mempertahankan pengaturan
   kategori di browser tujuan.
-- Batas data keuangan adalah **8 MiB** dan batas pengaturan kategori **128 KiB**.
-  Ruang yang tersedia untuk pemulihan juga mengikuti kuota penyimpanan browser.
+- Aplikasi membatasi data keuangan sampai **8 MiB** dan pengaturan kategori
+  sampai **128 KiB**, tetapi yang lebih dulu tercapai adalah kuota penyimpanan
+  browser. Di Chrome dan Edge kuotanya 5.242.880 karakter untuk semua data di
+  satu alamat situs; pada pengukuran sintetis 10.000 baris impor memakai ±3,4
+  sampai 3,6 juta karakter dan impor yang membuat catatan menjadi 15.000 baris
+  ditolak. Batas browser lain belum diukur. Pemakaiannya terlihat di **Privasi
+  dan cadangan**. Bila penuh, simpan atau impor berikutnya ditolak dan catatan
+  yang sudah tersimpan tetap utuh; ruang untuk pemulihan mengikuti kuota yang
+  sama.
 - Pembaruan situs tidak memindahkan catatan dari alamat lokal ke alamat publik.
   ZIP source aplikasi juga tidak otomatis menyertakan data browser.
 

@@ -190,6 +190,10 @@ def test_quota_retry(browser, output):
         }''')
         open_expense(page, note='Quota retained draft', amount='7').get_by_role('button', name='Simpan transaksi', exact=True).click()
         expect(page.get_by_test_id('save-status')).to_contain_text('penyimpanan gagal')
+        # MW-97: a refused write for lack of room says so, says what is safe, and says what to download.
+        expect(page.get_by_test_id('save-status')).to_contain_text(
+            'Penyimpanan browser penuh, jadi perubahan ini belum tersimpan. Catatan yang sudah tersimpan tetap utuh. '
+            'Unduh pekerjaan yang belum tersimpan: file itu memuat seluruh transaksi termasuk perubahan ini.')
         assert stored(page)['state']['entries'] == []
         assert 'Tersimpan di browser' not in page.locator('.sidebar-user').inner_text()
         assert 'Transaksi tersimpan.' not in page.locator('body').inner_text()

@@ -1000,7 +1000,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   impor yang lebih besar dari sisa ruang tetap ditolak. Banner menambah ±180 px
   di layar pertama HP saat tampil.
 
-- [ ] **MW-97 — Pesan yang jelas saat penyimpanan penuh, dan angka kapasitas di dokumen** (S)
+- [x] **MW-97 — Pesan yang jelas saat penyimpanan penuh, dan angka kapasitas di dokumen** (S)
   Galat kuota dilebur menjadi satu pesan umum "Penyimpanan gagal atau penuh…"
   (`src/lib/persistence.ts:95-97`). Kenali `QuotaExceededError` dan katakan apa
   yang terjadi serta apa yang harus dilakukan (unduh cadangan lengkap). Jangan
@@ -1009,6 +1009,30 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   penghapusan melegakan ruang. Koreksi
   kalimat 8 MiB di `README.md:172` dan `STATUS.md:26`: batas yang lebih dulu
   tercapai adalah kuota browser (`README.md:173` sudah menyinggungnya).
+  *Selesai 19 Nov 2026:* `commitPrepared` (`src/lib/persistence.ts`) mengenali
+  galat kuota (`QuotaExceededError`, `NS_ERROR_DOM_QUOTA_REACHED`, kode 22 dan
+  1014) dan menampilkan "Penyimpanan browser penuh, jadi perubahan ini belum
+  tersimpan. Catatan yang sudah tersimpan tetap utuh. Unduh pekerjaan yang
+  belum tersimpan: file itu memuat seluruh transaksi termasuk perubahan ini."
+  Galat lain tetap "Penyimpanan gagal. …" tanpa kata "penuh". Tidak ada saran
+  menghapus baris bank. `README.md` dan `STATUS.md` kini menyebut kuota browser
+  sebagai batas yang lebih dulu tercapai, dengan angka Chromium dari MW-96.
+  *Menyimpang dari usul:* pesan tidak menyuruh "unduh cadangan lengkap". Selama
+  ada simpan yang gagal, **Cadangkan semuanya** ditolak aplikasi
+  (`exportFullBackup` menuntut tidak ada pekerjaan yang belum tersimpan), jadi
+  yang disarankan adalah satu-satunya unduhan yang berfungsi saat itu, tombol
+  **Unduh pekerjaan yang belum tersimpan** di kotak yang sama. File itu memuat
+  seluruh transaksi, tetapi tidak memuat pengaturan kategori.
+  *Tes:* `npm test` 68 file / 1.831 tes (2 baru di
+  `src/lib/persistence.test.ts`; keduanya gagal pada kode lama), `npm run
+  build` lulus. Chromium: `recovery_browser.py` 16/16 (kasus
+  `quota-recovery-retry` kini memeriksa kalimat barunya), `browser_smoke.py`
+  39 skenario, `source_browser.py` 5/5.
+  *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium); nama galat
+  Firefox diambil dari dokumentasi, bukan dari uji di Firefox. Kuota sungguhan
+  tidak diuji di sini (galatnya buatan; itu MW-98). Hanya jalur simpan catatan
+  yang diubah: pemulihan lengkap dan penyimpanan pengaturan kategori masih
+  memakai pesannya sendiri.
 
 - [ ] **MW-98 — Tes browser pada kuota penyimpanan sungguhan** (S–M)
   Semua tes kuota sekarang memalsukan galatnya (`tests/browser_smoke.py:370`,
