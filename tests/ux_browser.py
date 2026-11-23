@@ -435,6 +435,13 @@ def route_case(browser, args, output, mobile):
         try:
             direct.goto(args.url + '#/dompet', wait_until='networkidle')
             at(direct, 'Dompet', '#/dompet', '.wallet-card')
+            # An older entry can still have native scroll restoration enabled. Revisit that entry via Back.
+            direct.evaluate("history.scrollRestoration = 'auto'")
+            direct.locator('.mobile-nav' if mobile else '.sidebar').get_by_role('button', name='Transaksi', exact=True).click()
+            at(direct, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+            direct.go_back()
+            at(direct, 'Dompet', '#/dompet', '.wallet-card')
+            assert direct.evaluate('history.scrollRestoration') == 'manual', 'Back left the older entry in auto mode'
         finally:
             direct.close()
         # An unknown address opens Ringkasan. A new page, so this is a first load and not a hash change.
@@ -477,7 +484,12 @@ def route_case(browser, args, output, mobile):
         def transaksi_as_left():
             at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
             expect(month).to_have_value('2026-10')
-            page.wait_for_function('() => Math.abs(scrollY - 600) <= 2')
+            try:
+                page.wait_for_function('() => Math.abs(scrollY - 600) <= 2')
+            except Exception as error:
+                state = page.evaluate('''() => ({scrollY, mode: history.scrollRestoration,
+                    documentHeight: document.scrollingElement.scrollHeight, viewportHeight: innerHeight})''')
+                raise AssertionError(f'Expected Transaksi at 600px (±2px), observed {state}') from error
 
         nav.get_by_role('button', name='Ringkasan', exact=True).click()
         at(page, 'Ringkasan', '', '.balance-card')

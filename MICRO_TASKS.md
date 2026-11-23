@@ -1539,8 +1539,25 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     catatan diisi lewat skrip awal. Salahnya di tes: tab tambahan kini dibuka
     tanpa memasang jam lagi (jam milik konteks dan berlaku untuk semua tab),
     seperti di `recovery_browser.py`.
-    *Belum terbukti:* Firefox dan WebKit (lokal hanya Chromium). Back diuji
-    lewat History API, bukan gestur di HP sungguhan. Dialog yang terbuka tidak
+    *WebKit (run CI kedua PR #69, `44635843848` pada `fee9293`):* bulan
+    dan alamat Transaksi sudah benar sesudah Back, tetapi dua kasus rute
+    kehabisan waktu saat menunggu posisi 600 piksel. Mode gulir berlaku per
+    entri. Mengetik hash dapat membuat entri WebKit dengan mode otomatis,
+    lalu entri berikutnya mewarisi mode itu. Aplikasi kini memilih `manual`
+    juga saat menerima `popstate` atau `hashchange`, sebelum mengikuti alamat.
+    *Dari pengujian 23 Nov 2026:* pada Chromium, memberi entri hash Impor
+    mode `auto` mereproduksi kegagalan 600 piksel di desktop pada kode lama.
+    Dengan perbaikan, kasus yang sama lulus. Tes tambahan kembali ke entri
+    Dompet yang sebelumnya diberi mode otomatis. Tanpa perbaikan, tes itu
+    gagal di desktop dan HP karena modenya tetap `auto`. Pemeriksaan Back
+    dan Forward tetap menuntut 600 ±2 piksel. Bila gagal, laporan kini berisi
+    posisi aktual, mode, tinggi dokumen dan tinggi viewport.
+    *Tes lokal pada perbaikan:* `npm test` 72 file / 1.866 tes, build produksi
+    dan 18/18 suite Chromium 154 lulus, termasuk `ux_browser.py` 7/7.
+    Performa: median 4.864,4 ms, celah frame terbesar 207,8 ms.
+    *Belum terbukti:* posisi aktual dan mode pada kegagalan WebKit di CI
+    lama tidak terekam. Unduhan WebKit dan Firefox lokal ditolak HTTP 403.
+    Back diuji lewat History API, bukan gestur di HP sungguhan. Dialog yang terbuka tidak
     ditutup oleh Back dan tetap tampil di atas halaman yang berganti; itu butir
     b. Aplikasi Layar Utama (tanpa tombol Back browser) tidak diuji.
     *Diketahui dari tinjauan, tidak dikerjakan di sini (belum ada MW-nya):*

@@ -685,9 +685,15 @@ export default function App() {
     else showPage(next);
   };
   useEffect(() => {
-    // The app restores its own scroll position per page; the browser's would arrive later and undo it.
-    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
-    const follow = () => followAddress.current();
+    // Scroll restoration belongs to the active entry. A typed hash or Back can activate an entry in auto mode.
+    const useAppScroll = () => {
+      if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
+    };
+    useAppScroll();
+    const follow = () => {
+      useAppScroll();
+      followAddress.current();
+    };
     window.addEventListener('popstate', follow);
     window.addEventListener('hashchange', follow);
     return () => { window.removeEventListener('popstate', follow); window.removeEventListener('hashchange', follow); };
