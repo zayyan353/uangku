@@ -150,7 +150,9 @@ def run_sample(browser, args, output, index, fixture, html_sha):
         assert durable['state']['wallets'] == fixture['state']['wallets']
         before_raw = page.evaluate('(key)=>localStorage.getItem(key)', KEY)
         page.reload(wait_until='networkidle')
-        expect(page.locator('.balance-card')).to_be_visible()
+        # MW-113a: a reload stays on the page it was made from, here Transaksi.
+        expect(page.locator('.breadcrumb strong')).to_have_text('Transaksi')
+        expect(page.get_by_label('Cari transaksi', exact=True)).to_be_visible()
         assert stored_document(page)['state']['entries'] == expected
         assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == before_raw, 'Reload rewrote saved bytes'
         assert not errors, errors
@@ -250,7 +252,9 @@ def run_import_sample(browser, args, output, index, csv_bytes, html_sha):
         assert durable['metadata']['facts'] == imported['metadata']['facts'], 'Manual save changed bank facts'
         assert durable['state']['wallets'] == imported['state']['wallets'], 'Manual save changed a wallet'
         page.reload(wait_until='networkidle')
-        expect(page.locator('.balance-card')).to_be_visible()
+        # MW-113a: a reload stays on the page it was made from, here Transaksi.
+        expect(page.locator('.breadcrumb strong')).to_have_text('Transaksi')
+        expect(page.get_by_label('Cari transaksi', exact=True)).to_be_visible()
         assert stored_document(page) == durable, 'Reload changed the saved document'
         assert stored_raw() == before_raw, 'Reload rewrote saved bytes'
         assert not errors, errors

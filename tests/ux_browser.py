@@ -385,6 +385,176 @@ def storage_gating_case(browser, args, output, mobile):
     return {'name': label, 'status': 'passed', 'profiles_checked': checked}
 
 
+def another_page(context):
+    """A further tab of a context whose first tab came from new_page().
+
+    The clock installed there belongs to the context and covers every tab. Installing it again fails in WebKit when the
+    context seeds its ledger through an init script (CI on PR #69: "undefined is not an object (evaluating
+    'globalThis.__pwClock.controller')"); recovery_browser.py installs it once for the same reason."""
+    return context.new_page()
+
+
+def route_case(browser, args, output, mobile):
+    """MW-113a: the page is in the address. A reload stays on it; Back and Forward move between pages."""
+    label = 'routes-mobile' if mobile else 'routes-desktop'
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    context, page, errors = storage_page(browser, mobile, raw)
+    nav = page.locator('.mobile-nav' if mobile else '.sidebar')
+
+    def at(target, name, address, landmark):
+        expect(target.locator('.breadcrumb strong')).to_have_text(name)
+        expect(target.locator(landmark).first).to_be_visible()
+        assert target.evaluate('location.hash') == address, target.evaluate('location.href')
+
+    try:
+        page.goto(args.url, wait_until='networkidle')
+        at(page, 'Ringkasan', '', '.balance-card')
+        entries = page.evaluate('history.length')
+        nav.get_by_role('button', name='Dompet', exact=True).click()
+        at(page, 'Dompet', '#/dompet', '.wallet-card')
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+        # Choosing the page that is already open adds no history entry.
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        assert page.evaluate('history.length') == entries + 2
+        # A reload stays on the page instead of returning to Ringkasan.
+        page.reload(wait_until='networkidle')
+        at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+        # Back and Forward walk the pages; the first Back does not leave the app.
+        page.go_back()
+        at(page, 'Dompet', '#/dompet', '.wallet-card')
+        page.go_back()
+        at(page, 'Ringkasan', '', '.balance-card')
+        page.go_forward()
+        at(page, 'Dompet', '#/dompet', '.wallet-card')
+        # An address typed into the same tab is followed too.
+        page.evaluate("location.hash = '#/impor'")
+        at(page, 'Impor mutasi', '#/impor', '.import-format-tabs, .tab-list, [aria-label="Dompet impor"]')
+        # A page opened directly on an address starts there.
+        direct = another_page(context)
+        try:
+            direct.goto(args.url + '#/dompet', wait_until='networkidle')
+            at(direct, 'Dompet', '#/dompet', '.wallet-card')
+            # An older entry can still have native scroll restoration enabled. Revisit that entry via Back.
+            direct.evaluate("history.scrollRestoration = 'auto'")
+            direct.locator('.mobile-nav' if mobile else '.sidebar').get_by_role('button', name='Transaksi', exact=True).click()
+            at(direct, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+            direct.go_back()
+            at(direct, 'Dompet', '#/dompet', '.wallet-card')
+            assert direct.evaluate('history.scrollRestoration') == 'manual', 'Back left the older entry in auto mode'
+        finally:
+            direct.close()
+        # An unknown address opens Ringkasan. A new page, so this is a first load and not a hash change.
+        unknown = another_page(context)
+        try:
+            unknown.goto(args.url + '#/tidak-ada', wait_until='networkidle')
+            expect(unknown.locator('.breadcrumb strong')).to_have_text('Ringkasan')
+            expect(unknown.locator('.balance-card')).to_be_visible()
+        finally:
+            unknown.close()
+        # A path that starts with two slashes is still this site: changing page works there too.
+        doubled = another_page(context)
+        doubled_errors = []
+        doubled.on('pageerror', lambda err: doubled_errors.append(str(err)))
+        try:
+            doubled.goto(args.url.rstrip('/') + '//', wait_until='networkidle')
+            (doubled.locator('.mobile-nav' if mobile else '.sidebar')).get_by_role('button', name='Dompet', exact=True).click()
+            at(doubled, 'Dompet', '#/dompet', '.wallet-card')
+            assert not doubled_errors, doubled_errors
+        finally:
+            doubled.close()
+        # A browser may refuse a write to the history (Safari allows 100 in 30 seconds). The page still changes; only
+        # the address lags.
+        refused = another_page(context)
+        refused_errors = []
+        refused.on('pageerror', lambda err: refused_errors.append(str(err)))
+        try:
+            refused.goto(args.url, wait_until='networkidle')
+            refused.evaluate("() => { History.prototype.pushState = () => { throw new DOMException('Synthetic refusal', 'SecurityError'); }; }")
+            refused.locator('.mobile-nav' if mobile else '.sidebar').get_by_role('button', name='Dompet', exact=True).click()
+            at(refused, 'Dompet', '', '.wallet-card')
+            assert not refused_errors, refused_errors
+        finally:
+            refused.close()
+
+        # Transaksi keeps its own month and scroll position while another page is shown. Back and Forward bring them
+        # back the way the navigation buttons do.
+        month = page.get_by_label('Bulan laporan', exact=True)
+
+        def transaksi_as_left():
+            at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+            expect(month).to_have_value('2026-10')
+            try:
+                page.wait_for_function('() => Math.abs(scrollY - 600) <= 2')
+            except Exception as error:
+                state = page.evaluate('''() => ({scrollY, mode: history.scrollRestoration,
+                    documentHeight: document.scrollingElement.scrollHeight, viewportHeight: innerHeight})''')
+                raise AssertionError(f'Expected Transaksi at 600px (±2px), observed {state}') from error
+
+        nav.get_by_role('button', name='Ringkasan', exact=True).click()
+        at(page, 'Ringkasan', '', '.balance-card')
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+        expect(month).to_have_value('2026-10')
+        page.evaluate('window.scrollTo(0, 600)')
+        page.wait_for_function('() => scrollY === 600')
+        # Left by the navigation button, returned to by Back.
+        nav.get_by_role('button', name='Ringkasan', exact=True).click()
+        at(page, 'Ringkasan', '', '.balance-card')
+        month.select_option('2026-09')
+        page.go_back()
+        transaksi_as_left()
+        # Left by Back, returned to by Forward.
+        page.go_back()
+        at(page, 'Ringkasan', '', '.balance-card')
+        month.select_option('2026-08')
+        page.go_forward()
+        transaksi_as_left()
+
+        # Moving between pages reads only.
+        assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'Navigation changed the ledger'
+
+        # While a save is running the page stays: Back and a typed address are put back, and the save finishes once.
+        nav.get_by_role('button', name='Transaksi', exact=True).click()
+        at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+        holder = another_page(context)
+        try:
+            holder.goto(args.url, wait_until='networkidle')
+            # A second tab of the same profile holds the ledger's lock, so the save below has to wait.
+            holder.evaluate('''(name) => new Promise(held => { navigator.locks.request(name, () => new Promise(release => {
+                window.__release = release; held(true); })); })''', 'uangku:v1:coordinated-write')
+            page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+            dialog = page.get_by_role('dialog')
+            dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+            dialog.get_by_label('Nominal', exact=True).fill('7')
+            dialog.get_by_label(re.compile('Keterangan')).fill('Synthetic saved while Back was pressed')
+            dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+            page.evaluate('''() => { window.__moves = 0; for (const type of ['popstate', 'hashchange']) addEventListener(type, () => { window.__moves += 1; }); }''')
+            for leave in ('history.back()', "location.hash = '#/dompet'"):
+                seen = page.evaluate('window.__moves')
+                page.evaluate(leave)
+                page.wait_for_function('(seen) => window.__moves > seen', arg=seen)
+                page.wait_for_function("() => location.hash === '#/transaksi'")
+                at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+                expect(dialog).to_be_visible()
+                assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == raw, 'The waiting save was written early'
+            holder.evaluate('window.__release()')
+            expect(page.get_by_role('dialog')).to_have_count(0)
+            at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
+            saved = json.loads(page.evaluate('(key)=>localStorage.getItem(key)', KEY))['state']['entries']
+            assert [entry['note'] for entry in saved if entry['note'].startswith('Synthetic saved while')] == ['Synthetic saved while Back was pressed']
+            assert len(saved) == len(fixture()['state']['entries']) + 1
+        finally:
+            holder.close()
+        assert not errors, errors
+        return {'name': label, 'status': 'passed'}
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', type=Path, required=True)
@@ -398,13 +568,14 @@ def main():
         browser = launch_browser(pw)
         version = browser.version
         try:
-            for case, mobile in [(run_case, False), (run_case, True), (storage_case, False), (storage_case, True),
-                                 (storage_gating_case, False)]:
+            for name, case, mobile in [('desktop', run_case, False), ('mobile', run_case, True),
+                                       ('storage-desktop', storage_case, False), ('storage-mobile', storage_case, True),
+                                       ('storage-gating', storage_gating_case, False),
+                                       ('routes-desktop', route_case, False), ('routes-mobile', route_case, True)]:
                 began = time.monotonic()
                 try:
                     result = case(browser, args, output, mobile)
                 except Exception as err:
-                    name = 'storage-gating' if case is storage_gating_case else ('storage-' if case is storage_case else '') + ('mobile' if mobile else 'desktop')
                     result = {'name': name, 'status': 'failed', 'error': str(err), 'traceback': traceback.format_exc()}
                 result['seconds'] = round(time.monotonic() - began, 3)
                 results.append(result)
