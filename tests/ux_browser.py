@@ -10,7 +10,7 @@ import time
 import traceback
 
 from browser_support import (FIXED_TIME, assert_production_url, backup_action, browser_name,
-                             install_playwright_path, launch_browser, new_page)
+                             install_playwright_path, launch_browser, new_page, stored_document)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
 
@@ -940,6 +940,151 @@ def saved_elsewhere_case(browser, args, output, mobile):
         context.close()
 
 
+ROW_ON_SCREEN_JS = """(row) => { const box = row.getBoundingClientRect();
+ const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+ return box.height > 0 && box.top >= 0 && box.bottom <= innerHeight && row.contains(hit); }"""
+
+
+def saved_page_case(browser, args, output, mobile):
+    """MW-147: Lihat opens the page of the list that holds the saved transaction, and brings its row on screen.
+
+    The fixture has 67 IDR rows in October 2026: two pages of 50, so a row dated early in the month is on page 2."""
+    label = 'saved-page-mobile' if mobile else 'saved-page-desktop'
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    context, page, errors = storage_page(browser, mobile, raw)
+    nav = page.locator('.mobile-nav' if mobile else '.sidebar')
+    dialogs = page.get_by_role('dialog')
+    toast = page.locator('.toast')
+    scope = page.get_by_test_id('history-scope')
+    rows = page.locator('.transactions-table tbody tr')
+    paging = page.get_by_role('navigation', name='Halaman riwayat', exact=True).get_by_role('status')
+    month = page.get_by_label('Bulan laporan', exact=True)
+
+    def record(note, date, again=False):
+        page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+        dialog = page.get_by_role('dialog')
+        dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+        dialog.get_by_label('Nominal', exact=True).fill('7')
+        dialog.get_by_label(re.compile('Keterangan')).fill(note)
+        dialog.get_by_label('Tanggal', exact=True).fill(date)
+        dialog.get_by_role('button', name='Simpan & catat lagi' if again else 'Simpan transaksi', exact=True).click()
+        if not again:
+            expect(dialogs).to_have_count(0)
+
+    def see(note, pages):
+        """Lihat, then: October 2026 without filters, on the page given, with this row in the list and on screen."""
+        toast.get_by_role('button', name='Lihat', exact=True).click()
+        expect(toast).to_have_count(0)
+        expect(page.locator('.breadcrumb strong')).to_have_text('Transaksi')
+        expect(scope).to_contain_text('Oktober 2026')
+        expect(page.get_by_label('Dompet riwayat', exact=True)).to_have_value('all')
+        expect(paging).to_have_text(pages)
+        row = rows.filter(has_text=note)
+        expect(row).to_have_count(1)
+        # In the viewport and not under the fixed navigation: the point in its middle hits the row itself.
+        page.wait_for_function(ROW_ON_SCREEN_JS, arg=row.element_handle())
+        return row
+
+    try:
+        page.goto(args.url, wait_until='networkidle')
+        # A row that another tab removes before Lihat is pressed is not in the list Lihat opens: page 1 stays and no
+        # place is guessed for it. The balance on Ringkasan tells when this tab has taken the other tab's change over.
+        other = another_page(context)
+        other.goto(args.url, wait_until='networkidle')
+        month.select_option('2025-01')
+        balance = '() => document.querySelector(".balance-card").innerText'
+        before = page.evaluate(balance)
+        record('Synthetic page removed', '2026-10-01')
+        expect(toast).to_contain_text('Tersimpan di Oktober 2026.')
+        assert page.evaluate(balance) != before, 'The balance on Ringkasan does not show the saved row'
+        other.evaluate('([key, value]) => localStorage.setItem(key, value)', [KEY, raw])
+        page.wait_for_function('(text) => document.querySelector(".balance-card").innerText === text', arg=before)
+        other.close()
+        toast.get_by_role('button', name='Lihat', exact=True).click()
+        expect(page.locator('.breadcrumb strong')).to_have_text('Transaksi')
+        expect(scope).to_contain_text('Oktober 2026')
+        expect(paging).to_have_text('1–50 dari 67 · Halaman 1 dari 2')
+        expect(rows.filter(has_text='Synthetic page removed')).to_have_count(0)
+        assert page.evaluate('scrollY') == 0, 'The list moved for a row that is not in it'
+        assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw, 'Lihat wrote to the ledger'
+
+        # The oldest row of the month, saved from another month: it is on page 2, far down the list.
+        month.select_option('2025-01')
+        expect(scope).to_contain_text('Januari 2025')
+        record('Synthetic page oldest', '2026-10-01')
+        expect(toast).to_contain_text('Tersimpan di Oktober 2026.')
+        row = see('Synthetic page oldest', '51–68 dari 68 · Halaman 2 dari 2')
+        row.screenshot(path=str(output / f'{label}-row.png'))
+        assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), 'Showing the row widened the page'
+        # The pager still works from the page Lihat opened.
+        page.get_by_role('button', name='Halaman sebelumnya', exact=True).click()
+        expect(paging).to_have_text('1–50 dari 68 · Halaman 1 dari 2')
+        expect(rows.filter(has_text='Synthetic page oldest')).to_have_count(0)
+
+        # A row that belongs on page 1 opens page 1: the page is the row's own, not the last one. The page is counted
+        # in the order Lihat leaves the list in (newest first), not the order chosen before it.
+        month.select_option('2025-01')
+        order = page.get_by_label('Urutan transaksi', exact=True)
+        order.select_option('oldest')
+        record('Synthetic page newest', '2026-10-31')
+        expect(toast).to_contain_text('Tersimpan di Oktober 2026.')
+        see('Synthetic page newest', '1–50 dari 69 · Halaman 1 dari 2')
+        expect(order).to_have_value('newest')
+
+        # From Ringkasan: the page changes too, and the list still opens on the row's page.
+        nav.get_by_role('button', name='Ringkasan', exact=True).click()
+        expect(page.locator('.breadcrumb strong')).to_have_text('Ringkasan')
+        month.select_option('2025-01')
+        record('Synthetic page from overview', '2026-10-02')
+        expect(toast).to_contain_text('Tersimpan di Oktober 2026.')
+        see('Synthetic page from overview', '51–70 dari 70 · Halaman 2 dari 2')
+
+        # A transfer debited in September and credited in October, saved while the receiving wallet is selected:
+        # Lihat opens October for every wallet, where the transfer sorts by its 1 October credit on page 2.
+        month.select_option('2025-01')
+        page.get_by_label('Dompet riwayat', exact=True).select_option('cash')
+        page.get_by_role('button', name='Pindah uang', exact=True).first.click()
+        dialog = page.get_by_role('dialog')
+        dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+        dialog.get_by_label('Dompet tujuan', exact=True).select_option('cash')
+        dialog.get_by_role('button', name='Tanggal masuk berbeda?', exact=True).click()
+        dialog.get_by_label('Tanggal debit', exact=True).fill('2026-09-30')
+        dialog.get_by_label('Tanggal kredit', exact=True).fill('2026-10-01')
+        dialog.get_by_label('Nominal', exact=True).fill('7')
+        dialog.get_by_label(re.compile('Keterangan')).fill('Synthetic page transfer')
+        dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+        expect(dialogs).to_have_count(0)
+        expect(toast).to_contain_text('Transfer tersimpan di Oktober 2026.')
+        see('Synthetic page transfer', '51–71 dari 71 · Halaman 2 dari 2')
+
+        # Simpan & catat lagi names the month but offers no Lihat; the form stays open.
+        month.select_option('2025-01')
+        record('Synthetic page again', '2026-10-03', again=True)
+        expect(toast).to_contain_text('Tersimpan di Oktober 2026. Lanjut catat berikutnya.')
+        expect(toast.get_by_role('button', name='Lihat', exact=True)).to_have_count(0)
+        expect(dialogs).to_have_count(1)
+        # Escape, because on a phone this toast lies over the form's own buttons until it goes away.
+        page.keyboard.press('Escape')
+        expect(dialogs).to_have_count(0)
+        expect(scope).to_contain_text('Januari 2025')
+
+        # Exactly what was typed is what was stored, both dates of the transfer included.
+        document = stored_document(page, KEY)
+        saved = {entry['note']: entry for entry in document['state']['entries'] if entry['note'].startswith('Synthetic page')}
+        assert {note: entry['date'] for note, entry in saved.items()} == {
+            'Synthetic page oldest': '2026-10-01', 'Synthetic page newest': '2026-10-31', 'Synthetic page again': '2026-10-03',
+            'Synthetic page from overview': '2026-10-02', 'Synthetic page transfer': '2026-09-30'}, saved
+        posting = [row for row in document['metadata']['transfers'] if row['entryId'] == saved['Synthetic page transfer']['id']]
+        assert [(row['sourceDate'], row['destinationDate']) for row in posting] == [('2026-09-30', '2026-10-01')], posting
+        assert not errors, errors
+        return {'name': label, 'status': 'passed'}
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
 def statement_fixture(period_end):
     """A bank wallet kept from one stored statement that ends on `period_end`, and a wallet without statements."""
     return {'app': 'uangku', 'version': 1, 'demo': False, 'state': {'version': 1,
@@ -1137,6 +1282,8 @@ def main():
                                        ('unload-warning-mobile', unload_warning_case, True),
                                        ('saved-elsewhere-desktop', saved_elsewhere_case, False),
                                        ('saved-elsewhere-mobile', saved_elsewhere_case, True),
+                                       ('saved-page-desktop', saved_page_case, False),
+                                       ('saved-page-mobile', saved_page_case, True),
                                        ('statement-reminder-storage-recovery', statement_storage_case, False),
                                        ('statement-reminder-desktop', statement_reminder_case, False),
                                        ('statement-reminder-mobile', statement_reminder_case, True)]:

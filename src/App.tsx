@@ -30,7 +30,7 @@ import RecoveryImportView from './components/RecoveryImportView';
 import { preferredWallet, readPreferences, writePreferences } from './lib/preferences';
 import { canCategorize, categorizeEntries, transferCandidates } from './lib/review';
 import BulkReviewPanel from './components/BulkReviewPanel';
-import { createHistoryIndex, queryHistory, paginateHistory, monthLabel, previousMonth, type HistoryPeriod } from './lib/historyView';
+import { createHistoryIndex, queryHistory, paginateHistory, pageOfEntry, monthLabel, previousMonth, type HistoryPeriod } from './lib/historyView';
 import { createPostingDateIndex, entryPostings } from './lib/transferPostings';
 import { applySourcedEntryEdit, applySourcedBulkCategory, deleteSourcedEntry, saveTransferEntry } from './lib/sourceCommands';
 import { executeTransferCommand } from './lib/transferCommands';
@@ -121,6 +121,8 @@ export default function App() {
   /** The period in use before a search widened it to all periods; restored when the search box is emptied. */
   const periodBeforeSearch = useRef<HistoryPeriod | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
+  /** Set by Lihat on a saved transaction: the list opens the page that holds this entry. A new object each time, so every press counts. */
+  const [entryToShow, setEntryToShow] = useState<{ id: string } | null>(null);
   const [lastHistoryScope, setLastHistoryScope] = useState<{ currency: Currency; month: string } | null>(null);
   const historyScrollY = useRef(0);
   const historyCurrency = page === 'transactions' ? currency : lastHistoryScope?.currency ?? currency;
@@ -359,6 +361,17 @@ export default function App() {
     : historySort === 'oldest' ? [...allTransactions].reverse()
     : [...allTransactions].sort((a, b) => (Math.abs(a.amount) - Math.abs(b.amount)) * (historySort === 'largest' ? -1 : 1)), [allTransactions, historySort, page]);
   const historySlice = paginateHistory(orderedTransactions, historyPage);
+  // Lihat: the page that holds the saved row, in the order the list is in now. This effect must stay below the one
+  // that returns the list to page 1 when its month or filters change: Lihat triggers both in one commit, and the
+  // later one decides the page. Once that page is on screen, its row is brought to the middle of the window,
+  // clear of the fixed navigation. An entry that is not in the list leaves page 1 as it is.
+  useEffect(() => {
+    if (!entryToShow) return;
+    const wanted = pageOfEntry(orderedTransactions, entryToShow.id);
+    if (historySlice.page !== wanted) { setHistoryPage(wanted); return; }
+    setEntryToShow(null);
+    document.querySelector(`.transactions-panel tr[data-entry-id="${CSS.escape(entryToShow.id)}"]`)?.scrollIntoView({ block: 'center' });
+  }, [entryToShow, historySlice.page, orderedTransactions]);
   // Rows exist but the filters hide them all, as opposed to a ledger with nothing in this currency yet.
   const historyFiltered = (isReviewQueue ? historyIndex.rows.length : historyIndex.rowsByCurrency.get(currency)?.length ?? 0) > 0;
   function resetHistory() { openHistory('all', 'month'); setMonth(clockDay.slice(0, 7)); }
@@ -606,15 +619,16 @@ export default function App() {
       setTxModal(null);
     }
     notify(entry.type === 'transfer' ? `Transfer tersimpan${where}. Kedua saldo sudah diperbarui.` : keepOpen ? `Tersimpan${where}. Lanjut catat berikutnya.` : went ? `Tersimpan${where}.` : 'Transaksi tersimpan.',
-      went && !keepOpen ? { label: 'Lihat', run: () => showSavedMonth(went, shownCurrency) } : undefined);
+      went && !keepOpen ? { label: 'Lihat', run: () => showSavedMonth(went, shownCurrency, entry.id) } : undefined);
     return true;
   }
-  /** Opens Transaksi on the month a saved transaction went to, with the filters that could hide it cleared. */
-  function showSavedMonth(target: string, shown: Currency) {
+  /** Opens Transaksi on the month a saved transaction went to, with the filters that could hide it cleared, on the page that holds it. */
+  function showSavedMonth(target: string, shown: Currency, entryId: string) {
     if (mutationInFlight.current) return;
     setCurrency(shown);
     openHistory('all', 'month');
     setMonth(target);
+    setEntryToShow({ id: entryId });
   }
   const focusListStatus = useRef(false);
   useEffect(() => {

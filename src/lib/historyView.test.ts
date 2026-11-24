@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createHistoryIndex, HISTORY_PAGE_SIZE, historyPostingInfo, monthLabel, paginateHistory, queryHistory, type HistoryQuery } from './historyView';
+import { createHistoryIndex, HISTORY_PAGE_SIZE, historyPostingInfo, monthLabel, pageOfEntry, paginateHistory, queryHistory, type HistoryQuery } from './historyView';
 import type { Entry, State } from './finance';
 
 const entry = (id: string, date: string, extra: Partial<Entry> = {}): Entry => ({ id, date, walletId: 'try', type: 'expense', amount: 500, category: 'Belanja', note: 'Kopi', ...extra });
@@ -124,6 +124,55 @@ describe('read-only transaction history', () => {
     expect(queryHistory(index, query({ month: '2026-09' })).map(e => e.id)).toEqual(['between']);
     expect(queryHistory(index, query({ month: '2026-10' })).map(e => e.id)).toEqual(['between']);
     expect(queryHistory(index, query({ period: 'all' }))).toHaveLength(1);
+  });
+});
+
+describe('MW-147 pageOfEntry', () => {
+  const list = (count: number) => Array.from({ length: count }, (_, i) => entry(`row-${i}`, '2026-10-01'));
+  it('names the page a row is on, at both edges of every page', () => {
+    const entries = list(68);
+    expect(pageOfEntry(entries, 'row-0')).toBe(1);
+    expect(pageOfEntry(entries, 'row-49')).toBe(1);
+    expect(pageOfEntry(entries, 'row-50')).toBe(2);
+    expect(pageOfEntry(entries, 'row-67')).toBe(2);
+    expect(pageOfEntry(list(10003), 'row-10002')).toBe(201);
+    expect(pageOfEntry(entries, 'row-7', 5)).toBe(2);
+  });
+  it('opens a page that really holds the row, for every row of a list that does not fill its last page', () => {
+    const entries = list(123);
+    for (const row of entries) expect(paginateHistory(entries, pageOfEntry(entries, row.id)).entries).toContain(row);
+  });
+  it('follows the order the list is in', () => {
+    const entries = list(68);
+    expect(pageOfEntry(entries, 'row-67')).toBe(2);
+    expect(pageOfEntry([...entries].reverse(), 'row-67')).toBe(1);
+    expect(pageOfEntry([...entries].reverse(), 'row-0')).toBe(2);
+  });
+  it('stays on page 1 for an id that is not in the list, without guessing a place for it', () => {
+    expect(pageOfEntry(list(68), 'missing')).toBe(1);
+    expect(pageOfEntry(list(68), '')).toBe(1);
+    expect(pageOfEntry(list(68), 'row-6')).toBe(1);
+    expect(pageOfEntry([], 'row-0')).toBe(1);
+  });
+  it('refuses the page sizes the pager refuses', () => {
+    for (const size of [0, -1, 1.5, 201, NaN]) expect(() => pageOfEntry(list(3), 'row-0', size)).toThrow(RangeError);
+  });
+  it('finds a transfer with postings in two months on the page of the month that is opened', () => {
+    // Sixty rows on 30 Oct and a transfer debited 30 Sep and credited 1 Oct: in October it is the oldest row.
+    const state = makeState([entry('split', '2026-09-30', { type: 'transfer', toWalletId: 'second', toAmount: 500, category: '' }),
+      ...Array.from({ length: 60 }, (_, i) => entry(`row-${i}`, '2026-10-30'))]);
+    state.wallets.push({ id: 'second', name: 'Second TRY', currency: 'TRY', kind: 'bank', openingBalance: 0 });
+    const index = createHistoryIndex(state, { transfers: [{ entryId: 'split', sourceDate: '2026-09-30', destinationDate: '2026-10-01' }] });
+    const october = queryHistory(index, query({ month: '2026-10' })), september = queryHistory(index, query({ month: '2026-09' }));
+    expect(october).toHaveLength(61); expect(october.at(-1)?.id).toBe('split');
+    expect(pageOfEntry(october, 'split')).toBe(2);
+    expect(paginateHistory(october, 2).entries.map(row => row.id)).toContain('split');
+    expect(september.map(row => row.id)).toEqual(['split']);
+    expect(pageOfEntry(september, 'split')).toBe(1);
+    // With the destination wallet selected the list is ordered by that wallet's own dates; the page follows.
+    const inWallet = queryHistory(index, query({ month: '2026-10', walletId: 'second' }));
+    expect(inWallet.map(row => row.id)).toEqual(['split']);
+    expect(pageOfEntry(inWallet, 'split')).toBe(1);
   });
 });
 

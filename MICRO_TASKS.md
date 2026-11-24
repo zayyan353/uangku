@@ -1733,7 +1733,61 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dapat diklik pada 1440 terang, 390 gelap, serta 320 terang dan gelap.
   *Belum terbukti:* HP fisik dan pembaca layar. **Lihat** membuka halaman
   pertama bulan tujuan. Pada bulan dengan 68 baris, transaksi tertua baru
-  terlihat pada halaman kedua.
+  terlihat pada halaman kedua. Ditindaklanjuti di MW-147: **Lihat** kini
+  membuka halaman yang memuat barisnya.
+
+- [x] **MW-147 — **Lihat** membuka halaman yang memuat transaksinya** (S) (ditambahkan 24 November 2026, tindak lanjut MW-115)
+  Tombol **Lihat** di toast "Tersimpan di <bulan>" membuka halaman pertama
+  bulan tujuan, padahal daftar memuat 50 baris per halaman. Pada bulan dengan
+  68 baris, transaksi tertua yang baru disimpan ada di halaman kedua: pengguna
+  menekan **Lihat** dan tetap tidak melihat barisnya. Direproduksi pada build
+  produksi sebelum MW: sesudah **Lihat**, paginasi menampilkan "1–50 dari 68 ·
+  Halaman 1 dari 2" dan barisnya tidak ada di halaman itu.
+  *Perbaikan:* sesudah **Lihat**, daftar membuka halaman yang memuat baris
+  itu, dan barisnya dibawa ke layar.
+  *File:* `src/lib/historyView.ts`, `src/App.tsx`,
+  `src/components/TransactionTable.tsx`, tes unit dan `tests/ux_browser.py`.
+  *Selesai 24 Nov 2026:* **Lihat** kini membawa id transaksi yang baru
+  disimpan. Sesudah filter dibersihkan dan bulan tujuan terbuka, daftar
+  membuka halaman yang memuat baris itu pada urutan yang sedang berlaku
+  (`pageOfEntry` di `src/lib/historyView.ts`). Barisnya lalu digulir ke
+  layar. Efek ini diletakkan di bawah efek yang mengembalikan daftar ke
+  halaman 1 saat bulan atau filter berubah, supaya halaman tujuan tidak
+  tertimpa. Transfer dengan dua tanggal posting dicari lewat id yang sama di
+  bulan yang dibuka. Id yang tidak ada di daftar tujuan tidak ditebak: daftar
+  tetap di halaman 1 dan tidak digulir. **Simpan & catat lagi** tetap tanpa
+  **Lihat**. Format dan isi data tersimpan tidak berubah.
+  *Keputusan agen (mudah dibatalkan):* baris digulir ke tengah layar, bukan
+  ke tepi terdekat, supaya tidak tertutup navigasi bawah di HP. Fokus tidak
+  dipindahkan dan baris tidak diberi sorotan. Baris tabel mendapat atribut
+  `data-entry-id` supaya bisa ditemukan.
+  *Tes:* `npm test` 76 file / 1.916 tes, termasuk 6 tes halaman baris. Build
+  produksi dan 18/18 suite Chromium lulus: UX 18/18, smoke 39 skenario,
+  kerangka 4/4, recovery 17/17, cashflow 21/21. Median performa 5.931,2 ms,
+  celah frame terbesar 264,9 ms. Sesudah itu dua baris tes ditukar, lalu
+  `npm test`, build, UX 18/18, kerangka 4/4 dan smoke 39 skenario diulang dan
+  lulus. Pada kode sebelum MW, kedua kasus baru gagal dengan "1–50 dari 68 ·
+  Halaman 1 dari 2", dan 6 tes unit gagal karena fungsinya belum ada. Kasus
+  browser baru (1440 dan 390) memeriksa baris tertua di halaman 2, baris
+  terbaru di halaman 1 sesudah urutan "Terlama dulu", **Lihat** dari
+  Ringkasan, transfer yang didebit 30 September dan dikredit 1 Oktober, baris
+  yang dihapus tab lain sebelum **Lihat**, serta **Simpan & catat lagi**.
+  Tiap baris harus berada di layar dan tidak tertutup navigasi. Delapan
+  mutan gagal: tanpa gulir, gulir ke tepi terdekat, urutan efek dibalik,
+  selalu halaman terakhir, id yang hilang ditebak ke halaman 2, urutan tidak
+  dikembalikan ke terbaru, permintaan **Lihat** tidak dibersihkan, dan batas
+  halaman bergeser satu baris. Mutan terakhir hanya tertangkap tes unit.
+  Di luar suite, di Chromium: baris TRY di halaman 2 terlihat pada 1440
+  terang dan 320 gelap, dan simpan yang ditolak kuota tidak memunculkan
+  **Lihat**.
+  *Belum terbukti:* Firefox dan WebKit baru diuji di CI. HP fisik dan
+  pembaca layar belum diuji. Sesudah **Lihat**, fokus keyboard tidak berada
+  di baris itu. Baris tidak disorot, jadi pengguna mengenalinya dari
+  keterangannya. Pengaruh pada performa tidak terukur bersih: mesin sedang
+  dipakai agen lain. Dalam 9 putaran sebelum/sesudah, median sebelum
+  6.394–8.633 ms dan sesudah 6.619–9.116 ms. Sesudah lebih lambat di 6
+  putaran dan lebih cepat di 3, rata-rata selisih +190 ms. Beberapa putaran
+  melewati batas lokal pada kedua kode.
 
 - [ ] **MW-116 — "Cek saldo" yang cocok berakhir sebagai keberhasilan** (S)
   Bila saldo sama dengan catatan, petunjuk sudah berkata "Sama dengan catatan,
