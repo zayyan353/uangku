@@ -1740,8 +1740,37 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   jadi tidak ada selisih untuk dicatat.", tetapi **Simpan transaksi** memunculkan
   galat merah "Saldo sudah cocok; tidak perlu penyesuaian."
   (`src/lib/finance.ts:223-225`) dan Esc membuka "Buang isian transaksi?".
-  - [ ] **a.** Saat selisih 0, tombol utama menjadi "Saldo cocok · tutup", menutup
+  - [x] **a.** Saat selisih 0, tombol utama menjadi "Saldo cocok · tutup", menutup
     tanpa pertanyaan buang-isian, dengan toast sukses.
+    *Selesai 24 Nov 2026:* pada cek saldo baru, bila nominal yang diisi
+    sama dengan saldo dompet hari ini, tombol utama berubah menjadi **Saldo
+    cocok · tutup** (`TransactionModal.tsx`). Tombol itu dan Enter menutup
+    form. Toast menyebut nama dompet dan menjelaskan tidak ada yang perlu
+    dicatat. Esc dan Batal menutup tanpa toast bila hanya angka cocok yang
+    diisi. Bila ada keterangan, Esc dan Batal meminta keputusan.
+    *Keputusan agen (mudah dibatalkan):* cek saldo lama yang diedit sampai
+    selisih nol tetap menampilkan galat lama karena catatan itu mungkin perlu
+    dihapus secara sengaja. **Simpan & catat lagi** tetap tersedia seperti
+    sebelumnya pada pemasukan dan pengeluaran. Butir b menunggu pemilik.
+    *Dari tinjauan (benar/aman dan tes/tampilan):* pada kode parkir,
+    cek baru bisa memberi toast cocok memakai saldo dari draf gagal simpan,
+    dari dompet yang sudah hilang, atau dari catatan lama ketika dokumen
+    terbaru tak terbaca. Cek yang melewati tengah malam juga memakai
+    perbandingan kemarin. Keempatnya direproduksi di Chromium. Aplikasi
+    kini memeriksa sumber saldo dan tanggal sebelum menutup form. Dalam
+    profil sehat, saldo nol dan saldo TRY −12,34 sama-sama dapat dikonfirmasi.
+    Dua mutan semula masih lulus: menulis ulang byte yang sama dan meminta
+    peringatan tab untuk angka cocok saja. Tes kini menghitung operasi tulis
+    dan memeriksa peristiwa `beforeunload` pada tiga keadaan isian.
+    *Tes:* `npm test` 74 file / 1.891 tes dan build produksi lulus. Chromium
+    lulus 18/18 suite termasuk recovery 17/17 dan UX 13/13. Median performa
+    5.061,4 ms, celah frame terbesar 209,2 ms. Kasus cek saldo gagal pada
+    kode sebelum MW. Tujuh mutan gagal pada kandidat dengan tes diperkuat:
+    cek lama diperlakukan seperti cek baru, pengecualian buang-isian
+    dicabut, keterangan diabaikan, byte yang sama ditulis lagi, dan tiga
+    pemicu peringatan tab diubah. Tombol dapat diklik di 320, 390 dan 1440.
+    *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Tanggal
+    terakhir diperiksa tidak disimpan.
   - [ ] **b.** — **butuh keputusan** Tanggal "terakhir dicek" per dompet. Bila
     disetujui, simpan di kunci terpisah, bukan di format catatan.
 

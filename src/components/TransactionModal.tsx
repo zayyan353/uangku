@@ -34,9 +34,11 @@ const TYPE_HINTS: Record<TxMode, string> = {
 };
 export interface EntrySaveOptions { reason: string; sourceDate: string | null; destinationDate: string | null; declareDates?: true }
 
-export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onSaveTemplate, onRemoveTemplate, onRenameTemplate, templates = [], templatesError = '', onClose, onDelete, onUnpair, disabled = false }: {
+export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onSaveTemplate, onRemoveTemplate, onRenameTemplate, templates = [], templatesError = '', onClose, onBalanceMatched, balanceNeedsRecovery = false, onDelete, onUnpair, disabled = false }: {
   data: StoredData; state: State; undatedWallets: ReadonlySet<string>; initialMode: TxMode; initialWallet?: string; existing?: Entry;
-  onSave: (entry: Entry, removeIds: string[], keepOpen?: boolean, options?: EntrySaveOptions) => Promise<boolean>; onClose: () => void; onDelete?: () => void; onUnpair?: () => void; disabled?: boolean;
+  onSave: (entry: Entry, removeIds: string[], keepOpen?: boolean, options?: EntrySaveOptions) => Promise<boolean>; onClose: () => void; onBalanceMatched?: (walletName: string) => void; onDelete?: () => void; onUnpair?: () => void; disabled?: boolean;
+  /** The ledger on screen is a recovery draft or the stored ledger could not be read. */
+  balanceNeedsRecovery?: boolean;
   /** Saves a template only; it never records a transaction. Rejects with a message on failure. */
   onSaveTemplate?: (template: TransactionTemplate) => Promise<void>;
   /** Template upkeep. Both reject with a message and leave the stored list as it was. */
@@ -56,10 +58,13 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   const incomingPending = importedFlow && existing.amount > 0;
   const [type, setType] = useState<TxMode>(existing?.type === 'unreviewed' ? (existing.amount > 0 ? 'income' : 'expense') : existing?.type ?? initialMode);
   const [walletId, setWallet] = useState(existing?.walletId ?? initialWallet ?? activeWallets[0]?.id ?? '');
+  const source = state.wallets.find(w => w.id === walletId);
   const balanceDay = today();
   const adjustment = useMemo(() => {
     if (type !== 'adjustment' || !walletId) return null;
     try {
+      if (!existing && balanceNeedsRecovery) throw new Error('Saldo belum dapat dipastikan. Selesaikan pemulihan di status penyimpanan, lalu cek saldo lagi.');
+      if (!source) throw new Error('Dompet ini tidak tersedia lagi. Pilih dompet yang masih ada.');
       if (undatedWallets.has(walletId)) throw new Error('Tanggal posting belum diketahui.');
       const current = walletBalanceAt(state, walletId, balanceDay, data.metadata);
       const beforeEdit = existing
@@ -69,7 +74,7 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
     } catch (reason) {
       return { current: null, beforeEdit: null, error: reason instanceof Error ? reason.message : 'Saldo aktual belum tersedia.' };
     }
-  }, [type, walletId, balanceDay, state, data.metadata, existing, undatedWallets]);
+  }, [type, walletId, balanceDay, state, data.metadata, existing, undatedWallets, balanceNeedsRecovery, source]);
   const [toWalletId, setToWallet] = useState(existing?.toWalletId ?? preferredDestination(activeWallets, walletId));
   const [movementDirection, setMovementDirection] = useState<'in' | 'out'>(existing && entrySignedAmount(existing) > 0 ? 'in' : 'out');
   const [amount, setAmount] = useState(() => {
@@ -113,10 +118,6 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   const [templateEdit, setTemplateEdit] = useState<{ id: string; name: string } | null>(null);
   const [templateManageError, setTemplateManageError] = useState('');
   const [templateBusy, setTemplateBusy] = useState(false);
-  // Typing a template name can be the only unsaved input in an otherwise untouched transaction form.
-  useUnloadWarning(() => JSON.stringify(draft) !== JSON.stringify(cleanDraft.current)
-    || (templateName !== null && templateName !== initialTemplateName.current)
-    || (templateEdit !== null && templateEdit.name !== templates.find(template => template.id === templateEdit.id)?.name));
   async function changeTemplates(action: () => Promise<void>) {
     if (templateBusy || saving.current || disabled) return;
     setTemplateBusy(true); setTemplateManageError('');
@@ -145,11 +146,10 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
 
   function requestClose() {
     if (disabled || saving.current) return;
-    if (JSON.stringify(draft) === JSON.stringify(cleanDraft.current)) return onClose();
+    if (!hasUnsavedInput()) return onClose();
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : amountRef.current;
     setAskDiscard(true);
   }
-  const source = state.wallets.find(w => w.id === walletId);
   const destination = state.wallets.find(w => w.id === toWalletId);
   const crossCurrency = type === 'transfer' && source && destination && source.currency !== destination.currency;
   const minor = parseMoney(amount, source?.currency ?? 'IDR');
@@ -177,6 +177,15 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   // A new balance check is always about today; an existing one keeps its own editable date.
   const lockedToday = type === 'adjustment' && !existing;
   const adjustmentDifference = type === 'adjustment' && amount.trim() && minor !== null && adjustment?.beforeEdit != null ? minor - adjustment.beforeEdit : null;
+  // A new balance check that finds no difference is a success with nothing to record: the main button says so and
+  // closes. An existing check is left alone: there a zero difference means its record should go, which is not a close.
+  const balanceMatches = lockedToday && !!source && date === balanceDay && !isWalletArchived(data, walletId) && adjustmentDifference === 0 && !!onBalanceMatched;
+  // A matching balance has nothing to record, but leaving can still discard a typed note.
+  const hasUnsavedInput = () => JSON.stringify(draft) !== JSON.stringify(cleanDraft.current) && !(balanceMatches && !note.trim());
+  // Typing a template name can be the only unsaved input in an otherwise untouched transaction form.
+  useUnloadWarning(() => hasUnsavedInput()
+    || (templateName !== null && templateName !== initialTemplateName.current)
+    || (templateEdit !== null && templateEdit.name !== templates.find(template => template.id === templateEdit.id)?.name));
   const invalidFx = !!crossCurrency && (conversionFailed || (fxMode === 'rate' && !!rateText.trim() && (!Number.isFinite(rateNumber) || rateNumber <= 0 || minor !== null && toMinor === null)) || (fxMode === 'received' && !!received.trim() && (toMinor === null || toMinor <= 0)) || (toMinor !== null && !Number.isSafeInteger(toMinor)));
   const pairCandidates = type === 'transfer' && existing ? state.entries.filter(e =>
     e.id !== existing.id && !readOnlyEntryIds.has(e.id) && !state.wallets.some(w => w.kind === 'cash' && w.id === e.walletId) && (e.type === 'unreviewed' || e.type === 'movement') && e.walletId === (incomingPending ? walletId : toWalletId)
@@ -268,6 +277,10 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
     if (saving.current || disabled || askDiscard || templateSaving) return;
     setError('');
     if (isWalletArchived(data, walletId) || type === 'transfer' && isWalletArchived(data, toWalletId) || existing && readOnlyEntryIds.has(existing.id)) return setError('Dompet diarsipkan. Pulihkan sebelum mengubah atau mencatat transaksi.');
+    // Midnight can pass after the last render, even while the button still shows the old comparison.
+    if (type === 'adjustment' && (date !== today() || date !== balanceDay)) return setError('Cek saldo membandingkan saldo aktual hari ini. Gunakan tanggal hari ini; transaksi masa depan tetap bisa dicatat sebagai pemasukan, pengeluaran, atau transfer.');
+    if (type === 'adjustment' && !existing && adjustment?.error) return setError(adjustment.error);
+    if (balanceMatches) return onBalanceMatched(source.name);
     if (minor === null || !source) return setError('Isi dompet dan nominal yang valid.');
     if (type === 'movement' && minor <= 0) return setError('Isi nominal perpindahan lebih besar dari nol; gunakan pilihan arah untuk masuk atau keluar rekening.');
     if (crossCurrency && (!Number.isFinite(effectiveRate) || effectiveRate <= 0 || toMinor === null || !Number.isSafeInteger(toMinor) || toMinor <= 0)) return setError('Kurs dan nominal diterima harus valid dan lebih besar dari nol. Periksa kolom kurs atau jumlah diterima.');
@@ -299,7 +312,6 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
     };
     if (type === 'movement') entry.amount = movementDirection === 'out' ? -minor : minor;
     if (type === 'adjustment') {
-      if (date !== today() || date !== balanceDay) return setError('Cek saldo membandingkan saldo aktual hari ini. Gunakan tanggal hari ini; transaksi masa depan tetap bisa dicatat sebagai pemasukan, pengeluaran, atau transfer.');
       if (adjustment?.beforeEdit == null) return setError(adjustment?.error || 'Saldo aktual belum tersedia.');
       entry.amount = minor - adjustment.beforeEdit;
     }
@@ -403,7 +415,7 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
         {showReason && <label className="field full"><span className="field-label">Alasan perubahan finansial atau tanggal</span><input aria-label="Alasan perubahan" className="field-input" maxLength={2000} value={reason} onChange={e => setReason(e.target.value)} placeholder="Contoh: koreksi nominal sesuai bukti pembayaran" /><span className="field-help">Kategori dan keterangan dapat dirapikan; data bank asli tetap disimpan terpisah.</span></label>}
         {error && <div ref={validationRef} tabIndex={-1} className="notice error full" role="alert">{error}</div>}
       </div>
-    </div><div className={`modal-footer ${!existing && (type === 'expense' || type === 'income') ? 'repeat-entry-footer' : ''}`}>{existing && onDelete && <button type="button" className="button danger small" style={{ marginRight: 'auto' }} onClick={onDelete}><Trash2 size={15} /> Hapus</button>}{existing?.type === 'transfer' && onUnpair && <button type="button" className="button secondary small" onClick={onUnpair}>Pisahkan transfer</button>}<button type="button" className="button secondary" onClick={requestClose}>Batal</button><button className="button primary" type="submit"><Check size={17} /> {importedPending ? 'Simpan hasil cek' : 'Simpan transaksi'}</button>{!existing && (type === 'expense' || type === 'income') && <button className="button secondary" type="submit" data-repeat="true">Simpan &amp; catat lagi</button>}</div></fieldset></form>
+    </div><div className={`modal-footer ${!existing && (type === 'expense' || type === 'income') ? 'repeat-entry-footer' : ''}`}>{existing && onDelete && <button type="button" className="button danger small" style={{ marginRight: 'auto' }} onClick={onDelete}><Trash2 size={15} /> Hapus</button>}{existing?.type === 'transfer' && onUnpair && <button type="button" className="button secondary small" onClick={onUnpair}>Pisahkan transfer</button>}<button type="button" className="button secondary" onClick={requestClose}>Batal</button><button className="button primary" type="submit"><Check size={17} /> {balanceMatches ? 'Saldo cocok · tutup' : importedPending ? 'Simpan hasil cek' : 'Simpan transaksi'}</button>{!existing && (type === 'expense' || type === 'income') && <button className="button secondary" type="submit" data-repeat="true">Simpan &amp; catat lagi</button>}</div></fieldset></form>
   </Modal>;
 }
 
