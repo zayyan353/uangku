@@ -2397,6 +2397,329 @@ MW-107. Tindakan pemilik lain ada di F2.
   (Firefox tidak terpasang lokal); Firefox dan WebKit hanya lewat CI.
   *File:* `tests/recovery_browser.py`.
 
+## H. Ide dari GitHub (25 November 2026)
+
+Dipilih pemilik pada 25 November 2026 dari penelusuran GitHub bersama Claude
+(sesi chat); belum ada yang dikerjakan. Sumber utamanya Actual Budget
+(`actualbudget/actual`, lisensi MIT): yang diambil idenya, bukan kodenya. Bila
+ada kode yang disalin, cantumkan kredit dan lisensinya di file itu. Nomor
+mengikuti urutan pilihan pemilik; urutan kerja yang diusulkan ada di bagian
+paling bawah file ini.
+
+**Aturan bagian ini:** sama dengan bagian F. Satu MW per PR, sub-huruf juga PR
+terpisah kecuali entrinya menyebut lain, dan kotak induk dicentang setelah
+semua sub-hurufnya selesai atau dibatalkan. Tidak ada MW di sini yang membuat
+aplikasi meminta jaringan, dan tidak ada yang mengisi kategori, membuat
+catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
+
+- [ ] **MW-147 — Kategori yang belajar dari riwayat**
+  "Isi kategori otomatis" (`src/components/CategoryAutomation.tsx`, lewat
+  `entryCategorySuggestions` di `src/lib/categorySuggestions.ts`) hanya memakai
+  aturan kata kunci dan pola bank; catatan tanpa kecocokan tetap "Belum
+  dikategorikan", padahal kategori yang dulu dipilih untuk merchant yang sama
+  sudah tersimpan. Actual membuat aturan kategori dari kebiasaan pengguna:
+  `getProbableCategory` di
+  `packages/loot-core/src/server/transactions/transaction-rules.ts` melihat 5
+  transaksi terakhir dari penerima yang sama dalam ±180 hari dan memakai
+  kategori yang muncul minimal 3 kali. Di Uangku hasilnya hanya **saran**,
+  tidak pernah terisi sendiri, karena nama merchant saja bukan bukti.
+  - [ ] **a.** (S) `src/lib/merchantKey.ts` + tes: kunci merchant dari keterangan
+    bank (lewat `normalizeBankDescription`) tanpa bagian yang berubah tiap
+    transaksi: nomor referensi (`#F-0000000001`), nomor kartu tersamar
+    (`•••• 0000`), angka panjang, tanggal, dan jam. Dua transaksi sintetis dari
+    merchant yang sama (Jago dan Ziraat) menghasilkan kunci yang sama;
+    merchant yang berbeda tidak.
+  - [ ] **b.** (S–M) `src/lib/categoryLearning.ts` + tes: untuk catatan belum
+    dikategorikan yang tidak cocok dengan aturan, ambil paling banyak 5 catatan
+    terbaru (180 hari) berkunci merchant sama, berjenis pemasukan atau
+    pengeluaran terkonfirmasi, dan sudah berkategori. Bila satu kategori muncul
+    ≥3 kali, jadikan saran beserta alasannya, mis. "3 dari 5 transaksi terakhir
+    'warung contoh' = Makan & minum". Pengecualiannya sama dengan
+    `entryCategorySuggestions` (transfer, penyesuaian, dompet cash, catatan
+    arsip).
+  - [ ] **c.** (M) Saran itu tampil di "Isi kategori otomatis" berlabel "Saran dari
+    riwayat"; pilihan bawaannya tetap "Lewati", sama seperti saran aturan. Tes
+    browser di `tests/category_browser.py` atau `tests/bank_auto_browser.py`.
+  - [ ] **d.** (S–M) Tombol "Jadikan aturan" pada saran: menambah aturan kata kunci
+    biasa bermode saran lewat jalur simpan yang dipakai Kelola kategori
+    (`src/components/CategoryManager.tsx`), jadi format pengaturan tidak
+    berubah. Mengubahnya ke otomatis tetap pilihan pengguna.
+
+- [ ] **MW-148 — Ekspor diagram aliran uang ke SankeyMATIC**
+  Ringkasan sudah menyebut pemasukan, pengeluaran berkategori, dan selisih
+  (MW-128), tetapi tanpa gambar aliran. SankeyMATIC (`nowthis/sankeymatic`,
+  lisensi ISC) menggambar diagram Sankey dari teks satu aliran per baris,
+  berformat `Sumber [Angka] Tujuan`, dan memprosesnya di browser pengguna.
+  Uangku cukup menyusun teksnya; pengguna menempelkannya sendiri di
+  sankeymatic.com/build, jadi aplikasi tetap tanpa permintaan jaringan.
+  - [ ] **a.** (S) `src/lib/sankeyText.ts` + tes, dari `buildCashflowReport`
+    (`src/lib/cashflowReport.ts`) untuk satu mata uang dan satu bulan. Baris
+    `Pemasukan [incomeTotal] Kas bulan ini`, lalu satu baris
+    `Kas bulan ini [nominal] <kategori>` per isi `categoryTotals`. Bila
+    pengeluaran lebih besar, tambah `Dari saldo [kekurangan] Kas bulan ini`;
+    bila ada sisa, `Kas bulan ini [sisa] Sisa`. Angka dalam satuan mayor dengan
+    titik desimal sesuai digit mata uang, tanpa pemisah ribuan. Nama node
+    dibersihkan dari `[` dan `]`, juga dari awalan `:` dan `//` yang berarti
+    khusus di SankeyMATIC. Kategori bernilai ≤ 0 dilewati dan disebut di baris
+    komentar. Baris pertama: `// Uangku · <bulan> · <mata uang>`.
+  - [ ] **b.** (S) Tombol "Salin untuk SankeyMATIC" di Ringkasan
+    (`src/components/CashflowOverview.tsx`) dengan pratinjau teks yang bisa
+    dipilih (cadangan bila clipboard ditolak) dan tautan ke
+    sankeymatic.com/build di tab baru. Tes browser memeriksa isi pratinjau,
+    bukan clipboard.
+  *Selesai kalau:* teks contoh menghasilkan diagram seimbang di SankeyMATIC
+  (masuk sama dengan keluar di node tengah); pengecekan manualnya dicatat di
+  laporan.
+
+- [ ] **MW-149 — Kalender pengeluaran ala grafik kontribusi GitHub**
+  Belum ada tampilan per hari; MW-131 merencanakan tren per bulan. Kotak 7 hari
+  × 53 minggu yang makin gelap saat makin boros memperlihatkan pola yang tidak
+  kelihatan di total bulanan, seperti akhir pekan atau awal bulan.
+  - [ ] **a.** (S–M) `src/lib/spendingCalendar.ts` + tes: per mata uang, total
+    pengeluaran terkonfirmasi per hari (termasuk biaya, tanpa pindah uang antar
+    dompet dan tanpa baris "Perlu dicek") untuk 53 minggu sampai `deviceDay()`
+    (`src/lib/today.ts`), plus tingkat 0–4 dari kuartil hari yang ada
+    pengeluarannya.
+  - [ ] **b.** (M) Panel lipat "Kalender pengeluaran" di Ringkasan: grid CSS tanpa
+    pustaka, dihitung hanya saat panel dibuka (seperti MW-131b), warna lewat
+    token tema terang dan gelap, dan `aria-label` per kotak, mis.
+    "12 Nov 2026: Rp45.000". Di layar 390px tampil 26 minggu terakhir atau
+    bisa digeser. Tap kotak membuka daftar transaksi hari itu di panel kecil
+    dengan tautan ke bulan tersebut di Transaksi; `HistoryQuery` tidak diubah.
+  - [ ] **c.** (S) Tes browser 1440 dan 390, terang dan gelap.
+
+- [ ] **MW-150 — Tes properti dengan fast-check**
+  Tes unit sekarang memakai contoh yang dipilih tangan. fast-check
+  (`dubzzz/fast-check`, MIT) membuat ratusan input acak untuk satu aturan dan
+  memperkecil input yang gagal sampai contoh terkecil; `@fast-check/vitest`
+  mendukung Vitest 5. Hanya masuk `devDependencies`, jadi `index.html` tidak
+  berubah. Cocok untuk aturan "format v1 dan roundtrip" di `AGENTS.md`.
+  - [ ] **a.** (S) Pasang `fast-check` dan `@fast-check/vitest`. Properti pertama:
+    `parseMoney(formatMoneyInput(x, c), c) === x` untuk nominal aman dan mata
+    uang dengan 0, 2, 3, dan 4 digit pecahan (`src/lib/finance.ts`,
+    `src/lib/moneyFormatting.ts`). Bila properti gagal, catat temuannya sebagai
+    MW baru dulu; jangan mengubah kode aplikasi di MW ini.
+  - [ ] **b.** (S–M) Generator `SourceDocument` sintetis (khusus tes) dan properti
+    `decodeSourceWire(encodeSourceWire(doc))` sama dengan `doc`
+    (`src/lib/sourceCodec.ts`), termasuk kolom yang nilainya seragam lalu
+    berbeda di satu baris (lihat MW-109).
+  - [ ] **c.** (S) Properti cadangan lengkap: `parseRestoreFile` atas hasil
+    `serializeFullBackup` mengembalikan ledger, pengaturan kategori, anggaran,
+    dan template yang sama (`src/lib/fullBackup.ts`).
+  Jumlah percobaan bawaan (100) dipertahankan supaya `npm test` tidak melambat;
+  seed kegagalan ditulis di laporan.
+
+- [ ] **MW-151 — zizmor: pemeriksa keamanan workflow**
+  `ci.yml` dan `pages.yml` merujuk 13 action lewat tag (mis.
+  `actions/checkout@v6`), dan MW-140 berencana mempersempit izin serta mem-pin
+  SHA. zizmor (`zizmorcore/zizmor`) memeriksa workflow GitHub Actions secara
+  statis; audit `unpinned-uses` dan `excessive-permissions` miliknya sama
+  dengan isi MW-140, dan ia juga memeriksa konfigurasi Dependabot (MW-141c).
+  - [ ] **a.** (S) Job ringan baru di `ci.yml` yang menjalankan zizmor (versi
+    dipin) dalam mode offline pada `.github/`, mula-mula hanya sebagai
+    peringatan sampai MW-140 selesai. Temuan awal ditulis di laporan.
+  - [ ] **b.** (S) Sesudah MW-140, jadikan pemblokir. Pengecualian yang disengaja
+    ditulis di `zizmor.yml` beserta alasannya.
+
+- [ ] **MW-152 — knip: file, export, dan dependensi yang tidak terpakai**
+  MW-141b menyalakan `noUnusedLocals` dan `noUnusedParameters`, yang hanya
+  melihat isi satu file. knip (`webpro-nl/knip`, ISC) mencari file, export, dan
+  dependensi yang tidak dipakai di seluruh proyek, dengan plugin untuk Vite dan
+  Vitest; Actual juga memakainya (`knip.jsonc` di akar repo mereka).
+  - [ ] **a.** (S) Pasang `knip` (devDependency) dengan `knip.json` (entri
+    `src/main.tsx` dan `vite.config.ts`), jalankan sekali, lalu tulis temuannya
+    di laporan tanpa mengubah kode.
+  - [ ] **b.** (S per kelompok) Rapikan export dan dependensi yang mati, satu
+    kelompok per PR. — **butuh keputusan** pemilik untuk file yang mau dihapus
+    (`AGENTS.md`: penghapusan file menunggu pemilik); daftarnya dilaporkan dulu.
+  - [ ] **c.** (S) `npm run knip` di CI sebagai pemblokir sesudah bersih.
+
+- [ ] **MW-153 — Mode privasi (tombol mata)**
+  Nominal selalu terlihat, termasuk saat aplikasi dibuka di tempat umum atau
+  layarnya dibagikan. Actual punya filter privasi yang hanya mengubah tampilan
+  (data dan ekspor tetap); sejak 2024 mereka memakai font yang tidak terbaca,
+  bukan blur. Di Uangku hampir semua nominal tampil lewat `formatMoney`
+  (`src/lib/finance.ts`, 56 pemanggilan di komponen), jadi penyamaran cukup di
+  satu jalur.
+  - [ ] **a.** (S) `src/lib/privacyMode.ts` + tes: kunci `uangku:privacy:v1` per
+    browser dengan pola `src/lib/theme.ts` dan `src/lib/nickname.ts`; tidak
+    masuk ledger maupun cadangan, jadi bukan perubahan format data.
+  - [ ] **b.** (S–M) Saat aktif, nominal tampil "•••••" dengan simbol atau kode
+    mata uang tetap, termasuk teks untuk pembaca layar. Isian form
+    (`formatMoneyInput`), unduhan CSV, dan cadangan tidak berubah. Tombol mata
+    di `topbar-tools` sebelah `ThemePicker` (`src/App.tsx`); tap atau tahan
+    satu nominal untuk mengintip.
+  - [ ] **c.** (S) Tes browser: aktifkan, muat ulang, pastikan Ringkasan,
+    Transaksi, dan Dompet tidak menampilkan digit nominal; lalu matikan lagi.
+
+- [ ] **MW-154 — Umur uang (Age of Money)**
+  Ukuran dari YNAB: rata-rata berapa hari antara uang masuk dan uang itu
+  dipakai; 30–50 hari berarti hidup dari uang bulan lalu, bukan dari gajian
+  berikutnya. Actual menghitungnya di
+  `packages/desktop-client/src/components/reports/spreadsheets/age-of-money-spreadsheet.ts`:
+  pemasukan menjadi "ember" berurut tanggal, pengeluaran mengambil dari ember
+  tertua, lalu umur 10 pengeluaran terakhir dirata-rata.
+  - [ ] **a.** (S–M) `src/lib/ageOfMoney.ts` + tes, per mata uang. Ember berasal
+    dari pemasukan terkonfirmasi (termasuk pengembalian dana); pengeluaran
+    terkonfirmasi (termasuk biaya) mengambil dari ember tertua. Pindah uang
+    antar dompet sendiri bermata uang sama tidak dihitung; transfer lintas mata
+    uang keluar dari kolam asal dan masuk ke kolam tujuan pada tanggal masuknya.
+    Saldo awal dompet tidak bertanggal, jadi uang dari saldo awal tidak diberi
+    umur dan pengeluaran yang memakainya tidak ikut dirata-rata (tidak
+    ditebak). Baris "Perlu dicek" belum ikut. Bila riwayatnya belum cukup,
+    hasilnya "belum cukup data", bukan angka.
+  - [ ] **b.** (S) Satu kartu di Ringkasan, mis. "Umur uang: 23 hari", untuk mata
+    uang yang dipilih, dengan penjelasan satu kalimat.
+  Aturan transfer lintas mata uang di butir a boleh diubah agen bila hasil tes
+  janggal (mudah dibatalkan); catat alasannya di entri ini.
+
+- [ ] **MW-155 — pixelmatch: bandingkan tangkapan layar otomatis**
+  Aturan D6 meminta MW "fondasi" membandingkan tangkapan layar 1440px dan
+  390px, terang dan gelap, sebelum dan sesudah. Belum ada alat pembandingnya,
+  padahal masih ada 19 MW CSS terbuka dan `src/styles.css` sekitar 143 KB.
+  pixelmatch (`mapbox/pixelmatch`, ISC) membandingkan gambar per piksel dan
+  memang dibuat untuk tangkapan layar tes; versi Python-nya (paket `pixelmatch`
+  dengan Pillow) cocok dengan tes browser yang ada. Jam di tes sudah dibekukan
+  (`FIXED_TIME` dan `page.clock.install` di `tests/browser_support.py`), jadi
+  tangkapan layarnya stabil.
+  - [ ] **a.** (S–M) `tests/visual_browser.py`: build produksi dengan data contoh,
+    tangkapan Ringkasan, Transaksi, Dompet, dan Impor pada 1440 dan 390, terang
+    dan gelap, ke `--output`. Dengan `--baseline <folder>` setiap gambar
+    dibandingkan, gambar bedanya ditulis, dan skrip gagal bila jumlah piksel
+    beda melebihi `--max-diff` (bawaan 0).
+  - [ ] **b.** (S) Ubah aturan D6: jalankan skrip pada `main` dan pada branch di
+    mesin yang sama, lalu tulis jumlah piksel beda di laporan (harus 0 untuk MW
+    fondasi). Gambar acuan tidak disimpan di repo karena font dan sistem
+    operasi berbeda antar-mesin.
+  - [ ] **c.** (M, opsional) Job CI yang membangun `main` dan branch PR lalu
+    membandingkan keduanya; gambar beda menjadi artefak.
+
+- [ ] **MW-156 — dependency-cruiser: aturan arsitektur dan peta kode**
+  MW-144 akan memecah `src/App.tsx`, dan semua MW dikerjakan agen. Saat dicek
+  pada 25 November 2026, belum ada file di `src/lib` yang mengimpor React,
+  `src/components`, atau `src/hooks`. dependency-cruiser
+  (`sverweij/dependency-cruiser`, MIT) memeriksa dan menggambar hubungan
+  antar-file memakai aturan sendiri.
+  - [ ] **a.** (S) Pasang (devDependency) dengan `.dependency-cruiser.cjs`: tanpa
+    impor melingkar; `src/lib` tidak mengimpor `react`, `src/components`, atau
+    `src/hooks`; kode produksi tidak mengimpor file tes. Skrip
+    `npm run arsitektur`. Pelanggaran yang sudah ada dilaporkan, tidak
+    diperbaiki di MW ini.
+  - [ ] **b.** (S) Jalankan di CI sebagai pemblokir; pengecualian lama (bila ada)
+    dicatat di konfigurasi beserta alasannya.
+  - [ ] **c.** (S) `docs/PETA_KODE.md`: peta per folder (bukan per file) dalam
+    Mermaid yang langsung tampil di GitHub, dibuat ulang dengan satu perintah.
+
+- [ ] **MW-157 — Perkiraan saldo akhir bulan (Balance Forecast)**
+  Laporan Balance Forecast di Actual
+  (`packages/desktop-client/src/components/reports/reports/BalanceForecast.tsx`)
+  memproyeksikan saldo dari transaksi tercatat ditambah transaksi terjadwal.
+  Uangku belum punya jadwal: template (MW-133) tidak bertanggal, dan tagihan
+  yang masuk lewat impor tidak tertaut ke template. Jadwalnya bisa ditemukan
+  dari riwayat seperti `findSchedules` di Actual
+  (`packages/loot-core/src/server/schedules/find-schedules.ts`): pola mingguan,
+  dua mingguan, dan bulanan, tanggal boleh meleset ±2 hari, nominal ±7,5%,
+  dari 3 kemunculan. Butuh kunci merchant dari MW-147a.
+  - [ ] **a.** (M) `src/lib/recurringDetection.ts` + tes: per dompet dan kunci
+    merchant, pola bulanan (tanggal ±2 hari) dan mingguan dengan nominal ±7,5%
+    dari ≥3 kemunculan berturut-turut, hanya dari pemasukan atau pengeluaran
+    terkonfirmasi. Hasilnya: merchant, nominal khas, pola, tanggal berikutnya,
+    dan apakah tanggal serta nominalnya persis atau kira-kira.
+  - [ ] **b.** (S–M) Panel baca-saja "Kelihatannya rutin" di Ringkasan: pola yang
+    ditemukan beserta status bulan ini (sudah masuk atau belum). Tidak membuat
+    catatan apa pun, sesuai keputusan MW-13a; ini juga menutup celah MW-133
+    untuk tagihan yang datang lewat impor.
+  - [ ] **c.** (M) `src/lib/balanceForecast.ts` + tes dan kartu "Perkiraan saldo
+    akhir bulan" per mata uang: saldo aktual hari ini (`actualWalletBalance`)
+    ditambah pola rutin yang belum lewat bulan ini, dengan daftar penyumbangnya
+    dan label "perkiraan".
+  - [ ] **d.** (S, opsional) Baris terpisah "pengeluaran harian biasa": median
+    pengeluaran tidak rutin per hari (90 hari terakhir) × sisa hari, ditampilkan
+    terpisah supaya jelas itu tebakan statistik.
+
+- [ ] **MW-158 — Tanya Claude soal data Uangku**
+  Untuk Actual ada beberapa server MCP buatan komunitas (mis.
+  `s-stefanov/actual-mcp`) yang membuat Claude bisa membaca anggaran dan
+  ditanyai dengan bahasa biasa. Data Uangku hanya ada di browser; salinannya
+  di luar browser adalah cadangan lengkap `uangku-lengkap-YYYY-MM-DD.json`
+  (`serializeFullBackup` di `src/lib/fullBackup.ts`).
+  - [ ] **a.** (S) Tombol "Salin ringkasan untuk AI" di Ringkasan: teks ringkas
+    satu bulan per mata uang (pemasukan, pengeluaran per kategori, selisih,
+    status anggaran, dan merchant teratas bila MW-147a sudah ada), dengan
+    pratinjau sebelum disalin. Tanpa nomor rekening atau kartu dan tanpa nama
+    orang: transfer dari atau ke orang lain ditulis "orang lain". Tidak ada
+    permintaan jaringan.
+  - [ ] **b.** (M) `tools/uangku-mcp/`, paket Node terpisah dari build, `tsconfig`,
+    dan Vitest aplikasi: server MCP stdio dengan SDK MCP TypeScript resmi yang
+    membaca cadangan `uangku-lengkap-*.json` terbaru dari folder yang diatur
+    (`UANGKU_BACKUP_DIR`) lewat `parseRestoreFile`. Alatnya hanya membaca:
+    `ringkasan_bulan`, `cari_transaksi`, `total_kategori`, dan `daftar_dompet`;
+    file cadangan tidak pernah ditulis. Tes memakai cadangan sintetis. README
+    memuat contoh `claude_desktop_config.json` untuk Windows dan menjelaskan
+    bahwa hasil alat terkirim ke Claude saat ditanya.
+
+- [ ] **MW-159 — Angka target kebebasan finansial (titik crossover)**
+  Laporan Crossover Point di Actual (eksperimental,
+  `packages/desktop-client/src/components/reports/reports/Crossover.tsx`)
+  memproyeksikan penghasilan pasif dari investasi, dengan perkiraan imbal hasil
+  dan persentase tarik aman (bawaan 4%), sampai menutup proyeksi pengeluaran
+  yang diambil dari median atau rata-rata pengeluaran historis. Actual juga
+  punya laporan Monte Carlo (folder `reports/monte-carlo/` di tempat yang sama).
+  - [ ] **a.** (S–M) `src/lib/financialIndependence.ts` + tes dan satu kartu di
+    Ringkasan per mata uang: angka target = median pengeluaran bulanan
+    terkonfirmasi dari 12 bulan penuh terakhir × 12 ÷ 4%. Kategori Investasi
+    (mis. pembelian reksa dana Bibit, `src/lib/jagoStatement.ts`) tidak dihitung
+    sebagai biaya hidup. Bila datanya kurang dari 3 bulan: "belum cukup data".
+    Labelnya jelas: patokan kasar, bukan saran keuangan.
+  - [ ] **b.** (L) — **butuh keputusan** pemilik: mencatat nilai investasi. Jenis
+    dompet sekarang hanya bank, e-wallet, dan cash (`WalletKind` di
+    `src/lib/finance.ts`), jadi ini perubahan format data. Sesudahnya: grafik
+    crossover (nilai investasi × 4% ÷ 12 lawan pengeluaran bulanan) dengan
+    perkiraan imbal hasil yang diketik pemilik.
+  - [ ] **c.** (opsional, belakangan) Simulasi Monte Carlo; tidak sekarang.
+
+- [ ] **MW-160 — React Compiler untuk MW-112**
+  Satu ketikan di kotak cari me-render ulang seluruh `App` dua kali (median
+  160 ms pada CPU 4×, lihat MW-112). React Compiler 1.0 (stabil sejak Oktober
+  2025) menambahkan memoization otomatis saat build; tanpa itu, state yang
+  berubah me-render ulang komponennya beserta semua anaknya kecuali di-memo
+  manual. `@vitejs/plugin-react` 6.3 mendukungnya lewat jalur Babel
+  (`@rolldown/plugin-babel` dan `babel-plugin-react-compiler`); jalur Rust-nya
+  masih eksperimental. Uangku masih memakai 6.1.2 (`react()` di
+  `vite.config.ts`). Kerjakan sesudah MW-112c supaya hasilnya terukur.
+  - [ ] **a.** (S) Naikkan `@vitejs/plugin-react` ke 6.3.x dan nyalakan compiler
+    jalur Babel dalam mode `annotation`, hanya untuk komponen berat yang
+    ditandai `"use memo"` (mis. tabel transaksi dan Ringkasan). Catat ukuran
+    `index.html` dan sampel ketikan MW-112c sebelum dan sesudah; tes browser di
+    tiga mesin harus lulus.
+  - [ ] **b.** (S) Bila hasilnya nyata dan tes lulus, pindah ke mode penuh. Bila
+    tidak, catat angkanya di entri ini dan tutup PR tanpa merge.
+
+- [ ] **MW-161 — Rekap 2026 ala "Wrapped"**
+  Rekap setahun dalam kartu-kartu yang bisa digeser, siap sebelum 31 Desember
+  2026 dan muncul di Ringkasan dari 1 Desember sampai 31 Januari. Memakai
+  MW-147a (merchant) dan MW-149a (total per hari); MW-154a dipakai bila sudah
+  ada.
+  - [ ] **a.** (M) `src/lib/yearRecap.ts` + tes, per mata uang: total pemasukan dan
+    pengeluaran setahun, 5 kategori dan 5 merchant teratas, bulan dan hari
+    paling boros, rentang terpanjang tanpa pengeluaran, serta umur uang akhir
+    tahun bila ada. Selama tahunnya belum selesai, rekap menyebut sampai
+    tanggal berapa datanya dihitung.
+  - [ ] **b.** (M) Dialog "Rekap 2026" dari Ringkasan dengan kartu yang bisa
+    digeser, tanpa pustaka baru, dan mengikuti mode privasi (MW-153). Tidak ada
+    unggah atau bagi otomatis; pengguna bisa mengambil tangkapan layar sendiri.
+  - [ ] **c.** (S) Tes browser 390 dan 1440, terang dan gelap.
+
+**Keputusan bagian H** (kolom **Siapa** sama artinya dengan tabel keputusan
+bagian F):
+
+| MW | Siapa | Pertanyaan |
+|---|---|---|
+| MW-152b | pemilik | File mati temuan knip boleh dihapus? Daftarnya dilaporkan dulu. |
+| MW-154a | agen | Aturan transfer lintas mata uang untuk umur uang. |
+| MW-159b | pemilik | Nilai investasi dicatat di Uangku (format data baru)? |
+| MW-160b | agen | Pindah ke mode penuh React Compiler bila hasil ukurnya nyata. |
+
 ---
 
 **Urutan:**
@@ -2409,3 +2732,10 @@ MW-110; targetnya ditetapkan agen dari hasil ukur MW-110 dan dicatat di
 entrinya. MW-87 lebih dulu karena bug nyata dan kecil; F2 sebelum F5 karena
 data hanya ada di browser; MW-110/111 sebelum MW-19/MW-20. Yang bertanda
 **butuh keputusan** mengikuti kolom "Siapa" di tabel keputusan.
+
+**Urutan usul bagian H:** MW-147a → 147b → 147c → 153 → 154 → 148 → 149 →
+161 (selesai sebelum 31 Desember) → 147d → 157 → 158a → 158b → 159a. Alat
+diselipkan di sela-sela dengan dua syarat: MW-156a sebelum MW-144, dan
+MW-155a–b sebelum MW CSS D6 berikutnya; MW-150, MW-151a, dan MW-152a bisa
+kapan saja. MW-151b menyusul MW-140 dan MW-160 menyusul MW-112c. MW-152b dan
+MW-159b menunggu pemilik.
