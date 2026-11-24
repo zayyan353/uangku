@@ -1847,6 +1847,9 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 
 /* Panel kategori di Ringkasan bisa dilipat seperti Perhitungan saldo dan Rincian arus */
 .category-panel-head { display: flex; align-items: flex-start; gap: 10px; }
+/* MW-128a: the total is on screen while the panel is open too; folded, the header line carries it. */
+.category-total { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 12px; margin: 0; padding-bottom: 14px; border-bottom: 1px solid var(--line); color: var(--text-muted); font-size: 13px; }
+.category-total strong { color: var(--text); font-size: 15px; font-weight: 650; margin-left: auto; text-align: right; overflow-wrap: anywhere; }
 .category-panel-head .fold-header { flex: 1; min-width: 0; }
 .category-panel-head .category-heading-icon { margin-top: 2px; }
 

@@ -1889,7 +1889,27 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   pengeluaranku bulan ini". Total pengeluaran berkategori hanya tampil di judul
   panel saat panel dilipat, dan pemasukan tidak pernah dijumlahkan. Kedua kartu
   dan labelnya tetap.
-  - [ ] **a.** (S) Total pengeluaran tampil juga saat panel kategori terbuka.
+  - [x] **a.** (S) Total pengeluaran tampil juga saat panel kategori terbuka.
+    *Selesai 24 Nov 2026:* Ringkasan menampilkan “Total pengeluaran · N
+    kategori” beserta jumlahnya di atas daftar kategori yang dibuka. Saat
+    panel dilipat, jumlah yang sama tetap tersedia di judul. `src/App.tsx`
+    menggunakan total pengeluaran terkonfirmasi dari laporan yang sudah ada.
+    *Keputusan agen (mudah dibatalkan):* N menghitung kategori yang memiliki
+    pengeluaran dalam cakupan laporan. Anggaran saja tidak menambah N. Bila
+    sebagian kategori diringkas, total tetap mencakup seluruh kategori.
+    *Dari tinjauan:* profil sintetis yang valid dengan dua arus besar dan
+    anggaran Pendidikan membuat laporan gagal karena batas nominal aman.
+    Pada kode parkir, panel terbuka menampilkan ₺0, padahal ada pengeluaran
+    Pendidikan ₺1. Kini tertulis “Total pengeluaran belum dapat dihitung.”
+    tanpa menampilkan angka pengganti. Delapan pemeriksaan tampilan mencakup
+    1440 terang, 390 gelap, serta 320 terang/gelap dengan dan tanpa anggaran.
+    Dua pengeluaran ₺21 dan ₺12,90 berjumlah ₺33,90 saat dibuka dan dilipat.
+    *Tes:* `npm test` 74 file / 1.891 tes dan build produksi lulus. Chromium
+    154: cashflow 20/20, kategori 28/28, kerangka 4/4. Tes baris total gagal
+    pada kode sebelum MW dan pada dua mutan (salah hitungan atau nominal).
+    Tes profil yang melampaui batas gagal pada kode parkir.
+    *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Pada galat
+    perhitungan, judul panel lipat masih memakai pesan kosong lama.
   - [ ] **b.** (S–M) `incomeTotal` di `buildCashflowReport`
     (`src/lib/cashflowReport.ts`) dan satu baris ringkas "Pemasukan · Pengeluaran
     · Selisih (tanpa pindah uang antar dompetmu)". Baris "Perlu dicek" belum
