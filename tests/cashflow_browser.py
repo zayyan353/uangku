@@ -222,6 +222,16 @@ def purpose(case, income, expense):
 
 
 def pending_and_adjustment(case):
+    # MW-148: a report that was computed and has rows says how many kinds of operation it holds. Phones start
+    # with this panel folded, so there the line is read before anything is touched.
+    breakdown_fold = case.page.locator('.cashflow-breakdown-panel [data-cashflow-fold]')
+    starts_open = case.width > 760
+    expect(breakdown_fold).to_have_attribute('aria-expanded', 'true' if starts_open else 'false')
+    if starts_open:
+        breakdown_fold.click()
+    expect(breakdown_fold.locator('.fold-desc')).to_have_text('2 jenis operasi · ketuk untuk melihat')
+    breakdown_fold.click()
+    expect(case.page.get_by_test_id('cashflow-breakdown').locator('tbody tr')).to_have_count(2)
     case.totals(7_000, 3_100, 10_000, 14_150, 250)
     # The cards count everything that moved through the account; by purpose the month is 5.000 in and 2.100 out.
     # The rows that wait for a check, the one-sided movements and the balance adjustment are in neither figure.
@@ -230,6 +240,10 @@ def pending_and_adjustment(case):
         'heading', name=re.compile('^Kategori pengeluaran terkonfirmasi')))
     expect(panel).to_be_visible()
     expect(panel).to_contain_text('Pendidikan')
+    # The flow above was computed, so the note under the rows can point at it.
+    legend = panel.locator('.category-legend')
+    expect(legend).to_be_visible()
+    expect(legend).to_have_text('Hanya kategori pengeluaran terkonfirmasi. Semua debit rekening tetap dihitung pada arus di atas.')
     # The panel folds and opens like the two cashflow panels; folding only hides, it changes no data.
     fold = panel.locator('[data-category-fold]')
     expect(fold).to_have_attribute('aria-expanded', 'true')
@@ -271,9 +285,54 @@ def category_report_overflow(case):
     expect(p.get_by_text('Total laporan arus rekening melewati batas nominal aman.', exact=True)).to_be_visible()
     expect(p.get_by_test_id('purpose-summary')).to_have_count(0)
     panel = p.locator('.category-panel')
-    expect(panel.get_by_text('Total pengeluaran belum dapat dihitung.', exact=True)).to_be_visible()
+    message = panel.get_by_text('Total pengeluaran belum dapat dihitung.', exact=True)
+    expect(message).to_be_visible()
     expect(panel.get_by_test_id('category-total')).to_have_count(0)
     expect(panel.locator('.category-row')).to_have_count(0)
+    # The two cards above show "—", so the panel does not say that every debit is counted in the flow above.
+    legend = panel.locator('.category-legend')
+    expect(legend).to_have_count(0)
+    expect(panel).not_to_contain_text('arus di atas')
+    # MW-148: folded, a header says the same as its open panel. The flows and the spending are there and only
+    # lack a total, so neither panel may call the period empty or show a stand-in amount.
+    breakdown = p.locator('.cashflow-breakdown-panel')
+    category_fold = panel.locator('[data-category-fold]')
+    for area, fold, body, said, starts_open in [
+            (breakdown, breakdown.locator('[data-cashflow-fold]'), breakdown.locator('.cashflow-empty'),
+             'Rincian arus belum dapat dihitung', case.width > 760),
+            (panel, category_fold, message, 'Total pengeluaran belum dapat dihitung', True)]:
+        expect(fold).to_have_attribute('aria-expanded', 'true' if starts_open else 'false')
+        if starts_open:
+            fold.click()
+        expect(fold).to_have_attribute('aria-expanded', 'false')
+        expect(body).to_be_hidden()
+        expect(fold.locator('.fold-desc')).to_have_text(said + ' · ketuk untuk melihat')
+        assert not re.search(r'\d', fold.inner_text()), fold.inner_text()
+        expect(area).not_to_contain_text('Belum ada')
+        box = fold.bounding_box()
+        assert box and box['x'] >= 0 and box['x'] + box['width'] <= case.width + 1, box
+        fold.click()
+        expect(fold).to_have_attribute('aria-expanded', 'true')
+        expect(body).to_be_visible()
+        expect(body).to_have_text(said + '.')
+        expect(area).not_to_contain_text('Belum ada')
+    assert p.evaluate('document.documentElement.scrollWidth <= innerWidth + 1'), 'Horizontal page overflow'
+    # The folded lines follow the report on screen. A currency whose report was computed names its kinds of
+    # operation and its total in that currency: the dollar sign is pinned, the spacing after it is left to the
+    # browser's locale data. Back on the failed one both lines say "belum dapat dihitung" again.
+    breakdown_fold = breakdown.locator('[data-cashflow-fold]')
+    breakdown_fold.click()
+    category_fold.click()
+    p.get_by_role('button', name=re.compile('USD.*Dolar AS')).click()
+    expect(breakdown_fold.locator('.fold-desc')).to_have_text('1 jenis operasi · ketuk untuk melihat')
+    expect(category_fold.locator('.fold-desc')).to_have_text(re.compile(r'^1 kategori · \$\s?7 · ketuk untuk melihat$'))
+    expect(legend).to_have_count(1)
+    p.get_by_role('button', name=re.compile('TL.*Lira Turki')).click()
+    expect(breakdown_fold.locator('.fold-desc')).to_have_text('Rincian arus belum dapat dihitung · ketuk untuk melihat')
+    expect(category_fold.locator('.fold-desc')).to_have_text('Total pengeluaran belum dapat dihitung · ketuk untuk melihat')
+    expect(legend).to_have_count(0)
+    category_fold.click()
+    expect(message).to_be_visible()
     assert p.evaluate('localStorage.getItem("uangku:budgets:v1")') == budgets
     case.assert_unchanged()
 
@@ -426,6 +485,24 @@ def future_month(case):
     expect(case.page.get_by_test_id('cashflow-warning')).to_contain_text(re.compile('belum|Belum'))
     expect(case.page.get_by_test_id('cashflow-closing')).to_contain_text(re.compile('Belum|belum|—'))
     expect(case.page.get_by_test_id('cashflow-reconciliation')).to_have_attribute('data-complete', 'false')
+    # MW-148: a period that was computed and holds nothing still reads as empty, open and folded;
+    # "belum dapat dihitung" is kept for a report that failed.
+    breakdown = case.page.locator('.cashflow-breakdown-panel')
+    category = case.page.locator('.category-panel')
+    empty = category.locator('.empty-state')
+    expect(breakdown.locator('.cashflow-empty')).to_have_text('Belum ada arus pada periode ini.')
+    expect(empty).to_have_text('Belum ada pengeluaran terkonfirmasi dalam cakupan ini.')
+    for fold, said in [(breakdown.locator('[data-cashflow-fold]'), 'Belum ada arus'),
+                       (category.locator('[data-category-fold]'), 'Belum ada pengeluaran terkonfirmasi')]:
+        fold.click()
+        expect(fold.locator('.fold-desc')).to_have_text(said + ' · ketuk untuk melihat')
+        fold.click()
+        expect(fold).to_have_attribute('aria-expanded', 'true')
+    expect(empty).to_be_visible()
+    expect(category).not_to_contain_text('belum dapat dihitung')
+    # The flow above is zero, not missing, so the note that points at it stays.
+    expect(category.locator('.category-legend')).to_be_visible()
+    case.assert_unchanged()
     case.period('all')
     case.totals(7_000, 3_100, 10_000, 14_150, 250)
     # The income dated after today is not in the figure for "all records up to today".
@@ -568,8 +645,9 @@ def cases():
     # Signed pending postings cancel in the balance, but absolute flows exceed the safe integer limit.
     limit = 2**53 - 1
     overflow = document([entry('pending-in', limit), entry('pending-out', -limit),
-        entry('confirmed-in', 100, 'income'), entry('confirmed-out', 100, 'expense', category='Pendidikan')],
-        [wallet(opening=0)])
+        entry('confirmed-in', 100, 'income'), entry('confirmed-out', 100, 'expense', category='Pendidikan'),
+        entry('dollar-out', 700, 'expense', wallet_id='usd', category='Pendidikan')],
+        [wallet(opening=0), wallet('usd', 'Synthetic dollar bank', currency='USD', opening=2_000)])
     dominant = document([entry('available', 25_000, 'income'),
         entry('transfer-away', -22_500, 'movement', category='Transfer',
               note='HAVALE SYNTHETIC OUTBOUND FIXTURE'),
@@ -615,6 +693,8 @@ def cases():
         ('aggregate-generated-reference', {'data': reference_fixture()}, reference),
         ('pending-and-adjustment-separate', {}, pending_and_adjustment),
         ('category-report-overflow-with-budget', {'data': overflow}, category_report_overflow),
+        ('category-report-overflow-phone-320-dark', {'data': overflow, 'width': 320, 'theme': 'dark'}, category_report_overflow),
+        ('category-report-overflow-phone-390-light', {'data': overflow, 'width': 390, 'theme': 'light'}, category_report_overflow),
         ('transfer-out-dominant-no-hidden-funds', {'data': dominant}, transfer_dominant),
         ('month-opening-cutoff-all-history', {'data': period}, period_cutoff),
         ('previous-purpose-year-boundary', {'data': year_boundary}, previous_purpose_year_boundary),
