@@ -1849,3 +1849,8 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 .category-panel-head { display: flex; align-items: flex-start; gap: 10px; }
 .category-panel-head .fold-header { flex: 1; min-width: 0; }
 .category-panel-head .category-heading-icon { margin-top: 2px; }
+
+/* MW-115: a toast can offer one action, such as opening the month a saved transaction went to. */
+.toast .toast-action { font: inherit; font-weight: 700; color: var(--lime); border: 1px solid currentColor; border-radius: 9px; padding: 5px 12px; margin-left: 10px; white-space: nowrap; cursor: pointer; }
+.toast.error .toast-action { color: #ffd0c2; }
+.history-scope:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
