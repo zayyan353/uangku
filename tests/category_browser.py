@@ -162,6 +162,34 @@ class Case:
         page.screenshot(path=str(self.args.output / f'{self.name}-{state}.png'))
 
 
+def category_unload(case):
+    """A field awaiting Tambah or Terapkan survives in this form only."""
+    dialog = case.manager()
+
+    def warns():
+        return case.page.evaluate("() => !window.dispatchEvent(new Event('beforeunload', {cancelable: true}))")
+
+    name = dialog.get_by_label('Nama kategori baru', exact=True)
+    name.fill('Synthetic pending name')
+    assert warns(), 'Unapplied category name did not warn'
+    name.fill('')
+    dialog.get_by_role('button', name='Ganti nama kategori Transportasi', exact=True).click()
+    rename = dialog.get_by_label('Nama baru untuk kategori Transportasi', exact=True)
+    assert not warns(), 'Untouched rename warned'
+    rename.fill('Synthetic pending rename')
+    assert warns(), 'Unapplied rename did not warn'
+    rename.press('Escape')
+    dialog.get_by_role('tab', name=re.compile('^Aturan')).click()
+    dialog.get_by_label('Cari aturan', exact=True).fill('Synthetic search')
+    assert not warns(), 'Rule search warned'
+    keyword = dialog.get_by_label('Kata kunci aturan baru', exact=True)
+    keyword.fill('Synthetic pending keyword')
+    assert warns(), 'Unapplied keyword did not warn'
+    keyword.fill('')
+    assert not warns(), 'Cleared input still warned'
+    case.unchanged()
+
+
 def manager_lifecycle(case):
     p = case.page
     dialog = case.manager()
@@ -808,6 +836,7 @@ def main():
     build = assert_production_url(args.url)
     results = []
     cases = [('manager-desktop-light', {}, manager_lifecycle),
+             ('category-unload-unapplied-fields', {}, category_unload),
              ('rename-category-desktop', {}, rename_category),
              ('rename-category-mobile-dark', {'width': 390, 'theme': 'dark'}, rename_category),
              ('manager-mobile-dark', {'width': 390, 'theme': 'dark'}, manager_lifecycle),
