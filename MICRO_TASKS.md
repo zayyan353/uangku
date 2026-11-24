@@ -1965,7 +1965,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dan perilakunya dicatat di `KERANGKA_HALAMAN.md:751-755`; mengubahnya butuh
   keputusan tersendiri.
 
-- [ ] **MW-129 — Kesegaran catatan per dompet**
+- [x] **MW-129 — Kesegaran catatan per dompet**
   Kartu dompet dan Ringkasan memberi label "Saldo aktual `<hari ini>`" tanpa
   menyebut sampai tanggal berapa catatan atau mutasi bank yang diimpor; periode
   mutasi tersimpan hanya tampil di halaman Impor. Memakai tanggal yang sudah
@@ -2018,8 +2018,34 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     Kedua regresi tanggal/penyimpanan gagal pada kode parkir.
     *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Arsip uang
     tunai lama memakai tampilan tersendiri. Kelengkapan mutasi tidak diukur.
-  - [ ] **c.** (S–M) Pengingat di Ringkasan untuk dompet yang punya mutasi tersimpan
+  - [x] **c.** (S–M) Pengingat di Ringkasan untuk dompet yang punya mutasi tersimpan
     tetapi belum menjangkau bulan lalu; bisa ditutup sampai besok.
+    *Selesai 24 Nov 2026:* Ringkasan mengingatkan dompet aktif yang mutasi
+    bank tersimpannya berhenti sebelum tanggal 1 bulan lalu. Dompet dengan
+    akhir periode terlama disebut lebih dulu. **Impor mutasi** membuka Impor.
+    `staleStatements` dan `statementReach` di `walletFreshness.ts` membaca
+    akhir periode tersimpan. Pengingat dipasang di `src/App.tsx`.
+    *Keputusan agen (mudah dibatalkan):* tanggal 1 bulan lalu sudah cukup.
+    Dompet tanpa mutasi tersimpan, cash, dan arsip dikecualikan. Kotak hanya
+    tampil pada Ringkasan data sendiri. Peringatan penyimpanan mendapat
+    giliran pertama, lalu pengingat cadangan. **Nanti saja** memakai kunci
+    lama `uangku:backup-reminder-dismissed:v1` dan menutup semua pengingat
+    sampai besok menurut tanggal perangkat.
+    *Dari tinjauan (benar/aman dan tes/tampilan):* pada kode parkir, kotak
+    masih mengajak impor ketika transaksi gagal disimpan karena kuota.
+    Kini kotak menunggu penyimpanan pulih. Nama dompet 60 huruf tanpa spasi
+    dahulu membuat isi kotak selebar 786 piksel di layar 320. Sesudah teks
+    membungkus, isi serta kotak sama-sama 286 piksel. Kasus beberapa dompet
+    mengunci urutan, pengecualian cash/arsip, dan lebar isi kotak.
+    *Tes:* `npm test` 76 file / 1.910 tes dan build produksi lulus.
+    Seluruh 18 suite Chromium lulus, termasuk UX 16/16, pemulihan 17/17,
+    dompet 24/24 dan arus kas 21/21. Median performa 5.016,48 ms dari
+    batas 7.000 ms, jeda frame maksimum 238,3 ms dari batas 350 ms.
+    Empat tes unit dan dua kasus browser gagal pada sumber sebelum MW.
+    Tujuh mutan keputusan/tampilan terdeteksi. Regresi draf yang gagal
+    disimpan dan nama panjang gagal pada kode parkir.
+    *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Tanggal akhir
+    periode tersimpan tidak membuktikan kelengkapan mutasi bank.
 
 - [ ] **MW-130 — Anggaran memberi peringatan**
   Status anggaran hanya terlihat di panel kategori Ringkasan (terakhir di HP)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Entry, Wallet } from './finance';
 import { SOURCE_POLICY, type SourceDocument, type SourceMetadata } from './sourceModel';
-import { walletFreshness } from './walletFreshness';
+import { staleStatements, walletFreshness } from './walletFreshness';
 
 const TODAY = '2026-11-19';
 const wallet = (id: string): Wallet => ({ id, name: `Synthetic ${id}`, currency: 'TRY', kind: 'bank', openingBalance: 0 });
@@ -68,5 +68,29 @@ describe('MW-129a wallet freshness', () => {
   it('ignores records and statements of a wallet the document does not hold', () => {
     const data = document([entry('gone', '2026-11-01', 'missing')], { statements: [statement('s', 'missing', '2026-10-01', '2026-10-31')] }, [wallet('a')]);
     expect(rows(data)).toEqual({ a: { hasRecords: false, lastRecordOn: null, statementThrough: null } });
+  });
+});
+
+describe('MW-129c statements that have not reached last month', () => {
+  const stale = (data: SourceDocument, today = TODAY) => staleStatements(data, today);
+  it('lists a wallet whose statements end before last month began, and not one that reaches it', () => {
+    // Today is 19 Nov 2026, so last month began on 1 Oct.
+    const data = document([], { statements: [statement('s1', 'a', '2026-09-01', '2026-09-30'), statement('s2', 'b', '2026-09-15', '2026-10-01'),
+      statement('s3', 'c', '2026-10-01', '2026-11-18')] });
+    expect(stale(data)).toEqual([{ walletId: 'a', statementThrough: '2026-09-30' }]);
+  });
+  it('judges a wallet by its latest statement, oldest reach first', () => {
+    const data = document([], { statements: [statement('s1', 'a', '2026-07-01', '2026-07-31'), statement('s2', 'a', '2026-08-01', '2026-08-31'),
+      statement('s3', 'b', '2026-06-01', '2026-06-30'), statement('s4', 'c', '2026-05-01', '2026-05-31'), statement('s5', 'c', '2026-10-01', '2026-10-31')] });
+    expect(stale(data)).toEqual([{ walletId: 'b', statementThrough: '2026-06-30' }, { walletId: 'a', statementThrough: '2026-08-31' }]);
+  });
+  it('leaves out wallets without a stored statement and wallets the document does not hold', () => {
+    expect(stale(document([entry('manual', '2026-01-01')]))).toEqual([]);
+    expect(stale(document([], { statements: [statement('s', 'missing', '2026-01-01', '2026-01-31')] }, [wallet('a')]))).toEqual([]);
+  });
+  it('counts back across the turn of the year', () => {
+    const data = document([], { statements: [statement('s1', 'a', '2025-11-01', '2025-11-30'), statement('s2', 'b', '2025-12-01', '2025-12-01')] });
+    expect(stale(data, '2026-01-15')).toEqual([{ walletId: 'a', statementThrough: '2025-11-30' }]);
+    expect(stale(data, '2026-02-01')).toEqual([{ walletId: 'a', statementThrough: '2025-11-30' }, { walletId: 'b', statementThrough: '2025-12-01' }]);
   });
 });
