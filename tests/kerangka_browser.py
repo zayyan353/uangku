@@ -241,6 +241,7 @@ def run_start_guide(browser, args, output, mobile):
         page.goto(args.url, wait_until='networkidle')
         # 1.10.2: no entries yet, so the guide replaces the panels that would only show Rp 0.
         expect(guide).to_be_visible()
+        expect(page.get_by_test_id('purpose-summary')).to_have_count(0)
         expect(guide.get_by_role('heading', name='Mulai dari sini', exact=True)).to_be_visible()
         expect(page.locator('.balance-card')).to_be_visible()
         expect(page.locator('.wallet-panel')).to_be_visible()
