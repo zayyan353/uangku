@@ -291,7 +291,12 @@ export default function App() {
     if (page !== 'overview' || cashflowPeriod !== 'month' || !before || !current || current.notStarted) return undefined;
     try {
       const report = buildCashflowReport(data, { currency, month: before, today: clockDay, period: 'month', walletId: cashflowScope === 'all' ? undefined : cashflowScope });
-      return report.inflow || report.outflow ? { label: monthLabel(before), inflow: report.inflow, outflow: report.outflow } : undefined;
+      if (!report.inflow && !report.outflow) return undefined;
+      return {
+        label: monthLabel(before),
+        inflow: report.inflow, outflow: report.outflow,
+        income: report.incomeTotal, expense: report.categoryExpenseTotal,
+      };
     } catch { return undefined; }
   }, [data, currency, month, clockDay, cashflowPeriod, cashflowScope, page, cashflowResult.report]);
   const mobileOverview = useMobileOverview();
