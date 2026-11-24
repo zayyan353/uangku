@@ -6,6 +6,8 @@ import type { SourceDocument } from './sourceModel';
 import { createPostingDateIndex, entryPostings } from './transferPostings';
 
 export interface WalletFreshness {
+  /** Includes records with a future or unknown posting date. */
+  hasRecords: boolean;
   /** Latest date, up to `today`, on which a record is posted to the wallet; null when it has none with a known date. */
   lastRecordOn: string | null;
   /** End of the latest bank statement period stored for the wallet; null when none is stored. */
@@ -21,13 +23,15 @@ export interface WalletFreshness {
  */
 export function walletFreshness(data: SourceDocument, today: string): Map<string, WalletFreshness> {
   const result = new Map<string, WalletFreshness>(
-    data.state.wallets.map(wallet => [wallet.id, { lastRecordOn: null, statementThrough: null }]),
+    data.state.wallets.map(wallet => [wallet.id, { hasRecords: false, lastRecordOn: null, statementThrough: null }]),
   );
   const index = createPostingDateIndex(data.metadata);
   for (const entry of data.state.entries) {
     for (const posting of entryPostings(entry, index)) {
       const row = result.get(posting.walletId);
-      if (!row || posting.date === null || posting.date > today) continue;
+      if (!row) continue;
+      row.hasRecords = true;
+      if (posting.date === null || posting.date > today) continue;
       if (row.lastRecordOn === null || posting.date > row.lastRecordOn) row.lastRecordOn = posting.date;
     }
   }

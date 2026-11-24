@@ -19,7 +19,7 @@ const rows = (data: SourceDocument, today = TODAY) => Object.fromEntries(walletF
 describe('MW-129a wallet freshness', () => {
   it('gives every wallet a row, empty when nothing is recorded for it', () => {
     expect(rows(document([]))).toEqual({
-      a: { lastRecordOn: null, statementThrough: null }, b: { lastRecordOn: null, statementThrough: null }, c: { lastRecordOn: null, statementThrough: null } });
+      a: { hasRecords: false, lastRecordOn: null, statementThrough: null }, b: { hasRecords: false, lastRecordOn: null, statementThrough: null }, c: { hasRecords: false, lastRecordOn: null, statementThrough: null } });
     expect([...walletFreshness(document([]), TODAY).keys()]).toEqual(['a', 'b', 'c']);
   });
   it('takes the latest record per wallet, whatever the order or kind of the records', () => {
@@ -62,11 +62,11 @@ describe('MW-129a wallet freshness', () => {
   it('reads how far the stored statements reach, per wallet', () => {
     const data = document([entry('late', '2026-11-12')], { statements: [statement('s2', 'a', '2026-10-01', '2026-10-19'),
       statement('s1', 'a', '2026-09-01', '2026-09-30'), statement('s3', 'b', '2026-08-01', '2026-08-31')] });
-    expect(rows(data)).toEqual({ a: { lastRecordOn: '2026-11-12', statementThrough: '2026-10-19' },
-      b: { lastRecordOn: null, statementThrough: '2026-08-31' }, c: { lastRecordOn: null, statementThrough: null } });
+    expect(rows(data)).toEqual({ a: { hasRecords: true, lastRecordOn: '2026-11-12', statementThrough: '2026-10-19' },
+      b: { hasRecords: false, lastRecordOn: null, statementThrough: '2026-08-31' }, c: { hasRecords: false, lastRecordOn: null, statementThrough: null } });
   });
   it('ignores records and statements of a wallet the document does not hold', () => {
     const data = document([entry('gone', '2026-11-01', 'missing')], { statements: [statement('s', 'missing', '2026-10-01', '2026-10-31')] }, [wallet('a')]);
-    expect(rows(data)).toEqual({ a: { lastRecordOn: null, statementThrough: null } });
+    expect(rows(data)).toEqual({ a: { hasRecords: false, lastRecordOn: null, statementThrough: null } });
   });
 });
