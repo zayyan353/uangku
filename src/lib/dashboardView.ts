@@ -1,4 +1,5 @@
-import type { Currency, State } from './finance';
+import type { CashflowReport } from './cashflowReport';
+import { formatMoney, type Currency, type State } from './finance';
 import { createPostingDateIndex, entryPostings, type PostingContext } from './transferPostings';
 
 /** Read-only monthly categories; transfer fees follow the debit's own date. */
@@ -28,4 +29,14 @@ export function categoryColorIndex(name: string, names: readonly string[], palet
   let hash = 0;
   for (const char of name) hash = (hash * 31 + char.codePointAt(0)!) % 2147483647;
   return hash % paletteSize;
+}
+
+/**
+ * The line under the folded category panel's title. Without a report the spending has no total;
+ * that is said as it is, because it is not the same as a period with no spending.
+ */
+export function categoryFoldSummary(report: Pick<CashflowReport, 'categoryTotals' | 'categoryExpenseTotal'> | undefined, currency: Currency): string {
+  if (!report) return 'Total pengeluaran belum dapat dihitung · ketuk untuk melihat';
+  const count = report.categoryTotals.length;
+  return count ? `${count} kategori · ${formatMoney(report.categoryExpenseTotal, currency)} · ketuk untuk melihat` : 'Belum ada pengeluaran terkonfirmasi · ketuk untuk melihat';
 }

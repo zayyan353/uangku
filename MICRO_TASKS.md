@@ -1909,7 +1909,8 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     pada kode sebelum MW dan pada dua mutan (salah hitungan atau nominal).
     Tes profil yang melampaui batas gagal pada kode parkir.
     *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Pada galat
-    perhitungan, judul panel lipat masih memakai pesan kosong lama.
+    perhitungan, judul panel lipat masih memakai pesan kosong lama
+    (ditangani di MW-166).
   - [x] **b.** (S–M) `incomeTotal` di `buildCashflowReport`
     (`src/lib/cashflowReport.ts`) dan satu baris ringkas "Pemasukan · Pengeluaran
     · Selisih (tanpa pindah uang antar dompetmu)". Baris "Perlu dicek" belum
@@ -1964,6 +1965,71 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Angka itu juga menghitung baris Perpindahan dana, jadi tetap tidak akan sama,
   dan perilakunya dicatat di `KERANGKA_HALAMAN.md:751-755`; mengubahnya butuh
   keputusan tersendiri.
+
+- [x] **MW-166 — Judul panel kategori yang dilipat tidak berkata "belum ada pengeluaran" saat total gagal dihitung** (S) (ditambahkan 24 November 2026, tindak lanjut MW-128a)
+  Saat laporan arus rekening gagal dihitung (total melewati batas nominal
+  aman), panel "Kategori pengeluaran terkonfirmasi" yang terbuka menulis
+  "Total pengeluaran belum dapat dihitung." sejak MW-128a. Judul panel yang
+  dilipat masih menulis "Belum ada pengeluaran terkonfirmasi · ketuk untuk
+  melihat". Itu salah: pengeluarannya ada, hanya belum bisa dijumlahkan.
+  *Selesai 24 Nov 2026:* Saat laporan gagal dihitung, judul panel kategori
+  yang dilipat menulis "Total pengeluaran belum dapat dihitung · ketuk untuk
+  melihat", tanpa angka. Panel "Rincian arus rekening" bermasalah sama dan
+  ikut diperbaiki. Judul lipatnya, yang di HP terlipat sejak awal, dan baris
+  tabelnya menulis "Rincian arus belum dapat dihitung", bukan lagi "Belum
+  ada arus". Laporan yang berhasil dihitung tetap memakai kalimat lama, baik
+  berisi maupun kosong. Teks judul kategori kini dibuat `categoryFoldSummary`
+  di `src/lib/dashboardView.ts`. Judul dan isi panel kategori membaca syarat
+  yang sama, yaitu laporan tidak ada.
+  Bagian Ringkasan lain pada galat yang sama diperiksa dan tidak diubah.
+  Kartu uang masuk, uang keluar, dan saldo menulis "—" atau "Belum
+  tersedia". Baris pemasukan, pengeluaran, selisih dan pembanding bulan lalu
+  tersembunyi. Judul lipat "Perhitungan saldo periode" menulis "Belum dapat
+  dipastikan". Tidak ada angka nol pengganti di layar.
+  *Keputusan agen (mudah dibatalkan):* akhiran "· ketuk untuk melihat" tetap
+  dipakai pada keadaan gagal supaya judul lipat seragam, walau isi panelnya
+  hanya satu kalimat. Perbaikan panel rincian arus masuk MW ini karena sama
+  kecilnya: dua syarat di `CashflowOverview.tsx`. Keterangan kaki panel
+  kategori disembunyikan saat laporan gagal (satu syarat di `src/App.tsx`).
+  *Dari tinjauan (benar/aman dan tes/tampilan):* perilakunya dinilai benar
+  dan aman. Tiga mutan lolos dari tes awal: judul rincian arus menyebut
+  gagal pada laporan yang berisi, mata uang tetap pada judul kategori, dan
+  isi panel kategori menyebut gagal pada periode kosong. Tesnya ditambah:
+  judul rincian dibaca pada laporan berisi ("2 jenis operasi", dan "1 jenis
+  operasi" di USD), tanda $ dipatok, dan isi panel kosong dibaca. Keterangan
+  kaki "Semua debit rekening tetap dihitung pada arus di atas." tampil juga
+  saat arus di atasnya tidak terhitung; kini disembunyikan pada keadaan itu.
+  Peninjau memeriksa lebar 1440, 1024, 800, 768, 761, 760, 390 dan 320 tanpa
+  luapan. Byte catatan tetap identik.
+  *Tinjauan ulang 25 Nov 2026:* judul kategori, isi panel, dan keterangan
+  kaki memakai keberadaan laporan yang sama. Tes mencakup perpindahan dari
+  TRY yang gagal dihitung ke USD yang berisi lalu kembali, serta periode
+  kosong. Tidak ditemukan masalah baru pada perbaikan sesudah tinjauan.
+  *Tes:* `npm test` 76 file / 1.913 tes dan build produksi lulus. Chromium:
+  arus kas 23/23, kerangka 4/4, kategori 28/28, bank otomatis 18/18. Kasus
+  profil yang melampaui batas berjalan di 1440 terang, 320 gelap, dan 390
+  terang. Kedua panel dilipat lalu dibuka lagi, lalu mata uang diganti ke
+  USD dan kembali. Pada sumber sebelum MW ketiga kasus itu gagal (arus kas
+  20/23), dan satu dari tiga tes unit baru gagal pada logika lama. Sembilan
+  mutan terdeteksi: tiga teks lama, angka nol pengganti, judul yang selalu
+  gagal, isi panel yang kembali kosong, dan tiga keadaan kosong yang ikut
+  disebut gagal. Sesudah tinjauan tujuh mutan lagi terdeteksi: tiga yang
+  semula lolos, judul rincian berisi yang disebut kosong, dan tiga pada
+  keterangan kaki. Sembilan mutan awal diulang dengan hasil sama.
+  Tangkapan layar 1440 terang, 390 gelap, serta 320 terang
+  dan gelap: teks membungkus 1–3 baris tanpa terpotong atau meluber.
+  Diperiksa terpisah di 1440 terang dan 390 gelap: periode seluruh catatan,
+  cakupan satu dompet, serta Enter dan Spasi pada judul.
+  *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Firefox dan
+  WebKit belum dijalankan, hanya Chromium. Galat selain batas nominal aman
+  tidak direproduksi.
+  Temuan di luar lingkup, sudah ada sebelum MW ini dan belum ada MW-nya:
+  pada profil yang sama, membuka Transaksi dari Ringkasan mengosongkan
+  layar (galat "Nominal tampilan harus berupa integer yang tepat." saat
+  total riwayat dijumlah di `src/App.tsx`). Muat ulang kembali ke Ringkasan
+  dan byte catatan tetap sama.
+  *File:* `src/lib/dashboardView.ts` + tes, `src/App.tsx`,
+  `src/components/CashflowOverview.tsx`, `tests/cashflow_browser.py`.
 
 - [x] **MW-129 — Kesegaran catatan per dompet**
   Kartu dompet dan Ringkasan memberi label "Saldo aktual `<hari ini>`" tanpa
