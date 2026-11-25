@@ -1451,7 +1451,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *File:* `src/lib/persistence.ts`, `src/lib/fullRestoreStorage.ts` + tes,
   `tests/recovery_browser.py`.
 
-- [ ] **MW-163 — Pemulihan lengkap tidak boleh dibatalkan sebagian oleh tab lain yang sedang terbuka** (M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
+- [x] **MW-163 — Pemulihan lengkap tidak boleh dibatalkan sebagian oleh tab lain yang sedang terbuka** (M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
   Di Chromium, tulisan tab lain tiba kunci demi kunci, dan teks catatan yang
   besar tiba paling akhir. Saat tab A menjalankan pemulihan lengkap, tab B
   yang hanya terbuka menerima peristiwa jurnal (`finishInterruptedRestore`
@@ -1466,15 +1466,24 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   pada 2.004 entri, 0 dari 20 tanpa tab kedua; pengukuran terpisah 11 dari 13
   pada 3.000 entri. Firefox 157: 0 dari 45. WebKit 27.2: 0 dari 6. MW-162
   tidak mengubah jalur ini.
-  *Arah perbaikan (belum dikerjakan):* `recoverProfile` jangan memutuskan
-  dari pandangan catatan yang mungkin tertinggal. Klaim dari MW-162 bisa
-  dipakai: bila klaim atas teks catatan yang dilihat tab ini sedang dipegang
-  tab lain, tunda tanpa menyentuh kategori atau jurnal, lalu coba lagi pada
-  peristiwa berikutnya. Prototipe penjaga serupa (memakai saksi revisi,
-  bukan klaim): 0 dari 30 pembatalan pada 8.004 entri. Format dan tempat data
-  tidak perlu berubah.
-  *Tes yang gagal lebih dulu:* pemulihan lengkap dengan tab kedua terbuka
-  dan catatan minimal 150 KB di Chromium.
+  *Selesai 25 November 2026.* Saat jurnal terlihat, pemulihan dari tab
+  penonton dan ekspor cadangan lengkap kini memeriksa klaim atas teks
+  catatan yang dibaca. Jika klaim ditolak, keduanya membiarkan jurnal dan
+  kategori utuh. Ekspor meminta pengguna mencoba kembali. Penonton mencoba
+  lagi setelah menerima perubahan. Pengelola kategori yang menunggu juga
+  memeriksa ulang saat catatan tiba atau tab mendapat fokus.
+  *Dari tinjauan.* Sesudah menghitung hash, pembaca memeriksa lagi teks jurnal
+  dan catatan agar pembaruan yang tiba selama perhitungan tidak tertimpa.
+  Penulis yang sudah memegang klaim tetap memakai jalur pemulihannya sendiri.
+  Port tanpa dukungan klaim tetap bisa menangani pemulihan terputus.
+  *Tes.* Tiga regresi unit gagal pada `eed2360`, termasuk ekspor dari tab
+  tertinggal dan jurnal yang berubah saat hash dihitung. Dua kasus pemulihan
+  yang benar-benar terputus lulus dengan dan tanpa klaim. Dalam kasus browser
+  `stale-restore-observer`, tab ketiga memeriksa isi yang tersimpan, lalu
+  pengelola kategori di tab penonton harus bisa dibuka lagi. Hasil pengukuran
+  balapan alami dan tes lintas mesin tercatat pada PR MW-163.
+  *Batas.* Perlindungan tab yang tertinggal mengikuti masa klaim MW-162.
+  Klaim dilepas sistem bila tab penulis ditutup.
 
 - [ ] **MW-164 — Jalur lain yang membaca di dalam kunci lalu menulis** (S–M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
   MW-162 hanya melindungi kunci catatan. Pola yang sama (baca di dalam Web

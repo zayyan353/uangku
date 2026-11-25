@@ -1,4 +1,5 @@
 import { createContext, useEffect, useState } from 'react';
+import { STORAGE_KEY } from '../lib/storage';
 import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, KEYWORD_PACK_VERSION, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
 import { effectiveCategorySettings } from '../lib/categorySettingsUpgrade';
 import { BUDGETS_KEY, isEmptyBudgets, parseStoredBudgets, serializeBudgets, type BudgetMap } from '../lib/budgets';
@@ -29,6 +30,7 @@ function loadCategories() {
 }
 export function useCategorySettings() {
   const [snapshot, setSnapshot] = useState(load);
+  const recovering = snapshot.error === restorePending;
   useEffect(() => {
     let active = true;
     async function refresh() {
@@ -36,15 +38,22 @@ export function useCategorySettings() {
       if (active) setSnapshot(load());
     }
     const changed = (event: StorageEvent) => {
-      if (event.key === CATEGORY_SETTINGS_KEY || event.key === BUDGETS_KEY || event.key === RESTORE_JOURNAL || event.key === null) void refresh();
+      if (event.key === CATEGORY_SETTINGS_KEY || event.key === BUDGETS_KEY || event.key === RESTORE_JOURNAL || event.key === null ||
+          (recovering && event.key === STORAGE_KEY)) void refresh();
     };
     window.addEventListener('storage', changed);
     window.addEventListener(PROFILE_CHANGED, refresh);
-    try { if (localStorage.getItem(RESTORE_JOURNAL) !== null) void refresh(); } catch { /* initial load reported the error */ }
-    return () => { active = false; window.removeEventListener('storage', changed); window.removeEventListener(PROFILE_CHANGED, refresh); };
-  }, []);
+    if (recovering) window.addEventListener('focus', refresh);
+    try { if (recovering || localStorage.getItem(RESTORE_JOURNAL) !== null) void refresh(); } catch { /* initial load reported the error */ }
+    return () => {
+      active = false;
+      window.removeEventListener('storage', changed);
+      window.removeEventListener(PROFILE_CHANGED, refresh);
+      window.removeEventListener('focus', refresh);
+    };
+  }, [recovering]);
   async function save(next: CategorySettings, expectedRaw: string | null, budgetChange?: BudgetChange): Promise<void> {
-    if (snapshot.error === restorePending) throw Error(restorePending);
+    if (recovering) throw Error(restorePending);
     const checked = validateCategorySettings(next);
     const settings = validateCategorySettings({ ...checked, keywordPackVersion: KEYWORD_PACK_VERSION }), raw = JSON.stringify(settings);
     // Validate before the lock; an empty map removes the key instead of storing "{}".
@@ -73,5 +82,5 @@ export function useCategorySettings() {
       setSnapshot({ raw, settings, packAdded: 0, packUpdated: 0, error: '', ...(budgets ? { budgetsRaw, budgets, budgetsError: '' } : loadBudgets()) });
     });
   }
-  return { ...snapshot, recovering: snapshot.error === restorePending, save };
+  return { ...snapshot, recovering, save };
 }

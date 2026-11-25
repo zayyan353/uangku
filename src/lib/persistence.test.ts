@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitCandidate, isQuotaError, LEDGER_LOCK, LedgerPersistenceController, prepareCandidate, STORAGE_FULL_MESSAGE, type PersistenceLocks, type PersistencePorts, type PersistenceStorage } from './persistence';
 import { STORAGE_KEY, makeDemoData, serializeBackup, validateBackup, type StoredData, type StoredRead } from './storage';
-import { CATEGORY_LOCK, RESTORE_JOURNAL } from './fullRestoreStorage';
+import { CATEGORY_LOCK, finishInterruptedRestore, RESTORE_JOURNAL } from './fullRestoreStorage';
 import { CATEGORY_SETTINGS_KEY, type CategorySettings } from './categorySettings';
 import { BUDGETS_KEY, type BudgetMap } from './budgets';
 
@@ -769,7 +769,7 @@ describe('MW-162: a save claims the text it was built on', () => {
   });
 });
 
-describe('MW-162: a full restore checks its ledger base', () => {
+describe('coordinated full restore', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });
 
@@ -782,6 +782,83 @@ describe('MW-162: a full restore checks its ledger base', () => {
   type Tab = ReturnType<Origin['tab']>;
   const restore = (tab: Tab, ids: string[], categories: { expectedRaw?: string; budgets?: BudgetMap } = {}) =>
     tab.controller.setCandidate(data(ids), '', { restoreCategories: { settings, expectedRaw: before, ...categories } });
+
+  it.each(['refresh', 'export'])('MW-163: %s from a trailing tab preserves a completed restore', async operation => {
+    const origin = profile(['old']);
+    const writer = origin.tab('A'), reader = origin.tab('B');
+    // Deliver the journal and staged categories to B, then withhold the two
+    // remaining changes (ledger replacement and journal removal).
+    const write = writer.storage.setItem.bind(writer.storage);
+    writer.storage.setItem = (key, value) => {
+      write(key, value);
+      if (key === CATEGORY_SETTINGS_KEY) reader.storage.catchUp();
+    };
+    expect(await restore(writer, ['restored'])).toBe(true);
+    expect(reader.storage.getItem(RESTORE_JOURNAL)).not.toBeNull();
+    expect(reader.storage.getItem(CATEGORY_SETTINGS_KEY)).toBe(after);
+    expect(reader.storage.getItem(STORAGE_KEY)).toBe(text(['old']));
+    const set = vi.spyOn(reader.storage, 'setItem'), remove = vi.spyOn(reader.storage, 'removeItem');
+
+    if (operation === 'refresh') await finishInterruptedRestore(reader.storage, origin.locks);
+    else await expect(reader.controller.exportFullBackup(after)).rejects.toThrow();
+
+    expect(set).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
+    expect(origin.ledger).toBe(text(['restored']));
+    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+
+    origin.deliver();
+    await finishInterruptedRestore(reader.storage, origin.locks);
+    reader.controller.checkRemote();
+    const backup = JSON.parse(await reader.controller.exportFullBackup(after));
+    expect(backup.ledger).toEqual(data(['restored']));
+    expect(backup.categorySettings).toEqual(settings);
+  });
+
+  it('MW-163: leaves a newer journal untouched when it arrives during the ledger hash', async () => {
+    const ledger = text(['same-ledger']);
+    const journal = { beforeLedger: createHash('sha256').update(ledger).digest('hex'),
+      afterLedger: 'a'.repeat(64), beforeCategories: before, afterCategories: after };
+    const origin = new Origin(ledger, { [RESTORE_JOURNAL]: JSON.stringify(journal), [CATEGORY_SETTINGS_KEY]: after });
+    const reader = origin.tab('B');
+    // A later interrupted restore still has the same ledger and staged categories,
+    // but only the newer journal knows which categories to put back.
+    const newer = JSON.stringify({ ...journal, beforeCategories: null });
+    origin.durable.set(RESTORE_JOURNAL, newer);
+    const digest = crypto.subtle.digest.bind(crypto.subtle);
+    const hashing = vi.spyOn(crypto.subtle, 'digest').mockImplementationOnce(async (...args) => {
+      const result = await digest(...args);
+      reader.storage.catchUp();
+      return result;
+    });
+    try { await finishInterruptedRestore(reader.storage, origin.locks); }
+    finally { hashing.mockRestore(); }
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
+    expect(origin.durable.get(RESTORE_JOURNAL)).toBe(newer);
+
+    await finishInterruptedRestore(reader.storage, origin.locks);
+    expect(origin.durable.has(CATEGORY_SETTINGS_KEY)).toBe(false);
+    expect(origin.durable.has(RESTORE_JOURNAL)).toBe(false);
+  });
+
+  it.each([true, false])('MW-163: recovers a genuinely interrupted restore (claim support: %s)', async hasClaims => {
+    const origin = profile(['old']);
+    const writer = origin.tab('A');
+    writer.storage.refuse = (key, value) => key === STORAGE_KEY || (key === CATEGORY_SETTINGS_KEY && value === before);
+    expect(await restore(writer, ['restored'])).toBe(false);
+    expect(origin.durable.has(RESTORE_JOURNAL)).toBe(true);
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
+    expect(origin.locks.held()).toEqual([]);
+
+    const locks = hasClaims ? origin.locks : { runExclusive: origin.locks.runExclusive.bind(origin.locks) };
+    const reader = origin.tab('B', locks);
+    await finishInterruptedRestore(reader.storage, locks);
+    expect(origin.ledger).toBe(text(['old']));
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(before);
+    expect(origin.durable.has(RESTORE_JOURNAL)).toBe(false);
+    expect(origin.locks.held()).toEqual([]);
+  });
 
   it('a trailing tab cannot save over the ledger another tab just restored', async () => {
     const origin = profile(['old']);

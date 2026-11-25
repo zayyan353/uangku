@@ -230,6 +230,86 @@ def test_stale_view_save_conflicts(browser, output):
         assert persisted_notes(a) == ['Stale view A']
 
 
+def test_stale_restore_observer(browser, output):
+    """MW-163: an idle tab sees the restore journal and staged categories before the new ledger."""
+    from full_backup_browser import CATEGORIES, personal_settings, pick_backup, synthetic_page
+
+    journal_key = 'uangku:full-restore:v1'
+    before = fixture([expense('old', note='Before restore')])
+    restored = fixture([expense('restored', note='From backup')])
+    settings = personal_settings()
+    old_settings = {**settings, 'names': [*settings['names'], 'Old profile only']}
+    backup = {'app': 'uangku-full-backup', 'version': 1, 'ledger': restored, 'categorySettings': settings}
+    with synthetic_page(browser, URL, 1440, before, old_settings) as writer:
+        observer = writer.context.new_page()
+        observer.goto(URL, wait_until='networkidle')
+        nav(observer, 'Transaksi')
+        manage = observer.get_by_role('button', name='Kelola kategori', exact=True)
+        expect(manage).to_be_enabled()
+        observer.evaluate("""([ledger, journal]) => {
+          const read = Storage.prototype.getItem, oldLedger = localStorage.getItem(ledger);
+          window.__journalView = null;
+          window.__writes = [];
+          Storage.prototype.getItem = function(key) {
+            if (this === localStorage && key === ledger) return oldLedger;
+            if (this === localStorage && key === journal) return window.__journalView;
+            return read.call(this, key);
+          };
+          for (const name of ['setItem', 'removeItem']) {
+            const original = Storage.prototype[name];
+            Storage.prototype[name] = function(key, ...args) {
+              if (this === localStorage) window.__writes.push([name, key]);
+              return original.call(this, key, ...args);
+            };
+          }
+          window.__catchUp = () => {
+            Storage.prototype.getItem = read;
+            window.dispatchEvent(new StorageEvent('storage', {key: ledger}));
+          };
+        }""", [KEY, journal_key])
+        writer.evaluate("""journal => {
+          const write = Storage.prototype.setItem;
+          Storage.prototype.setItem = function(key, value) {
+            if (this === localStorage && key === journal) window.__restoreJournal = value;
+            return write.call(this, key, value);
+          };
+        }""", journal_key)
+        pick_backup(writer, 'synthetic-full.json', json.dumps(backup).encode())
+        writer.get_by_role('dialog').get_by_role('button', name='Pulihkan semuanya', exact=True).click()
+        expect(writer.locator('.toast')).to_contain_text('Cadangan lengkap dipulihkan')
+        journal = writer.evaluate('window.__restoreJournal')
+        staged_categories = json.loads(journal)['afterCategories']
+        assert json.loads(staged_categories) == settings
+        observer.wait_for_function('([key, raw]) => localStorage.getItem(key) === raw',
+                                   arg=[CATEGORIES, staged_categories])
+        observer.evaluate("""async ([journal, value, lock]) => {
+          window.__journalView = value;
+          window.dispatchEvent(new Event('focus'));
+          window.dispatchEvent(new StorageEvent('storage', {key: journal}));
+          // Both refresh handlers have requested the ledger lock. Drain them before checking durable data.
+          await navigator.locks.request(lock, () => {});
+        }""", [journal_key, journal, LEDGER_LOCK])
+
+        reader = writer.context.new_page()
+        reader.goto(URL, wait_until='networkidle')
+        assert stored(reader) == restored, 'Fresh tab did not read the restored ledger'
+        writes = observer.evaluate('window.__writes')
+        assert json.loads(reader.evaluate('key => localStorage.getItem(key)', CATEGORIES)) == settings, (
+            f'Fresh tab lost the restored categories after the observer refreshed: {writes}')
+        assert writes == [], f'Observer changed storage while its ledger view was stale: {writes}'
+
+        # The last storage event can be the ledger. The observer must leave the pending state without reloading.
+        expect(manage).to_be_disabled()
+        observer.evaluate('window.__catchUp()')
+        expect(manage).to_be_enabled()
+        manage.click()
+        manager = observer.get_by_role('dialog', name='Kelola kategori', exact=True)
+        manager.get_by_role('tab', name=re.compile('^Kategori')).click()
+        names = manager.locator('.category-manager-names')
+        expect(names.get_by_text('Unused QA label', exact=True)).to_be_visible()
+        expect(names.get_by_text('Old profile only', exact=True)).to_have_count(0)
+
+
 QUEUED_SAVE_ROUNDS = 5
 QUEUED_SAVE_ENTRIES = 1500
 
@@ -831,6 +911,7 @@ def main():
         ('stale-form-conflict', test_stale_form),
         ('two-tabs-sync-and-concurrent', test_clean_sync_and_concurrent_forms),
         ('stale-view-save-conflicts', test_stale_view_save_conflicts),
+        ('stale-restore-observer', test_stale_restore_observer),
         ('queued-saves-one-winner', test_queued_saves_one_winner),
         ('quota-recovery-retry', test_quota_retry),
         ('missing-web-locks', test_no_web_locks),
