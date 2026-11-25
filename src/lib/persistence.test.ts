@@ -510,6 +510,76 @@ class OriginLocks implements PersistenceLocks {
   isInside(name: string) { return this.inside.has(name); }
 }
 
+describe('MW-164a: conflict during automatic cash wallet cleanup', () => {
+  function setup() {
+    const legacy = data(['kept']);
+    legacy.state.wallets.push({ id: 'cash', name: 'Cash', currency: 'TRY', kind: 'cash', openingBalance: 0 });
+    const origin = new Origin(serializeBackup(legacy));
+    const a = origin.tab('winner'), b = origin.tab('observer');
+    const base = b.controller.getSnapshot();
+    const cleanup = () => b.controller.setCandidate(data(['kept']), '', {
+      automaticCashCleanup: true, expectedData: base.data, expectedToken: base.revisionToken,
+    });
+    const statuses: string[] = [];
+    b.controller.subscribe(() => statuses.push(b.controller.getSnapshot().status));
+    return { origin, a, b, base, cleanup, statuses };
+  }
+
+  it('discards only the losing cleanup and adopts the winner once the stale view catches up', async () => {
+    const { origin, a, b, base, cleanup, statuses } = setup();
+    expect(await a.controller.setCandidate(data(['kept', 'new']))).toBe(true);
+    const saving = cleanup();
+    expect(b.controller.getSnapshot()).toMatchObject({ status: 'saving', dirty: false, pending: true });
+    expect(await saving).toBe(false);
+    expect(b.controller.getSnapshot()).toMatchObject({ status: 'saved', dirty: false, pending: false });
+    // Preserve the identity the effect already attempted while the browser still reads the old bytes.
+    expect(b.controller.getSnapshot().data).toBe(base.data);
+    expect(await b.controller.retry()).toBe(false);
+    origin.deliver(); b.controller.checkRemote();
+    expect(notes(b.controller.recoveryText())).toEqual(['kept', 'new']);
+    expect(statuses).not.toContain('conflict');
+    expect(origin.ledgerWriters).toEqual(['winner']);
+  });
+
+  it('leaves the newest clean snapshot alone if the cleanup was calculated before a refresh', async () => {
+    const { origin, a, b, cleanup, statuses } = setup();
+    expect(await a.controller.setCandidate(data(['kept', 'new']))).toBe(true);
+    origin.deliver(); b.controller.checkRemote();
+    const latest = b.controller.getSnapshot();
+    expect(await cleanup()).toBe(false);
+    expect(b.controller.getSnapshot()).toBe(latest);
+    expect(statuses).not.toContain('conflict');
+    expect(origin.ledgerWriters).toEqual(['winner']);
+  });
+
+  it.each(['storage event', 'retry'])('preserves a quota-failed cleanup until a %s detects a competing write', async path => {
+    const { origin, a, b, cleanup, statuses } = setup();
+    b.storage.refuse = key => key === STORAGE_KEY;
+    expect(await cleanup()).toBe(false);
+    expect(b.controller.getSnapshot()).toMatchObject({ status: 'failed', dirty: true, error: STORAGE_FULL_MESSAGE });
+    expect(await a.controller.setCandidate(data(['kept', 'new']))).toBe(true);
+    origin.deliver();
+    if (path === 'storage event') b.controller.checkRemote();
+    else expect(await b.controller.retry()).toBe(false);
+    expect(b.controller.getSnapshot()).toMatchObject({ status: 'saved', dirty: false });
+    expect(notes(b.controller.recoveryText())).toEqual(['kept', 'new']);
+    expect(statuses).not.toContain('conflict');
+  });
+
+  it('keeps a pending or failed manual draft even when cleanup is requested', async () => {
+    const { b, cleanup } = setup();
+    b.storage.refuse = key => key === STORAGE_KEY;
+    const saving = b.controller.setCandidate(data(['manual']));
+    expect(await cleanup()).toBe(false);
+    expect(await saving).toBe(false);
+    expect(await cleanup()).toBe(false);
+    expect(notes(b.controller.recoveryText())).toEqual(['manual']);
+    b.storage.refuse = null;
+    expect(await b.controller.retry()).toBe(true);
+    expect(notes(b.controller.recoveryText())).toEqual(['manual']);
+  });
+});
+
 describe('MW-162: a save claims the text it was built on', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); });

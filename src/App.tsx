@@ -187,7 +187,7 @@ export default function App() {
     const next = removeUnusedCashWallets(data);
     if (next === data) return;
     cashCleanupAttempt.current = data;
-    void persistCandidate(next, { expectedData: data, expectedToken: ledger.revisionToken });
+    void persistCandidate(next, { expectedData: data, expectedToken: ledger.revisionToken, automaticCashCleanup: true });
   }, [data, blocked, ledger.dirty, ledger.pending, ledger.supported, ledger.revisionToken]);
   async function retryDraft() {
     if (mutationInFlight.current) return;
