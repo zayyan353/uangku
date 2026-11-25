@@ -1919,6 +1919,10 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Pada CI pertama PR #80, Firefox berhenti di suite pemulihan. Pada
   `0f59443`, kedua kasus **Lihat** (desktop dan ponsel) sudah dijalankan
   dan lulus di Firefox dan WebKit. Ketiga job CI lulus.
+  *Tindak lanjut publikasi 25 Nov:* sesudah **Simpan & catat lagi**, tes
+  kini menunggu kolom Nominal kosong dan mendapat fokus sebelum menekan
+  Escape. Pada run publikasi 45551701535, formulir ponsel Chromium masih
+  terbuka sesudah tes mengirim Escape.
   *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Sesudah **Lihat**, fokus keyboard tidak berada
   di baris itu. Baris tidak disorot, jadi pengguna mengenalinya dari
   keterangannya. Pengaruh pada performa tidak terukur bersih: mesin sedang

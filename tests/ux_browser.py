@@ -1071,7 +1071,11 @@ def saved_page_case(browser, args, output, mobile):
         expect(toast).to_contain_text('Tersimpan di Oktober 2026. Lanjut catat berikutnya.')
         expect(toast.get_by_role('button', name='Lihat', exact=True)).to_have_count(0)
         expect(dialogs).to_have_count(1)
-        # Escape, because on a phone this toast lies over the form's own buttons until it goes away.
+        # The repeat form restores focus on the next animation frame. Escape reaches
+        # the dialog only after focus has returned from the disabled submit button.
+        amount = dialogs.get_by_label('Nominal', exact=True)
+        expect(amount).to_have_value('')
+        expect(amount).to_be_focused()
         page.keyboard.press('Escape')
         expect(dialogs).to_have_count(0)
         expect(scope).to_contain_text('Januari 2025')
