@@ -350,7 +350,10 @@ export class LedgerPersistenceController {
       return file;
     };
     if (!locks) return exportCurrent();
-    return withProfileLocks(locks, async () => { await recoverProfile(storage); return exportCurrent(); });
+    return withProfileLocks(locks, async () => {
+      if (!await recoverProfile(storage, locks)) throw new Error(restorePending);
+      return exportCurrent();
+    });
   };
 
   private async writeDraft(): Promise<boolean> {

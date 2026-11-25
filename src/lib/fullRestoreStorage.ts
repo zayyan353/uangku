@@ -119,22 +119,36 @@ function undoStagedCategories(storage: PersistenceStorage, journal: Journal) {
   else storage.setItem(CATEGORY_SETTINGS_KEY, journal.beforeCategories);
 }
 
-/** Both legacy writer locks must already be held. The ledger write is the commit point. */
-export async function recoverProfile(storage: PersistenceStorage) {
+/**
+ * Both writer locks must be held. Writers already guard their ledger base. A
+ * reader supplies its lock manager to check whether another tab has displaced
+ * the ledger it sees. False means the reader must wait for a fresher view.
+ */
+export async function recoverProfile(storage: PersistenceStorage, readerLocks?: PersistenceLocks): Promise<boolean> {
   const raw = storage.getItem(RESTORE_JOURNAL);
-  if (raw === null) return;
+  if (raw === null) return true;
+  const ledger = storage.getItem(STORAGE_KEY);
+  if (readerLocks?.claim) {
+    const release = await readerLocks.claim(await baseClaimName(ledger));
+    if (release === null) return false;
+    release();
+  }
   const journal = parseJournal(raw);
-  const current = await digest(storage.getItem(STORAGE_KEY));
+  const current = await digest(ledger);
+  // This tab can receive storage changes even while it holds the writer locks.
+  // Only act on the exact journal and ledger that passed the probe.
+  if (readerLocks?.claim && (storage.getItem(RESTORE_JOURNAL) !== raw || storage.getItem(STORAGE_KEY) !== ledger)) return false;
   if (current === journal.beforeLedger) undoStagedCategories(storage, journal);
   // The target ledger means the restore committed. An unrelated ledger belongs
   // to a later writer. Neither permits undoing financial or category edits.
   storage.removeItem(RESTORE_JOURNAL);
+  return true;
 }
 
 export async function finishInterruptedRestore(storage: PersistenceStorage, locks: PersistenceLocks | undefined) {
   if (storage.getItem(RESTORE_JOURNAL) === null) return;
   if (!locks) throw new Error(restorePending);
-  await withProfileLocks(locks, () => recoverProfile(storage));
+  await withProfileLocks(locks, () => recoverProfile(storage, locks));
 }
 
 /** Caller has checked both exact tokens under both writer locks. No normal write changes formats. */
