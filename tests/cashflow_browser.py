@@ -222,7 +222,7 @@ def purpose(case, income, expense):
 
 
 def pending_and_adjustment(case):
-    # MW-148: a report that was computed and has rows says how many kinds of operation it holds. Phones start
+    # MW-166: a report that was computed and has rows says how many kinds of operation it holds. Phones start
     # with this panel folded, so there the line is read before anything is touched.
     breakdown_fold = case.page.locator('.cashflow-breakdown-panel [data-cashflow-fold]')
     starts_open = case.width > 760
@@ -293,7 +293,7 @@ def category_report_overflow(case):
     legend = panel.locator('.category-legend')
     expect(legend).to_have_count(0)
     expect(panel).not_to_contain_text('arus di atas')
-    # MW-148: folded, a header says the same as its open panel. The flows and the spending are there and only
+    # MW-166: folded, a header says the same as its open panel. The flows and the spending are there and only
     # lack a total, so neither panel may call the period empty or show a stand-in amount.
     breakdown = p.locator('.cashflow-breakdown-panel')
     category_fold = panel.locator('[data-category-fold]')
@@ -485,7 +485,7 @@ def future_month(case):
     expect(case.page.get_by_test_id('cashflow-warning')).to_contain_text(re.compile('belum|Belum'))
     expect(case.page.get_by_test_id('cashflow-closing')).to_contain_text(re.compile('Belum|belum|—'))
     expect(case.page.get_by_test_id('cashflow-reconciliation')).to_have_attribute('data-complete', 'false')
-    # MW-148: a period that was computed and holds nothing still reads as empty, open and folded;
+    # MW-166: a period that was computed and holds nothing still reads as empty, open and folded;
     # "belum dapat dihitung" is kept for a report that failed.
     breakdown = case.page.locator('.cashflow-breakdown-panel')
     category = case.page.locator('.category-panel')

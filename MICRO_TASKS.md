@@ -1910,7 +1910,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     Tes profil yang melampaui batas gagal pada kode parkir.
     *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Pada galat
     perhitungan, judul panel lipat masih memakai pesan kosong lama
-    (ditangani di MW-148).
+    (ditangani di MW-166).
   - [x] **b.** (S–M) `incomeTotal` di `buildCashflowReport`
     (`src/lib/cashflowReport.ts`) dan satu baris ringkas "Pemasukan · Pengeluaran
     · Selisih (tanpa pindah uang antar dompetmu)". Baris "Perlu dicek" belum
@@ -1966,7 +1966,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dan perilakunya dicatat di `KERANGKA_HALAMAN.md:751-755`; mengubahnya butuh
   keputusan tersendiri.
 
-- [x] **MW-148 — Judul panel kategori yang dilipat tidak berkata "belum ada pengeluaran" saat total gagal dihitung** (S) (ditambahkan 24 November 2026, tindak lanjut MW-128a)
+- [x] **MW-166 — Judul panel kategori yang dilipat tidak berkata "belum ada pengeluaran" saat total gagal dihitung** (S) (ditambahkan 24 November 2026, tindak lanjut MW-128a)
   Saat laporan arus rekening gagal dihitung (total melewati batas nominal
   aman), panel "Kategori pengeluaran terkonfirmasi" yang terbuka menulis
   "Total pengeluaran belum dapat dihitung." sejak MW-128a. Judul panel yang
@@ -2001,6 +2001,10 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   saat arus di atasnya tidak terhitung; kini disembunyikan pada keadaan itu.
   Peninjau memeriksa lebar 1440, 1024, 800, 768, 761, 760, 390 dan 320 tanpa
   luapan. Byte catatan tetap identik.
+  *Tinjauan ulang 25 Nov 2026:* judul kategori, isi panel, dan keterangan
+  kaki memakai keberadaan laporan yang sama. Tes mencakup perpindahan dari
+  TRY yang gagal dihitung ke USD yang berisi lalu kembali, serta periode
+  kosong. Tidak ditemukan masalah baru pada perbaikan sesudah tinjauan.
   *Tes:* `npm test` 76 file / 1.913 tes dan build produksi lulus. Chromium:
   arus kas 23/23, kerangka 4/4, kategori 28/28, bank otomatis 18/18. Kasus
   profil yang melampaui batas berjalan di 1440 terang, 320 gelap, dan 390
@@ -2018,7 +2022,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   cakupan satu dompet, serta Enter dan Spasi pada judul.
   *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Firefox dan
   WebKit belum dijalankan, hanya Chromium. Galat selain batas nominal aman
-  tidak direproduksi. Perbaikan sesudah tinjauan belum ditinjau ulang.
+  tidak direproduksi.
   Temuan di luar lingkup, sudah ada sebelum MW ini dan belum ada MW-nya:
   pada profil yang sama, membuka Transaksi dari Ringkasan mengosongkan
   layar (galat "Nominal tampilan harus berupa integer yang tepat." saat
