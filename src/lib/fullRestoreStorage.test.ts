@@ -309,7 +309,7 @@ describe('requestExclusive', () => {
   });
 });
 
-describe('MW-149: claim and revoke over the Web Locks API', () => {
+describe('MW-162: claim and revoke over the Web Locks API', () => {
   /** The part of a lock manager the adapter uses: an exclusive hold that is taken only if free, and steal. */
   function lockManager() {
     const holders = new Map<string, (reason: unknown) => void>();
@@ -349,36 +349,27 @@ describe('MW-149: claim and revoke over the Web Locks API', () => {
 
   it('takes a free name only if available, answers null for a held one, and frees it through the release function', async () => {
     const { manager, calls, held } = lockManager();
-    const release = await claimLock(manager, 'claim', 30_000);
+    const release = await claimLock(manager, 'claim');
     expect(release).toBeTypeOf('function');
     expect(calls).toEqual([{ name: 'claim', options: { mode: 'exclusive', ifAvailable: true }, callbackRejected: false }]);
     expect(held()).toEqual(['claim']);
-    expect(await claimLock(manager, 'claim', 30_000)).toBeNull();
+    expect(await claimLock(manager, 'claim')).toBeNull();
     expect(held()).toEqual(['claim']);
     release!(); release!();
     await flush();
     expect(held()).toEqual([]);
-    expect(await claimLock(manager, 'claim', 30_000)).not.toBeNull();
+    expect(await claimLock(manager, 'claim')).not.toBeNull();
     expect(calls.map(call => call.callbackRejected)).toEqual([false, false, false]);
   });
 
-  it('frees the name by itself after the lifetime, and the release function cancels that timer', async () => {
+  it('holds the name while the writer is still preparing its commit, regardless of elapsed time', async () => {
     vi.useFakeTimers();
     try {
       const { manager, held } = lockManager();
-      const release = await claimLock(manager, 'timed', 30_000);
-      expect(vi.getTimerCount()).toBe(1);
-      await vi.advanceTimersByTimeAsync(29_999);
-      await flush();
+      const release = await claimLock(manager, 'timed');
+      await vi.advanceTimersByTimeAsync(60_000);
       expect(held()).toEqual(['timed']);
-      await vi.advanceTimersByTimeAsync(1);
-      await flush();
-      expect(held()).toEqual([]);
       release!();
-      const again = await claimLock(manager, 'timed', 30_000);
-      expect(vi.getTimerCount()).toBe(1);
-      again!();
-      expect(vi.getTimerCount()).toBe(0);
       await flush();
       expect(held()).toEqual([]);
     } finally { vi.useRealTimers(); }
@@ -390,11 +381,11 @@ describe('MW-149: claim and revoke over the Web Locks API', () => {
     process.on('unhandledRejection', listen);
     try {
       const { manager, calls, held } = lockManager();
-      const release = await claimLock(manager, 'revoked', 30_000);
+      const release = await claimLock(manager, 'revoked');
       await revokeLock(manager, 'revoked');
       expect(calls[1]).toEqual({ name: 'revoked', options: { steal: true }, callbackRejected: false });
       expect(held()).toEqual([]);
-      const next = await claimLock(manager, 'revoked', 30_000);
+      const next = await claimLock(manager, 'revoked');
       expect(next).not.toBeNull();
       release!();
       // A macrotask later an unhandled rejection would have been reported.
@@ -412,10 +403,10 @@ describe('MW-149: claim and revoke over the Web Locks API', () => {
     const { manager, refuse, throwOnRequest, held } = lockManager();
     const reason = new DOMException('Synthetic', 'InvalidStateError');
     refuse(reason);
-    await expect(claimLock(manager, 'broken', 30_000)).rejects.toBe(reason);
+    await expect(claimLock(manager, 'broken')).rejects.toBe(reason);
     await expect(revokeLock(manager, 'broken')).rejects.toBe(reason);
     refuse(null); throwOnRequest(reason);
-    await expect(claimLock(manager, 'broken', 30_000)).rejects.toBe(reason);
+    await expect(claimLock(manager, 'broken')).rejects.toBe(reason);
     await expect(revokeLock(manager, 'broken')).rejects.toBe(reason);
     expect(held()).toEqual([]);
   });
@@ -425,8 +416,8 @@ describe('MW-149: claim and revoke over the Web Locks API', () => {
     vi.stubGlobal('navigator', { locks: manager });
     try {
       const locks = browserLocks()!;
-      expect(await locks.claim!('port', 30_000)).toBeTypeOf('function');
-      expect(await locks.claim!('port', 30_000)).toBeNull();
+      expect(await locks.claim!('port')).toBeTypeOf('function');
+      expect(await locks.claim!('port')).toBeNull();
       await locks.revoke!('port');
       expect(held()).toEqual([]);
       expect(calls.map(call => call.options)).toEqual([{ mode: 'exclusive', ifAvailable: true }, { mode: 'exclusive', ifAvailable: true }, { steal: true }]);
@@ -441,6 +432,11 @@ describe('MW-149: claim and revoke over the Web Locks API', () => {
     const unicode = serializeBackup(updated).replace('Synthetic', 'İstanbul 界 👛');
     expect(await baseClaimName(unicode)).toBe(`${LEDGER_LOCK}:base:${createHash('sha256').update(unicode, 'utf8').digest('hex')}`);
     expect(await baseClaimName(unicode + ' ')).not.toBe(await baseClaimName(unicode));
+  });
+
+  it('keeps distinct raw tokens distinct even when UTF-8 would replace a lone surrogate', async () => {
+    const names = await Promise.all(['\uFFFD', '\uD800', '\uD801', '\uDFFF'].map(baseClaimName));
+    expect(new Set(names).size).toBe(names.length);
   });
 
   it('remembers the two texts it hashed last', async () => {

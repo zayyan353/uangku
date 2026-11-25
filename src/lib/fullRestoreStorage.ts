@@ -28,21 +28,18 @@ export async function requestExclusive<T>(manager: Pick<LockManager, 'request'>,
 }
 
 /**
- * Takes `name` if no tab holds it and keeps it for `lifetimeMs` or until the returned function is called.
+ * Takes `name` if no tab holds it and keeps it until the returned release function is called or the name is stolen.
  * Resolves to null when the name is already held. As in requestExclusive, the lock callback never rejects.
  * The request's own promise is handled here: a refusal before the lock is held rejects the claim; a rejection
  * afterwards is the AbortError of a claim that revokeLock ended, and is ignored.
  */
-export function claimLock(manager: Pick<LockManager, 'request'>, name: string, lifetimeMs: number): Promise<(() => void) | null> {
+export function claimLock(manager: Pick<LockManager, 'request'>, name: string): Promise<(() => void) | null> {
   return new Promise<(() => void) | null>((resolve, reject) => {
     let answered = false;
     manager.request(name, { mode: 'exclusive', ifAvailable: true }, lock => {
       answered = true;
       if (lock === null) { resolve(null); return undefined; }
-      return new Promise<void>(free => {
-        const timer = setTimeout(free, lifetimeMs);
-        resolve(() => { clearTimeout(timer); free(); });
-      });
+      return new Promise<void>(free => resolve(free));
     }).catch(error => { if (!answered) reject(error); });
   });
 }
@@ -57,7 +54,7 @@ export function browserLocks(): PersistenceLocks | undefined {
   if (!manager?.request) return undefined;
   return {
     runExclusive: <T>(name: string, task: () => T | Promise<T>) => requestExclusive(manager, name, task),
-    claim: (name: string, lifetimeMs: number) => claimLock(manager, name, lifetimeMs),
+    claim: (name: string) => claimLock(manager, name),
     revoke: (name: string) => revokeLock(manager, name),
   };
 }
@@ -90,7 +87,11 @@ export async function baseClaimName(token: string | null): Promise<string> {
   if (token === null) return `${LEDGER_LOCK}:base:kosong`;
   let known = claimDigests.find(entry => entry.text === token)?.digest;
   if (known === undefined) {
-    known = (await digest(token))!;
+    // TextEncoder replaces lone UTF-16 surrogates with U+FFFD. A legacy or damaged raw
+    // token can contain one, so give that case its own namespace and a lossless encoding.
+    known = /[\uD800-\uDFFF]/u.test(token)
+      ? `escaped:${await digest(JSON.stringify(token))}`
+      : (await digest(token))!;
     claimDigests.push({ text: token, digest: known });
     if (claimDigests.length > 2) claimDigests.shift();
   }

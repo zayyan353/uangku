@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { commitCandidate, isQuotaError, LEDGER_LOCK, LedgerPersistenceController, prepareCandidate, STORAGE_FULL_MESSAGE, type PersistenceLocks, type PersistencePorts, type PersistenceStorage } from './persistence';
 import { STORAGE_KEY, makeDemoData, serializeBackup, validateBackup, type StoredData, type StoredRead } from './storage';
-import { RESTORE_JOURNAL } from './fullRestoreStorage';
+import { CATEGORY_LOCK, RESTORE_JOURNAL } from './fullRestoreStorage';
 import { CATEGORY_SETTINGS_KEY, type CategorySettings } from './categorySettings';
 import { BUDGETS_KEY, type BudgetMap } from './budgets';
 
@@ -475,13 +475,12 @@ class TabStorage implements PersistenceStorage {
   removeItem(key: string) { this.view.delete(key); this.origin.durable.delete(key); }
   catchUp() { this.view = new Map(this.origin.durable); }
 }
-/** Exclusive locks per name plus the two optional members: a claim lasts until it is released, revoked or expired. */
+/** Exclusive locks per name plus the two optional members: a claim lasts until its holder releases it or another writer revokes it. */
 class OriginLocks implements PersistenceLocks {
   private queues = new Map<string, Promise<void>>();
   private inside = new Set<string>();
-  private claims = new Map<string, { until: number }>();
-  private now = 0;
-  requested: Array<{ name: string; lifetimeMs: number; insideLedgerLock: boolean }> = [];
+  private claims = new Map<string, symbol>();
+  requested: Array<{ name: string; insideLedgerLock: boolean }> = [];
   revoked: string[] = [];
   failClaim: unknown = null;
   failRevoke: unknown = null;
@@ -493,11 +492,11 @@ class OriginLocks implements PersistenceLocks {
     this.inside.add(name);
     try { return await task(); } finally { this.inside.delete(name); release(); }
   }
-  async claim(name: string, lifetimeMs: number): Promise<(() => void) | null> {
-    this.requested.push({ name, lifetimeMs, insideLedgerLock: this.inside.has(LEDGER_LOCK) });
+  async claim(name: string): Promise<(() => void) | null> {
+    this.requested.push({ name, insideLedgerLock: this.inside.has(LEDGER_LOCK) });
     if (this.failClaim) throw this.failClaim;
-    if (this.held().includes(name)) return null;
-    const holder = { until: this.now + lifetimeMs };
+    if (this.claims.has(name)) return null;
+    const holder = Symbol(name);
     this.claims.set(name, holder);
     // As measured in the three engines: a release by a holder whose claim was revoked does not free a later claim on that name.
     return () => { if (this.claims.get(name) === holder) this.claims.delete(name); };
@@ -507,12 +506,14 @@ class OriginLocks implements PersistenceLocks {
     if (this.failRevoke) throw this.failRevoke;
     this.claims.delete(name);
   }
-  held() { return [...this.claims].filter(([, holder]) => holder.until > this.now).map(([name]) => name).sort(); }
+  held() { return [...this.claims.keys()].sort(); }
   isInside(name: string) { return this.inside.has(name); }
-  elapse(ms: number) { this.now += ms; }
 }
 
-describe('MW-149: a save claims the text it was built on', () => {
+describe('MW-162: a save claims the text it was built on', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
   it("refuses a save from a tab whose view of storage trails another tab's save", async () => {
     const origin = new Origin(text());
     const a = origin.tab('A'), b = origin.tab('B');
@@ -529,7 +530,7 @@ describe('MW-149: a save claims the text it was built on', () => {
     expect(await b.controller.retry()).toBe(false);
     origin.deliver(); b.controller.checkRemote();
     expect(await b.controller.retry()).toBe(false);
-    origin.locks.elapse(60_000);
+    vi.advanceTimersByTime(60_000);
     expect(await b.controller.retry()).toBe(false);
     expect(notes(origin.ledger)).toEqual(['a']);
     expect(origin.ledgerWriters).toEqual(['A']);
@@ -561,13 +562,42 @@ describe('MW-149: a save claims the text it was built on', () => {
     const origin = new Origin(text());
     const a = origin.tab('A');
     expect(await a.controller.setCandidate(data(['a']))).toBe(true);
-    expect(origin.locks.requested).toEqual([{ name: claimName(text()), lifetimeMs: 30_000, insideLedgerLock: true }]);
+    expect(origin.locks.requested).toEqual([{ name: claimName(text()), insideLedgerLock: true }]);
     expect(claimName(text())).toMatch(/^uangku:v1:coordinated-write:base:[a-f0-9]{64}$/);
     // The claim outlives the ledger lock and ends by itself.
     expect(origin.locks.held()).toEqual([claimName(text())]);
-    origin.locks.elapse(29_999);
+    vi.advanceTimersByTime(29_999);
     expect(origin.locks.held()).toEqual([claimName(text())]);
-    origin.locks.elapse(1);
+    vi.advanceTimersByTime(1);
+    expect(origin.locks.held()).toEqual([]);
+  });
+
+  it('keeps the base claimed for 30 seconds after a write that waited longer than that for journal recovery', async () => {
+    const journal = JSON.stringify({ beforeLedger: null, afterLedger: '0'.repeat(64), beforeCategories: null, afterCategories: '{}' });
+    const origin = new Origin(text(), { [RESTORE_JOURNAL]: journal });
+    const a = origin.tab('A'), b = origin.tab('B');
+
+    let releaseCategory!: () => void, sawJournal!: () => void;
+    const categoryGate = new Promise<void>(resolve => { releaseCategory = resolve; });
+    const recoveryStarted = new Promise<void>(resolve => { sawJournal = resolve; });
+    const get = a.storage.getItem.bind(a.storage);
+    vi.spyOn(a.storage, 'getItem').mockImplementation(key => {
+      if (key === RESTORE_JOURNAL) sawJournal();
+      return get(key);
+    });
+    const categoryHolder = origin.locks.runExclusive(CATEGORY_LOCK, () => categoryGate);
+    const saving = a.controller.setCandidate(data(['first']));
+    await recoveryStarted;
+    await vi.advanceTimersByTimeAsync(45_000);
+    expect(origin.ledgerWriters).toEqual([]);
+    releaseCategory();
+    await categoryHolder;
+    expect(await saving).toBe(true);
+    vi.advanceTimersByTime(29_999);
+    expect(await b.controller.setCandidate(data(['stale']))).toBe(false);
+    expect(b.controller.getSnapshot().status).toBe('conflict');
+    expect(notes(origin.ledger)).toEqual(['first']);
+    vi.advanceTimersByTime(1);
     expect(origin.locks.held()).toEqual([]);
   });
 
@@ -739,7 +769,10 @@ describe('MW-149: a save claims the text it was built on', () => {
   });
 });
 
-describe('MW-149: a full restore claims the ledger it replaces', () => {
+describe('MW-162: a full restore checks its ledger base', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
   const settings: CategorySettings = { version: 1, names: ['Belum dikategorikan', 'Unused'], rules: [
     { id: 'personal', keyword: 'synthetic', category: 'Unused', mode: 'suggest' },
   ], keywordPackVersion: 7 };
@@ -754,7 +787,7 @@ describe('MW-149: a full restore claims the ledger it replaces', () => {
     const origin = profile(['old']);
     const a = origin.tab('A'), b = origin.tab('B');
     expect(await restore(a, ['restored'])).toBe(true);
-    expect(origin.locks.requested).toEqual([{ name: claimName(text(['old'])), lifetimeMs: 30_000, insideLedgerLock: true }]);
+    expect(origin.locks.requested).toEqual([{ name: claimName(text(['old'])), insideLedgerLock: true }]);
     expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
     expect(await b.controller.setCandidate(data(['old', 'b']))).toBe(false);
     expect(b.controller.getSnapshot()).toMatchObject({ dirty: true, status: 'conflict' });
@@ -833,36 +866,48 @@ describe('MW-149: a full restore claims the ledger it replaces', () => {
     expect(notes(origin.ledger)).toEqual(['restored']);
   });
 
-  it('keeps the claim when this tab reads another ledger than the one it claimed, or cannot read it', async () => {
-    // A tab of an older release saved without a claim. B's view shows that save; B's controller has not looked yet.
+  it('releases a claim when the restore fails before attempting to write the ledger', async () => {
     const origin = profile(['old']);
-    const older: PersistenceLocks = { runExclusive: (name, task) => origin.locks.runExclusive(name, task) };
-    const a = origin.tab('A', older), b = origin.tab('B');
-    expect(await a.controller.setCandidate(data(['old', 'a']))).toBe(true);
-    b.storage.catchUp();
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['new']))).toBe(true);
+    b.storage.catchUp(); // B now reads ['new'], but its controller still expects ['old'].
+    expect(await a.controller.setCandidate(data(['old']))).toBe(true);
     expect(await restore(b, ['restored'])).toBe(false);
     expect(b.controller.getSnapshot().error).toBe(changed);
-    expect(notes(origin.ledger)).toEqual(['old', 'a']);
-    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
-    // The ledger becomes unreadable under the locks: whether it was replaced cannot be told.
+    expect(await a.controller.setCandidate(data(['old', 'next']))).toBe(true);
+    expect(notes(origin.ledger)).toEqual(['old', 'next']);
+
+    // A read error during the preview check also precedes any attempt to write.
     const denied = profile(['old']);
     const c = denied.tab('C');
     c.storage.unreadable = STORAGE_KEY;
     expect(await restore(c, ['restored'])).toBe(false);
     expect(c.controller.getSnapshot()).toMatchObject({ pending: false, error: 'Pemulihan lengkap gagal. Periksa ruang penyimpanan lalu buka kembali file cadangan.' });
     expect(denied.ledger).toBe(text(['old']));
-    expect(denied.locks.held()).toEqual([claimName(text(['old']))]);
+    expect(denied.locks.held()).toEqual([]);
   });
 
-  it('a restore that leaves the ledger bytes alone claims nothing', async () => {
+  it('a restore that leaves the ledger bytes alone releases its claim', async () => {
     const origin = profile(['old']);
     const a = origin.tab('A'), b = origin.tab('B');
     expect(await restore(a, ['old'])).toBe(true);
     expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
     expect(origin.ledgerWriters).toEqual([]);
-    expect(origin.locks.requested).toEqual([]);
+    expect(origin.locks.held()).toEqual([]);
     expect(origin.locks.revoked).toEqual([]);
     expect(await b.controller.setCandidate(data(['old', 'b']))).toBe(true);
+  });
+
+  it('rejects a settings-only restore whose ledger still appears to match in a stale tab', async () => {
+    const origin = profile(['old']);
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['old', 'new']))).toBe(true);
+    const durable = new Map(origin.durable);
+    b.storage.reads = [];
+    expect(await restore(b, ['old'], { budgets: { IDR: { Belanja: 5_000_000 } } })).toBe(false);
+    expect(b.controller.getSnapshot().error).toBe(changed);
+    expect(b.storage.reads).toEqual([]);
+    expect(origin.durable).toEqual(durable);
   });
 
   it('a restore that puts an earlier text back frees that text for the next save', async () => {

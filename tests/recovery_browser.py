@@ -204,7 +204,7 @@ STALE_VIEW = """(key) => {
 
 
 def test_stale_view_save_conflicts(browser, output):
-    """MW-149: a tab whose view of localStorage trails another tab's save must not overwrite that save.
+    """MW-162: a tab whose view of localStorage trails another tab's save must not overwrite that save.
 
     The trailing view is forced, so nothing here depends on timing: tab B keeps reading the ledger text it
     loaded until it writes the ledger itself. That is what a tab can read for some milliseconds after another
@@ -235,7 +235,7 @@ QUEUED_SAVE_ENTRIES = 1500
 
 
 def test_queued_saves_one_winner(browser, output, rounds=QUEUED_SAVE_ROUNDS, seed_entries=QUEUED_SAVE_ENTRIES):
-    """MW-149: two tabs wait behind the ledger lock and then commit back to back, with no human-sized gap.
+    """MW-162: two tabs wait behind the ledger lock and then commit back to back, with no human-sized gap.
 
     A tab's view of localStorage can trail the other tab's write by milliseconds, also inside the lock. Each
     round exactly one save may report success, the other must keep its form open with a conflict, and every
@@ -413,7 +413,7 @@ def test_pending_writer_modal_guard(browser, output):
         page.evaluate('''(ledgerLock) => {
           const manager = Object.getPrototypeOf(navigator.locks), request = manager.request;
           manager.request = function (name,options,callback) {
-            // Only the ledger write is withheld. A save also asks for other lock names inside it (MW-149),
+            // Only the ledger write is withheld. A save also asks for other lock names inside it (MW-162),
             // and withholding those as well would replace the release function below before it is called.
             if (name !== ledgerLock) return request.call(this,name,options,callback);
             return request.call(this,name,options,async lock => {

@@ -1374,7 +1374,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   direvisi: nilai terbanyak menjadi bawaan dengan pengecualian per baris di
   versi codec baru, pembaca versi lama tetap ada.
 
-- [x] **MW-149 — Dua tab yang menyimpan hampir bersamaan tidak lagi saling menimpa** (M) (ditambahkan 25 November 2026, dari kegagalan CI PR #80)
+- [x] **MW-162 — Dua tab yang menyimpan hampir bersamaan tidak lagi saling menimpa** (M) (ditambahkan 25 November 2026, dari kegagalan CI PR #80)
   Job Firefox PR #80 gagal di `two-tabs-sync-and-concurrent`
   (`tests/recovery_browser.py`), kasus yang sama dengan PR #65 (MW-146). Di
   bukti CI kedua tab menutup formulir dan berstatus "Tersimpan di browser",
@@ -1399,12 +1399,12 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *Selesai 25 Nov 2026:* tiap penulisan catatan kini lebih dulu mengklaim
   teks yang digantinya di pengelola Web Locks, lewat nama kunci
   `uangku:v1:coordinated-write:base:<SHA-256 teks>`, dan memegang klaim itu
-  30 detik. Pengelola kunci adalah satu-satunya keadaan lintas tab yang
+  sampai 30 detik sesudah penulisan. Pengelola kunci adalah satu-satunya keadaan lintas tab yang
   urutannya sama dengan serah-terima kunci. Selama klaim dipegang, tidak ada
   simpanan kedua yang bisa berangkat dari teks yang sama, apa pun yang dibaca
   tabnya. Tab yang tertinggal mendapat status konflik yang sudah ada,
   formulirnya tetap terbuka, dan tidak ada yang ditulis. Pemulihan lengkap
-  yang mengganti teks catatan (`restoreProfile`) memakai klaim yang sama.
+  (`restoreProfile`) memeriksa klaim itu juga ketika hanya pengaturan yang berubah.
   Klaim dikembalikan bila tidak ada yang tertulis (pembanding gagal,
   penyimpanan penuh, jurnal tak terbaca). Format dan tempat penyimpanan tidak
   berubah: tidak ada kunci `localStorage` baru dan tidak ada field baru.
@@ -1417,7 +1417,16 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dipakai: jeda (tetap kehilangan di Chromium), saksi "revisi terbaru"
   (terbukti menolak simpanan sah saat tab pemegangnya macet), dan IndexedDB
   sebagai penentu (mengubah tempat penyimpanan; butuh keputusan pemilik).
-  *Tes:* `npm test` 76 file / 1.946 tes dan build produksi lulus (36 tes unit
+  *Dari tinjauan 25 Nov 2026:* saat penulis tertahan di kunci kategori,
+  penghitung 30 detik dulu bisa habis sebelum catatan ditulis. Penghitung kini
+  dimulai sesudah penulisan. Pemulihan yang mempertahankan catatan memeriksa
+  klaim sebelum mengubah pengaturan. Kegagalan pemeriksaan token melepas klaim
+  supaya percobaan berikutnya bisa menyimpan. Nama klaim juga membedakan
+  surrogate UTF-16 tunggal dalam teks lama dari karakter pengganti U+FFFD.
+  Tes regresi mencakup penulis yang menunggu 45 detik dan pemulihan dari
+  pratinjau basi yang hanya mengubah pengaturan. Ketiga regresi perilaku gagal
+  pada b7647e2. Sesudah perbaikan, 1.949 tes unit dan build produksi lulus.
+  *Tes sebelum tinjauan (`b7647e2`):* `npm test` 76 file / 1.946 tes dan build produksi lulus (36 tes unit
   baru). `recovery_browser.py` 19/19 di Chromium 158, Firefox 157, dan WebKit
   27.2 lokal; smoke 39 skenario di Chromium. Pada kode sebelum MW: 31 dari 36
   tes unit baru gagal. Kasus `stale-view-save-conflicts` (pandangan tab kedua
@@ -1434,11 +1443,11 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   antara tab lama dan baru perilakunya seperti sebelum MW ini. HP fisik, tab
   latar yang dibekukan, dan jendela privat belum diuji. Firefox dan WebKit
   yang dipakai adalah build Playwright, bukan Safari. Temuan lain dari
-  penyelidikan ini dicatat sebagai MW-150 dan MW-151.
+  penyelidikan ini dicatat sebagai MW-163 dan MW-164.
   *File:* `src/lib/persistence.ts`, `src/lib/fullRestoreStorage.ts` + tes,
   `tests/recovery_browser.py`.
 
-- [ ] **MW-150 — Pemulihan lengkap tidak boleh dibatalkan sebagian oleh tab lain yang sedang terbuka** (M) (ditambahkan 25 November 2026, temuan penyelidikan MW-149)
+- [ ] **MW-163 — Pemulihan lengkap tidak boleh dibatalkan sebagian oleh tab lain yang sedang terbuka** (M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
   Di Chromium, tulisan tab lain tiba kunci demi kunci, dan teks catatan yang
   besar tiba paling akhir. Saat tab A menjalankan pemulihan lengkap, tab B
   yang hanya terbuka menerima peristiwa jurnal (`finishInterruptedRestore`
@@ -1451,10 +1460,10 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *Terukur 25 Nov 2026 pada build `main` 3c986f9, data sintetis:* Chromium
   158: 23 dari 30 putaran pada 8.004 entri (1,05 juta karakter), 1 dari 30
   pada 2.004 entri, 0 dari 20 tanpa tab kedua; pengukuran terpisah 11 dari 13
-  pada 3.000 entri. Firefox 157: 0 dari 45. WebKit 27.2: 0 dari 6. MW-149
+  pada 3.000 entri. Firefox 157: 0 dari 45. WebKit 27.2: 0 dari 6. MW-162
   tidak mengubah jalur ini.
   *Arah perbaikan (belum dikerjakan):* `recoverProfile` jangan memutuskan
-  dari pandangan catatan yang mungkin tertinggal. Klaim dari MW-149 bisa
+  dari pandangan catatan yang mungkin tertinggal. Klaim dari MW-162 bisa
   dipakai: bila klaim atas teks catatan yang dilihat tab ini sedang dipegang
   tab lain, tunda tanpa menyentuh kategori atau jurnal, lalu coba lagi pada
   peristiwa berikutnya. Prototipe penjaga serupa (memakai saksi revisi,
@@ -1463,8 +1472,8 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *Tes yang gagal lebih dulu:* pemulihan lengkap dengan tab kedua terbuka
   dan catatan minimal 150 KB di Chromium.
 
-- [ ] **MW-151 — Jalur lain yang membaca di dalam kunci lalu menulis** (S–M) (ditambahkan 25 November 2026, temuan penyelidikan MW-149)
-  MW-149 hanya melindungi kunci catatan. Pola yang sama (baca di dalam Web
+- [ ] **MW-164 — Jalur lain yang membaca di dalam kunci lalu menulis** (S–M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
+  MW-162 hanya melindungi kunci catatan. Pola yang sama (baca di dalam Web
   Lock, bandingkan atau ubah, lalu tulis) masih dipakai di tiga tempat, dan
   ketiganya baru dibaca dari kode, belum diukur:
   - simpan kategori dan anggaran (`save` di
@@ -1481,8 +1490,8 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   catatan berisi dompet cash kosong. Pada build `main` dengan tiga tab, tab
   penonton kedua berakhir dengan kotak konflik pada 10 dari 20 putaran di
   Chromium dan 8 dari 20 di Firefox; sisanya menulis byte yang sama lewat
-  bacaan basi. Dengan klaim MW-149 tab itu diperkirakan selalu berakhir
-  konflik (belum diukur pada build MW-149). Data aman; yang terganggu
+  bacaan basi. Dengan klaim MW-162 tab itu diperkirakan selalu berakhir
+  konflik (belum diukur pada build MW-162). Data aman; yang terganggu
   tampilan tab yang tidak disentuh. Usul: draf otomatis yang kalah dibuang
   dan tab memuat isi terbaru.
 

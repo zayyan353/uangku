@@ -23,10 +23,10 @@ export interface PersistenceStorage {
 export interface PersistenceLocks {
   runExclusive<T>(name: string, task: () => T | Promise<T>): Promise<T>;
   /**
-   * Takes `name` if no tab holds it and keeps it for `lifetimeMs` or until the returned function is called.
+   * Takes `name` if no tab holds it and keeps it until the returned release function is called or the name is stolen.
    * Resolves to null when another holder has it. Without this member a write is a plain compare-and-set.
    */
-  claim?(name: string, lifetimeMs: number): Promise<(() => void) | null>;
+  claim?(name: string): Promise<(() => void) | null>;
   /** Ends every hold on `name`, whoever has it. */
   revoke?(name: string): Promise<void>;
 }
@@ -119,7 +119,12 @@ async function claimNames(locks: PersistenceLocks, base: string | null, next: st
 async function ledgerWritten(locks: PersistenceLocks, names: ClaimNames, release: (() => void) | undefined): Promise<void> {
   try {
     if (names.next === null) release?.();
-    else await locks.revoke?.(names.next);
+    else {
+      // Recovery may have waited on a different lock. Count the full stale-view
+      // protection period from the write, however long it took to get here.
+      if (release) setTimeout(release, BASE_CLAIM_MS);
+      await locks.revoke?.(names.next);
+    }
   } catch { /* See above. */ }
 }
 
@@ -141,7 +146,7 @@ async function commitPrepared(
       // the text it replaces there, as a lock name. While the claim is held no second write can start from the
       // same text, whatever its tab reads. The claim comes first: once it is refused, this tab's view of the
       // ledger, and of a restore journal it may still show, is known to trail and must not be acted on.
-      const release = names ? await locks.claim?.(names.base, BASE_CLAIM_MS) : undefined;
+      const release = names ? await locks.claim?.(names.base) : undefined;
       if (release === null) return { status: 'conflict' as const, message: conflictMessage };
       let written = false;
       try {
@@ -272,23 +277,31 @@ export class LedgerPersistenceController {
     try {
       // Preserve legacy whitespace/encoding when only settings were changed.
       const nextLedger = token !== null && !this.snapshot.blocked && candidate.raw === serializeBackup(this.snapshot.data) ? token : candidate.raw;
-      // A restore that replaces the ledger text claims the text it replaces, exactly as a save does (see commitPrepared).
-      const names = nextLedger === token ? null : await claimNames(locks, token, nextLedger);
+      // Even a settings-only restore was previewed against a particular ledger. Reject a
+      // displaced base before stale reads can pass the comparisons and overwrite settings.
+      const names = await claimNames(locks, token, nextLedger);
       await withProfileLocks(locks, async () => {
-        const release = names ? await locks.claim?.(names.base, BASE_CLAIM_MS) : undefined;
+        const release = names ? await locks.claim?.(names.base) : undefined;
         if (release === null) throw new Error(profileChangedMessage);
-        let written = false;
+        let replacingLedger = false;
         try {
           await recoverProfile(storage);
           if (storage.getItem(STORAGE_KEY) !== token || storage.getItem(CATEGORY_SETTINGS_KEY) !== expectedSettings) {
             throw new Error(profileChangedMessage);
           }
+          replacingLedger = nextLedger !== token;
           await writeRestoredProfile(storage, token, nextLedger, expectedSettings, nextSettings);
-          written = true;
-        } finally {
-          // A restore can stop part-way. The claim is given back only while this tab still reads the ledger it
-          // claimed; if that cannot be told, the claim is kept and ends by itself.
-          if (!written && release) { try { if (storage.getItem(STORAGE_KEY) === token) release(); } catch { /* Kept. */ } }
+        } catch (error) {
+          // Recovery and token checks never replace the ledger. After a failed write attempt,
+          // retain protection if the ledger changed or the outcome cannot be read.
+          if (release) {
+            if (replacingLedger) {
+              try { replacingLedger = storage.getItem(STORAGE_KEY) !== token; } catch { /* Outcome unknown. */ }
+            }
+            if (replacingLedger) setTimeout(release, BASE_CLAIM_MS);
+            else release();
+          }
+          throw error;
         }
         if (names) await ledgerWritten(locks, names, release);
         // After the ledger commit point. A failed write leaves the previous
