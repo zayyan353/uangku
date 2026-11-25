@@ -1374,6 +1374,133 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   direvisi: nilai terbanyak menjadi bawaan dengan pengecualian per baris di
   versi codec baru, pembaca versi lama tetap ada.
 
+- [x] **MW-162 — Dua tab yang menyimpan hampir bersamaan tidak lagi saling menimpa** (M) (ditambahkan 25 November 2026, dari kegagalan CI PR #80)
+  Job Firefox PR #80 gagal di `two-tabs-sync-and-concurrent`
+  (`tests/recovery_browser.py`), kasus yang sama dengan PR #65 (MW-146). Di
+  bukti CI kedua tab menutup formulir dan berstatus "Tersimpan di browser",
+  tetapi hanya satu dari dua transaksi yang tersimpan. Penyebabnya di
+  aplikasi, bukan di tes. `commitPrepared` (`src/lib/persistence.ts`)
+  membandingkan isi `localStorage` dengan token di dalam Web Lock lalu
+  menulis. Pandangan sebuah tab atas `localStorage` bisa tertinggal dari
+  tulisan tab lain, dan serah-terima kunci tidak menunggunya. Tab kedua masuk
+  kunci sesudah tab pertama keluar, masih membaca isi lama, lolos
+  pemeriksaan, dan menimpa simpanan yang sudah dilaporkan berhasil.
+  *Penyelidikan 24–25 Nov 2026 (ukuran penyelidikan, bukan tes MW ini):*
+  build `main` 3c986f9 di Firefox 157 lokal gagal 2 dari 40 putaran kasus
+  itu. Probe tanpa aplikasi, dua tab serentak: Firefox 157 kehilangan 130
+  dari 300 putaran, Chromium 158 13 dari 300, WebKit 27.2 13 dari 100. Dengan
+  nilai 1 MB, Chromium kehilangan 300 dari 300. Di aplikasi, dua simpanan
+  yang antre di belakang kunci lalu jalan beruntun kehilangan satu tulisan
+  pada 20 dari 60 putaran di Chromium dan 58 dari 60 di Firefox. Di Chromium
+  jendelanya melebar menurut ukuran catatan: pada nilai 1,5 juta karakter
+  tulisan masih hilang 23 dari 30 kali pada selisih 30 ms dan 0 dari 30 pada
+  100 ms. Jeda tidak menutupnya: menahan kunci satu langkah sesudah menulis
+  masih kehilangan di Chromium dan WebKit.
+  *Selesai 25 Nov 2026:* tiap penulisan catatan kini lebih dulu mengklaim
+  teks yang digantinya di pengelola Web Locks, lewat nama kunci
+  `uangku:v1:coordinated-write:base:<SHA-256 teks>`, dan memegang klaim itu
+  sampai 30 detik sesudah penulisan. Pengelola kunci adalah satu-satunya keadaan lintas tab yang
+  urutannya sama dengan serah-terima kunci. Selama klaim dipegang, tidak ada
+  simpanan kedua yang bisa berangkat dari teks yang sama, apa pun yang dibaca
+  tabnya. Tab yang tertinggal mendapat status konflik yang sudah ada,
+  formulirnya tetap terbuka, dan tidak ada yang ditulis. Pemulihan lengkap
+  (`restoreProfile`) memeriksa klaim itu juga ketika hanya pengaturan yang berubah.
+  Klaim dikembalikan bila tidak ada yang tertulis (pembanding gagal,
+  penyimpanan penuh, jurnal tak terbaca). Format dan tempat penyimpanan tidak
+  berubah: tidak ada kunci `localStorage` baru dan tidak ada field baru.
+  Klaim hanya nama kunci yang hilang sendiri.
+  *Keputusan agen (mudah dibatalkan):* masa pegang klaim 30 detik
+  (`BASE_CLAIM_MS`). Bila isi tersimpan kembali sama dengan teks yang pernah
+  diklaim (A ke B lalu kembali ke A), klaim lama atas teks itu dicabut supaya
+  simpanan berikutnya tidak ditolak. Klaim hanya untuk kunci catatan.
+  Rancangan dipilih dari tiga laporan independen. Yang ditimbang dan tidak
+  dipakai: jeda (tetap kehilangan di Chromium), saksi "revisi terbaru"
+  (terbukti menolak simpanan sah saat tab pemegangnya macet), dan IndexedDB
+  sebagai penentu (mengubah tempat penyimpanan; butuh keputusan pemilik).
+  *Dari tinjauan 25 Nov 2026:* saat penulis tertahan di kunci kategori,
+  penghitung 30 detik dulu bisa habis sebelum catatan ditulis. Penghitung kini
+  dimulai sesudah penulisan. Pemulihan yang mempertahankan catatan memeriksa
+  klaim sebelum mengubah pengaturan. Kegagalan pemeriksaan token melepas klaim
+  supaya percobaan berikutnya bisa menyimpan. Nama klaim juga membedakan
+  surrogate UTF-16 tunggal dalam teks lama dari karakter pengganti U+FFFD.
+  Tes regresi mencakup penulis yang menunggu 45 detik dan pemulihan dari
+  pratinjau basi yang hanya mengubah pengaturan. Ketiga regresi perilaku gagal
+  pada b7647e2. Sesudah perbaikan, 1.949 tes unit dan build produksi lulus.
+  *Pengukuran sesudah tinjauan:* di Chromium 154, Firefox 157 dan WebKit 27.2,
+  tiap mesin menyelesaikan 40 putaran dengan catatan awal kosong dan 20 dengan
+  1.500 entri awal. Pada seluruh 180 putaran, satu tab berhasil menyimpan,
+  tab lainnya mendapat konflik dan semua simpanan yang berhasil tetap ada.
+  *Tes sebelum tinjauan (`b7647e2`):* `npm test` 76 file / 1.946 tes dan build produksi lulus (36 tes unit
+  baru). `recovery_browser.py` 19/19 di Chromium 158, Firefox 157, dan WebKit
+  27.2 lokal; smoke 39 skenario di Chromium. Pada kode sebelum MW: 31 dari 36
+  tes unit baru gagal. Kasus `stale-view-save-conflicts` (pandangan tab kedua
+  dipaksa tertinggal, tidak bergantung waktu) gagal 2 dari 2 jalan di ketiga
+  mesin. Kasus `queued-saves-one-winner` (dua simpanan antre di belakang
+  kunci, 5 putaran, 1.500 entri) gagal 2 dari 2 di Chromium dan Firefox,
+  tetapi lulus 2 dari 2 di WebKit, jadi di WebKit perbaikan ini dibuktikan
+  oleh kasus pertama saja. Tambalan kunci di kasus
+  `pending-writer-modal-guard` dipersempit ke nama kunci catatan.
+  *Belum terbukti:* sisa risiko yang diketahui: (1) tab penyimpan ditutup
+  atau mati dalam jendela basi sementara tab lain menyimpan, karena klaimnya
+  ikut hilang; (2) pandangan yang tertinggal lebih dari 30 detik; (3) tab
+  yang masih menjalankan versi lama sesudah rilis tidak mengklaim, jadi
+  antara tab lama dan baru perilakunya seperti sebelum MW ini. HP fisik, tab
+  latar yang dibekukan, dan jendela privat belum diuji. Firefox dan WebKit
+  yang dipakai adalah build Playwright, bukan Safari. Temuan lain dari
+  penyelidikan ini dicatat sebagai MW-163 dan MW-164.
+  *File:* `src/lib/persistence.ts`, `src/lib/fullRestoreStorage.ts` + tes,
+  `tests/recovery_browser.py`.
+
+- [ ] **MW-163 — Pemulihan lengkap tidak boleh dibatalkan sebagian oleh tab lain yang sedang terbuka** (M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
+  Di Chromium, tulisan tab lain tiba kunci demi kunci, dan teks catatan yang
+  besar tiba paling akhir. Saat tab A menjalankan pemulihan lengkap, tab B
+  yang hanya terbuka menerima peristiwa jurnal (`finishInterruptedRestore`
+  di `src/hooks/useLedgerStorage.ts`), masuk kunci sesudah A keluar, dan
+  melihat jurnal serta kategori baru tetapi catatan lama. `recoverProfile`
+  (`src/lib/fullRestoreStorage.ts`) lalu menganggap pemulihan itu terputus
+  dan mengembalikan kategori lama. Hasilnya catatan dari cadangan dengan
+  kategori dan aturan dari sebelum pemulihan, padahal tab A sudah melapor
+  "Cadangan lengkap dipulihkan". Tidak butuh dua aksi serentak.
+  *Terukur 25 Nov 2026 pada build `main` 3c986f9, data sintetis:* Chromium
+  158: 23 dari 30 putaran pada 8.004 entri (1,05 juta karakter), 1 dari 30
+  pada 2.004 entri, 0 dari 20 tanpa tab kedua; pengukuran terpisah 11 dari 13
+  pada 3.000 entri. Firefox 157: 0 dari 45. WebKit 27.2: 0 dari 6. MW-162
+  tidak mengubah jalur ini.
+  *Arah perbaikan (belum dikerjakan):* `recoverProfile` jangan memutuskan
+  dari pandangan catatan yang mungkin tertinggal. Klaim dari MW-162 bisa
+  dipakai: bila klaim atas teks catatan yang dilihat tab ini sedang dipegang
+  tab lain, tunda tanpa menyentuh kategori atau jurnal, lalu coba lagi pada
+  peristiwa berikutnya. Prototipe penjaga serupa (memakai saksi revisi,
+  bukan klaim): 0 dari 30 pembatalan pada 8.004 entri. Format dan tempat data
+  tidak perlu berubah.
+  *Tes yang gagal lebih dulu:* pemulihan lengkap dengan tab kedua terbuka
+  dan catatan minimal 150 KB di Chromium.
+
+- [ ] **MW-164 — Jalur lain yang membaca di dalam kunci lalu menulis** (S–M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
+  MW-162 hanya melindungi kunci catatan. Pola yang sama (baca di dalam Web
+  Lock, bandingkan atau ubah, lalu tulis) masih dipakai di tiga tempat, dan
+  ketiganya baru dibaca dari kode, belum diukur:
+  - simpan kategori dan anggaran (`save` di
+    `src/hooks/useCategorySettings.tsx`);
+  - tambah, hapus, dan ganti nama template (`change` di
+    `src/hooks/useTransactionTemplates.ts`), yang membaca lalu menulis tanpa
+    token;
+  - `exportFullBackup` (`src/lib/persistence.ts`), yang memeriksa token
+    dengan bacaan yang bisa tertinggal, sehingga cadangan lengkap bisa tidak
+    memuat simpanan tab lain yang baru saja terjadi.
+  Pemicunya dua aksi berselang milidetik di dua tab.
+  Terkait: efek pembersihan dompet cash (`removeUnusedCashWallets` di
+  `src/App.tsx`) menulis catatan tanpa aksi pengguna di tiap tab yang memuat
+  catatan berisi dompet cash kosong. Pada build `main` dengan tiga tab, tab
+  penonton kedua berakhir dengan kotak konflik pada 10 dari 20 putaran di
+  Chromium dan 8 dari 20 di Firefox; sisanya menulis byte yang sama lewat
+  bacaan basi. Sesudah perbaikan MW-162, pengujian tiga tab dengan data
+  sintetis mendapati satu dari dua tab penonton menampilkan konflik pada 20
+  dari 20 putaran di setiap mesin (Chromium 154, Firefox 157, WebKit 27.2).
+  Semua catatan dan dompet yang seharusnya dipertahankan tetap ada di
+  ketiga tab pada seluruh 60 putaran. Usul: draf otomatis yang kalah dibuang
+  dan tab memuat isi terbaru.
+
 **Tindakan pemilik (bukan kode):**
 
 - `main` belum dilindungi di GitHub (`protected: false`, tanpa ruleset), jadi
@@ -1789,9 +1916,10 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dan 390. Tes penghapusan dari tab kedua kini memakai tombol **Hapus
   transaksi**. Saat dicoba bersama PR #82, penggantian langsung isi penyimpanan
   di tes lama melewati kunci tulis aplikasi dan simpan berikutnya tertahan.
-  *Belum terbukti:* pada CI pertama PR #80, job Firefox berhenti di suite
-  pemulihan sebelum mencapai tes **Lihat**. HP fisik dan pembaca layar belum
-  diuji. Sesudah **Lihat**, fokus keyboard tidak berada
+  Pada CI pertama PR #80, Firefox berhenti di suite pemulihan. Pada
+  `0f59443`, kedua kasus **Lihat** (desktop dan ponsel) sudah dijalankan
+  dan lulus di Firefox dan WebKit. Ketiga job CI lulus.
+  *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Sesudah **Lihat**, fokus keyboard tidak berada
   di baris itu. Baris tidak disorot, jadi pengguna mengenalinya dari
   keterangannya. Pengaruh pada performa tidak terukur bersih: mesin sedang
   dipakai agen lain. Dalam 9 putaran sebelum/sesudah, median sebelum
@@ -1973,7 +2101,8 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     pada kode sebelum MW dan pada dua mutan (salah hitungan atau nominal).
     Tes profil yang melampaui batas gagal pada kode parkir.
     *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Pada galat
-    perhitungan, judul panel lipat masih memakai pesan kosong lama.
+    perhitungan, judul panel lipat masih memakai pesan kosong lama
+    (ditangani di MW-166).
   - [x] **b.** (S–M) `incomeTotal` di `buildCashflowReport`
     (`src/lib/cashflowReport.ts`) dan satu baris ringkas "Pemasukan · Pengeluaran
     · Selisih (tanpa pindah uang antar dompetmu)". Baris "Perlu dicek" belum
@@ -2028,6 +2157,71 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Angka itu juga menghitung baris Perpindahan dana, jadi tetap tidak akan sama,
   dan perilakunya dicatat di `KERANGKA_HALAMAN.md:751-755`; mengubahnya butuh
   keputusan tersendiri.
+
+- [x] **MW-166 — Judul panel kategori yang dilipat tidak berkata "belum ada pengeluaran" saat total gagal dihitung** (S) (ditambahkan 24 November 2026, tindak lanjut MW-128a)
+  Saat laporan arus rekening gagal dihitung (total melewati batas nominal
+  aman), panel "Kategori pengeluaran terkonfirmasi" yang terbuka menulis
+  "Total pengeluaran belum dapat dihitung." sejak MW-128a. Judul panel yang
+  dilipat masih menulis "Belum ada pengeluaran terkonfirmasi · ketuk untuk
+  melihat". Itu salah: pengeluarannya ada, hanya belum bisa dijumlahkan.
+  *Selesai 24 Nov 2026:* Saat laporan gagal dihitung, judul panel kategori
+  yang dilipat menulis "Total pengeluaran belum dapat dihitung · ketuk untuk
+  melihat", tanpa angka. Panel "Rincian arus rekening" bermasalah sama dan
+  ikut diperbaiki. Judul lipatnya, yang di HP terlipat sejak awal, dan baris
+  tabelnya menulis "Rincian arus belum dapat dihitung", bukan lagi "Belum
+  ada arus". Laporan yang berhasil dihitung tetap memakai kalimat lama, baik
+  berisi maupun kosong. Teks judul kategori kini dibuat `categoryFoldSummary`
+  di `src/lib/dashboardView.ts`. Judul dan isi panel kategori membaca syarat
+  yang sama, yaitu laporan tidak ada.
+  Bagian Ringkasan lain pada galat yang sama diperiksa dan tidak diubah.
+  Kartu uang masuk, uang keluar, dan saldo menulis "—" atau "Belum
+  tersedia". Baris pemasukan, pengeluaran, selisih dan pembanding bulan lalu
+  tersembunyi. Judul lipat "Perhitungan saldo periode" menulis "Belum dapat
+  dipastikan". Tidak ada angka nol pengganti di layar.
+  *Keputusan agen (mudah dibatalkan):* akhiran "· ketuk untuk melihat" tetap
+  dipakai pada keadaan gagal supaya judul lipat seragam, walau isi panelnya
+  hanya satu kalimat. Perbaikan panel rincian arus masuk MW ini karena sama
+  kecilnya: dua syarat di `CashflowOverview.tsx`. Keterangan kaki panel
+  kategori disembunyikan saat laporan gagal (satu syarat di `src/App.tsx`).
+  *Dari tinjauan (benar/aman dan tes/tampilan):* perilakunya dinilai benar
+  dan aman. Tiga mutan lolos dari tes awal: judul rincian arus menyebut
+  gagal pada laporan yang berisi, mata uang tetap pada judul kategori, dan
+  isi panel kategori menyebut gagal pada periode kosong. Tesnya ditambah:
+  judul rincian dibaca pada laporan berisi ("2 jenis operasi", dan "1 jenis
+  operasi" di USD), tanda $ dipatok, dan isi panel kosong dibaca. Keterangan
+  kaki "Semua debit rekening tetap dihitung pada arus di atas." tampil juga
+  saat arus di atasnya tidak terhitung; kini disembunyikan pada keadaan itu.
+  Peninjau memeriksa lebar 1440, 1024, 800, 768, 761, 760, 390 dan 320 tanpa
+  luapan. Byte catatan tetap identik.
+  *Tinjauan ulang 25 Nov 2026:* judul kategori, isi panel, dan keterangan
+  kaki memakai keberadaan laporan yang sama. Tes mencakup perpindahan dari
+  TRY yang gagal dihitung ke USD yang berisi lalu kembali, serta periode
+  kosong. Tidak ditemukan masalah baru pada perbaikan sesudah tinjauan.
+  *Tes:* `npm test` 76 file / 1.913 tes dan build produksi lulus. Chromium:
+  arus kas 23/23, kerangka 4/4, kategori 28/28, bank otomatis 18/18. Kasus
+  profil yang melampaui batas berjalan di 1440 terang, 320 gelap, dan 390
+  terang. Kedua panel dilipat lalu dibuka lagi, lalu mata uang diganti ke
+  USD dan kembali. Pada sumber sebelum MW ketiga kasus itu gagal (arus kas
+  20/23), dan satu dari tiga tes unit baru gagal pada logika lama. Sembilan
+  mutan terdeteksi: tiga teks lama, angka nol pengganti, judul yang selalu
+  gagal, isi panel yang kembali kosong, dan tiga keadaan kosong yang ikut
+  disebut gagal. Sesudah tinjauan tujuh mutan lagi terdeteksi: tiga yang
+  semula lolos, judul rincian berisi yang disebut kosong, dan tiga pada
+  keterangan kaki. Sembilan mutan awal diulang dengan hasil sama.
+  Tangkapan layar 1440 terang, 390 gelap, serta 320 terang
+  dan gelap: teks membungkus 1–3 baris tanpa terpotong atau meluber.
+  Diperiksa terpisah di 1440 terang dan 390 gelap: periode seluruh catatan,
+  cakupan satu dompet, serta Enter dan Spasi pada judul.
+  *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Firefox dan
+  WebKit belum dijalankan, hanya Chromium. Galat selain batas nominal aman
+  tidak direproduksi.
+  Temuan di luar lingkup, sudah ada sebelum MW ini dan belum ada MW-nya:
+  pada profil yang sama, membuka Transaksi dari Ringkasan mengosongkan
+  layar (galat "Nominal tampilan harus berupa integer yang tepat." saat
+  total riwayat dijumlah di `src/App.tsx`). Muat ulang kembali ke Ringkasan
+  dan byte catatan tetap sama.
+  *File:* `src/lib/dashboardView.ts` + tes, `src/App.tsx`,
+  `src/components/CashflowOverview.tsx`, `tests/cashflow_browser.py`.
 
 - [x] **MW-129 — Kesegaran catatan per dompet**
   Kartu dompet dan Ringkasan memberi label "Saldo aktual `<hari ini>`" tanpa

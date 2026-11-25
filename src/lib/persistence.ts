@@ -5,10 +5,15 @@ import { effectiveCategorySettings } from './categorySettingsUpgrade';
 import { serializeFullBackup } from './fullBackup';
 import { BUDGETS_KEY, parseStoredBudgets, serializeBudgets, type BudgetMap } from './budgets';
 import { parseStoredTemplates, serializeTemplates, TEMPLATES_KEY, type TransactionTemplate } from './transactionTemplates';
-import { LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, recoverProfile, restorePending, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
+import { LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, baseClaimName, recoverProfile, restorePending, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
 
 export { LEDGER_LOCK };
 export const PERSISTENCE_BYTES = 8 * 1024 * 1024;
+/**
+ * How long a write keeps the text it replaced claimed. Other tabs' views were measured to trail a write by tens of
+ * milliseconds, and in a few runs by seconds; a view that trails for longer than this is not covered.
+ */
+export const BASE_CLAIM_MS = 30_000;
 export type PersistenceStatus = 'unsaved' | 'saving' | 'saved' | 'failed' | 'conflict' | 'unsupported' | 'blocked';
 export interface PersistenceStorage {
   getItem(key: string): string | null;
@@ -17,6 +22,13 @@ export interface PersistenceStorage {
 }
 export interface PersistenceLocks {
   runExclusive<T>(name: string, task: () => T | Promise<T>): Promise<T>;
+  /**
+   * Takes `name` if no tab holds it and keeps it until the returned release function is called or the name is stolen.
+   * Resolves to null when another holder has it. Without this member a write is a plain compare-and-set.
+   */
+  claim?(name: string): Promise<(() => void) | null>;
+  /** Ends every hold on `name`, whoever has it. */
+  revoke?(name: string): Promise<void>;
 }
 export interface PersistencePorts {
   read(): StoredRead;
@@ -50,6 +62,7 @@ export type CommitResult =
 const unsupportedMessage = 'Browser ini tidak mendukung Web Locks. Perubahan belum tersimpan; unduh pemulihan dan gunakan browser yang mendukungnya.';
 const conflictMessage = 'Data berubah di tab lain atau sejak formulir dibuka. Perubahan lokal belum tersimpan. Unduh pemulihan sebelum memuat data terbaru.';
 const unreadableBackupMessage = 'Data asli belum bisa dibaca. Izinkan penyimpanan untuk situs ini, lalu muat catatan terbaru.';
+const profileChangedMessage = 'Catatan atau kategori berubah sejak pratinjau dibuka. Buka kembali cadangan untuk memeriksa ulang.';
 
 function freezeData(data: StoredData): StoredData {
   // Metadata contains nested source facts, references and transfer decisions.
@@ -88,6 +101,33 @@ export function isQuotaError(reason: unknown): boolean {
  */
 export const STORAGE_FULL_MESSAGE = 'Penyimpanan browser penuh, jadi perubahan ini belum tersimpan. Catatan yang sudah tersimpan tetap utuh. Unduh pekerjaan yang belum tersimpan: file itu memuat seluruh transaksi termasuk perubahan ini.';
 
+/** Lock names for one ledger write: the claim on the text it replaces, and the name its own text is claimed under. */
+interface ClaimNames { base: string; /** null when the write changes no byte. */ next: string | null }
+
+/** Hashed before the ledger lock is requested, so the lock is not held meanwhile. null: the port has no claims. */
+async function claimNames(locks: PersistenceLocks, base: string | null, next: string): Promise<ClaimNames | null> {
+  if (!locks.claim) return null;
+  return { base: await baseClaimName(base), next: next === base ? null : await baseClaimName(next) };
+}
+
+/**
+ * Inside the ledger lock, once the ledger text has been replaced. The claim on the replaced text stays until it
+ * expires, unless no byte changed. The text now stored is a valid base again, even if an earlier write that moved
+ * away from that very text (A to B, then back to A) still holds its claim on it, so that claim is ended.
+ * Nothing here may fail the write: it is already stored, and at worst the next save waits out the older claim.
+ */
+async function ledgerWritten(locks: PersistenceLocks, names: ClaimNames, release: (() => void) | undefined): Promise<void> {
+  try {
+    if (names.next === null) release?.();
+    else {
+      // Recovery may have waited on a different lock. Count the full stale-view
+      // protection period from the write, however long it took to get here.
+      if (release) setTimeout(release, BASE_CLAIM_MS);
+      await locks.revoke?.(names.next);
+    }
+  } catch { /* See above. */ }
+}
+
 async function commitPrepared(
   prepared: PreparedCandidate, expectedToken: string | null,
   storage: PersistenceStorage | undefined, locks: PersistenceLocks | undefined,
@@ -95,14 +135,32 @@ async function commitPrepared(
   if (!locks) return { status: 'unsupported', message: unsupportedMessage };
   if (!storage) return { status: 'failed', message: 'Penyimpanan browser tidak tersedia. Perubahan lokal belum tersimpan.' };
   try {
+    const names = await claimNames(locks, expectedToken, prepared.raw);
     // Every cooperating tab uses this same lock. Comparison and setItem occur in
     // one exclusive section; a storage listener alone would not prevent races.
     return await locks.runExclusive(LEDGER_LOCK, async () => {
-      if (storage.getItem(RESTORE_JOURNAL) !== null) await locks.runExclusive(CATEGORY_LOCK, () => recoverProfile(storage));
-      if (storage.getItem(STORAGE_KEY) !== expectedToken) {
-        return { status: 'conflict' as const, message: conflictMessage };
+      // The exclusive section is not enough by itself. A tab's view of localStorage can trail another tab's
+      // write by milliseconds, and the lock is handed over without waiting for it: the next tab enters, still
+      // reads the old text, passes the comparison and overwrites a save that both tabs reported as stored.
+      // The lock manager is the one cross-tab state that is ordered with that hand-over, so a write also claims
+      // the text it replaces there, as a lock name. While the claim is held no second write can start from the
+      // same text, whatever its tab reads. The claim comes first: once it is refused, this tab's view of the
+      // ledger, and of a restore journal it may still show, is known to trail and must not be acted on.
+      const release = names ? await locks.claim?.(names.base) : undefined;
+      if (release === null) return { status: 'conflict' as const, message: conflictMessage };
+      let written = false;
+      try {
+        if (storage.getItem(RESTORE_JOURNAL) !== null) await locks.runExclusive(CATEGORY_LOCK, () => recoverProfile(storage));
+        if (storage.getItem(STORAGE_KEY) !== expectedToken) {
+          return { status: 'conflict' as const, message: conflictMessage };
+        }
+        storage.setItem(STORAGE_KEY, prepared.raw);
+        written = true;
+      } finally {
+        // Nothing was written, so the text is still a valid base, also for this tab's own retry.
+        if (!written) release?.();
       }
-      storage.setItem(STORAGE_KEY, prepared.raw);
+      if (names) await ledgerWritten(locks, names, release);
       return { status: 'saved' as const, data: prepared.data, token: prepared.raw };
     });
   } catch (reason) {
@@ -219,12 +277,33 @@ export class LedgerPersistenceController {
     try {
       // Preserve legacy whitespace/encoding when only settings were changed.
       const nextLedger = token !== null && !this.snapshot.blocked && candidate.raw === serializeBackup(this.snapshot.data) ? token : candidate.raw;
+      // Even a settings-only restore was previewed against a particular ledger. Reject a
+      // displaced base before stale reads can pass the comparisons and overwrite settings.
+      const names = await claimNames(locks, token, nextLedger);
       await withProfileLocks(locks, async () => {
-        await recoverProfile(storage);
-        if (storage.getItem(STORAGE_KEY) !== token || storage.getItem(CATEGORY_SETTINGS_KEY) !== expectedSettings) {
-          throw new Error('Catatan atau kategori berubah sejak pratinjau dibuka. Buka kembali cadangan untuk memeriksa ulang.');
+        const release = names ? await locks.claim?.(names.base) : undefined;
+        if (release === null) throw new Error(profileChangedMessage);
+        let replacingLedger = false;
+        try {
+          await recoverProfile(storage);
+          if (storage.getItem(STORAGE_KEY) !== token || storage.getItem(CATEGORY_SETTINGS_KEY) !== expectedSettings) {
+            throw new Error(profileChangedMessage);
+          }
+          replacingLedger = nextLedger !== token;
+          await writeRestoredProfile(storage, token, nextLedger, expectedSettings, nextSettings);
+        } catch (error) {
+          // Recovery and token checks never replace the ledger. After a failed write attempt,
+          // retain protection if the ledger changed or the outcome cannot be read.
+          if (release) {
+            if (replacingLedger) {
+              try { replacingLedger = storage.getItem(STORAGE_KEY) !== token; } catch { /* Outcome unknown. */ }
+            }
+            if (replacingLedger) setTimeout(release, BASE_CLAIM_MS);
+            else release();
+          }
+          throw error;
         }
-        await writeRestoredProfile(storage, token, nextLedger, expectedSettings, nextSettings);
+        if (names) await ledgerWritten(locks, names, release);
         // After the ledger commit point. A failed write leaves the previous
         // budgets untouched and is reported; it never undoes the restore.
         if (nextBudgets !== undefined && storage.getItem(BUDGETS_KEY) !== nextBudgets) {
