@@ -30,7 +30,7 @@ import RecoveryImportView from './components/RecoveryImportView';
 import { preferredWallet, readPreferences, writePreferences } from './lib/preferences';
 import { canCategorize, categorizeEntries, transferCandidates } from './lib/review';
 import BulkReviewPanel from './components/BulkReviewPanel';
-import { createHistoryIndex, queryHistory, paginateHistory, monthLabel, previousMonth, type HistoryPeriod } from './lib/historyView';
+import { createHistoryIndex, queryHistory, paginateHistory, pageOfEntry, monthLabel, previousMonth, type HistoryPeriod } from './lib/historyView';
 import { createPostingDateIndex, entryPostings } from './lib/transferPostings';
 import { applySourcedEntryEdit, applySourcedBulkCategory, deleteSourcedEntry, saveTransferEntry } from './lib/sourceCommands';
 import { executeTransferCommand } from './lib/transferCommands';
@@ -62,7 +62,7 @@ import { activeAccountState, isCashLinkedEntry, removeUnusedCashWallets } from '
 import CashArchive from './components/CashArchive';
 import { createBankEntryPresentationLookup, createBankEntryTitleLookup } from './lib/bankEntryHints';
 import { reviewCounts, type ReviewReason } from './lib/reviewStatus';
-import { categoryColorIndex } from './lib/dashboardView';
+import { categoryColorIndex, categoryFoldSummary } from './lib/dashboardView';
 import { deviceDay } from './lib/today';
 import { currencyFlagEmoji, monthOptions, nextMonth, priorMonth } from './lib/monthOptions';
 import { categoryRenameTargets, categoryUsage, type CategoryRename } from './lib/categoryRename';
@@ -121,6 +121,8 @@ export default function App() {
   /** The period in use before a search widened it to all periods; restored when the search box is emptied. */
   const periodBeforeSearch = useRef<HistoryPeriod | null>(null);
   const [historyPage, setHistoryPage] = useState(1);
+  /** Set by Lihat on a saved transaction: the list opens the page that holds this entry. A new object each time, so every press counts. */
+  const [entryToShow, setEntryToShow] = useState<{ id: string } | null>(null);
   const [lastHistoryScope, setLastHistoryScope] = useState<{ currency: Currency; month: string } | null>(null);
   const historyScrollY = useRef(0);
   const historyCurrency = page === 'transactions' ? currency : lastHistoryScope?.currency ?? currency;
@@ -359,6 +361,18 @@ export default function App() {
     : historySort === 'oldest' ? [...allTransactions].reverse()
     : [...allTransactions].sort((a, b) => (Math.abs(a.amount) - Math.abs(b.amount)) * (historySort === 'largest' ? -1 : 1)), [allTransactions, historySort, page]);
   const historySlice = paginateHistory(orderedTransactions, historyPage);
+  // Lihat: the page that holds the saved row, in the order the list is in now. This effect must stay below the one
+  // that returns the list to page 1 when its month or filters change: Lihat triggers both in one commit, and the
+  // later one decides the page. Once that page is on screen, its row is brought to the middle of the window,
+  // clear of the fixed navigation. An entry that is not in the list leaves page 1 as it is.
+  useEffect(() => {
+    if (!entryToShow) return;
+    const wanted = pageOfEntry(orderedTransactions, entryToShow.id);
+    if (historySlice.page !== wanted) { setHistoryPage(wanted); return; }
+    setEntryToShow(null);
+    const rows = document.querySelectorAll<HTMLTableRowElement>('.transactions-panel tr[data-entry-id]');
+    Array.from(rows).find(row => row.dataset.entryId === entryToShow.id)?.scrollIntoView({ block: 'center' });
+  }, [entryToShow, historySlice.page, orderedTransactions]);
   // Rows exist but the filters hide them all, as opposed to a ledger with nothing in this currency yet.
   const historyFiltered = (isReviewQueue ? historyIndex.rows.length : historyIndex.rowsByCurrency.get(currency)?.length ?? 0) > 0;
   function resetHistory() { openHistory('all', 'month'); setMonth(clockDay.slice(0, 7)); }
@@ -606,15 +620,16 @@ export default function App() {
       setTxModal(null);
     }
     notify(entry.type === 'transfer' ? `Transfer tersimpan${where}. Kedua saldo sudah diperbarui.` : keepOpen ? `Tersimpan${where}. Lanjut catat berikutnya.` : went ? `Tersimpan${where}.` : 'Transaksi tersimpan.',
-      went && !keepOpen ? { label: 'Lihat', run: () => showSavedMonth(went, shownCurrency) } : undefined);
+      went && !keepOpen ? { label: 'Lihat', run: () => showSavedMonth(went, shownCurrency, entry.id) } : undefined);
     return true;
   }
-  /** Opens Transaksi on the month a saved transaction went to, with the filters that could hide it cleared. */
-  function showSavedMonth(target: string, shown: Currency) {
+  /** Opens Transaksi on the month a saved transaction went to, with the filters that could hide it cleared, on the page that holds it. */
+  function showSavedMonth(target: string, shown: Currency, entryId: string) {
     if (mutationInFlight.current) return;
     setCurrency(shown);
     openHistory('all', 'month');
     setMonth(target);
+    setEntryToShow({ id: entryId });
   }
   const focusListStatus = useRef(false);
   useEffect(() => {
@@ -831,7 +846,7 @@ export default function App() {
         <CashflowOverview {...cashflowResult} previous={previousFlow} startGuide={startGuide} monthControl={phoneOverview ? <>{currencyManageButton}{monthControl}</> : undefined} afterCards={phoneOverview ? banners : undefined} balanceCard={!mobileOverview && balanceCard} currency={currency} month={month} period={cashflowPeriod} walletId={cashflowScope} wallets={currencyWallets} archivedWalletIds={new Set(archivedCurrencyWallets.map(wallet => wallet.id))} onPeriodChange={setCashflowPeriod} onWalletChange={setCashflowWallet} />
         {mobileOverview && overviewRecent}
         <div className="dashboard-columns"><section className="panel wallet-panel"><div className="panel-header"><div><h2>Dompetmu</h2><p>Uangnya ada di sini.</p></div><button className="text-link" onClick={() => navigate('wallets')}>Lihat semua <ArrowRight size={15} /></button></div><div className="wallet-list">{overviewWallets.map(w => <div className="wallet-row-wrap" key={w.id}><button className="wallet-row" aria-label={`Riwayat ${w.name}, saldo ${actualText(w.id, w.currency)}`} onClick={() => openHistory(w.id, 'all')}><WalletSymbol wallet={w} /><span className="wallet-info"><strong className="wallet-name">{w.name}</strong><span className="wallet-detail">{kindLabel(w.kind)}</span></span><strong className="wallet-amount">{actualText(w.id, w.currency)}</strong><ChevronRight size={16} /></button></div>)}{!availableCurrencyWallets.length && <div className="empty-state compact"><WalletIcon size={25} /><p>Belum ada dompet aktif {currency}.</p><button className="text-link" onClick={() => openWallet('new')}>Tambah dompet</button></div>}</div>{availableCurrencyWallets.length > overviewWallets.length && <button className="text-link wallet-panel-more" data-testid="overview-more-wallets" onClick={() => navigate('wallets')}>+{availableCurrencyWallets.length - overviewWallets.length} dompet lainnya <ArrowRight size={15} /></button>}{availableCurrencyWallets.length > 0 && <button className="wallet-panel-add" onClick={() => openWallet('new')}><Plus size={16} /> Tambah dompet</button>}</section>
-          <section className="panel category-panel"><div className="category-panel-head"><FoldHeader mark="category" title="Kategori pengeluaran terkonfirmasi" description={`${cashflowPeriod === 'all' ? 'Seluruh catatan hingga hari ini' : reportMonth} · cakupan rekening yang dipilih.`} summary={categoryTotals.length ? `${categoryTotals.length} kategori · ${formatMoney(categoryExpenseTotal, currency)} · ketuk untuk melihat` : 'Belum ada pengeluaran terkonfirmasi · ketuk untuk melihat'} open={categoryPanelOpen} controls="category-panel-body" onToggle={() => setCategoryPanelOpen(open => !open)} /><button type="button" className="category-heading-icon" aria-label="Kelola kategori" title="Kelola kategori dan anggaran" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={18} /></button></div><div className="fold-body" id="category-panel-body" hidden={!categoryPanelOpen}>{cashflowResult.error
+          <section className="panel category-panel"><div className="category-panel-head"><FoldHeader mark="category" title="Kategori pengeluaran terkonfirmasi" description={`${cashflowPeriod === 'all' ? 'Seluruh catatan hingga hari ini' : reportMonth} · cakupan rekening yang dipilih.`} summary={categoryFoldSummary(cashflowResult.report, currency)} open={categoryPanelOpen} controls="category-panel-body" onToggle={() => setCategoryPanelOpen(open => !open)} /><button type="button" className="category-heading-icon" aria-label="Kelola kategori" title="Kelola kategori dan anggaran" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={18} /></button></div><div className="fold-body" id="category-panel-body" hidden={!categoryPanelOpen}>{!cashflowResult.report
             ? <p className="field-help">Total pengeluaran belum dapat dihitung.</p>
             : categoryRows.rows.length ? <div className="category-list"><p className="category-total" data-testid="category-total" data-amount={categoryExpenseTotal}><span>Total pengeluaran · {categoryTotals.length} kategori</span><strong>{formatMoney(categoryExpenseTotal, currency)}</strong></p>{categoryRows.rows.map(row => {
             const color = COLORS[categoryColorIndex(row.name, categoryPreferences.settings.names, COLORS.length)], limit = row.limit;
@@ -839,7 +854,7 @@ export default function App() {
             const used = limit !== undefined ? `${formatMoney(row.spent, currency)} / ${formatMoney(limit, currency)}` : formatMoney(row.spent, currency);
             const status = limit === undefined ? '' : row.over ? `Lewat ${formatMoney(-(row.remaining ?? 0), currency)} dari anggaran` : `Sisa ${formatMoney(row.remaining ?? 0, currency)}`;
             return <div className={`category-row${limit !== undefined ? ' budgeted' : ''}${row.over ? ' over-budget' : ''}`} key={row.name}><div className="category-labels"><button type="button" className="category-name category-open" title={`Lihat transaksi ${row.name}`} onClick={() => openCategoryHistory(row.name)}><span className="category-dot" style={{ background: color }} />{row.name}<ChevronRight size={13} aria-hidden="true" /></button><strong className="category-value">{used}</strong></div><div className="category-track" {...(limit !== undefined ? { role: 'progressbar', 'aria-label': `Anggaran ${row.name}`, 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(width), 'aria-valuetext': `${used}. ${status}` } : {})}><span className="category-fill" style={{ width: `${width}%`, ...(row.over ? {} : { background: color }) }} /></div>{status && <span className="category-budget-note">{status}</span>}</div>;
-          })}{(categoryRows.hidden > 0 || allCategoriesShown) && <button type="button" className="text-link category-more" data-testid="category-more" aria-expanded={allCategoriesShown} onClick={() => setAllCategoriesShown(shown => !shown)}>{allCategoriesShown ? 'Tampilkan lebih sedikit' : `+${categoryRows.hidden} kategori lainnya`}</button>}</div> : <div className="empty-state compact"><Leaf size={27} /><p>Belum ada pengeluaran terkonfirmasi dalam cakupan ini.</p></div>}{budgetsHidden && <p className="field-help category-budget-hint">Anggaran bulanan tampil saat periode bulanan dan semua rekening dipilih.</p>}<p className="category-legend">Hanya kategori pengeluaran terkonfirmasi. Semua debit rekening tetap dihitung pada arus di atas.</p></div></section></div>
+          })}{(categoryRows.hidden > 0 || allCategoriesShown) && <button type="button" className="text-link category-more" data-testid="category-more" aria-expanded={allCategoriesShown} onClick={() => setAllCategoriesShown(shown => !shown)}>{allCategoriesShown ? 'Tampilkan lebih sedikit' : `+${categoryRows.hidden} kategori lainnya`}</button>}</div> : <div className="empty-state compact"><Leaf size={27} /><p>Belum ada pengeluaran terkonfirmasi dalam cakupan ini.</p></div>}{budgetsHidden && <p className="field-help category-budget-hint">Anggaran bulanan tampil saat periode bulanan dan semua rekening dipilih.</p>}{cashflowResult.report && <p className="category-legend">Hanya kategori pengeluaran terkonfirmasi. Semua debit rekening tetap dihitung pada arus di atas.</p>}</div></section></div>
         {!mobileOverview && overviewRecent}
       </>}
       {page === 'wallets' && <WalletsPage hasCashArchive={cashWallets.length > 0} onOpenCashArchive={() => setCashArchiveOpen(true)} walletView={walletView} onWalletViewChange={setWalletView} activeCount={availableCurrencyWallets.length} archivedCount={archivedCurrencyWallets.length} currency={currency} currencyName={currencyLabel(currency)} clockDay={clockDay} total={walletPageTotal} wallets={displayedWallets} actualText={actualText} freshness={walletFreshnessRows} onOpenWallet={openWallet} onRecord={walletId => openTx('expense', walletId)} onCheckBalance={walletId => openTx('adjustment', walletId)} onShowHistory={w => { setCurrency(w.currency); openHistory(w.id, 'all'); }} onRestore={w => requestWalletAction(w, 'restore')} />}

@@ -113,6 +113,16 @@ export function paginateHistory(entries: readonly Entry[], requestedPage: number
   return { entries: entries.slice(start, start + pageSize), page, pageCount, start: entries.length ? start + 1 : 0, end: Math.min(start + pageSize, entries.length), total: entries.length };
 }
 
+/**
+ * The page of a paged list that holds the entry with this id, in the order the list is in.
+ * An id that is not in the list gets page 1: a place for it is not guessed.
+ */
+export function pageOfEntry(entries: readonly Entry[], entryId: string, pageSize = HISTORY_PAGE_SIZE): number {
+  if (!Number.isSafeInteger(pageSize) || pageSize < 1 || pageSize > 200) throw new RangeError('Ukuran halaman riwayat tidak valid.');
+  const position = entries.findIndex(entry => entry.id === entryId);
+  return position < 0 ? 1 : Math.floor(position / pageSize) + 1;
+}
+
 export function monthLabel(month: string): string {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) return month;
   return new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(`${month}-01T12:00:00Z`));

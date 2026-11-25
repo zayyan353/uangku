@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { categoryColorIndex, monthlyCategoryTotals } from './dashboardView';
+import { categoryColorIndex, categoryFoldSummary, monthlyCategoryTotals } from './dashboardView';
 import type { State } from './finance';
 const state: State = { version: 1, wallets: [{ id: 'a', name: 'A', currency: 'TRY', kind: 'bank', openingBalance: 0 }, { id: 'b', name: 'B', currency: 'USD', kind: 'bank', openingBalance: 0 }], entries: [{ id: 'transfer', type: 'transfer', date: '2026-11-01', walletId: 'a', toWalletId: 'b', amount: 1000, toAmount: 100, rate: .1, fee: 50, category: '', note: '' }] };
 describe('monthly category projection', () => {
@@ -30,5 +30,23 @@ describe('categoryColorIndex', () => {
     expect(slot).toBe(categoryColorIndex('Biaya transfer', [], 8));
     expect(slot).toBeGreaterThanOrEqual(0);
     expect(slot).toBeLessThan(8);
+  });
+});
+
+describe('categoryFoldSummary', () => {
+  it('names the number of categories and their total', () => {
+    expect(categoryFoldSummary({ categoryTotals: [['Makan & minum', 2100], ['Biaya transfer', 1290]], categoryExpenseTotal: 3390 }, 'TRY'))
+      .toBe('2 kategori · ₺33,90 · ketuk untuk melihat');
+    expect(categoryFoldSummary({ categoryTotals: [['Pendidikan', 700]], categoryExpenseTotal: 700 }, 'USD'))
+      .toBe('1 kategori · $7 · ketuk untuk melihat');
+  });
+  it('says there is no confirmed spending when the report holds none', () => {
+    expect(categoryFoldSummary({ categoryTotals: [], categoryExpenseTotal: 0 }, 'TRY'))
+      .toBe('Belum ada pengeluaran terkonfirmasi · ketuk untuk melihat');
+  });
+  it('says the total cannot be computed when there is no report: no stand-in amount, no "belum ada"', () => {
+    const line = categoryFoldSummary(undefined, 'TRY');
+    expect(line).toBe('Total pengeluaran belum dapat dihitung · ketuk untuk melihat');
+    expect(line).not.toMatch(/\d|belum ada/i);
   });
 });
