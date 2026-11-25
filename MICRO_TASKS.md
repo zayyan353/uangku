@@ -1426,6 +1426,10 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Tes regresi mencakup penulis yang menunggu 45 detik dan pemulihan dari
   pratinjau basi yang hanya mengubah pengaturan. Ketiga regresi perilaku gagal
   pada b7647e2. Sesudah perbaikan, 1.949 tes unit dan build produksi lulus.
+  *Pengukuran sesudah tinjauan:* di Chromium 154, Firefox 157 dan WebKit 27.2,
+  tiap mesin menyelesaikan 40 putaran dengan catatan awal kosong dan 20 dengan
+  1.500 entri awal. Pada seluruh 180 putaran, satu tab berhasil menyimpan,
+  tab lainnya mendapat konflik dan semua simpanan yang berhasil tetap ada.
   *Tes sebelum tinjauan (`b7647e2`):* `npm test` 76 file / 1.946 tes dan build produksi lulus (36 tes unit
   baru). `recovery_browser.py` 19/19 di Chromium 158, Firefox 157, dan WebKit
   27.2 lokal; smoke 39 skenario di Chromium. Pada kode sebelum MW: 31 dari 36
@@ -1490,9 +1494,11 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   catatan berisi dompet cash kosong. Pada build `main` dengan tiga tab, tab
   penonton kedua berakhir dengan kotak konflik pada 10 dari 20 putaran di
   Chromium dan 8 dari 20 di Firefox; sisanya menulis byte yang sama lewat
-  bacaan basi. Dengan klaim MW-162 tab itu diperkirakan selalu berakhir
-  konflik (belum diukur pada build MW-162). Data aman; yang terganggu
-  tampilan tab yang tidak disentuh. Usul: draf otomatis yang kalah dibuang
+  bacaan basi. Sesudah perbaikan MW-162, pengujian tiga tab dengan data
+  sintetis mendapati satu dari dua tab penonton menampilkan konflik pada 20
+  dari 20 putaran di setiap mesin (Chromium 154, Firefox 157, WebKit 27.2).
+  Semua catatan dan dompet yang seharusnya dipertahankan tetap ada di
+  ketiga tab pada seluruh 60 putaran. Usul: draf otomatis yang kalah dibuang
   dan tab memuat isi terbaru.
 
 **Tindakan pemilik (bukan kode):**
