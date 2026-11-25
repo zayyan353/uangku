@@ -1374,6 +1374,118 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   direvisi: nilai terbanyak menjadi bawaan dengan pengecualian per baris di
   versi codec baru, pembaca versi lama tetap ada.
 
+- [x] **MW-149 — Dua tab yang menyimpan hampir bersamaan tidak lagi saling menimpa** (M) (ditambahkan 25 November 2026, dari kegagalan CI PR #80)
+  Job Firefox PR #80 gagal di `two-tabs-sync-and-concurrent`
+  (`tests/recovery_browser.py`), kasus yang sama dengan PR #65 (MW-146). Di
+  bukti CI kedua tab menutup formulir dan berstatus "Tersimpan di browser",
+  tetapi hanya satu dari dua transaksi yang tersimpan. Penyebabnya di
+  aplikasi, bukan di tes. `commitPrepared` (`src/lib/persistence.ts`)
+  membandingkan isi `localStorage` dengan token di dalam Web Lock lalu
+  menulis. Pandangan sebuah tab atas `localStorage` bisa tertinggal dari
+  tulisan tab lain, dan serah-terima kunci tidak menunggunya. Tab kedua masuk
+  kunci sesudah tab pertama keluar, masih membaca isi lama, lolos
+  pemeriksaan, dan menimpa simpanan yang sudah dilaporkan berhasil.
+  *Penyelidikan 24–25 Nov 2026 (ukuran penyelidikan, bukan tes MW ini):*
+  build `main` 3c986f9 di Firefox 157 lokal gagal 2 dari 40 putaran kasus
+  itu. Probe tanpa aplikasi, dua tab serentak: Firefox 157 kehilangan 130
+  dari 300 putaran, Chromium 158 13 dari 300, WebKit 27.2 13 dari 100. Dengan
+  nilai 1 MB, Chromium kehilangan 300 dari 300. Di aplikasi, dua simpanan
+  yang antre di belakang kunci lalu jalan beruntun kehilangan satu tulisan
+  pada 20 dari 60 putaran di Chromium dan 58 dari 60 di Firefox. Di Chromium
+  jendelanya melebar menurut ukuran catatan: pada nilai 1,5 juta karakter
+  tulisan masih hilang 23 dari 30 kali pada selisih 30 ms dan 0 dari 30 pada
+  100 ms. Jeda tidak menutupnya: menahan kunci satu langkah sesudah menulis
+  masih kehilangan di Chromium dan WebKit.
+  *Selesai 25 Nov 2026:* tiap penulisan catatan kini lebih dulu mengklaim
+  teks yang digantinya di pengelola Web Locks, lewat nama kunci
+  `uangku:v1:coordinated-write:base:<SHA-256 teks>`, dan memegang klaim itu
+  30 detik. Pengelola kunci adalah satu-satunya keadaan lintas tab yang
+  urutannya sama dengan serah-terima kunci. Selama klaim dipegang, tidak ada
+  simpanan kedua yang bisa berangkat dari teks yang sama, apa pun yang dibaca
+  tabnya. Tab yang tertinggal mendapat status konflik yang sudah ada,
+  formulirnya tetap terbuka, dan tidak ada yang ditulis. Pemulihan lengkap
+  yang mengganti teks catatan (`restoreProfile`) memakai klaim yang sama.
+  Klaim dikembalikan bila tidak ada yang tertulis (pembanding gagal,
+  penyimpanan penuh, jurnal tak terbaca). Format dan tempat penyimpanan tidak
+  berubah: tidak ada kunci `localStorage` baru dan tidak ada field baru.
+  Klaim hanya nama kunci yang hilang sendiri.
+  *Keputusan agen (mudah dibatalkan):* masa pegang klaim 30 detik
+  (`BASE_CLAIM_MS`). Bila isi tersimpan kembali sama dengan teks yang pernah
+  diklaim (A ke B lalu kembali ke A), klaim lama atas teks itu dicabut supaya
+  simpanan berikutnya tidak ditolak. Klaim hanya untuk kunci catatan.
+  Rancangan dipilih dari tiga laporan independen. Yang ditimbang dan tidak
+  dipakai: jeda (tetap kehilangan di Chromium), saksi "revisi terbaru"
+  (terbukti menolak simpanan sah saat tab pemegangnya macet), dan IndexedDB
+  sebagai penentu (mengubah tempat penyimpanan; butuh keputusan pemilik).
+  *Tes:* `npm test` 76 file / 1.946 tes dan build produksi lulus (36 tes unit
+  baru). `recovery_browser.py` 19/19 di Chromium 158, Firefox 157, dan WebKit
+  27.2 lokal; smoke 39 skenario di Chromium. Pada kode sebelum MW: 31 dari 36
+  tes unit baru gagal. Kasus `stale-view-save-conflicts` (pandangan tab kedua
+  dipaksa tertinggal, tidak bergantung waktu) gagal 2 dari 2 jalan di ketiga
+  mesin. Kasus `queued-saves-one-winner` (dua simpanan antre di belakang
+  kunci, 5 putaran, 1.500 entri) gagal 2 dari 2 di Chromium dan Firefox,
+  tetapi lulus 2 dari 2 di WebKit, jadi di WebKit perbaikan ini dibuktikan
+  oleh kasus pertama saja. Tambalan kunci di kasus
+  `pending-writer-modal-guard` dipersempit ke nama kunci catatan.
+  *Belum terbukti:* sisa risiko yang diketahui: (1) tab penyimpan ditutup
+  atau mati dalam jendela basi sementara tab lain menyimpan, karena klaimnya
+  ikut hilang; (2) pandangan yang tertinggal lebih dari 30 detik; (3) tab
+  yang masih menjalankan versi lama sesudah rilis tidak mengklaim, jadi
+  antara tab lama dan baru perilakunya seperti sebelum MW ini. HP fisik, tab
+  latar yang dibekukan, dan jendela privat belum diuji. Firefox dan WebKit
+  yang dipakai adalah build Playwright, bukan Safari. Temuan lain dari
+  penyelidikan ini dicatat sebagai MW-150 dan MW-151.
+  *File:* `src/lib/persistence.ts`, `src/lib/fullRestoreStorage.ts` + tes,
+  `tests/recovery_browser.py`.
+
+- [ ] **MW-150 — Pemulihan lengkap tidak boleh dibatalkan sebagian oleh tab lain yang sedang terbuka** (M) (ditambahkan 25 November 2026, temuan penyelidikan MW-149)
+  Di Chromium, tulisan tab lain tiba kunci demi kunci, dan teks catatan yang
+  besar tiba paling akhir. Saat tab A menjalankan pemulihan lengkap, tab B
+  yang hanya terbuka menerima peristiwa jurnal (`finishInterruptedRestore`
+  di `src/hooks/useLedgerStorage.ts`), masuk kunci sesudah A keluar, dan
+  melihat jurnal serta kategori baru tetapi catatan lama. `recoverProfile`
+  (`src/lib/fullRestoreStorage.ts`) lalu menganggap pemulihan itu terputus
+  dan mengembalikan kategori lama. Hasilnya catatan dari cadangan dengan
+  kategori dan aturan dari sebelum pemulihan, padahal tab A sudah melapor
+  "Cadangan lengkap dipulihkan". Tidak butuh dua aksi serentak.
+  *Terukur 25 Nov 2026 pada build `main` 3c986f9, data sintetis:* Chromium
+  158: 23 dari 30 putaran pada 8.004 entri (1,05 juta karakter), 1 dari 30
+  pada 2.004 entri, 0 dari 20 tanpa tab kedua; pengukuran terpisah 11 dari 13
+  pada 3.000 entri. Firefox 157: 0 dari 45. WebKit 27.2: 0 dari 6. MW-149
+  tidak mengubah jalur ini.
+  *Arah perbaikan (belum dikerjakan):* `recoverProfile` jangan memutuskan
+  dari pandangan catatan yang mungkin tertinggal. Klaim dari MW-149 bisa
+  dipakai: bila klaim atas teks catatan yang dilihat tab ini sedang dipegang
+  tab lain, tunda tanpa menyentuh kategori atau jurnal, lalu coba lagi pada
+  peristiwa berikutnya. Prototipe penjaga serupa (memakai saksi revisi,
+  bukan klaim): 0 dari 30 pembatalan pada 8.004 entri. Format dan tempat data
+  tidak perlu berubah.
+  *Tes yang gagal lebih dulu:* pemulihan lengkap dengan tab kedua terbuka
+  dan catatan minimal 150 KB di Chromium.
+
+- [ ] **MW-151 — Jalur lain yang membaca di dalam kunci lalu menulis** (S–M) (ditambahkan 25 November 2026, temuan penyelidikan MW-149)
+  MW-149 hanya melindungi kunci catatan. Pola yang sama (baca di dalam Web
+  Lock, bandingkan atau ubah, lalu tulis) masih dipakai di tiga tempat, dan
+  ketiganya baru dibaca dari kode, belum diukur:
+  - simpan kategori dan anggaran (`save` di
+    `src/hooks/useCategorySettings.tsx`);
+  - tambah, hapus, dan ganti nama template (`change` di
+    `src/hooks/useTransactionTemplates.ts`), yang membaca lalu menulis tanpa
+    token;
+  - `exportFullBackup` (`src/lib/persistence.ts`), yang memeriksa token
+    dengan bacaan yang bisa tertinggal, sehingga cadangan lengkap bisa tidak
+    memuat simpanan tab lain yang baru saja terjadi.
+  Pemicunya dua aksi berselang milidetik di dua tab.
+  Terkait: efek pembersihan dompet cash (`removeUnusedCashWallets` di
+  `src/App.tsx`) menulis catatan tanpa aksi pengguna di tiap tab yang memuat
+  catatan berisi dompet cash kosong. Pada build `main` dengan tiga tab, tab
+  penonton kedua berakhir dengan kotak konflik pada 10 dari 20 putaran di
+  Chromium dan 8 dari 20 di Firefox; sisanya menulis byte yang sama lewat
+  bacaan basi. Dengan klaim MW-149 tab itu diperkirakan selalu berakhir
+  konflik (belum diukur pada build MW-149). Data aman; yang terganggu
+  tampilan tab yang tidak disentuh. Usul: draf otomatis yang kalah dibuang
+  dan tab memuat isi terbaru.
+
 **Tindakan pemilik (bukan kode):**
 
 - `main` belum dilindungi di GitHub (`protected: false`, tanpa ruleset), jadi

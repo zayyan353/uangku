@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
-import { commitCandidate, isQuotaError, LedgerPersistenceController, prepareCandidate, STORAGE_FULL_MESSAGE, type PersistenceLocks, type PersistencePorts, type PersistenceStorage } from './persistence';
+import { createHash } from 'node:crypto';
+import { describe, expect, it, vi } from 'vitest';
+import { commitCandidate, isQuotaError, LEDGER_LOCK, LedgerPersistenceController, prepareCandidate, STORAGE_FULL_MESSAGE, type PersistenceLocks, type PersistencePorts, type PersistenceStorage } from './persistence';
 import { STORAGE_KEY, makeDemoData, serializeBackup, validateBackup, type StoredData, type StoredRead } from './storage';
 import { RESTORE_JOURNAL } from './fullRestoreStorage';
+import { CATEGORY_SETTINGS_KEY, type CategorySettings } from './categorySettings';
+import { BUDGETS_KEY, type BudgetMap } from './budgets';
 
 function data(ids: string[] = []): StoredData {
   return { app: 'uangku', version: 1, demo: false, state: {
@@ -414,5 +417,474 @@ describe('coordinated persistence: fresh minimum reconstruction', () => {
     expect(env.storage.raw).toBe(recovery);
     expect(env.storage.raw).toBe(serializeBackup(candidate));
     expect(validateBackup(JSON.parse(env.storage.raw!)).state.entries).toHaveLength(1);
+  });
+});
+
+const text = (ids: string[] = []) => serializeBackup(data(ids));
+const notes = (raw: string | null) => raw === null ? [] : JSON.parse(raw).state.entries.map((entry: { note: string }) => entry.note);
+/** Written out here, not imported: the name is what tabs of different releases must agree on. */
+const claimName = (token: string | null) => `${LEDGER_LOCK}:base:${token === null ? 'kosong' : createHash('sha256').update(token).digest('hex')}`;
+
+/**
+ * One origin with several tabs. Each tab reads its own copy of storage, which shows another tab's write only
+ * after deliver(): the storage event that arrives some milliseconds after the write, as measured in Firefox,
+ * Chromium and WebKit. A tab sees its own writes at once.
+ */
+class Origin {
+  readonly durable = new Map<string, string>();
+  /** Which tab wrote the ledger, in order. */
+  readonly ledgerWriters: string[] = [];
+  /** One lock manager per origin; unlike the views it does not trail. */
+  readonly locks = new OriginLocks();
+  private readonly views: TabStorage[] = [];
+  constructor(ledger: string | null, other: Record<string, string> = {}) {
+    if (ledger !== null) this.durable.set(STORAGE_KEY, ledger);
+    for (const [key, value] of Object.entries(other)) this.durable.set(key, value);
+  }
+  get ledger() { return this.durable.get(STORAGE_KEY) ?? null; }
+  tab(name: string, locks: PersistenceLocks = this.locks) {
+    const storage = new TabStorage(this, name);
+    this.views.push(storage);
+    const read = (): StoredRead => {
+      const token = storage.getItem(STORAGE_KEY);
+      return { data: token === null ? data() : validateBackup(JSON.parse(token)), token, persisted: token !== null, blocked: false, error: null };
+    };
+    const ports: PersistencePorts = { read, storage: () => storage, locks: () => locks };
+    return { storage, controller: new LedgerPersistenceController(read(), ports) };
+  }
+  /** The storage events arrive: every tab now reads what is stored. */
+  deliver() { for (const view of this.views) view.catchUp(); }
+}
+class TabStorage implements PersistenceStorage {
+  private view: Map<string, string>;
+  reads: string[] = [];
+  /** Makes this tab's matching writes fail the way a full browser store does. */
+  refuse: ((key: string, value: string) => boolean) | null = null;
+  unreadable: string | null = null;
+  constructor(private readonly origin: Origin, private readonly name: string) { this.view = new Map(origin.durable); }
+  getItem(key: string) {
+    this.reads.push(key);
+    if (key === this.unreadable) throw new DOMException('Synthetic denial', 'SecurityError');
+    return this.view.get(key) ?? null;
+  }
+  setItem(key: string, value: string) {
+    if (this.refuse?.(key, value)) throw new DOMException('Synthetic quota', 'QuotaExceededError');
+    this.view.set(key, value); this.origin.durable.set(key, value);
+    if (key === STORAGE_KEY) this.origin.ledgerWriters.push(this.name);
+  }
+  removeItem(key: string) { this.view.delete(key); this.origin.durable.delete(key); }
+  catchUp() { this.view = new Map(this.origin.durable); }
+}
+/** Exclusive locks per name plus the two optional members: a claim lasts until it is released, revoked or expired. */
+class OriginLocks implements PersistenceLocks {
+  private queues = new Map<string, Promise<void>>();
+  private inside = new Set<string>();
+  private claims = new Map<string, { until: number }>();
+  private now = 0;
+  requested: Array<{ name: string; lifetimeMs: number; insideLedgerLock: boolean }> = [];
+  revoked: string[] = [];
+  failClaim: unknown = null;
+  failRevoke: unknown = null;
+  async runExclusive<T>(name: string, task: () => T | Promise<T>): Promise<T> {
+    const previous = this.queues.get(name);
+    let release!: () => void;
+    this.queues.set(name, new Promise<void>(resolve => { release = resolve; }));
+    await previous;
+    this.inside.add(name);
+    try { return await task(); } finally { this.inside.delete(name); release(); }
+  }
+  async claim(name: string, lifetimeMs: number): Promise<(() => void) | null> {
+    this.requested.push({ name, lifetimeMs, insideLedgerLock: this.inside.has(LEDGER_LOCK) });
+    if (this.failClaim) throw this.failClaim;
+    if (this.held().includes(name)) return null;
+    const holder = { until: this.now + lifetimeMs };
+    this.claims.set(name, holder);
+    // As measured in the three engines: a release by a holder whose claim was revoked does not free a later claim on that name.
+    return () => { if (this.claims.get(name) === holder) this.claims.delete(name); };
+  }
+  async revoke(name: string): Promise<void> {
+    this.revoked.push(name);
+    if (this.failRevoke) throw this.failRevoke;
+    this.claims.delete(name);
+  }
+  held() { return [...this.claims].filter(([, holder]) => holder.until > this.now).map(([name]) => name).sort(); }
+  isInside(name: string) { return this.inside.has(name); }
+  elapse(ms: number) { this.now += ms; }
+}
+
+describe('MW-149: a save claims the text it was built on', () => {
+  it("refuses a save from a tab whose view of storage trails another tab's save", async () => {
+    const origin = new Origin(text());
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['a']))).toBe(true);
+    // No storage event has arrived: also inside the ledger lock B reads the text both tabs started from.
+    expect(b.storage.getItem(STORAGE_KEY)).toBe(text());
+    expect(await b.controller.setCandidate(data(['b']))).toBe(false);
+    expect(notes(origin.ledger)).toEqual(['a']);
+    expect(origin.ledgerWriters).toEqual(['A']);
+    expect(a.controller.getSnapshot()).toMatchObject({ dirty: false, status: 'saved' });
+    expect(b.controller.getSnapshot()).toMatchObject({ dirty: true, pending: false, status: 'conflict', remoteChanged: true });
+    expect(notes(b.controller.recoveryText())).toEqual(['b']);
+    // The loser cannot write its stale draft later either, before or after the event arrives.
+    expect(await b.controller.retry()).toBe(false);
+    origin.deliver(); b.controller.checkRemote();
+    expect(await b.controller.retry()).toBe(false);
+    origin.locks.elapse(60_000);
+    expect(await b.controller.retry()).toBe(false);
+    expect(notes(origin.ledger)).toEqual(['a']);
+    expect(origin.ledgerWriters).toEqual(['A']);
+  });
+
+  it('lets exactly one of two saves that queue behind the ledger lock succeed', async () => {
+    const origin = new Origin(text());
+    const tabs = [origin.tab('A'), origin.tab('B')];
+    const outcomes = await Promise.all([tabs[0].controller.setCandidate(data(['a'])), tabs[1].controller.setCandidate(data(['b']))]);
+    // Which of the two enters the lock first is not fixed; exactly one may write.
+    expect(outcomes.filter(Boolean)).toHaveLength(1);
+    expect(origin.ledgerWriters).toHaveLength(1);
+    const winner = outcomes[0] ? 0 : 1;
+    expect(notes(origin.ledger)).toEqual([['a'], ['b']][winner]);
+    expect(tabs[1 - winner].controller.getSnapshot()).toMatchObject({ dirty: true, pending: false, status: 'conflict' });
+    expect(notes(tabs[1 - winner].controller.recoveryText())).toEqual([['a'], ['b']][1 - winner]);
+  });
+
+  it('refuses a no-change save from a trailing view, which would put the old text back', async () => {
+    const origin = new Origin(text());
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['a']))).toBe(true);
+    expect(await b.controller.setCandidate(data())).toBe(false);
+    expect(notes(origin.ledger)).toEqual(['a']);
+    expect(b.controller.getSnapshot().status).toBe('conflict');
+  });
+
+  it('takes the claim first inside the ledger lock, for 30 seconds, under the SHA-256 of the exact base text', async () => {
+    const origin = new Origin(text());
+    const a = origin.tab('A');
+    expect(await a.controller.setCandidate(data(['a']))).toBe(true);
+    expect(origin.locks.requested).toEqual([{ name: claimName(text()), lifetimeMs: 30_000, insideLedgerLock: true }]);
+    expect(claimName(text())).toMatch(/^uangku:v1:coordinated-write:base:[a-f0-9]{64}$/);
+    // The claim outlives the ledger lock and ends by itself.
+    expect(origin.locks.held()).toEqual([claimName(text())]);
+    origin.locks.elapse(29_999);
+    expect(origin.locks.held()).toEqual([claimName(text())]);
+    origin.locks.elapse(1);
+    expect(origin.locks.held()).toEqual([]);
+  });
+
+  it('claims an empty store under a fixed name', async () => {
+    const origin = new Origin(null);
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['a']))).toBe(true);
+    expect(origin.locks.requested.map(request => request.name)).toEqual(['uangku:v1:coordinated-write:base:kosong']);
+    expect(await b.controller.setCandidate(data(['b']))).toBe(false);
+    expect(notes(origin.ledger)).toEqual(['a']);
+  });
+
+  it('a refused claim ends in a conflict before anything is read or written', async () => {
+    // An interrupted restore's journal is in B's view: recovering it from a trailing view would write.
+    const origin = new Origin(text(), { [RESTORE_JOURNAL]: 'not a journal' });
+    const a = origin.tab('A'), b = origin.tab('B');
+    origin.durable.delete(RESTORE_JOURNAL); a.storage.catchUp();
+    expect((await commitCandidate(data(['a']), text(), a.storage, origin.locks)).status).toBe('saved');
+    b.storage.reads = [];
+    expect(await commitCandidate(data(['b']), text(), b.storage, origin.locks)).toEqual({ status: 'conflict',
+      message: 'Data berubah di tab lain atau sejak formulir dibuka. Perubahan lokal belum tersimpan. Unduh pemulihan sebelum memuat data terbaru.' });
+    expect(b.storage.reads).toEqual([]);
+    expect(origin.ledgerWriters).toEqual(['A']);
+    expect(b.storage.getItem(RESTORE_JOURNAL)).toBe('not a journal');
+  });
+
+  it("a tab that has caught up saves on top of another tab's save, and one tab saves again and again", async () => {
+    const origin = new Origin(text());
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['a']))).toBe(true);
+    expect(await a.controller.setCandidate(data(['a', 'a2']))).toBe(true);
+    origin.deliver(); b.controller.checkRemote();
+    expect(await b.controller.setCandidate(data(['a', 'a2', 'b']))).toBe(true);
+    origin.deliver(); a.controller.checkRemote();
+    expect(await a.controller.setCandidate(data(['a', 'a2', 'b', 'a3']))).toBe(true);
+    expect(notes(origin.ledger)).toEqual(['a', 'a2', 'b', 'a3']);
+    expect(origin.ledgerWriters).toEqual(['A', 'A', 'B', 'A']);
+  });
+
+  it('gives the claim back when the compare fails, so the same draft is saved once the view has caught up', async () => {
+    const origin = new Origin(text());
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['a']))).toBe(true);
+    origin.deliver();                                              // B reads ['a']; its controller has not looked yet.
+    expect(await a.controller.setCandidate(data())).toBe(true);    // Back to the first text; B's view trails again.
+    // B saves on the first text. Nobody claims that text any more, but B reads ['a']: the compare refuses.
+    expect(await b.controller.setCandidate(data(['b']))).toBe(false);
+    expect(b.controller.getSnapshot().status).toBe('conflict');
+    expect(origin.locks.held()).toEqual([claimName(text(['a']))]);
+    origin.deliver();
+    expect(await b.controller.retry()).toBe(true);
+    expect(notes(origin.ledger)).toEqual(['b']);
+  });
+
+  it('gives the claim back when the browser refuses the write, so the retry is not refused by its own claim', async () => {
+    const origin = new Origin(text());
+    const a = origin.tab('A');
+    a.storage.refuse = key => key === STORAGE_KEY;
+    expect(await a.controller.setCandidate(data(['a']))).toBe(false);
+    expect(a.controller.getSnapshot()).toMatchObject({ status: 'failed', dirty: true, pending: false, error: STORAGE_FULL_MESSAGE });
+    expect(origin.locks.held()).toEqual([]);
+    expect(origin.ledger).toBe(text());
+    a.storage.refuse = null;
+    expect(await a.controller.retry()).toBe(true);
+    expect(notes(origin.ledger)).toEqual(['a']);
+    expect(origin.locks.held()).toEqual([claimName(text())]);
+  });
+
+  it('gives the claim back when an unreadable restore journal stops the save', async () => {
+    const origin = new Origin(text(), { [RESTORE_JOURNAL]: '{' });
+    const a = origin.tab('A');
+    expect((await commitCandidate(data(['a']), text(), a.storage, origin.locks)).status).toBe('failed');
+    expect(origin.locks.requested).toHaveLength(1);
+    expect(origin.locks.held()).toEqual([]);
+    expect(origin.ledger).toBe(text());
+  });
+
+  it.each(['the tab that put the text back', 'a third tab'])('A, B, A: when the stored text returns to an earlier one, %s saves on it inside the 30 seconds', async who => {
+    const origin = new Origin(text());
+    const one = origin.tab('1'), two = origin.tab('2'), three = origin.tab('3');
+    expect(await one.controller.setCandidate(data(['x']))).toBe(true);     // E to X: tab 1 claims E.
+    two.storage.catchUp(); two.controller.checkRemote();
+    expect(await two.controller.setCandidate(data())).toBe(true);          // X to E: E is stored again, so tab 1's claim on it ends.
+    expect(origin.ledger).toBe(text());
+    expect(origin.locks.revoked).toEqual([claimName(text(['x'])), claimName(text())]);
+    expect(origin.locks.held()).toEqual([claimName(text(['x']))]);
+    const next = who === 'a third tab' ? three : two;
+    next.storage.catchUp(); next.controller.checkRemote();
+    expect(await next.controller.setCandidate(data(['y']))).toBe(true);    // E to Y.
+    expect(notes(origin.ledger)).toEqual(['y']);
+    // Tab 1 has received nothing since its own save. It reads X, which tab 2 moved away from: refused.
+    expect(one.storage.getItem(STORAGE_KEY)).toBe(text(['x']));
+    expect(await one.controller.setCandidate(data(['x', 'late']))).toBe(false);
+    expect(notes(origin.ledger)).toEqual(['y']);
+  });
+
+  it('a save that changes no byte leaves no claim behind', async () => {
+    const origin = new Origin(text(['a']));
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['a']))).toBe(true);
+    expect(origin.ledgerWriters).toEqual(['A']);
+    expect(origin.locks.held()).toEqual([]);
+    expect(origin.locks.revoked).toEqual([]);
+    expect(await b.controller.setCandidate(data(['a', 'b']))).toBe(true);
+    expect(notes(origin.ledger)).toEqual(['a', 'b']);
+  });
+
+  it('a revoke that fails does not turn a stored save into a failure', async () => {
+    const origin = new Origin(text());
+    const a = origin.tab('A');
+    origin.locks.failRevoke = new DOMException('Synthetic', 'InvalidStateError');
+    expect(await a.controller.setCandidate(data(['a']))).toBe(true);
+    expect(a.controller.getSnapshot()).toMatchObject({ status: 'saved', dirty: false, pending: false, error: '' });
+    expect(notes(origin.ledger)).toEqual(['a']);
+    expect(origin.locks.revoked).toEqual([claimName(text(['a']))]);
+  });
+
+  it('a claim request that fails is a failed save with nothing written', async () => {
+    const origin = new Origin(text());
+    const a = origin.tab('A');
+    origin.locks.failClaim = new DOMException('Synthetic', 'InvalidStateError');
+    expect(await a.controller.setCandidate(data(['a']))).toBe(false);
+    expect(a.controller.getSnapshot()).toMatchObject({ status: 'failed', dirty: true, pending: false,
+      error: 'Penyimpanan gagal. Perubahan lokal belum tersimpan; unduh pemulihan atau coba lagi.' });
+    expect(origin.ledger).toBe(text());
+    expect(origin.ledgerWriters).toEqual([]);
+    origin.locks.failClaim = null;
+    expect(await a.controller.retry()).toBe(true);
+    expect(notes(origin.ledger)).toEqual(['a']);
+  });
+
+  it('without claim and revoke in the port a save is the compare-and-set it was', async () => {
+    const origin = new Origin(text());
+    const plain: PersistenceLocks = { runExclusive: (name, task) => origin.locks.runExclusive(name, task) };
+    const a = origin.tab('A', plain), b = origin.tab('B', plain);
+    const digest = vi.spyOn(crypto.subtle, 'digest');
+    try {
+      expect(await a.controller.setCandidate(data(['a']))).toBe(true);
+      origin.deliver();
+      expect(await b.controller.setCandidate(data(['b']))).toBe(false);
+      expect(b.controller.getSnapshot().status).toBe('conflict');
+      b.controller.reloadLatest();
+      expect(await b.controller.setCandidate(data(['a', 'b']))).toBe(true);
+      expect(notes(origin.ledger)).toEqual(['a', 'b']);
+      expect(origin.locks.requested).toEqual([]);
+      expect(origin.locks.revoked).toEqual([]);
+      expect(digest).not.toHaveBeenCalled();
+    } finally { digest.mockRestore(); }
+  });
+
+  it('hashes before it asks for the ledger lock, and one text per save once a tab saves on its own last save', async () => {
+    const origin = new Origin(text(['hash']));
+    const a = origin.tab('A');
+    const hash = crypto.subtle.digest.bind(crypto.subtle);
+    const insideLedgerLock: boolean[] = [];
+    const digest = vi.spyOn(crypto.subtle, 'digest').mockImplementation((...input) => {
+      insideLedgerLock.push(origin.locks.isInside(LEDGER_LOCK));
+      return hash(...input);
+    });
+    try {
+      expect(await a.controller.setCandidate(data(['hash', 'one']))).toBe(true);
+      expect(digest).toHaveBeenCalledTimes(2);
+      expect(await a.controller.setCandidate(data(['hash', 'one', 'two']))).toBe(true);
+      expect(await a.controller.setCandidate(data(['hash', 'one', 'two', 'three']))).toBe(true);
+      expect(digest).toHaveBeenCalledTimes(4);
+      // The other tabs' saves wait for this lock; a ledger of megabytes is not hashed while it is held.
+      expect(insideLedgerLock).toEqual([false, false, false, false]);
+    } finally { digest.mockRestore(); }
+  });
+});
+
+describe('MW-149: a full restore claims the ledger it replaces', () => {
+  const settings: CategorySettings = { version: 1, names: ['Belum dikategorikan', 'Unused'], rules: [
+    { id: 'personal', keyword: 'synthetic', category: 'Unused', mode: 'suggest' },
+  ], keywordPackVersion: 7 };
+  const after = JSON.stringify(settings), before = JSON.stringify({ ...settings, rules: [] });
+  const changed = 'Catatan atau kategori berubah sejak pratinjau dibuka. Buka kembali cadangan untuk memeriksa ulang.';
+  const profile = (ids: string[]) => new Origin(text(ids), { [CATEGORY_SETTINGS_KEY]: before });
+  type Tab = ReturnType<Origin['tab']>;
+  const restore = (tab: Tab, ids: string[], categories: { expectedRaw?: string; budgets?: BudgetMap } = {}) =>
+    tab.controller.setCandidate(data(ids), '', { restoreCategories: { settings, expectedRaw: before, ...categories } });
+
+  it('a trailing tab cannot save over the ledger another tab just restored', async () => {
+    const origin = profile(['old']);
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await restore(a, ['restored'])).toBe(true);
+    expect(origin.locks.requested).toEqual([{ name: claimName(text(['old'])), lifetimeMs: 30_000, insideLedgerLock: true }]);
+    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+    expect(await b.controller.setCandidate(data(['old', 'b']))).toBe(false);
+    expect(b.controller.getSnapshot()).toMatchObject({ dirty: true, status: 'conflict' });
+    expect(notes(origin.ledger)).toEqual(['restored']);
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
+    expect(origin.ledgerWriters).toEqual(['A']);
+  });
+
+  it('a restore from a trailing view is refused before anything is read or written', async () => {
+    const origin = profile(['old']);
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['old', 'a']))).toBe(true);
+    const stored = new Map(origin.durable);
+    b.storage.reads = [];
+    expect(await restore(b, ['restored'])).toBe(false);
+    expect(b.storage.reads).toEqual([]);
+    expect(origin.durable).toEqual(stored);
+    expect(notes(origin.ledger)).toEqual(['old', 'a']);
+    expect(b.controller.getSnapshot()).toMatchObject({ pending: false, dirty: false, status: 'failed', error: changed });
+  });
+
+  it.each([RESTORE_JOURNAL, CATEGORY_SETTINGS_KEY, STORAGE_KEY])('gives the claim back when the restore cannot write %s, so it can be repeated', async key => {
+    const origin = profile(['old']);
+    const a = origin.tab('A');
+    a.storage.refuse = name => name === key;
+    expect(await restore(a, ['restored'])).toBe(false);
+    expect(origin.locks.requested).toHaveLength(1);
+    expect(origin.locks.held()).toEqual([]);
+    expect(origin.ledger).toBe(text(['old']));
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(before);
+    a.storage.refuse = null;
+    expect(await restore(a, ['restored'])).toBe(true);
+    expect(notes(origin.ledger)).toEqual(['restored']);
+    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+  });
+
+  it('gives the claim back when a restore is interrupted before the ledger is written, and when the compare fails', async () => {
+    const origin = profile(['old']);
+    const a = origin.tab('A');
+    // The ledger write fails and so does putting the staged categories back: the journal stays for the next opener.
+    a.storage.refuse = (key, value) => key === STORAGE_KEY || (key === CATEGORY_SETTINGS_KEY && value === before);
+    expect(await restore(a, ['restored'])).toBe(false);
+    expect(origin.durable.has(RESTORE_JOURNAL)).toBe(true);
+    expect(origin.ledger).toBe(text(['old']));
+    expect(origin.locks.held()).toEqual([]);
+    // Categories that changed since the preview: refused by the compare, claim returned.
+    const other = profile(['old']);
+    const b = other.tab('B');
+    expect(await restore(b, ['restored'], { expectedRaw: after })).toBe(false);
+    expect(b.controller.getSnapshot().error).toBe(changed);
+    expect(other.locks.requested).toHaveLength(1);
+    expect(other.locks.held()).toEqual([]);
+    expect(other.ledgerWriters).toEqual([]);
+  });
+
+  it('keeps the claim when the ledger was restored and a later step failed', async () => {
+    const origin = profile(['old']);
+    const a = origin.tab('A'), b = origin.tab('B');
+    a.storage.unreadable = BUDGETS_KEY;
+    expect(await restore(a, ['restored'], { budgets: { IDR: { Belanja: 5_000_000 } } })).toBe(false);
+    expect(notes(origin.ledger)).toEqual(['restored']);
+    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+    expect(await b.controller.setCandidate(data(['old', 'b']))).toBe(false);
+    expect(notes(origin.ledger)).toEqual(['restored']);
+  });
+
+  it('keeps the claim when a ledger write that reported a failure had landed after all', async () => {
+    const origin = profile(['old']);
+    const a = origin.tab('A'), b = origin.tab('B');
+    const write = a.storage.setItem.bind(a.storage);
+    a.storage.setItem = (key, value) => { write(key, value); if (key === STORAGE_KEY) throw new DOMException('Synthetic late failure', 'UnknownError'); };
+    expect(await restore(a, ['restored'])).toBe(false);
+    expect(notes(origin.ledger)).toEqual(['restored']);
+    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+    expect(await b.controller.setCandidate(data(['old', 'b']))).toBe(false);
+    expect(notes(origin.ledger)).toEqual(['restored']);
+  });
+
+  it('keeps the claim when this tab reads another ledger than the one it claimed, or cannot read it', async () => {
+    // A tab of an older release saved without a claim. B's view shows that save; B's controller has not looked yet.
+    const origin = profile(['old']);
+    const older: PersistenceLocks = { runExclusive: (name, task) => origin.locks.runExclusive(name, task) };
+    const a = origin.tab('A', older), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['old', 'a']))).toBe(true);
+    b.storage.catchUp();
+    expect(await restore(b, ['restored'])).toBe(false);
+    expect(b.controller.getSnapshot().error).toBe(changed);
+    expect(notes(origin.ledger)).toEqual(['old', 'a']);
+    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+    // The ledger becomes unreadable under the locks: whether it was replaced cannot be told.
+    const denied = profile(['old']);
+    const c = denied.tab('C');
+    c.storage.unreadable = STORAGE_KEY;
+    expect(await restore(c, ['restored'])).toBe(false);
+    expect(c.controller.getSnapshot()).toMatchObject({ pending: false, error: 'Pemulihan lengkap gagal. Periksa ruang penyimpanan lalu buka kembali file cadangan.' });
+    expect(denied.ledger).toBe(text(['old']));
+    expect(denied.locks.held()).toEqual([claimName(text(['old']))]);
+  });
+
+  it('a restore that leaves the ledger bytes alone claims nothing', async () => {
+    const origin = profile(['old']);
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await restore(a, ['old'])).toBe(true);
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
+    expect(origin.ledgerWriters).toEqual([]);
+    expect(origin.locks.requested).toEqual([]);
+    expect(origin.locks.revoked).toEqual([]);
+    expect(await b.controller.setCandidate(data(['old', 'b']))).toBe(true);
+  });
+
+  it('a restore that puts an earlier text back frees that text for the next save', async () => {
+    const origin = profile(['old']);
+    const a = origin.tab('A'), b = origin.tab('B');
+    expect(await a.controller.setCandidate(data(['old', 'new']))).toBe(true);   // A claims the ['old'] text.
+    origin.deliver(); b.controller.checkRemote();
+    expect(await restore(b, ['old'])).toBe(true);                               // The ['old'] text is stored again.
+    expect(origin.ledger).toBe(text(['old']));
+    expect(origin.locks.held()).toEqual([claimName(text(['old', 'new']))]);
+    origin.deliver(); a.controller.checkRemote();
+    expect(await a.controller.setCandidate(data(['old', 'again']))).toBe(true);
+    expect(notes(origin.ledger)).toEqual(['old', 'again']);
+  });
+
+  it('without claim and revoke in the port a restore is the compare-and-set it was', async () => {
+    const origin = profile(['old']);
+    const plain: PersistenceLocks = { runExclusive: (name, task) => origin.locks.runExclusive(name, task) };
+    const a = origin.tab('A', plain);
+    expect(await restore(a, ['restored'])).toBe(true);
+    expect(notes(origin.ledger)).toEqual(['restored']);
+    expect(origin.locks.requested).toEqual([]);
+    expect(origin.locks.revoked).toEqual([]);
   });
 });

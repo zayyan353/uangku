@@ -30,6 +30,7 @@ from playwright.sync_api import sync_playwright, expect
 
 URL = os.environ.get('UANGKU_TEST_URL', 'http://127.0.0.1:4180')
 KEY = 'uangku:v1'
+LEDGER_LOCK = KEY + ':coordinated-write'  # src/lib/fullRestoreStorage.ts
 FIXED_TIME = datetime(2026, 10, 30, 12, tzinfo=timezone.utc)
 LIMIT = 8 * 1024 * 1024
 
@@ -187,6 +188,106 @@ def test_clean_sync_and_concurrent_forms(browser, output):
                 expect(tab.get_by_role('dialog')).to_be_visible()
 
 
+STALE_VIEW = """(key) => {
+  const frozen = localStorage.getItem(key), read = Storage.prototype.getItem, write = Storage.prototype.setItem;
+  window.__staleReads = 0;
+  Storage.prototype.getItem = function (name) {
+    if (this === localStorage && name === key) { window.__staleReads++; return frozen; }
+    return read.call(this, name);
+  };
+  // A tab always sees its own writes: its first write of that key ends the stale view.
+  Storage.prototype.setItem = function (name, value) {
+    if (this === localStorage && name === key) { Storage.prototype.getItem = read; Storage.prototype.setItem = write; }
+    return write.call(this, name, value);
+  };
+}"""
+
+
+def test_stale_view_save_conflicts(browser, output):
+    """MW-149: a tab whose view of localStorage trails another tab's save must not overwrite that save.
+
+    The trailing view is forced, so nothing here depends on timing: tab B keeps reading the ledger text it
+    loaded until it writes the ledger itself. That is what a tab can read for some milliseconds after another
+    tab's write, also inside the ledger lock.
+    """
+    with isolated(browser, fixture(), output, 'stale-view') as (_, new_page, _):
+        a, b = new_page(), new_page()
+        b.evaluate(STALE_VIEW, KEY)
+        save_expense(a, note='Stale view A')
+        assert persisted_notes(a) == ['Stale view A']
+        b.bring_to_front()
+        open_expense(b, note='Stale view B', amount='2').get_by_role('button', name='Simpan transaksi', exact=True).click()
+        b.wait_for_function("""() => !document.querySelector('[role=dialog]')
+          || document.querySelector('[data-testid=save-status]')?.textContent.includes('konflik')""")
+        # The stored ledger is read through A: B's own view is the forced one for as long as B has not written.
+        kept = persisted_notes(a)
+        assert kept == ['Stale view A'], f'Tab B saved over tab A from a stale view; stored notes are now {kept}'
+        expect(b.get_by_test_id('save-status')).to_contain_text('konflik')
+        expect(b.get_by_role('dialog')).to_be_visible()
+        expect(b.get_by_role('dialog').get_by_label(re.compile('Keterangan'))).to_have_value('Stale view B')
+        assert b.evaluate('window.__staleReads') > 0
+        a.reload(wait_until='networkidle')
+        assert persisted_notes(a) == ['Stale view A']
+
+
+QUEUED_SAVE_ROUNDS = 5
+QUEUED_SAVE_ENTRIES = 1500
+
+
+def test_queued_saves_one_winner(browser, output, rounds=QUEUED_SAVE_ROUNDS, seed_entries=QUEUED_SAVE_ENTRIES):
+    """MW-149: two tabs wait behind the ledger lock and then commit back to back, with no human-sized gap.
+
+    A tab's view of localStorage can trail the other tab's write by milliseconds, also inside the lock. Each
+    round exactly one save may report success, the other must keep its form open with a conflict, and every
+    save that reported success must still be stored at the end.
+    """
+    # A ledger of realistic size: in Chromium the other tab's view trails longer the larger the stored text is.
+    seeded = [expense(f'seed-{i}', 100 + i, note=f'Benih {i:04d}') for i in range(seed_entries)]
+    with isolated(browser, fixture(seeded), output, 'queued-saves') as (_, new_page, _):
+        tabs = {'A': new_page(), 'B': new_page()}
+        gate = tabs['A']
+        kept = [entry['note'] for entry in seeded]
+
+        def queued():
+            return gate.evaluate("""async (name) => (await navigator.locks.query()).pending
+              .filter(lock => lock.name === name).length""", LEDGER_LOCK)
+
+        for index in range(rounds):
+            order = ['A', 'B'] if index % 2 == 0 else ['B', 'A']
+            notes = {name: f'Antre {index} {name}' for name in tabs}
+            for name, tab in tabs.items():
+                open_expense(tab, note=notes[name], amount=str(index + 1))
+            # The test holds the ledger lock itself, so both saves wait in its queue in a known order.
+            assert gate.evaluate("""(name) => new Promise(held => { navigator.locks.request(name,
+              () => new Promise(release => { window.__releaseLedgerGate = release; held(true); })); })""", LEDGER_LOCK)
+            for position, name in enumerate(order, start=1):
+                tabs[name].get_by_role('dialog').locator('form').evaluate('(form) => form.requestSubmit()')
+                # wait_for_function does not await an async predicate, so the queue is polled from here.
+                deadline = time.monotonic() + 15
+                while queued() != position:
+                    assert time.monotonic() < deadline, f'Round {index}: save {position} never queued behind the ledger lock'
+                    gate.wait_for_timeout(10)
+            gate.evaluate('() => window.__releaseLedgerGate()')
+            for tab in tabs.values():
+                tab.wait_for_function("""() => !document.querySelector('[role=dialog]')
+                  || document.querySelector('[data-testid=save-status]')?.textContent.includes('konflik')""")
+            # A form closes only after its save succeeded; which tab's record survives is not assumed.
+            saved = [name for name in order if tabs[name].get_by_role('dialog').count() == 0]
+            assert len(saved) == 1, f'Round {index}: {len(saved)} of 2 queued saves reported success'
+            kept.append(notes[saved[0]])
+            for name, tab in tabs.items():
+                if name not in saved:
+                    expect(tab.get_by_test_id('save-status')).to_contain_text('konflik')
+                    expect(tab.get_by_role('dialog')).to_be_visible()
+                    # Drops the losing draft; the next round starts from the stored ledger.
+                    tab.reload(wait_until='networkidle')
+                    expect(tab.locator('.balance-card')).to_be_visible()
+                tab.wait_for_function("""({key, expected}) => JSON.stringify(JSON.parse(localStorage.getItem(key))
+                  .state.entries.map(entry => entry.note).sort()) === JSON.stringify(expected)""",
+                                      arg={'key': KEY, 'expected': sorted(kept)})
+        assert persisted_notes(gate) == sorted(kept)
+
+
 def test_quota_retry(browser, output):
     with isolated(browser, fixture(), output, 'quota') as (_, new_page, _):
         page = new_page()
@@ -309,13 +410,18 @@ def test_pending_writer_modal_guard(browser, output):
     with isolated(browser, fixture(), output, 'pending-writer') as (_, new_page, _):
         page = new_page()
         # Patch the prototype: WebKit can recreate the navigator.locks wrapper and drop an own property.
-        page.evaluate('''() => {
+        page.evaluate('''(ledgerLock) => {
           const manager = Object.getPrototypeOf(navigator.locks), request = manager.request;
-          manager.request = function (name,options,callback) { return request.call(this,name,options,async lock => {
-            await new Promise(resolve => { window.__releaseSyntheticWriter = resolve; });
-            return callback(lock);
-          }); };
-        }''')
+          manager.request = function (name,options,callback) {
+            // Only the ledger write is withheld. A save also asks for other lock names inside it (MW-149),
+            // and withholding those as well would replace the release function below before it is called.
+            if (name !== ledgerLock) return request.call(this,name,options,callback);
+            return request.call(this,name,options,async lock => {
+              await new Promise(resolve => { window.__releaseSyntheticWriter = resolve; });
+              return callback(lock);
+            });
+          };
+        }''', LEDGER_LOCK)
         dlg = open_expense(page, note='Pending original draft')
         dlg.get_by_role('button', name='Simpan transaksi', exact=True).click()
         expect(page.get_by_test_id('save-status')).to_contain_text('Sedang menyimpan')
@@ -724,6 +830,8 @@ def main():
     cases = [
         ('stale-form-conflict', test_stale_form),
         ('two-tabs-sync-and-concurrent', test_clean_sync_and_concurrent_forms),
+        ('stale-view-save-conflicts', test_stale_view_save_conflicts),
+        ('queued-saves-one-winner', test_queued_saves_one_winner),
         ('quota-recovery-retry', test_quota_retry),
         ('missing-web-locks', test_no_web_locks),
         ('transaction-draft-close', test_transaction_draft_close),

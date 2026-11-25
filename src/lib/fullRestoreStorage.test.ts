@@ -1,6 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
+import { describe, expect, it, vi } from 'vitest';
 import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, type CategorySettings } from './categorySettings';
-import { CATEGORY_LOCK, finishInterruptedRestore, requestExclusive, RESTORE_JOURNAL } from './fullRestoreStorage';
+import { baseClaimName, browserLocks, CATEGORY_LOCK, claimLock, finishInterruptedRestore, LEDGER_LOCK, requestExclusive, RESTORE_JOURNAL, revokeLock } from './fullRestoreStorage';
 import { BUDGETS_KEY, serializeBudgets } from './budgets';
 import { serializeTemplates, TEMPLATES_KEY } from './transactionTemplates';
 import { LedgerPersistenceController, type PersistenceLocks, type PersistenceStorage } from './persistence';
@@ -305,5 +306,152 @@ describe('requestExclusive', () => {
       expect(store.map).toEqual(before);
       expect(store.writes).toEqual([]);
     }
+  });
+});
+
+describe('MW-149: claim and revoke over the Web Locks API', () => {
+  /** The part of a lock manager the adapter uses: an exclusive hold that is taken only if free, and steal. */
+  function lockManager() {
+    const holders = new Map<string, (reason: unknown) => void>();
+    const calls: Array<{ name: string; options: LockOptions; callbackRejected: boolean }> = [];
+    let refusal: unknown = null, thrown: unknown = null;
+    const manager = {
+      request(name: string, options: LockOptions, callback: (lock: Lock | null) => unknown): Promise<unknown> {
+        const call = { name, options, callbackRejected: false };
+        calls.push(call);
+        if (thrown) throw thrown;
+        if (refusal) return Promise.reject(refusal);
+        const run = async (lock: Lock | null) => {
+          try { return await callback(lock); }
+          catch (error) { call.callbackRejected = true; throw error; }
+        };
+        // A grant is never synchronous.
+        return Promise.resolve().then(() => {
+          if (options.steal) holders.get(name)?.(new DOMException('Synthetic steal', 'AbortError'));
+          else if (holders.has(name)) {
+            if (!options.ifAvailable) throw new Error('This manager does not queue.');
+            return run(null);
+          }
+          return new Promise((resolve, reject) => {
+            // As in the engines, a hold ends by its own identity: a holder that lost the name cannot free its next holder.
+            const abort = (reason: unknown) => { if (holders.get(name) === abort) holders.delete(name); reject(reason); };
+            const free = () => { if (holders.get(name) === abort) holders.delete(name); };
+            holders.set(name, abort);
+            run({ name, mode: 'exclusive' } as Lock).then(value => { free(); resolve(value); }, error => { free(); reject(error); });
+          });
+        });
+      },
+    } as unknown as Pick<LockManager, 'request'>;
+    return { manager, calls, held: () => [...holders.keys()],
+      refuse: (reason: unknown) => { refusal = reason; }, throwOnRequest: (reason: unknown) => { thrown = reason; } };
+  }
+  const flush = async () => { for (let turn = 0; turn < 10; turn++) await Promise.resolve(); };
+
+  it('takes a free name only if available, answers null for a held one, and frees it through the release function', async () => {
+    const { manager, calls, held } = lockManager();
+    const release = await claimLock(manager, 'claim', 30_000);
+    expect(release).toBeTypeOf('function');
+    expect(calls).toEqual([{ name: 'claim', options: { mode: 'exclusive', ifAvailable: true }, callbackRejected: false }]);
+    expect(held()).toEqual(['claim']);
+    expect(await claimLock(manager, 'claim', 30_000)).toBeNull();
+    expect(held()).toEqual(['claim']);
+    release!(); release!();
+    await flush();
+    expect(held()).toEqual([]);
+    expect(await claimLock(manager, 'claim', 30_000)).not.toBeNull();
+    expect(calls.map(call => call.callbackRejected)).toEqual([false, false, false]);
+  });
+
+  it('frees the name by itself after the lifetime, and the release function cancels that timer', async () => {
+    vi.useFakeTimers();
+    try {
+      const { manager, held } = lockManager();
+      const release = await claimLock(manager, 'timed', 30_000);
+      expect(vi.getTimerCount()).toBe(1);
+      await vi.advanceTimersByTimeAsync(29_999);
+      await flush();
+      expect(held()).toEqual(['timed']);
+      await vi.advanceTimersByTimeAsync(1);
+      await flush();
+      expect(held()).toEqual([]);
+      release!();
+      const again = await claimLock(manager, 'timed', 30_000);
+      expect(vi.getTimerCount()).toBe(1);
+      again!();
+      expect(vi.getTimerCount()).toBe(0);
+      await flush();
+      expect(held()).toEqual([]);
+    } finally { vi.useRealTimers(); }
+  });
+
+  it('revokes with steal, and the holder that lost its claim neither reports an unhandled rejection nor frees the next claim', async () => {
+    const unhandled: unknown[] = [];
+    const listen = (reason: unknown) => { unhandled.push(reason); };
+    process.on('unhandledRejection', listen);
+    try {
+      const { manager, calls, held } = lockManager();
+      const release = await claimLock(manager, 'revoked', 30_000);
+      await revokeLock(manager, 'revoked');
+      expect(calls[1]).toEqual({ name: 'revoked', options: { steal: true }, callbackRejected: false });
+      expect(held()).toEqual([]);
+      const next = await claimLock(manager, 'revoked', 30_000);
+      expect(next).not.toBeNull();
+      release!();
+      // A macrotask later an unhandled rejection would have been reported.
+      await new Promise(resolve => { setTimeout(resolve); });
+      expect(held()).toEqual(['revoked']);
+      expect(unhandled).toEqual([]);
+      next!();
+      await flush();
+      expect(held()).toEqual([]);
+      expect(calls.map(call => call.callbackRejected)).toEqual([false, false, false]);
+    } finally { process.off('unhandledRejection', listen); }
+  });
+
+  it('rejects when the request fails before the name is held', async () => {
+    const { manager, refuse, throwOnRequest, held } = lockManager();
+    const reason = new DOMException('Synthetic', 'InvalidStateError');
+    refuse(reason);
+    await expect(claimLock(manager, 'broken', 30_000)).rejects.toBe(reason);
+    await expect(revokeLock(manager, 'broken')).rejects.toBe(reason);
+    refuse(null); throwOnRequest(reason);
+    await expect(claimLock(manager, 'broken', 30_000)).rejects.toBe(reason);
+    await expect(revokeLock(manager, 'broken')).rejects.toBe(reason);
+    expect(held()).toEqual([]);
+  });
+
+  it('browserLocks gives the persistence port both members', async () => {
+    const { manager, calls, held } = lockManager();
+    vi.stubGlobal('navigator', { locks: manager });
+    try {
+      const locks = browserLocks()!;
+      expect(await locks.claim!('port', 30_000)).toBeTypeOf('function');
+      expect(await locks.claim!('port', 30_000)).toBeNull();
+      await locks.revoke!('port');
+      expect(held()).toEqual([]);
+      expect(calls.map(call => call.options)).toEqual([{ mode: 'exclusive', ifAvailable: true }, { mode: 'exclusive', ifAvailable: true }, { steal: true }]);
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it('names a claim by the SHA-256 of the exact text, and an empty store by a fixed word', async () => {
+    expect(LEDGER_LOCK).toBe('uangku:v1:coordinated-write');
+    expect(await baseClaimName(null)).toBe('uangku:v1:coordinated-write:base:kosong');
+    expect(await baseClaimName('')).toBe('uangku:v1:coordinated-write:base:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
+    expect(await baseClaimName('abc')).toBe('uangku:v1:coordinated-write:base:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad');
+    const unicode = serializeBackup(updated).replace('Synthetic', 'İstanbul 界 👛');
+    expect(await baseClaimName(unicode)).toBe(`${LEDGER_LOCK}:base:${createHash('sha256').update(unicode, 'utf8').digest('hex')}`);
+    expect(await baseClaimName(unicode + ' ')).not.toBe(await baseClaimName(unicode));
+  });
+
+  it('remembers the two texts it hashed last', async () => {
+    const digest = vi.spyOn(crypto.subtle, 'digest');
+    try {
+      const first = await baseClaimName('remembered one'), second = await baseClaimName('remembered two');
+      expect(digest).toHaveBeenCalledTimes(2);
+      expect(await baseClaimName('remembered two')).toBe(second);
+      expect(await baseClaimName('remembered one')).toBe(first);
+      expect(await baseClaimName(null)).toBe(`${LEDGER_LOCK}:base:kosong`);
+      expect(digest).toHaveBeenCalledTimes(2);
+    } finally { digest.mockRestore(); }
   });
 });
