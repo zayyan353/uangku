@@ -370,7 +370,8 @@ export default function App() {
     const wanted = pageOfEntry(orderedTransactions, entryToShow.id);
     if (historySlice.page !== wanted) { setHistoryPage(wanted); return; }
     setEntryToShow(null);
-    document.querySelector(`.transactions-panel tr[data-entry-id="${CSS.escape(entryToShow.id)}"]`)?.scrollIntoView({ block: 'center' });
+    const rows = document.querySelectorAll<HTMLTableRowElement>('.transactions-panel tr[data-entry-id]');
+    Array.from(rows).find(row => row.dataset.entryId === entryToShow.id)?.scrollIntoView({ block: 'center' });
   }, [entryToShow, historySlice.page, orderedTransactions]);
   // Rows exist but the filters hide them all, as opposed to a ledger with nothing in this currency yet.
   const historyFiltered = (isReviewQueue ? historyIndex.rows.length : historyIndex.rowsByCurrency.get(currency)?.length ?? 0) > 0;

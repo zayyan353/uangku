@@ -946,11 +946,14 @@ ROW_ON_SCREEN_JS = """(row) => { const box = row.getBoundingClientRect();
 
 
 def saved_page_case(browser, args, output, mobile):
-    """MW-147: Lihat opens the page of the list that holds the saved transaction, and brings its row on screen.
+    """MW-165: Lihat opens the page of the list that holds the saved transaction, and brings its row on screen.
 
     The fixture has 67 IDR rows in October 2026: two pages of 50, so a row dated early in the month is on page 2."""
     label = 'saved-page-mobile' if mobile else 'saved-page-desktop'
-    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    data = fixture()
+    # Older backups accept identifiers containing NUL. CSS selectors cannot represent this character.
+    next(entry for entry in data['state']['entries'] if entry['id'] == 'old')['id'] = 'old\x00row'
+    raw = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
     context, page, errors = storage_page(browser, mobile, raw)
     nav = page.locator('.mobile-nav' if mobile else '.sidebar')
     dialogs = page.get_by_role('dialog')
@@ -990,14 +993,19 @@ def saved_page_case(browser, args, output, mobile):
         # A row that another tab removes before Lihat is pressed is not in the list Lihat opens: page 1 stays and no
         # place is guessed for it. The balance on Ringkasan tells when this tab has taken the other tab's change over.
         other = another_page(context)
-        other.goto(args.url, wait_until='networkidle')
+        other.goto(args.url + '#/transaksi', wait_until='networkidle')
+        other.get_by_label('Cari transaksi', exact=True).fill('Synthetic page removed')
         month.select_option('2025-01')
         balance = '() => document.querySelector(".balance-card").innerText'
         before = page.evaluate(balance)
         record('Synthetic page removed', '2026-10-01')
         expect(toast).to_contain_text('Tersimpan di Oktober 2026.')
         assert page.evaluate(balance) != before, 'The balance on Ringkasan does not show the saved row'
-        other.evaluate('([key, value]) => localStorage.setItem(key, value)', [KEY, raw])
+        other.get_by_role('button', name='Ubah Synthetic page removed', exact=True).click()
+        other.get_by_role('dialog').get_by_role('button', name='Hapus', exact=True).click()
+        other.get_by_role('dialog').get_by_role('button', name='Hapus transaksi', exact=True).click()
+        expect(other.locator('.toast')).to_contain_text('Transaksi dihapus')
+        after_deletion = other.evaluate('(key) => localStorage.getItem(key)', KEY)
         page.wait_for_function('(text) => document.querySelector(".balance-card").innerText === text', arg=before)
         other.close()
         toast.get_by_role('button', name='Lihat', exact=True).click()
@@ -1006,7 +1014,7 @@ def saved_page_case(browser, args, output, mobile):
         expect(paging).to_have_text('1–50 dari 67 · Halaman 1 dari 2')
         expect(rows.filter(has_text='Synthetic page removed')).to_have_count(0)
         assert page.evaluate('scrollY') == 0, 'The list moved for a row that is not in it'
-        assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw, 'Lihat wrote to the ledger'
+        assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == after_deletion, 'Lihat wrote to the ledger'
 
         # The oldest row of the month, saved from another month: it is on page 2, far down the list.
         month.select_option('2025-01')
@@ -1067,6 +1075,14 @@ def saved_page_case(browser, args, output, mobile):
         page.keyboard.press('Escape')
         expect(dialogs).to_have_count(0)
         expect(scope).to_contain_text('Januari 2025')
+
+        # Edit an existing row with a legacy id, then follow it to page 2 of its new month.
+        page.get_by_role('button', name='Ubah Synthetic older history', exact=True).click()
+        dialog = page.get_by_role('dialog')
+        dialog.get_by_label('Tanggal', exact=True).fill('2026-10-01')
+        dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+        expect(dialogs).to_have_count(0)
+        see('Synthetic older history', '51–73 dari 73 · Halaman 2 dari 2')
 
         # Exactly what was typed is what was stored, both dates of the transfer included.
         document = stored_document(page, KEY)

@@ -1733,10 +1733,10 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dapat diklik pada 1440 terang, 390 gelap, serta 320 terang dan gelap.
   *Belum terbukti:* HP fisik dan pembaca layar. **Lihat** membuka halaman
   pertama bulan tujuan. Pada bulan dengan 68 baris, transaksi tertua baru
-  terlihat pada halaman kedua. Ditindaklanjuti di MW-147: **Lihat** kini
+  terlihat pada halaman kedua. Ditindaklanjuti di MW-165: **Lihat** kini
   membuka halaman yang memuat barisnya.
 
-- [x] **MW-147 — **Lihat** membuka halaman yang memuat transaksinya** (S) (ditambahkan 24 November 2026, tindak lanjut MW-115)
+- [x] **MW-165 — Lihat membuka halaman yang memuat transaksinya** (S) (ditambahkan 24 November 2026, tindak lanjut MW-115)
   Tombol **Lihat** di toast "Tersimpan di <bulan>" membuka halaman pertama
   bulan tujuan, padahal daftar memuat 50 baris per halaman. Pada bulan dengan
   68 baris, transaksi tertua yang baru disimpan ada di halaman kedua: pengguna
@@ -1780,8 +1780,18 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Di luar suite, di Chromium: baris TRY di halaman 2 terlihat pada 1440
   terang dan 320 gelap, dan simpan yang ditolak kuota tidak memunculkan
   **Lihat**.
-  *Belum terbukti:* Firefox dan WebKit baru diuji di CI. HP fisik dan
-  pembaca layar belum diuji. Sesudah **Lihat**, fokus keyboard tidak berada
+  *Dari tinjauan 25 Nov:* salah satu cadangan v1 yang sah dapat memuat id
+  dengan karakter NUL. Saat transaksi itu diedit, **Lihat** membuka halaman
+  yang tepat tetapi gagal menggulir ke barisnya karena `CSS.escape` mengganti
+  NUL dengan karakter lain. Kini pencarian membandingkan id pada baris yang
+  sudah muncul di tabel secara langsung. Kasus desktop Chromium gagal sebelum
+  perbaikan. Sesudah perbaikan, tes halaman tersimpan lulus pada lebar 1440
+  dan 390. Tes penghapusan dari tab kedua kini memakai tombol **Hapus
+  transaksi**. Saat dicoba bersama PR #82, penggantian langsung isi penyimpanan
+  di tes lama melewati kunci tulis aplikasi dan simpan berikutnya tertahan.
+  *Belum terbukti:* pada CI pertama PR #80, job Firefox berhenti di suite
+  pemulihan sebelum mencapai tes **Lihat**. HP fisik dan pembaca layar belum
+  diuji. Sesudah **Lihat**, fokus keyboard tidak berada
   di baris itu. Baris tidak disorot, jadi pengguna mengenalinya dari
   keterangannya. Pengaruh pada performa tidak terukur bersih: mesin sedang
   dipakai agen lain. Dalam 9 putaran sebelum/sesudah, median sebelum

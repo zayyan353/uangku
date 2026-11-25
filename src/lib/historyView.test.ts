@@ -127,7 +127,7 @@ describe('read-only transaction history', () => {
   });
 });
 
-describe('MW-147 pageOfEntry', () => {
+describe('MW-165 pageOfEntry', () => {
   const list = (count: number) => Array.from({ length: count }, (_, i) => entry(`row-${i}`, '2026-10-01'));
   it('names the page a row is on, at both edges of every page', () => {
     const entries = list(68);
