@@ -38,6 +38,7 @@ export interface PersistencePorts {
 }
 export interface CandidateOptions {
   replaceBlocked?: boolean;
+  automaticCashCleanup?: true;
   expectedData?: StoredData;
   expectedToken?: string | null;
   /** budgets/templates: from a full backup; undefined keeps the browser's current ones. */
@@ -187,7 +188,8 @@ export class LedgerPersistenceController {
   private snapshot: PersistenceSnapshot;
   private baseToken: string | null;
   private blockedRaw: string | null;
-  private draft: PreparedCandidate | null = null;
+  // Only the effect that removes empty cash wallets can abandon its candidate on conflict.
+  private draft: (PreparedCandidate & { cleanupBase?: PersistenceSnapshot }) | null = null;
   private draftToken: string | null = null;
   private draftRetryBlocked = false;
   private readonly knownTokens = new WeakMap<StoredData, string | null>();
@@ -232,13 +234,17 @@ export class LedgerPersistenceController {
       return false;
     }
     if (options.restoreCategories) return this.restoreProfile(prepared, options.restoreCategories, options);
-    this.draft = prepared;
-    this.draftToken = this.baseToken;
-    this.draftRetryBlocked = false;
     // undefined means no optional guard; null is a real guard for empty storage.
     const hasExpectedToken = options.expectedToken !== undefined;
     const staleToken = hasExpectedToken && options.expectedToken !== this.baseToken;
     const staleData = options.expectedData !== undefined && options.expectedData !== this.snapshot.data;
+    if (options.automaticCashCleanup && (staleToken || staleData)) {
+      this.checkRemote();
+      return false;
+    }
+    this.draft = options.automaticCashCleanup ? { ...prepared, cleanupBase: this.snapshot } : prepared;
+    this.draftToken = this.baseToken;
+    this.draftRetryBlocked = false;
     if (staleToken || staleData) {
       if (hasExpectedToken && options.expectedToken !== undefined) this.draftToken = options.expectedToken;
       else if (options.expectedData && this.knownTokens.has(options.expectedData)) this.draftToken = this.knownTokens.get(options.expectedData)!;
@@ -246,7 +252,7 @@ export class LedgerPersistenceController {
       this.update({ data: prepared.data, dirty: true, status: 'conflict', error: conflictMessage, remoteChanged: true });
       return false;
     }
-    this.update({ data: prepared.data, dirty: true });
+    if (!options.automaticCashCleanup) this.update({ data: prepared.data, dirty: true });
     return this.writeDraft();
   }
 
@@ -356,6 +362,17 @@ export class LedgerPersistenceController {
     });
   };
 
+  private discardConflictingCleanup(): boolean {
+    const clean = this.draft?.cleanupBase;
+    if (!clean) return false;
+    this.draft = null;
+    // A trailing tab can still see the old bytes. Keep the same data identity so
+    // its cleanup effect waits for a storage change before trying again.
+    this.update(clean);
+    this.checkRemote();
+    return true;
+  }
+
   private async writeDraft(): Promise<boolean> {
     const draft = this.draft;
     if (!draft || this.snapshot.pending || this.draftRetryBlocked) return false;
@@ -373,7 +390,8 @@ export class LedgerPersistenceController {
       this.checkRemote();
       return true;
     }
-    this.update({ pending: false, dirty: true, status: result.status, error: result.message, remoteChanged: result.status === 'conflict' || this.snapshot.remoteChanged });
+    if (result.status === 'conflict' && this.discardConflictingCleanup()) return false;
+    this.update({ data: draft.data, pending: false, dirty: true, status: result.status, error: result.message, remoteChanged: result.status === 'conflict' || this.snapshot.remoteChanged });
     return false;
   }
 
@@ -449,6 +467,7 @@ export class LedgerPersistenceController {
       const storage = this.ports.storage();
       if (!storage) throw new Error('Storage unavailable');
       if (storage.getItem(STORAGE_KEY) !== this.draftToken) {
+        if (this.discardConflictingCleanup()) return;
         this.update({ status: 'conflict', error: conflictMessage, remoteChanged: true });
       }
     } catch {

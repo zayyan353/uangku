@@ -1486,29 +1486,28 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Klaim dilepas sistem bila tab penulis ditutup.
 
 - [ ] **MW-164 — Jalur lain yang membaca di dalam kunci lalu menulis** (S–M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
-  MW-162 hanya melindungi kunci catatan. Pola yang sama (baca di dalam Web
-  Lock, bandingkan atau ubah, lalu tulis) masih dipakai di tiga tempat, dan
-  ketiganya baru dibaca dari kode, belum diukur:
-  - simpan kategori dan anggaran (`save` di
-    `src/hooks/useCategorySettings.tsx`);
-  - tambah, hapus, dan ganti nama template (`change` di
-    `src/hooks/useTransactionTemplates.ts`), yang membaca lalu menulis tanpa
-    token;
-  - `exportFullBackup` (`src/lib/persistence.ts`), yang memeriksa token
-    dengan bacaan yang bisa tertinggal, sehingga cadangan lengkap bisa tidak
-    memuat simpanan tab lain yang baru saja terjadi.
-  Pemicunya dua aksi berselang milidetik di dua tab.
-  Terkait: efek pembersihan dompet cash (`removeUnusedCashWallets` di
-  `src/App.tsx`) menulis catatan tanpa aksi pengguna di tiap tab yang memuat
-  catatan berisi dompet cash kosong. Pada build `main` dengan tiga tab, tab
-  penonton kedua berakhir dengan kotak konflik pada 10 dari 20 putaran di
-  Chromium dan 8 dari 20 di Firefox; sisanya menulis byte yang sama lewat
-  bacaan basi. Sesudah perbaikan MW-162, pengujian tiga tab dengan data
-  sintetis mendapati satu dari dua tab penonton menampilkan konflik pada 20
-  dari 20 putaran di setiap mesin (Chromium 154, Firefox 157, WebKit 27.2).
-  Semua catatan dan dompet yang seharusnya dipertahankan tetap ada di
-  ketiga tab pada seluruh 60 putaran. Usul: draf otomatis yang kalah dibuang
-  dan tab memuat isi terbaru.
+  - [x] **a.** Pembersihan dompet cash kosong berjalan otomatis pada setiap
+    tab yang memuat profil tersebut. Jika tab lain lebih dulu menyimpan,
+    buang hanya draf pembersihan yang kalah dan tampilkan catatan terbaru.
+    Draf pengguna yang sedang disimpan atau menunggu pemulihan tetap harus
+    tersedia. Pada build sebelum MW-162, satu tab penonton menampilkan
+    konflik dalam 10/20 putaran Chromium dan 8/20 Firefox. Setelah MW-162,
+    itu terjadi pada 20/20 putaran di masing-masing Chromium, Firefox, dan
+    WebKit. Semua transaksi dan dompet yang harus dipertahankan tetap utuh.
+    Pada perbaikan ini, controller menandai asal draf saat pembersihan
+    dimulai. Jika kalah, tab kembali ke tampilan bersih dan memuat simpanan
+    terbaru ketika tersedia. Galat kuota tetap menawarkan pemulihan.
+    Tes mencakup konflik saat mencoba ulang dan draf pengguna yang masih
+    menunggu atau gagal. Pada uji tiga tab, kedua tab penonton harus dapat
+    melihat transaksi baru dan dompet cash yang masih berisi saldo.
+  - [ ] **b.** Periksa klaim catatan saat membuat cadangan lengkap.
+    `exportFullBackup` membandingkan token di dalam kunci. Jika pembaca
+    masih melihat isi lama, perbandingan itu bisa lulus walaupun tab lain
+    sudah menyimpan. MW-163 sudah melindungi pemulihan jurnal saat ekspor.
+  - [ ] **c.** Ukur penulisan kategori dan anggaran
+    (`useCategorySettings.save`) serta penulisan template
+    (`useTransactionTemplates.change`) saat dua tab antre di CATEGORY_LOCK.
+    Tentukan kebutuhan klaim dari hasil pengukuran di tiap jalur.
 
 **Tindakan pemilik (bukan kode):**
 

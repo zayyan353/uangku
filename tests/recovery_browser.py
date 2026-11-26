@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 from contextlib import contextmanager
+from copy import deepcopy
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -366,6 +367,40 @@ def test_queued_saves_one_winner(browser, output, rounds=QUEUED_SAVE_ROUNDS, see
                   .state.entries.map(entry => entry.note).sort()) === JSON.stringify(expected)""",
                                       arg={'key': KEY, 'expected': sorted(kept)})
         assert persisted_notes(gate) == sorted(kept)
+
+
+def test_concurrent_cash_cleanup(browser, output):
+    """MW-164a: two passive tabs clean the same legacy wallet while retaining the publisher's new entry."""
+    initial = fixture([expense('old')])
+    expected = fixture([*initial['state']['entries'], expense('published', note='Published entry')])
+    expected['state']['wallets'].append({'id': 'cash-used', 'name': 'Keep cash', 'kind': 'cash',
+                                         'currency': 'IDR', 'openingBalance': 500})
+    legacy = deepcopy(expected)
+    legacy['state']['wallets'].append({'id': 'cash-empty', 'name': 'Remove cash', 'kind': 'cash',
+                                       'currency': 'IDR', 'openingBalance': 0})
+    with isolated(browser, initial, output, 'cash-cleanup') as (context, new_page, _):
+        observers = [new_page(), new_page()]
+        publisher = context.new_page()
+        publisher.route('**/synthetic-publisher', lambda route: route.fulfill(content_type='text/html', body=''))
+        publisher.goto(URL.rstrip('/') + '/synthetic-publisher')
+        # Hold the writer lock until both observers have prepared their automatic cleanup.
+        publisher.evaluate("""([name, key, legacy]) => new Promise(held => navigator.locks.request(name,
+          () => new Promise(release => {
+            window.releaseCleanupGate = release;
+            localStorage.setItem(key, JSON.stringify(legacy));
+            held(true);
+          })))""", [LEDGER_LOCK, KEY, legacy])
+        try:
+            for tab in observers:
+                expect(tab.get_by_test_id('save-status')).to_contain_text('Sedang menyimpan')
+        finally:
+            publisher.evaluate('() => window.releaseCleanupGate()')
+        for tab in observers:
+            expect(tab.get_by_test_id('save-status')).to_have_text('Tersimpan di browser')
+            expect(tab.get_by_role('button', name='Ubah Published entry', exact=True)).to_be_visible()
+        for tab in [publisher, *observers]:
+            tab.wait_for_function('key => !localStorage.getItem(key).includes("cash-empty")', arg=KEY)
+            assert stored(tab)['state'] == expected['state']
 
 
 def test_quota_retry(browser, output):
@@ -913,6 +948,7 @@ def main():
         ('stale-view-save-conflicts', test_stale_view_save_conflicts),
         ('stale-restore-observer', test_stale_restore_observer),
         ('queued-saves-one-winner', test_queued_saves_one_winner),
+        ('concurrent-cash-cleanup', test_concurrent_cash_cleanup),
         ('quota-recovery-retry', test_quota_retry),
         ('missing-web-locks', test_no_web_locks),
         ('transaction-draft-close', test_transaction_draft_close),
