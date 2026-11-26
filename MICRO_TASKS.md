@@ -2819,7 +2819,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     *Tes:* modul belum tersedia pada uji awal. Sesudah implementasi 4 kasus
     sintetis lulus, berikut 2.013 tes unit di 80 berkas dan build produksi.
     *Belum terbukti:* pola penamaan lain dari bank dan riwayat pengguna nyata.
-  - [ ] **b.** (S–M) `src/lib/categoryLearning.ts` + tes: untuk catatan belum
+  - [x] **b.** (S–M) `src/lib/categoryLearning.ts` + tes: untuk catatan belum
     dikategorikan yang tidak cocok dengan aturan, ambil paling banyak 5 catatan
     terbaru (180 hari) berkunci merchant sama, berjenis pemasukan atau
     pengeluaran terkonfirmasi, dan sudah berkategori. Bila satu kategori muncul
@@ -2827,6 +2827,17 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     'warung contoh' = Makan & minum". Pengecualiannya sama dengan
     `entryCategorySuggestions` (transfer, penyesuaian, dompet cash, catatan
     arsip).
+    *Selesai:* bila aturan dan konfirmasi bank tidak cocok, pratinjau mencari
+    merchant di riwayat yang memenuhi syarat. Jendela berakhir pada tanggal
+    catatan, termasuk hari itu dan hari ke-180 sebelumnya. Kategori tujuan
+    harus masih tersedia. Kunci merchant, alasan dan jenis `suggestions`
+    hanya ada di hasil pratinjau.
+    *Tes:* sebelum perubahan, 2 dari 5 kasus baru gagal karena saran kosong.
+    Setelahnya 5/5 lulus, seluruh 2.018 tes unit di 81 berkas dan build lulus.
+    Pada pengukuran lokal sintetis, indeks satu merchant dengan 50.000 entri
+    terbentuk dalam 402 ms, dan 1.000 pencarian selesai dalam 9 ms.
+    *Belum terbukti:* waktu pratinjau lengkap pada HP. Label dan pemilihan
+    saran oleh pengguna diuji pada MW-147c.
   - [ ] **c.** (M) Saran itu tampil di "Isi kategori otomatis" berlabel "Saran dari
     riwayat"; pilihan bawaannya tetap "Lewati", sama seperti saran aturan. Tes
     browser di `tests/category_browser.py` atau `tests/bank_auto_browser.py`.

@@ -4,6 +4,7 @@ import { entrySignedAmount, type Entry } from './finance';
 import type { SourceDocument, SourceFact } from './sourceModel';
 import { entryFingerprintVersion, indexBankWording } from './bankWording';
 import { confirmedBankEntryType, interpretBankDescription, type BankDescriptionInterpretation } from './bankDescription';
+import { createHistorySuggester } from './categoryLearning';
 import { archivedReadOnlyEntryIds } from './walletLifecycle';
 
 export function createCategorySuggester(settings: CategorySettings) {
@@ -20,7 +21,7 @@ export function createCategorySuggester(settings: CategorySettings) {
 export function categorySuggestion(text: string, type: Entry['type'], settings: CategorySettings, signedAmount?: number, fingerprintVersion?: SourceFact['fingerprintVersion']): CategoryMatch {
   return createCategorySuggester(settings)(text, type, signedAmount, fingerprintVersion);
 }
-export interface EntryCategorySuggestion { entry: Entry; match: CategoryMatch; bank: BankDescriptionInterpretation; confirmation?: 'movement' | 'income' | 'expense' }
+export interface EntryCategorySuggestion { entry: Entry; match: CategoryMatch; bank: BankDescriptionInterpretation; historyMerchant?: string; confirmation?: 'movement' | 'income' | 'expense' }
 /** Existing confirmed types stay authoritative. The sole reviewed exception is
  * the old ATM movement policy, now explicitly mapped to bank income/expense.
  * Callers exclude archived cash and paired entries using the full wallet state.
@@ -40,8 +41,9 @@ export function entryCategorySuggestions(data: SourceDocument, settings: Categor
   const suggest = createCategorySuggester(settings), wording = indexBankWording(data);
   const cash = new Set(data.state.wallets.filter(wallet => wallet.kind === 'cash').map(wallet => wallet.id));
   const archivedEntries = archivedReadOnlyEntryIds(data);
-  return data.state.entries.flatMap(entry => {
-    if (entry.type === 'transfer' || entry.type === 'adjustment' || cash.has(entry.walletId) || !!entry.toWalletId && cash.has(entry.toWalletId) || archivedEntries.has(entry.id)) return [];
+  const eligible = data.state.entries.filter(entry => !(entry.type === 'transfer' || entry.type === 'adjustment' || cash.has(entry.walletId) || !!entry.toWalletId && cash.has(entry.toWalletId) || archivedEntries.has(entry.id)));
+  let history: ReturnType<typeof createHistorySuggester> | undefined;
+  return eligible.flatMap<EntryCategorySuggestion>(entry => {
     const source = wording.get(entry.id), description = source?.description ?? entry.note;
     const fingerprintVersion = entryFingerprintVersion(entry, source);
     const signedAmount = entrySignedAmount(entry);
@@ -49,7 +51,13 @@ export function entryCategorySuggestions(data: SourceDocument, settings: Categor
     if (!isUncategorized(entry.category) && !confirmation) return [];
     const match = !isUncategorized(entry.category) ? { kind: 'auto' as const, suggestions: [{ category: entry.category, reason: 'Kategori manual dipertahankan', ruleId: 'retained-manual-category' }] }
       : suggest(description, entry.type, signedAmount, fingerprintVersion);
-    if (match.kind === 'none' && !confirmation) return [];
+    if (match.kind === 'none' && !confirmation) {
+      history ??= createHistorySuggester(eligible, row => wording.get(row.id)?.description ?? row.note, settings.names);
+      const learned = history(description, entry.date);
+      if (!learned) return [];
+      return [{ entry, historyMerchant: learned.merchant, bank: interpretBankDescription(description, { signedAmount, fingerprintVersion }),
+        match: { kind: 'suggestions', suggestions: [{ category: learned.category, reason: learned.reason, ruleId: 'merchant-history' }] } }];
+    }
     return [{ entry, match, bank: interpretBankDescription(description, { signedAmount, fingerprintVersion }), ...(confirmation ? { confirmation } : {}) }];
   });
 }
