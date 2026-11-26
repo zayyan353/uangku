@@ -2615,9 +2615,15 @@ run tersusul push yang lebih baru di branch yang sama.
   "low" di `fast-xml-parser` ≤5.11.2. Yang "low" itu tidak terbukti bisa dipicu
   di sini: importer tidak memakai `stopNodes` dan menolak XML tidak valid
   sebelum diurai.
-  - [ ] **a.** (S) Naikkan `fast-xml-parser` ke 5.12.1 dan vite/vitest ke rilis
-    terbaru dalam versi mayor yang sama (saat tinjauan: vite 8.3.5 → 8.3.8,
-    vitest 5.0.5 → 5.1.1; untuk vitest itu rilis minor).
+  - [x] **a.** (S) Perbarui parser XML, Vite, dan Vitest dalam versi mayor yang sama.
+    *Selesai:* `package.json` dan `package-lock.json` mengunci
+    `fast-xml-parser@5.12.1`, `vite@8.4.0`, dan `vitest@5.1.2`.
+    *Tes:* pemeriksaan versi gagal pada pin lama. Setelah `npm ci`, 2.051 tes
+    unit di 88 berkas dan build produksi lulus. Pada build yang sama Chromium
+    meluluskan 29 skenario mata uang/impor, 3 Jago PDF, dan 5 data sumber.
+    `npm audit` melaporkan satu temuan rendah sebelum perubahan dan nol sesudahnya.
+    *Belum terbukti:* tes impor memakai data sintetis. Firefox dan WebKit
+    diperiksa oleh CI.
   - [x] **b.** (S) Nyalakan `noUnusedLocals` dan `noUnusedParameters`.
     *Selesai:* kedua opsi ada di `tsconfig.json`. Sepuluh impor di
     `src/App.tsx`, dua parameter fungsi privat di `src/lib/sourceCommands.ts`
