@@ -117,6 +117,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .section-description { color: #52634f; font-size: 12px; margin: 5px 0 0; line-height: 1.6; }
 .text-link { display: inline-flex; align-items: center; gap: 5px; color: #52634f; border: 0; background: transparent; padding: 4px 0; font-size: 12px; font-weight: 550; text-decoration: none; white-space: nowrap; }
 .text-link svg { width: 13px; height: 13px; }
+.demo-banner .text-link { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
 .dashboard-columns { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 21px; margin-bottom: 25px; align-items: stretch; }
 .wallet-panel { display: flex; flex-direction: column; }
 .wallet-panel .wallet-list { margin-bottom: 16px; }

@@ -1231,11 +1231,15 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *Keputusan:* ambang (mis. 25 entri baru, atau setiap impor).
 
 - [ ] **MW-100 — Penyimpanan kosong menawarkan "Pulihkan cadangan"; status persisten terlihat** (S) *(sebagian)*
-  Profil yang terhapus dibuka sebagai data contoh tanpa petunjuk pemulihan di
-  area utama (pemulihan tetap ada di sidebar dan menu akun). Jawaban
+  Profil yang terhapus dibuka sebagai data contoh. Jawaban
   `navigator.storage.persist()` hanya tampil di jendela Privasi
   (`src/App.tsx:741`, `src/lib/storagePersistence.ts:47-58`).
-  - [ ] **a.** Banner data contoh menambah "Punya file cadangan? Pulihkan cadangan".
+  - [x] **a.** Banner data contoh menampilkan "Punya file cadangan?" dan tombol
+    **Pulihkan cadangan**. Tombol membuka pemilih JSON dan pratinjau yang sama
+    dengan menu. Di Chromium desktop dan ponsel, membatalkan pratinjau
+    mempertahankan isi awal pada profil kosong maupun profil yang gagal dibaca.
+    Mengonfirmasi pemulihan pada profil kosong mengembalikan catatan dari
+    cadangan dan menutup banner contoh. Kedua tes gagal pada build awal.
   - [ ] **b.** Status "penyimpanan persisten: tidak" terlihat di dekat label simpan,
     dengan tautan ke penjelasannya. Jawaban `persist()` di perangkat pemilik
     belum diuji; di browser uji hasilnya "tidak".

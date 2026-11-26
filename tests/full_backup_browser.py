@@ -64,10 +64,10 @@ def raw_pair(page):
     return page.evaluate('keys => keys.map(key => localStorage.getItem(key))', [FINANCE, CATEGORIES])
 
 
-def pick_backup(page, filename, value):
+def pick_backup(page, filename, value, *, button=None):
     # Choosing a JSON file uses the local backup reader; it does not upload a statement.
     with page.expect_file_chooser() as pending:
-        backup_action(page, 'Pulihkan cadangan').click()
+        (button if button is not None else backup_action(page, 'Pulihkan cadangan')).click()
     pending.value.set_files({'name': filename, 'mimeType': 'application/json', 'buffer': value})
 
 
@@ -351,7 +351,11 @@ def round_trip(destination, url, width, *, route=None, verify=None):
     for stored, reason in [(None, r'Di browser ini hanya ada data contoh\.'), ({'app': 'uangku', 'version': 999}, unreadable)]:
         with synthetic_page(browser, url, width, stored, settings, route=route, verify=verify) as other_profile:
             before_other = raw_pair(other_profile)
-            pick_backup(other_profile, 'synthetic-full.json', file_bytes)
+            banner = other_profile.locator('.demo-banner')
+            expect(banner.get_by_text('Punya file cadangan?', exact=True)).to_be_visible()
+            restore = banner.get_by_role('button', name='Pulihkan cadangan', exact=True)
+            expect(restore).to_be_visible()
+            pick_backup(other_profile, 'synthetic-full.json', file_bytes, button=restore)
             dialog = other_profile.get_by_role('dialog', name='Pulihkan cadangan lengkap?', exact=True)
             expect_no_comparison(dialog, reason, backup_forward=stored is not None)
             if stored is not None:
@@ -369,6 +373,11 @@ def round_trip(destination, url, width, *, route=None, verify=None):
             dialog.get_by_role('button', name='Batal', exact=True).click()
             expect(other_profile.get_by_role('dialog')).to_have_count(0)
             assert raw_pair(other_profile) == before_other
+            if stored is None:
+                pick_backup(other_profile, 'synthetic-full.json', file_bytes, button=restore)
+                other_profile.get_by_role('dialog').get_by_role('button', name='Pulihkan semuanya', exact=True).click()
+                expect(banner).to_have_count(0)
+                assert stored_document(other_profile) == semantic_document(json.loads(file_bytes)['ledger'])
     # MW-88a: with a restore journal that is not JSON, "Cadangkan semuanya" answers in plain words, not the
     # parser's, and nothing stored is touched.
     with synthetic_page(browser, url, width, ledger, settings, route=route, verify=verify) as journal_profile:

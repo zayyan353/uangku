@@ -72,10 +72,12 @@ def launch_browser(playwright):
 
 def backup_action(page, name):
     """Backup, restore and privacy buttons; on phones they sit in the account menu."""
-    button = page.get_by_role('button', name=name, exact=True)
+    # The demo banner offers its own restore button outside the navigation.
+    scope = page.locator('.sidebar, .account-panel') if name == 'Pulihkan cadangan' else page
+    button = scope.get_by_role('button', name=name, exact=True)
     if not button.count():
         page.get_by_role('button', name='Menu akun', exact=True).click()
-    return page.get_by_role('button', name=name, exact=True)
+    return button
 
 
 def new_page(context):
