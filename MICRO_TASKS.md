@@ -2981,7 +2981,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   `packages/desktop-client/src/components/reports/spreadsheets/age-of-money-spreadsheet.ts`:
   pemasukan menjadi "ember" berurut tanggal, pengeluaran mengambil dari ember
   tertua, lalu umur 10 pengeluaran terakhir dirata-rata.
-  - [ ] **a.** (S–M) `src/lib/ageOfMoney.ts` + tes, per mata uang. Ember berasal
+  - [x] **a.** (S–M) `src/lib/ageOfMoney.ts` + tes, per mata uang. Ember berasal
     dari pemasukan terkonfirmasi (termasuk pengembalian dana); pengeluaran
     terkonfirmasi (termasuk biaya) mengambil dari ember tertua. Pindah uang
     antar dompet sendiri bermata uang sama tidak dihitung; transfer lintas mata
@@ -2990,6 +2990,27 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     umur dan pengeluaran yang memakainya tidak ikut dirata-rata (tidak
     ditebak). Baris "Perlu dicek" belum ikut. Bila riwayatnya belum cukup,
     hasilnya "belum cukup data", bukan angka.
+    *Selesai:* pustaka FIFO per mata uang menerima tanggal akhir opsional.
+    Umur setiap pengeluaran ditimbang menurut nominal dari tiap pemasukan.
+    Hasil akhir adalah rata-rata umur sepuluh pengeluaran layak terbaru,
+    dibulatkan ke hari terdekat. Biaya pada satu pengeluaran ikut sampel itu.
+    *Keputusan agen:* perlu sepuluh sampel penuh supaya satu atau dua belanja
+    belum menghasilkan angka yang tampak mewakili riwayat. Pengeluaran yang
+    menyentuh saldo awal atau kekurangan dana dilewati. Pemasukan berikutnya
+    menutup defisit dulu. Pokok transfer lintas mata uang mengurangi dana asal;
+    nominal tujuan mulai berumur pada tanggal kredit. Biaya transfer menjadi
+    satu pengeluaran pada tanggal debit. Bila ada posting yang memengaruhi
+    dana ini dan tanggalnya benar-benar belum diketahui, hasilnya belum cukup
+    data karena posisi posting terhadap tanggal akhir juga belum diketahui.
+    Untuk transaksi tanpa jam pada hari yang sama, hitung pemasukan dulu,
+    lalu pengeluaran menurut ID agar urutan impor tidak menentukan hasil;
+    pada satu transfer, pokok keluar mendahului biaya. Ini hanya urutan
+    perhitungan ukuran tersebut.
+    *Tes:* uji awal gagal memuat pustaka yang belum ada. Delapan kasus sintetis
+    lulus, termasuk dua urutan penyimpanan untuk hari yang sama pada batas
+    sepuluh sampel. Seluruh 2.032 tes unit di 83 berkas dan build lulus.
+    *Belum terbukti:* urutan intrahari sesungguhnya saat hanya tanggal yang
+    tersedia. Tampilan kartu menyusul pada MW-154b.
   - [ ] **b.** (S) Satu kartu di Ringkasan, mis. "Umur uang: 23 hari", untuk mata
     uang yang dipilih, dengan penjelasan satu kalimat.
   Aturan transfer lintas mata uang di butir a boleh diubah agen bila hasil tes
