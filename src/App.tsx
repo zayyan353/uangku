@@ -64,6 +64,7 @@ import { createBankEntryPresentationLookup, createBankEntryTitleLookup } from '.
 import { reviewCounts, type ReviewReason } from './lib/reviewStatus';
 import { categoryColorIndex, categoryFoldSummary } from './lib/dashboardView';
 import { deviceDay } from './lib/today';
+import { downloadText } from './lib/downloadText';
 import { currencyFlagEmoji, monthOptions, nextMonth, priorMonth } from './lib/monthOptions';
 import { categoryRenameTargets, categoryUsage, type CategoryRename } from './lib/categoryRename';
 import { greeting, nicknameInitial, NICKNAME_KEY, readNickname, sanitizeNickname, writeNickname } from './lib/nickname';
@@ -72,13 +73,6 @@ const today = () => deviceDay();
 const currencyFlag = currencyFlagEmoji;
 const currencyLabel = (code: Currency) => currencyInfo(code).label;
 const COLORS = ['#e4a06a', '#7da69b', '#a2b96c', '#a0a5d4', '#d7b568', '#d58e9f', '#8db8c9', '#b1b8ae'];
-
-function downloadText(content: string, name: string, type = 'application/json') {
-  const url = URL.createObjectURL(new Blob([content], { type }));
-  const anchor = document.createElement('a');
-  anchor.href = url; anchor.download = name; anchor.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-}
 
 function downloadBackup(content: string, kind: string): string {
   const now = new Date();
