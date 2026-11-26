@@ -2027,13 +2027,17 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     "1 TRY = … IDR") dan peringatan bila kurs berbeda lebih dari 100× dari kurs
     terakhir pasangan itu. Arti kurs yang tersimpan tidak berubah.
 
-- [ ] **MW-118 — Esc selalu menutup dialog** (S)
-  Setelah klik pada teks yang bukan kontrol (judul dialog, paragraf petunjuk)
-  fokus jatuh ke `body` dan Esc tidak lagi menutup dialog
-  (`src/components/Modal.tsx:18-19`). Klik pada label kolom tidak terdampak, dan
-  satu kali Tab memulihkannya. `KERANGKA_HALAMAN.md` 5.9.1 menyatakan Escape
-  menutup jendela. Dengarkan Escape di `document` untuk dialog teratas dan
-  kembalikan fokus ke dialog. Tambah kasus di tes browser.
+- [x] **MW-118 — Esc selalu menutup dialog** (S)
+  *Selesai:* di `src/App.tsx:778`, Esc yang sampai di `document` meminta
+  dialog teratas untuk menutup lewat urutan yang juga dipakai tombol Kembali
+  (`src/lib/dialogHistory.ts:139`). Bila fokus di luar dialog, panel mengambil
+  fokus sebelum menanyakan pembuangan isian (`src/components/Modal.tsx:15`).
+  Membatalkan ganti-nama atau pertanyaan buang-isian tetap mempertahankan form.
+  *Tes:* klik judul lalu Esc meninggalkan 1 dialog pada build awal. Sesudah
+  perbaikan, 5 kasus Chromium lulus, termasuk dialog bertumpuk, fokus setelah
+  Esc, ganti-nama kategori/template dan simpan yang masih berjalan
+  (`tests/recovery_browser.py:629`). Unit 2.008/2.008, build lulus.
+  *Belum terbukti:* Safari pada perangkat Apple dan pembaca layar belum diuji.
 
 - [ ] **MW-119 — Catatan transfer lama tidak melebarkan kolom tanggal** (S)
   Transfer tanpa tanggal per sisi yang tersimpan (data v1 tanpa metadata

@@ -136,7 +136,15 @@ export function createDialogHistory(win: HistoryWindow) {
     schedule();
   }
 
+  function closeTop(): boolean {
+    const top = open.at(-1);
+    if (!top) return false;
+    top.close();
+    return true;
+  }
+
   return {
+    closeTop,
     /** A dialog is on screen. `close` asks it to close the way Escape does and may leave it open. Returns what to call when it is gone. */
     opened(close: () => void): () => void {
       const item = { close };
@@ -167,7 +175,7 @@ export function createDialogHistory(win: HistoryWindow) {
           return;
         }
         where = now.uangkuUnder === token ? 'under' : 'none';
-        open.at(-1)?.close();
+        closeTop();
         schedule();
       } else if (where === 'under' && now.uangkuUnder !== token) where = 'none';
       if (where !== 'under') rest();
