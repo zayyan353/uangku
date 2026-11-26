@@ -1500,10 +1500,14 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     Tes mencakup konflik saat mencoba ulang dan draf pengguna yang masih
     menunggu atau gagal. Pada uji tiga tab, kedua tab penonton harus dapat
     melihat transaksi baru dan dompet cash yang masih berisi saldo.
-  - [ ] **b.** Periksa klaim catatan saat membuat cadangan lengkap.
-    `exportFullBackup` membandingkan token di dalam kunci. Jika pembaca
-    masih melihat isi lama, perbandingan itu bisa lulus walaupun tab lain
-    sudah menyimpan. MW-163 sudah melindungi pemulihan jurnal saat ekspor.
+  - [x] **b.** Ekspor cadangan lengkap memeriksa klaim catatan sesudah
+    pemeriksaan jurnal MW-163. Jika tab lain sudah menyimpan di atas token
+    yang masih dilihat tab ini, aplikasi menunda unduhan. Klaim pemeriksaan
+    langsung dilepas selama kedua kunci profil masih dipegang.
+    Pada baseline `63e93a6`, tes browser mendapati pemberitahuan sukses
+    pada tab yang melihat catatan lama. Tes memeriksa penolakan ekspor
+    sebelum tab menyusul, lalu membaca isi file yang diunduh sesudahnya.
+    Jalur koordinasi kategori, anggaran, dan template diteliti di butir c.
   - [ ] **c.** Ukur penulisan kategori dan anggaran
     (`useCategorySettings.save`) serta penulisan template
     (`useTransactionTemplates.change`) saat dua tab antre di CATEGORY_LOCK.

@@ -25,7 +25,7 @@ from zipfile import ZipFile, ZIP_DEFLATED
 
 ROOT = Path(__file__).resolve().parents[1]
 from browser_support import (backup_action, install_playwright_path, launch_browser,
-                             read_document, stored_document, assert_production_url)
+                             read_document, stored_document, semantic_document, assert_production_url)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
 
@@ -196,9 +196,10 @@ STALE_VIEW = """(key) => {
     if (this === localStorage && name === key) { window.__staleReads++; return frozen; }
     return read.call(this, name);
   };
+  window.__catchUpLedger = () => { Storage.prototype.getItem = read; Storage.prototype.setItem = write; };
   // A tab always sees its own writes: its first write of that key ends the stale view.
   Storage.prototype.setItem = function (name, value) {
-    if (this === localStorage && name === key) { Storage.prototype.getItem = read; Storage.prototype.setItem = write; }
+    if (this === localStorage && name === key) window.__catchUpLedger();
     return write.call(this, name, value);
   };
 }"""
@@ -229,6 +230,33 @@ def test_stale_view_save_conflicts(browser, output):
         assert b.evaluate('window.__staleReads') > 0
         a.reload(wait_until='networkidle')
         assert persisted_notes(a) == ['Stale view A']
+
+
+def test_stale_full_backup(browser, output):
+    """MW-164b: a full backup must include a save already reported successful in another tab."""
+    with isolated(browser, fixture(), output, 'stale-full-backup') as (_, new_page, _):
+        writer, reader = new_page(), new_page()
+        reader.evaluate(STALE_VIEW, KEY)
+        save_expense(writer, note='Saved before export')
+        latest = stored(writer)
+        assert persisted_notes(writer) == ['Saved before export']
+        assert persisted_notes(reader) == []
+        downloads = []
+        reader.on('download', lambda item: downloads.append(item))
+        backup_action(reader, 'Cadangkan semuanya').click()
+        expect(reader.locator('.toast')).to_contain_text('Cadangan lengkap belum dapat dibuat')
+        assert not downloads, 'The trailing tab downloaded an obsolete backup'
+        assert reader.evaluate("localStorage.getItem('uangku:last-backup:v1')") is None
+
+        reader.evaluate("() => { window.__catchUpLedger(); window.dispatchEvent(new Event('focus')); }")
+        expect(reader.get_by_role('button', name='Ubah Saved before export', exact=True)).to_be_visible()
+        with reader.expect_download() as pending:
+            backup_action(reader, 'Cadangkan semuanya').click()
+        expect(reader.locator('.toast')).to_contain_text('Cadangan lengkap diunduh')
+        path = output / 'fresh-full-backup.json'
+        pending.value.save_as(path)
+        assert semantic_document(json.loads(path.read_text(encoding='utf-8'))['ledger']) == latest
+        assert len(downloads) == 1
 
 
 def test_stale_restore_observer(browser, output):
@@ -946,6 +974,7 @@ def main():
         ('stale-form-conflict', test_stale_form),
         ('two-tabs-sync-and-concurrent', test_clean_sync_and_concurrent_forms),
         ('stale-view-save-conflicts', test_stale_view_save_conflicts),
+        ('stale-full-backup', test_stale_full_backup),
         ('stale-restore-observer', test_stale_restore_observer),
         ('queued-saves-one-winner', test_queued_saves_one_winner),
         ('concurrent-cash-cleanup', test_concurrent_cash_cleanup),

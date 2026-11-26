@@ -62,6 +62,7 @@ export type CommitResult =
 
 const unsupportedMessage = 'Browser ini tidak mendukung Web Locks. Perubahan belum tersimpan; unduh pemulihan dan gunakan browser yang mendukungnya.';
 const conflictMessage = 'Data berubah di tab lain atau sejak formulir dibuka. Perubahan lokal belum tersimpan. Unduh pemulihan sebelum memuat data terbaru.';
+const staleBackupMessage = 'Cadangan lengkap belum dapat dibuat. Periksa status penyimpanan dan muat catatan serta kategori terbaru.';
 const unreadableBackupMessage = 'Data asli belum bisa dibaca. Izinkan penyimpanan untuk situs ini, lalu muat catatan terbaru.';
 const profileChangedMessage = 'Catatan atau kategori berubah sejak pratinjau dibuka. Buka kembali cadangan untuk memeriksa ulang.';
 
@@ -345,7 +346,7 @@ export class LedgerPersistenceController {
       if (this.snapshot.blocked || this.snapshot.dirty || this.snapshot.pending || this.snapshot.data !== ledger ||
           storage.getItem(RESTORE_JOURNAL) !== null || storage.getItem(STORAGE_KEY) !== token ||
           storage.getItem(CATEGORY_SETTINGS_KEY) !== expectedCategoryRaw) {
-        throw new Error('Cadangan lengkap belum dapat dibuat. Periksa status penyimpanan dan muat catatan serta kategori terbaru.');
+        throw new Error(staleBackupMessage);
       }
     };
     const exportCurrent = () => {
@@ -358,6 +359,13 @@ export class LedgerPersistenceController {
     if (!locks) return exportCurrent();
     return withProfileLocks(locks, async () => {
       if (!await recoverProfile(storage, locks)) throw new Error(restorePending);
+      // A matching local read can still trail a completed save. Probe the snapshot
+      // token before exporting. Both profile locks stay held through serialization.
+      if (locks.claim) {
+        const release = await locks.claim(await baseClaimName(token));
+        if (!release) throw new Error(staleBackupMessage);
+        release();
+      }
       return exportCurrent();
     });
   };
