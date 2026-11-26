@@ -177,8 +177,14 @@ def run_case(browser, args, output, mobile):
         page.screenshot(path=str(output / f'{label}.png'), full_page=True)
         page.get_by_role('button', name='Pindah uang', exact=True).first.click()
         dlg = page.get_by_role('dialog')
-        dlg.get_by_label('Dompet asal', exact=True).select_option('bank')
-        dlg.get_by_label('Dompet tujuan', exact=True).select_option('try-bank')
+        rate = dlg.get_by_label('Kurs transaksi', exact=True)
+        for source, target, units in [('bank', 'try-bank', 'Jumlah TRY untuk 1 IDR'),
+                                      ('try-bank', 'bank', 'Jumlah IDR untuk 1 TRY')]:
+            dlg.get_by_label('Dompet asal', exact=True).select_option(source)
+            dlg.get_by_label('Dompet tujuan', exact=True).select_option(target)
+            expect(rate).to_have_attribute('placeholder', units)
+            expect(dlg.locator('#fx-input-help')).to_contain_text('tanpa pemisah ribuan')
+            expect(dlg.locator('.fx-section')).not_to_contain_text('16000')
         dlg.get_by_label('Nominal', exact=True).fill('10')
         dlg.get_by_label('Kurs transaksi', exact=True).fill('0')
         expect(dlg.locator('#fx-input-feedback')).to_be_visible()
