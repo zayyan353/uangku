@@ -25,9 +25,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Ambil kode
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Siapkan Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: npm
@@ -39,7 +39,7 @@ jobs:
       - name: Buat build produksi
         run: npm run build
       - name: Siapkan Python untuk regresi browser
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
       - name: Pasang browser pengujian
@@ -98,7 +98,7 @@ jobs:
         # langkah berikutnya mencatat peringatan supaya kandidat tanpa bukti tetap terlihat.
         timeout-minutes: 5
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: browser-evidence
           if-no-files-found: warn
@@ -137,9 +137,9 @@ jobs:
         browser: [firefox, webkit]
     steps:
       - name: Ambil kode
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - name: Siapkan Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: npm
@@ -149,7 +149,7 @@ jobs:
       - name: Buat build produksi
         run: npm run build
       - name: Siapkan Python untuk regresi browser
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: '3.12'
       - name: Pasang browser pengujian
@@ -239,7 +239,7 @@ jobs:
         # Sama seperti di job Chromium: dibatasi waktunya dan tidak menggagalkan job.
         timeout-minutes: 5
         continue-on-error: true
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: browser-evidence-${{ matrix.browser }}
           if-no-files-found: warn
@@ -257,7 +257,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Ambil kode
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           persist-credentials: false
       - name: Periksa workflow dengan zizmor
