@@ -1,4 +1,4 @@
-import Modal, { ModalOpenedContext } from './components/Modal';
+import Modal, { ModalConflictContext, ModalOpenedContext } from './components/Modal';
 import StartOwnModal from './components/StartOwnModal';
 import TransactionModal, { type TxMode, type EntrySaveOptions } from './components/TransactionModal';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
@@ -207,14 +207,14 @@ export default function App() {
     try {
       const checked = prepareBackup({ ...data, state: next }).data;
       const ok = await persistCandidate(checked, { expectedData: data, expectedToken });
-      if (!ok) notifyError('Perubahan belum tersimpan. Pilihan unduh dan coba simpan lagi ada di kotak merah di bagian atas halaman.');
+      if (!ok) notifyError('Perubahan belum tersimpan. Periksa pemberitahuan penyimpanan untuk melindungi pekerjaan lokal.');
       return ok;
     } catch (reason) { notifyError(reason instanceof Error ? reason.message : 'Perubahan belum bisa disimpan.'); return false; }
   };
   async function saveDocument(next: StoredData, expectedToken = ledger.revisionToken): Promise<boolean> {
     try {
       const ok = await persistCandidate(next, { expectedData: data, expectedToken });
-      if (!ok) notifyError('Perubahan belum tersimpan. Pilihan unduh dan coba simpan lagi ada di kotak merah di bagian atas halaman.');
+      if (!ok) notifyError('Perubahan belum tersimpan. Periksa pemberitahuan penyimpanan untuk melindungi pekerjaan lokal.');
       return ok;
     } catch (error) { notifyError(error instanceof Error ? error.message : 'Perubahan belum dapat disimpan.'); return false; }
   }
@@ -861,16 +861,34 @@ export default function App() {
     {toast.action && <button type="button" className="toast-action" onClick={() => { const run = toast.action!.run; setToast(null); run(); }}>{toast.action.label}</button>}
     <button type="button" aria-label="Tutup pemberitahuan" onClick={dismissToast}><X size={15} /></button>
   </div>;
+  const conflictInForm = ledger.status === 'conflict' && !!(txModal || walletModal || categoryAutomation || currencyManager);
+  function confirmReload() {
+    setConfirm({
+      title: 'Muat catatan terbaru?',
+      text: ledger.dirty
+        ? 'Unduh pekerjaan lokal terlebih dahulu jika masih diperlukan. Setelah dikonfirmasi, tampilan diganti dengan data browser terbaru.'
+        : 'Uangku akan mencoba membaca kembali catatan di penyimpanan browser.',
+      label: 'Muat catatan terbaru', danger: ledger.dirty,
+      action: () => {
+        if (!ledger.reloadLatest()) return;
+        setTxModal(null); setWalletModal(null); setCategoryAutomation(null); setCurrencyManager(null);
+      },
+    });
+  }
+  const saveProblem = (ledger.dirty || storageError || blocked) && <div className={`notice save-problem ${ledger.dirty || storageError ? 'error' : ''}`} role="status" data-testid="save-status">
+    <strong>{ledger.label}</strong>{storageError && <span>{storageError}</span>}
+    {(ledger.dirty || blocked) && <div className="save-problem-actions">
+      <button type="button" className="button secondary small" onClick={() => backupCurrent(true)}>Unduh pekerjaan yang belum tersimpan</button>
+      <button type="button" className="button secondary small" disabled={ledger.pending || !ledger.supported || !ledger.dirty} onClick={() => void retryDraft()}>Coba simpan lagi</button>
+      <button type="button" className="button secondary small" disabled={ledger.pending} onClick={confirmReload}>Muat catatan terbaru</button>
+    </div>}
+  </div>;
   return <CategorySettingsContext.Provider value={categoryPreferences.settings}><ModalOpenedContext.Provider value={dismissPreviousSuccess}><div className="app-shell">
     <AppSidebar initial={avatarInitial} page={page} pendingCount={pendingCount} lastBackupText={lastBackupText} onNavigate={navigate} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} />
     <main className="main-content"><header className="topbar"><div className="breadcrumb"><span className="breadcrumb-root">Ruang pribadi</span><ChevronRight className="breadcrumb-separator" size={13} aria-hidden="true" /><strong>{NAVIGATION.find(n => n.page === page)?.label}</strong></div><div className="topbar-tools"><ThemePicker onNotice={notify} />{ledger.dirty || storageError || blocked ? <span className="save-pill problem" title={ledger.label} aria-hidden="true"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span> : <span className={`save-pill${sampleOnly ? ' demo' : ''}`} title={sampleOnly ? 'Data contoh: belum ada catatanmu sendiri yang disimpan' : ledger.label} role="status" data-testid="save-status"><span className="status-dot" /><span className="save-pill-text">{sampleOnly ? 'Data contoh' : ledger.label}</span></span>}<button type="button" className="local-indicator" title="Privasi dan cadangan" onClick={() => setPrivacyOpen(true)}><span className="status-dot" /> Lokal & pribadi</button><AccountMenu nickname={nickname} initial={avatarInitial} onNicknameChange={changeNickname} lastBackupText={lastBackupText} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} /></div></header>
       <div className="page-content"><div className="page-header"><div>{page === 'overview' && <div className="eyebrow">SEDIKIT DICATAT, BANYAK TERBANTU</div>}<h1 className="page-title">{titles[page][0]} {page === 'overview' && <span className="greeting-leaf">✳</span>}</h1><p className="page-subtitle">{titles[page][1]}</p></div><div className="page-actions">{page === 'wallets' ? <button className="button primary" onClick={() => openWallet('new')}><Plus size={18} /> Tambah dompet</button> : page === 'import' ? <><button className="button ghost small import-setting" onClick={openCurrencyManager}>Kelola mata uang</button><button className="button ghost small import-setting" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></> : <><button className="button secondary" onClick={() => openTx('transfer')}><ArrowLeftRight size={17} /> Pindah uang</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></>}</div></div>
       {activeState.wallets.some(wallet => undatedWallets.has(wallet.id)) && <div className="notice warning">Ada tanggal posting yang belum diketahui. Saldo aktual dan laporan periode terkait belum dapat dianggap lengkap; nilai tersebut tetap ada pada saldo seluruh catatan.</div>}
-      {(ledger.dirty || storageError || blocked) && <div className={`notice save-problem ${ledger.dirty || storageError ? 'error' : ''}`} role="status" data-testid="save-status"><strong>{ledger.label}</strong>{storageError && <span>{storageError}</span>}
-        {(ledger.dirty || blocked) && <div className="save-problem-actions"><button className="button secondary small" onClick={() => backupCurrent(true)}>Unduh pekerjaan yang belum tersimpan</button>
-          <button className="button secondary small" disabled={ledger.pending || !ledger.supported || !ledger.dirty} onClick={() => void retryDraft()}>Coba simpan lagi</button>
-          <button className="button secondary small" disabled={ledger.pending} onClick={() => setConfirm({ title: 'Muat catatan terbaru?', text: ledger.dirty ? 'Unduh pekerjaan lokal terlebih dahulu jika masih diperlukan. Setelah dikonfirmasi, tampilan diganti dengan data browser terbaru.' : 'Uangku akan mencoba membaca kembali catatan di penyimpanan browser.', label: 'Muat catatan terbaru', danger: ledger.dirty, action: () => { if (ledger.reloadLatest()) { setTxModal(null); setWalletModal(null); } } })}>Muat catatan terbaru</button></div>}
-      </div>}
+      {!conflictInForm && saveProblem}
       {!phoneOverview && banners}
       {page !== 'import' && !isReviewQueue && <div className="currency-toolbar"><div className="currency-tabs tab-group" role="group" aria-label="Mata uang">{shownCurrencyTabs.map(c => <button key={c.code} className={`currency-tab ${currency === c.code ? 'active' : ''}`} onClick={() => setCurrency(c.code)} aria-label={`${c.code === 'TRY' ? 'TL' : c.code} ${c.label}`} aria-pressed={currency === c.code}>{currencyFlag(c.code) && <span className="currency-flag" aria-hidden="true">{currencyFlag(c.code)}</span>}<span className="currency-code">{c.code === 'TRY' ? 'TL' : c.code}</span><span className="currency-label">{c.label}{!visibleCurrencies.includes(c.code) ? ' · riwayat' : ''}</span></button>)}</div>{!phoneOverview && currencyManageButton}{!phoneOverview && monthControl}</div>}
       {phoneOverview && balanceCard}
@@ -905,12 +923,14 @@ export default function App() {
     </main>
     <MobileNav page={page} pendingCount={pendingCount} onNavigate={navigate} onRecord={() => openTx('expense')} />
     <input ref={restoreRef} type="file" accept=".json,application/json" aria-label="File cadangan Uangku" hidden onChange={e => void restore(e.target.files?.[0])} />
+    <ModalConflictContext.Provider value={conflictInForm ? saveProblem : null}>
     {walletModal && <WalletEditor prompt={walletPrompt} key={walletModal === 'new' ? 'new' : walletModal.id} existing={walletModal === 'new' ? undefined : walletModal} defaultCurrency={visibleCurrencies.includes(currency) ? currency : visibleCurrencies[0]} currencies={visibleCurrencies} usage={walletModal === 'new' || !state.wallets.some(wallet => wallet.id === walletModal.id) ? undefined : walletUsage(data, walletModal.id)} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported || walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id))} disabledReason={ledger.dirty || blocked || !ledger.supported ? 'Penyimpanan belum siap. Selesaikan pemulihan atau konflik pada status penyimpanan dahulu; isian tetap dipertahankan.' : walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id)) ? 'Dompet berubah, dihapus, atau diarsipkan di tab lain. Tutup untuk membuka daftar terbaru.' : ''} onSave={saveWallet} onClose={() => { if (!mutationInFlight.current) setWalletModal(null); }} onArchive={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'archive', walletEditorBase.current!)} onManageCurrencies={walletModal === 'new' ? () => { if (mutationInFlight.current) return; resumeWalletForm.current = true; setWalletModal(null); openCurrencyManager(); } : undefined} onDelete={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'delete', walletEditorBase.current!)} />}
     {txModal && <TransactionModal receipt={toast?.inTransactionForm ? notification : null} data={data} state={state} onSaveTemplate={transactionTemplates.add} onRemoveTemplate={transactionTemplates.remove} onRenameTemplate={transactionTemplates.rename} templates={transactionTemplates.templates} templatesError={transactionTemplates.error} undatedWallets={undatedWallets} initialMode={txModal.type} initialWallet={txModal.walletId} existing={txModal.existing} disabled={ledger.pending} onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined} onSave={saveEntry} onClose={() => { if (!mutationInFlight.current) setTxModal(null); }} balanceNeedsRecovery={ledger.dirty || blocked} onBalanceMatched={walletName => { if (mutationInFlight.current) return; setTxModal(null); notify(`Saldo ${walletName} cocok dengan catatan. Tidak ada yang perlu dicatat.`); }} onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined} />}
     {amountDetail && <AmountDetailModal entry={amountDetail} state={state} data={data} onClose={() => setAmountDetail(null)} onEdit={isCashLinkedEntry(state, amountDetail) || readOnlyEntryIds.has(amountDetail.id) ? undefined : () => { const entry = amountDetail; setAmountDetail(null); editEntry(entry); }} />}
     {currencyManager && <CurrencyManager data={currencyManager.data} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported} onSave={saveCurrencyList} onView={code => { resumeWalletForm.current = false; setCurrency(code); setCurrencyManager(null); navigate('overview'); }} onClose={() => { if (!mutationInFlight.current) setCurrencyManager(null); }} />}
     {categoryManager && <CategoryManager usage={categoryUsageNow} settings={categoryManager.settings} budgets={categoryManager.budgets} budgetsError={categoryManager.budgetsError} currencies={visibleCurrencies} currency={currency} notice={categoryPreferences.error || (categoryPreferences.packAdded || categoryPreferences.packUpdated ? `${categoryPreferences.packAdded} kata kunci tambahan aktif dan ${categoryPreferences.packUpdated} pemetaan bawaan disesuaikan. Kategori dan aturan pribadi dipertahankan.` : undefined)} onSave={saveCategorySettings} onClose={() => setCategoryManager(null)} />}
     {categoryAutomation && <CategoryAutomation data={categoryAutomation.data} disabled={ledger.dirty || blocked || !ledger.supported} onApply={applyAutomaticCategories} onClose={() => { if (!mutationInFlight.current) setCategoryAutomation(null); }} />}
+    </ModalConflictContext.Provider>
     {cashArchiveOpen && <CashArchive data={data} onClose={() => setCashArchiveOpen(false)} />}
     {privacyOpen && <PrivacyNotice persistence={persistence} usage={storageUsage} onClose={() => setPrivacyOpen(false)} />}
     {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={walletIds => void finishStartOwn(demoReview, undefined, false, walletIds)} />}

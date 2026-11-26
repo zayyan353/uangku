@@ -2051,10 +2051,18 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
 
 - [ ] **MW-120 — Konflik dua tab saat form terbuka**
   Form yang dibuka di tab B sebelum tab A menyimpan selalu gagal disimpan; kotak
-  pemulihan yang ditunjuk toast berada di bawah latar dialog; setelah dialog
+  pemulihan dulu berada di bawah latar dialog (diperbaiki pada a); setelah dialog
   ditutup, **Coba simpan lagi** aktif tetapi tidak mengubah apa pun dan tanpa
   pesan. Tidak ada data yang tertimpa dan unduhan pemulihan ditawarkan.
-  - [ ] **a.** (S) Tampilkan pemberitahuan konflik dan aksinya di dalam dialog.
+  - [x] **a.** (S) Tampilkan pemberitahuan konflik dan aksinya di dalam dialog.
+    *Selesai:* panel konflik mengikuti form transaksi, dompet, mata uang atau
+    pratinjau kategori yang terbuka (`src/App.tsx:864–885`). Unduh draf atau
+    minta muat ulang dari sana. Membatalkan konfirmasi mempertahankan isian.
+    *Tes:* kasus dua tab gagal menemukan panel dalam form sebelum perbaikan.
+    Sesudahnya tiga kasus pemulihan dan dua kasus kategori lulus di Chromium,
+    termasuk pemeriksaan draf unduhan dan data tab yang sudah tersimpan.
+    Lokal: 2.008 tes unit dan build produksi lulus.
+    *Belum terbukti:* HP fisik dan pembaca layar.
   - [ ] **b.** (S) Pada status konflik, ganti **Coba simpan lagi** dengan penjelasan.
   - [ ] **c.** (M) — **butuh keputusan** Untuk entri baru, terapkan ulang perintah
     tambah ke data terbaru lewat Web Lock dan validasi yang sama. Perilaku sekarang
