@@ -1,5 +1,7 @@
 import { currencyDigits } from './currencyCatalog';
-import type { Currency } from './finance';
+import { typeLabels } from './entryTypeLabels';
+import { entrySignedAmount, type Currency, type Entry, type Wallet } from './finance';
+import { entryPostings, type PostingContext } from './transferPostings';
 
 /** One history row, already resolved to display text by the caller. */
 export interface HistoryCsvRow {
@@ -14,6 +16,35 @@ export interface HistoryCsvRow {
 }
 
 export const HISTORY_CSV_HEADER = ['Tanggal', 'Dompet', 'Jenis', 'Kategori', 'Nominal', 'Mata uang', 'Keterangan'];
+
+interface HistoryCsvOptions {
+  currency?: Currency;
+  walletId?: string;
+  month?: string;
+  postingContext?: PostingContext;
+  title: (entry: Entry) => string;
+}
+
+/** Matching history entries can have two wallet postings, in different currencies or months. */
+export function historyCsvRows(entries: readonly Entry[], wallets: readonly Wallet[], options: HistoryCsvOptions): HistoryCsvRow[] {
+  const byId = new Map(wallets.map(wallet => [wallet.id, wallet]));
+  const rows: HistoryCsvRow[] = [];
+  for (const entry of entries) {
+    const note = options.title(entry);
+    for (const posting of entryPostings(entry, options.postingContext)) {
+      if (posting.role === 'fee') continue;
+      const wallet = byId.get(posting.walletId)!;
+      if (options.currency && wallet.currency !== options.currency) continue;
+      if (options.walletId && wallet.id !== options.walletId) continue;
+      if (options.month && posting.date && !posting.date.startsWith(options.month)) continue;
+      // The sending wallet pays the transfer fee together with the principal.
+      const amountMinor = posting.role === 'source' ? entrySignedAmount(entry) : posting.signedAmount;
+      rows.push({ date: posting.date ?? '', wallet: wallet.name, type: typeLabels[entry.type], category: entry.category,
+        amountMinor, currency: wallet.currency, note });
+    }
+  }
+  return rows;
+}
 
 /**
  * Plain decimal with the currency's own fraction digits and a dot separator,

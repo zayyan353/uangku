@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import copy
+import csv
 import json
 import os
 from pathlib import Path
@@ -490,6 +491,35 @@ def scoped_activity(case):
     case.assert_unchanged()
 
 
+def transfer_csv(case):
+    page = case.page
+    nav(page, 'Transaksi')
+    wallets = page.get_by_label('Dompet riwayat', exact=True)
+    page.get_by_label('Filter jenis transaksi', exact=True).select_option('transfer')
+
+    def check_export(expected):
+        with page.expect_download() as pending:
+            page.get_by_role('button', name='Unduh CSV', exact=True).click()
+        with pending.value.path().open(encoding='utf-8-sig', newline='') as downloaded:
+            rows = list(csv.DictReader(downloaded))
+        actual = [(row['Keterangan'], row['Dompet'], row['Nominal'], row['Mata uang']) for row in rows]
+        assert sorted(actual) == sorted(expected), actual
+        case.assert_unchanged()
+
+    internal_out = ('Synthetic flow paired', 'Synthetic bank alpha', '-42.00', 'TRY')
+    internal_in = ('Synthetic flow paired', 'Synthetic ewallet', '40.00', 'TRY')
+    fx_out = ('Synthetic flow fx', 'Synthetic bank alpha', '-42.00', 'TRY')
+    fx_in = ('Synthetic flow fx', 'Synthetic dollar bank', '10.00', 'USD')
+    check_export([internal_out, internal_in, fx_out])
+    wallets.select_option('bank')
+    check_export([internal_out, fx_out])
+    wallets.select_option('digital')
+    check_export([internal_in])
+    page.get_by_role('button', name=re.compile('USD.*Dolar AS')).click()
+    wallets.select_option('usd')
+    check_export([fx_in])
+
+
 def fx(case):
     case.totals(0, 4_200, 10_000, 5_800)
     case.scope('bank')
@@ -720,6 +750,8 @@ def cases():
         toWalletId='usd', toAmount=1_000, fee=200, rate=.25)],
         [wallet(), wallet('usd', 'Synthetic dollar bank', currency='USD', opening=2_000)],
         metadata([transfer_context('fx')]))
+    csv_transfers = document(internal['state']['entries'] + foreign['state']['entries'],
+        internal['state']['wallets'] + [foreign['state']['wallets'][1]])
     future = ordinary_fixture()
     future['state']['entries'].append(entry('future', 9_000, 'income', date='2026-11-01'))
     archived_cash = document([entry('bank-in', 1_200, 'income'),
@@ -742,6 +774,7 @@ def cases():
         ('split-date-internal-net-bridge', {'data': split}, split_dates),
         ('dashboard-scoped-activity', {'data': activity}, scoped_activity),
         ('fx-currency-scoped-principal', {'data': foreign}, fx),
+        ('history-transfer-csv-wallet-currency', {'data': csv_transfers}, transfer_csv),
         ('unknown-posting-date-incomplete', {'data': unknown}, unknown_dates),
         ('future-month-not-started', {'data': future}, future_month),
         ('cash-archive-excluded-preserved', {'data': archived_cash}, cash_archive),

@@ -48,8 +48,7 @@ import { HistoryFilters, type HistorySort } from './components/HistoryFilters';
 import TransactionTable from './components/TransactionTable';
 import AmountDetailModal from './components/AmountDetailModal';
 import WalletsPage, { WalletSymbol, kindLabel } from './components/WalletsPage';
-import { typeLabels } from './lib/entryTypeLabels';
-import { historyCsv, type HistoryCsvRow } from './lib/csvExport';
+import { historyCsv, historyCsvRows } from './lib/csvExport';
 import { requestPersistentStorage, type PersistenceStatus } from './lib/storagePersistence';
 import { LAST_BACKUP_KEY, REMINDER_DISMISSED_KEY, backupReminderReason, dismissReminder, lastBackupLabel, ledgerFingerprint, readLastBackup, readReminderDismissed, recordBackup } from './lib/backupReminder';
 import ThemePicker from './components/ThemePicker';
@@ -398,20 +397,14 @@ export default function App() {
   function downloadHistoryCsv() {
     // Every row matching the current filters, not only the visible page.
     const presentation = createBankEntryPresentationLookup(data);
-    const walletName = (id?: string) => state.wallets.find(wallet => wallet.id === id)?.name ?? '';
-    const rows: HistoryCsvRow[] = allTransactions.map(entry => ({
-      date: entry.date,
-      wallet: entry.type === 'transfer' ? `${walletName(entry.walletId)} → ${walletName(entry.toWalletId)}` : walletName(entry.walletId),
-      type: typeLabels[entry.type],
-      category: entry.category,
-      // Expenses are stored positive; income and transfers stay positive; other kinds are already signed.
-      amountMinor: entry.type === 'expense' ? -entry.amount : entry.amount,
-      currency: state.wallets.find(wallet => wallet.id === entry.walletId)?.currency ?? currency,
-      note: presentation(entry).title,
-    }));
+    const rows = historyCsvRows(allTransactions, state.wallets, {
+      currency: isReviewQueue ? undefined : currency, walletId: validHistoryWallet,
+      month: !isReviewQueue && historyPeriod === 'month' ? month : undefined,
+      postingContext, title: entry => presentation(entry).title,
+    });
     const scope = isReviewQueue ? 'perlu-dirapikan' : `${currency}-${historyPeriod === 'all' ? 'semua' : reportMonth.replace(/\s+/g, '-').toLowerCase()}`;
     downloadText(`\ufeff${historyCsv(rows)}`, `uangku-riwayat-${scope}-${today()}.csv`, 'text/csv;charset=utf-8');
-    notify(`${rows.length} transaksi diunduh sebagai CSV.`);
+    notify(`${allTransactions.length} transaksi diunduh sebagai CSV.`);
   }
   const selectedSet = useMemo(() => new Set(selectedEntryIds), [selectedEntryIds]);
   const selectedEntries = allTransactions.filter(e => selectedSet.has(e.id) && canCategorize(e) && !isCashLinkedEntry(state, e) && !readOnlyEntryIds.has(e.id));
