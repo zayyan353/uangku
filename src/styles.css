@@ -107,8 +107,8 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .stat-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; position: relative; min-height: 192px; }
 .stat-icon { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; margin-bottom: 14px; background: var(--icon-surface, #f0f5e8); color: var(--text-muted); }
 .stat-icon svg { width: 17px; height: 17px; }
-.stat-icon.income { background: var(--success-tint, #eff5e6); color: var(--success-text); }
-.stat-icon.expense { background: var(--expense-icon-surface, #fbefe6); color: var(--expense-text); }
+.stat-icon.income { background: var(--success-tint, #eff5e6); color: var(--entry-income-text); }
+.stat-icon.expense { background: var(--expense-icon-surface, #fbefe6); color: var(--entry-expense-text); }
 .stat-label { color: var(--text-muted); font-size: 13px; margin: 0 0 8px; }
 .stat-value { color: #2e4534; font-size: clamp(20px, 1.95vw, 28px); letter-spacing: -.7px; font-weight: 620; display: block; line-height: 1.2; margin: 0 0 9px; overflow-wrap: break-word; font-variant-numeric: tabular-nums; }
 .stat-foot { font-size: 11px; color: var(--text-muted); margin: 0; line-height: 1.5; }
@@ -167,19 +167,19 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .transaction-cell { display: flex; align-items: center; gap: 10px; min-width: 165px; }
 .transaction-icon { width: 33px; height: 33px; border-radius: 11px; background: var(--icon-surface, #f3f1e9); color: var(--text-muted); display: grid; place-items: center; flex-shrink: 0; }
 .transaction-icon svg { width: 15px; height: 15px; }
-.transaction-icon.expense { background: var(--expense-icon-surface, #f3f1e9); color: var(--expense-text); }
-.transaction-icon.income { background: var(--success-tint, #edf3e7); color: var(--success-text); }
-.transaction-icon.transfer { background: var(--transfer-icon-surface, #eaf0f5); color: var(--info-text); }
-.transaction-icon.unreviewed { background: var(--unreviewed-icon-surface, #fcf1dc); color: var(--warning-text); }
-.transaction-icon.adjustment { background: var(--adjustment-icon-surface, #f0edf7); color: var(--purple-text); }
+.transaction-icon.expense { background: var(--expense-icon-surface, #f3f1e9); color: var(--entry-expense-text); }
+.transaction-icon.income { background: var(--success-tint, #edf3e7); color: var(--entry-income-text); }
+.transaction-icon.transfer { background: var(--transfer-icon-surface, #eaf0f5); color: var(--entry-transfer-text); }
+.transaction-icon.unreviewed { background: var(--unreviewed-icon-surface, #fcf1dc); color: var(--entry-unreviewed-text); }
+.transaction-icon.adjustment { background: var(--adjustment-icon-surface, #f0edf7); color: var(--entry-adjustment-text); }
 .transaction-title { display: block; color: #4a5d43; font-size: 12px; font-weight: 590; max-width: 245px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .transaction-note { font-size: 11px; color: var(--text-muted); margin-top: 4px; display: block; max-width: 230px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .badge { display: inline-flex; align-items: center; justify-content: center; padding: 5px 8px; border-radius: 6px; font-size: 11px; line-height: 1.2; font-weight: 500; white-space: nowrap; background: var(--icon-surface, #f3f5ed); color: var(--text-muted); }
-.badge.expense { background: var(--expense-surface); color: var(--expense-text); }
-.badge.income { background: var(--success-surface); color: var(--success-text); }
-.badge.transfer { background: var(--info-surface); color: var(--info-text); }
-.badge.adjustment { background: var(--purple-surface); color: var(--purple-text); }
-.badge.unreviewed { background: var(--unreviewed-icon-surface, #fcf1d9); color: var(--warning-text); }
+.badge.expense { background: var(--expense-surface); color: var(--entry-expense-text); }
+.badge.income { background: var(--success-surface); color: var(--entry-income-text); }
+.badge.transfer { background: var(--info-surface); color: var(--entry-transfer-text); }
+.badge.adjustment { background: var(--purple-surface); color: var(--entry-adjustment-text); }
+.badge.unreviewed { background: var(--unreviewed-icon-surface, #fcf1d9); color: var(--entry-unreviewed-text); }
 .amount-positive { color: var(--text-muted) !important; font-weight: 600; white-space: nowrap; }
 .amount-negative { color: #606f52 !important; font-weight: 600; white-space: nowrap; }
 .pending-banner { border: 1px solid #ece6c9; border-radius: 13px; display: flex; align-items: center; gap: 11px; color: var(--warning-text); background: var(--pending-surface, #fcf9ec); padding: 13px 15px; margin-bottom: 20px; font-size: 13px; line-height: 1.6; }
@@ -847,6 +847,11 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
 /* Appearance is independent of ledger data. Native controls use the same scheme. */
 :root {
   color-scheme: light;
+  --entry-income-text: var(--readable-positive);
+  --entry-expense-text: #793e26;
+  --entry-transfer-text: #355676;
+  --entry-adjustment-text: #62487d;
+  --entry-unreviewed-text: #6b4a12;
   --surface: #ffffff;
   --surface-raised: #f2f5eb;
   --text: #263c33;
@@ -872,6 +877,11 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
 }
 html[data-theme="dark"] {
   color-scheme: dark;
+  --entry-income-text: var(--success-text);
+  --entry-expense-text: var(--expense-text);
+  --entry-transfer-text: var(--info-text);
+  --entry-adjustment-text: var(--purple-text);
+  --entry-unreviewed-text: var(--warning-text);
   /* Components retain their individual light tints and share these dark colors. */
   --icon-surface: var(--surface-raised);
   --success-tint: var(--success-surface);

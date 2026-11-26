@@ -527,11 +527,21 @@ perubahan tampilan yang disengaja, periksa gambar beda dan catat hasilnya.
   per OS. Pilih: (a) self-host Inter variable (woff2, tetap offline) atau
   (b) pakai 400/500/600/700 saja. *Keputusan agen saat butir ini dijadwalkan.*
 
-- [ ] **MW-73 — Warna semantik badge & ikon di tema terang**
-  Di terang, teks semua badge/ikon (masuk, keluar, transfer, penyesuaian, belum
-  dirapikan) sama `#52634f`; hanya latar pucatnya yang beda, sulit dibedakan
-  sekilas. Tema gelap sudah punya warna berbeda. Beri warna teks semantik di
-  terang (kontras ≥ 4,5:1).
+- [x] **MW-73 — Warna semantik badge & ikon di tema terang**
+  Sebelum MW-73, lima jenis transaksi memakai warna teks `#52634f` yang sama
+  pada badge dan ikon di tema terang. Warna semantik di tema terang perlu
+  mencapai rasio kontras minimal 4,5:1 terhadap latar masing-masing.
+  *Selesai:* lima jenis transaksi memakai warna teks tersendiri pada badge,
+  ikon riwayat dan ikon Ringkasan (`src/styles.css:850`). Warna ikon rekening
+  tetap mengikuti jenis dompet. Latar dan warna pada tema gelap dipertahankan.
+  *Tes:* kasus tema terang di `tests/theme_browser.py` awalnya gagal karena
+  kelima warna teks sama. Sesudah perubahan, rasio kontras terendah dari
+  badge dan ikon terhadap latarnya 6,62:1. Dari 16 tangkapan produksi,
+  8/8 gelap identik. Pada 3/8 tangkapan terang, 710 piksel berubah di dalam
+  batas ikon dan badge transaksi. Semua piksel di luarnya identik. Tema
+  23/23, UX 21/21, 2.051 tes unit di 88 berkas dan build produksi lulus.
+  *Belum terbukti:* keterbedaan warna pada perangkat fisik dan dengan gangguan
+  penglihatan warna. Label jenis transaksi tetap tersedia.
 
 - [ ] **MW-74 — Satukan warna teks tema terang**
   ±20 hijau tua yang hampir sama untuk judul/nilai (`#203c2f`, `#2e4534`,

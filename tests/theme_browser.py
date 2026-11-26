@@ -343,9 +343,15 @@ def icon_fixture():
     return compact(data)
 
 
-def dark_icon_colors(case):
+def luminance(color):
+    red, green, blue = [int(value) / 255 for value in re.findall(r'\d+', color)]
+    linear = [v / 12.92 if v <= .04045 else ((v + .055) / 1.055) ** 2.4 for v in (red, green, blue)]
+    return sum(v * weight for v, weight in zip(linear, (.2126, .7152, .0722)))
+
+
+def semantic_icon_colors(case, theme):
     case.goto()
-    case.resolved('dark', 'dark')
+    case.resolved(theme, theme)
     page = case.page
 
     def colors(selector):
@@ -361,11 +367,37 @@ def dark_icon_colors(case):
     types = ('income', 'expense', 'transfer', 'adjustment', 'unreviewed')
     rows = {kind: colors('.transaction-icon.' + kind) for kind in types}
     pairs = [neutral, *rows.values()]
-    for component in (0, 1):
+    for component in ((0, 1) if theme == 'dark' else (0,)):
         assert len({pair[component] for pair in pairs}) == len(pairs), f'Semantic icon colors: {rows}, neutral: {neutral}'
-    assert rows['income'] == stats['income']
-    assert rows['expense'] == stats['expense'] == ewallet
-    assert rows['transfer'] == bank
+    assert rows['income'][0] == stats['income'][0]
+    assert rows['expense'][0] == stats['expense'][0]
+    badge = page.locator('.badge.unreviewed').first
+    expect(badge).to_be_visible()
+    # The history page shows the unreviewed badge. Exercise the other badge styles
+    # in that same table cell without changing the transaction or its category.
+    badges = badge.evaluate('''(el, types) => {
+      const sample = el.cloneNode(false);
+      el.after(sample);
+      try {
+        return Object.fromEntries(types.map(type => {
+          sample.className = 'badge ' + type;
+          const style = getComputedStyle(sample);
+          return [type, [style.color, style.backgroundColor]];
+        }));
+      } finally { sample.remove(); }
+    }''', types)
+    for kind in types:
+        assert badges[kind][0] == rows[kind][0]
+    if theme == 'dark':
+        assert rows['income'] == stats['income']
+        assert rows['expense'] == stats['expense'] == ewallet
+        assert rows['transfer'] == bank
+    else:
+        # The five roles describe transactions. Wallet kind is a separate attribute.
+        assert bank[0] == ewallet[0] == neutral[0]
+    for foreground, background in [*rows.values(), *stats.values(), *badges.values()]:
+        low, high = sorted((luminance(foreground), luminance(background)))
+        assert (high + .05) / (low + .05) >= 4.5, (foreground, background)
     case.unchanged()
 
 
@@ -480,7 +512,9 @@ def main():
             cases.append((f'explicit-{theme}-startup-reload',
                           {'scheme': 'dark' if theme == 'light' else 'light', 'theme': theme},
                           lambda case, theme=theme: persistence_case(case, theme)))
-        cases.append(('dark-semantic-icon-colors', {'width': 1440, 'theme': 'dark', 'financial': icon_fixture()}, dark_icon_colors))
+        for theme in ['light', 'dark']:
+            cases.append((f'{theme}-semantic-icon-colors', {'width': 1440, 'theme': theme, 'financial': icon_fixture()},
+                          lambda case, theme=theme: semantic_icon_colors(case, theme)))
         cases.append(('live-system-and-keyboard', {'scheme': 'dark'}, system_and_keyboard))
         cases.append(('real-second-tab-preference-sync', {'scheme': 'light'}, cross_tab_case))
         for number, invalid in enumerate(['sepia', 'DARK', 'null', '{broken', 'x' * 8193]):
