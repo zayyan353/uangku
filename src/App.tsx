@@ -80,6 +80,13 @@ function downloadText(content: string, name: string, type = 'application/json') 
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
+function downloadBackup(content: string, kind: string): string {
+  const now = new Date();
+  const hours = String(now.getHours()).padStart(2, '0'), minutes = String(now.getMinutes()).padStart(2, '0');
+  const filename = `uangku-${kind}-${deviceDay(now)}-${hours}${minutes}.json`;
+  downloadText(content, filename);
+  return filename;
+}
 
 export default function App() {
   const ledger = useLedgerStorage();
@@ -230,14 +237,14 @@ export default function App() {
     try {
       const text = ledger.recoveryText();
       if (blocked && !ledger.dirty) {
-        downloadText(text, `uangku-data-asli-${today()}.json`);
-        notify('Salinan mentah data asli diunduh. Simpan file ini untuk pemulihan.');
+        const filename = downloadBackup(text, 'data-asli');
+        notify(`Salinan mentah data asli diunduh sebagai ${filename}. Simpan file ini untuk pemulihan.`);
       } else if (recovery) {
         downloadText(text, 'uangku-pekerjaan-belum-tersimpan.json');
         notify('Pekerjaan yang belum tersimpan sudah diunduh.');
       } else {
-        downloadText(text, `uangku-cadangan-${today()}.json`);
-        notify('Cadangan diunduh. Uji pemulihannya di salinan terpisah.');
+        const filename = downloadBackup(text, 'cadangan');
+        notify(`Cadangan diunduh sebagai ${filename}. Uji pemulihannya di salinan terpisah.`);
       }
     }
     catch (reason) { notifyError(reason instanceof Error ? reason.message : 'Cadangan belum dapat dibuat.'); }
@@ -283,9 +290,9 @@ export default function App() {
     const exportedToken = ledger.revisionToken;
     try {
       const text = await ledger.exportFullBackup(categoryPreferences.raw);
-      downloadText(text, `uangku-lengkap-${today()}.json`);
+      const filename = downloadBackup(text, 'lengkap');
       if (exportedToken !== null && recordBackup(exportedToken)) setLastBackup(readLastBackup());
-      notify('Cadangan lengkap diunduh. Dompet, transaksi, dan pengaturan kategori ada dalam satu file.');
+      notify(`Cadangan lengkap diunduh sebagai ${filename}. Dompet, transaksi, dan pengaturan kategori ada dalam satu file.`);
     } catch (reason) {
       notifyError(reason instanceof Error ? reason.message : 'Cadangan lengkap belum dapat dibuat.');
     }

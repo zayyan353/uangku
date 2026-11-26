@@ -655,8 +655,10 @@ def test_blocked_metadata_confirmation(browser, output):
         assert 'Data contoh akan diganti' not in dlg.inner_text()
         dlg.get_by_role('button', name='Batal', exact=True).click()
         assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == before
+        page.clock.set_fixed_time(datetime(2026, 10, 30, 21, 4, tzinfo=timezone.utc))
         with page.expect_download() as info:
             page.get_by_role('button', name='Unduh pekerjaan yang belum tersimpan', exact=True).click()
+        assert_backup_name(page, info.value, 'uangku-data-asli-2026-10-31-0004.json')
         path = output / 'blocked-original-synthetic.json'
         info.value.save_as(path)
         assert path.read_text(encoding='utf-8') == before
@@ -721,6 +723,24 @@ def test_carry_demo_transactions(browser, output):
         after = stored(page)
         assert not after['demo'] and after['state']['entries'] == [personal], 'Carried ledger or personal entry changed across reload'
         assert saldo(after, personal['walletId']) == -personal['amount'], 'Sample balance leaked into the personal ledger'
+
+
+def assert_backup_name(page, download, expected):
+    assert download.suggested_filename == expected, download.suggested_filename
+    expect(page.locator('.toast')).to_contain_text(expected)
+
+
+def test_backup_names(browser, output):
+    # Midnight has passed in the device's timezone (Istanbul), although UTC is still on October 30.
+    with isolated(browser, fixture([expense('backup')]), output, 'backup-names') as (_, new_page, _):
+        page = new_page()
+        for minute, button, prefix in [(4, 'Cadangkan semuanya', 'lengkap'),
+                                       (5, 'Cadangkan semuanya', 'lengkap'),
+                                       (5, 'Cadangkan transaksi saja', 'cadangan')]:
+            page.clock.set_fixed_time(datetime(2026, 10, 30, 21, minute, tzinfo=timezone.utc))
+            with page.expect_download() as info:
+                backup_action(page, button).click()
+            assert_backup_name(page, info.value, f'uangku-{prefix}-2026-10-31-00{minute:02d}.json')
 
 
 def download_backup(page, path):
@@ -1025,6 +1045,7 @@ def main():
         ('denied-storage-backup', test_denied_storage_backup),
         ('carry-demo-transactions', test_carry_demo_transactions),
         ('backup-small-roundtrip', test_backup_small),
+        ('backup-names', test_backup_names),
         ('backup-large-and-legacy-pretty', test_backup_large),
         ('future-actual-vs-all-records', test_future_balance),
         ('adjust-today-with-future-income', test_adjust_today),
