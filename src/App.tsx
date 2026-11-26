@@ -879,7 +879,9 @@ export default function App() {
     <strong>{ledger.label}</strong>{storageError && <span>{storageError}</span>}
     {(ledger.dirty || blocked) && <div className="save-problem-actions">
       <button type="button" className="button secondary small" onClick={() => backupCurrent(true)}>Unduh pekerjaan yang belum tersimpan</button>
-      <button type="button" className="button secondary small" disabled={ledger.pending || !ledger.supported || !ledger.dirty} onClick={() => void retryDraft()}>Coba simpan lagi</button>
+      {ledger.status === 'conflict'
+        ? <span>Untuk menerapkan perubahanmu, buka kembali formulir dari catatan terbaru.</span>
+        : <button type="button" className="button secondary small" disabled={ledger.pending || !ledger.supported || !ledger.dirty} onClick={() => void retryDraft()}>Coba simpan lagi</button>}
       <button type="button" className="button secondary small" disabled={ledger.pending} onClick={confirmReload}>Muat catatan terbaru</button>
     </div>}
   </div>;
