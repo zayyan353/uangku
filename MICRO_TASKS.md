@@ -2240,13 +2240,23 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Firefox dan
   WebKit belum dijalankan, hanya Chromium. Galat selain batas nominal aman
   tidak direproduksi.
-  Temuan di luar lingkup, sudah ada sebelum MW ini dan belum ada MW-nya:
+  Temuan di luar lingkup yang kemudian ditangani di MW-167:
   pada profil yang sama, membuka Transaksi dari Ringkasan mengosongkan
   layar (galat "Nominal tampilan harus berupa integer yang tepat." saat
   total riwayat dijumlah di `src/App.tsx`). Muat ulang kembali ke Ringkasan
   dan byte catatan tetap sama.
   *File:* `src/lib/dashboardView.ts` + tes, `src/App.tsx`,
   `src/components/CashflowOverview.tsx`, `tests/cashflow_browser.py`.
+
+- [x] **MW-167 — Transaksi tetap dapat dibuka ketika total riwayat melampaui batas angka aman** (S, tindak lanjut MW-166)
+  Riwayat menjumlahkan uang masuk dan keluar dalam satuan terkecil dengan
+  `BigInt`, dari seluruh baris yang lolos filter. Pemformat uang yang sudah
+  mendukung `BigInt` dapat menampilkan jumlah persisnya, termasuk pecahannya.
+  Pada profil uji, saldo bersih nol dan kedua total TRY masing-masing
+  9.007.199.254.741.091 satuan terkecil. Sebelum perbaikan, membuka Transaksi
+  dari Ringkasan pada layar 1440 dan 320 piksel mengosongkan halaman.
+  Tes membuka rincian baris, mempersempit pencarian sampai satu catatan,
+  berpindah ke USD, serta membandingkan byte catatan tersimpan.
 
 - [x] **MW-129 — Kesegaran catatan per dompet**
   Kartu dompet dan Ringkasan memberi label "Saldo aktual `<hari ini>`" tanpa
