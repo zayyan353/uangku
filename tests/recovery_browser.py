@@ -626,6 +626,45 @@ def test_no_web_locks(browser, output):
         assert stored(page)['state']['entries'] == []
 
 
+def test_escape_top_dialog(browser, output):
+    initial = fixture()
+    with isolated(browser, initial, output, 'escape-top-dialog') as (_, new_page, _):
+        page = new_page()
+        start = page.get_by_role('button', name='Catat transaksi', exact=True).first
+        start.focus()
+        start.press('Enter')
+        form = page.get_by_role('dialog', name='Catat transaksi', exact=True)
+        form.get_by_role('heading').click()
+        page.keyboard.press('Escape')
+        expect(form).to_have_count(0)
+        expect(start).to_be_focused()
+
+        open_expense(page, note='Unsaved')
+        note = form.get_by_label(re.compile('Keterangan'))
+        # A file read may finish while another dialog is already on screen.
+        page.get_by_label('File cadangan Uangku', exact=True).set_input_files({
+            'name': 'synthetic.json', 'mimeType': 'application/json',
+            'buffer': json.dumps(initial).encode(),
+        })
+        restore = page.get_by_role('dialog', name='Pulihkan cadangan?', exact=True)
+        restore.get_by_role('heading').click()
+        page.keyboard.press('Escape')
+        expect(restore).to_have_count(0)
+        expect(note).to_be_focused()
+        expect(note).to_have_value('Unsaved')
+
+        # Escape outside the controls still goes through the form's discard guard.
+        note.evaluate('(input) => input.blur()')
+        page.keyboard.press('Escape')
+        discard = page.get_by_role('dialog', name='Buang isian transaksi?', exact=True)
+        expect(discard.get_by_role('button', name='Lanjut mengisi')).to_be_focused()
+        discard.get_by_role('heading').click()
+        page.keyboard.press('Escape')
+        expect(note).to_have_value('Unsaved')
+        assert form.evaluate('(dialog) => dialog.contains(document.activeElement)')
+        assert stored(page) == initial
+
+
 def test_transaction_draft_close(browser, output):
     initial = fixture([expense('draft-edit', note='Original note')])
     with isolated(browser, initial, output, 'transaction-draft-close') as (_, new_page, _):
@@ -1146,6 +1185,7 @@ def main():
         ('native-origin-quota', test_native_quota),
         ('quota-recovery-retry', test_quota_retry),
         ('missing-web-locks', test_no_web_locks),
+        ('escape-top-dialog', test_escape_top_dialog),
         ('transaction-draft-close', test_transaction_draft_close),
         ('pending-writer-modal-guard', test_pending_writer_modal_guard),
         ('stale-modal-delete', test_stale_modal_delete),

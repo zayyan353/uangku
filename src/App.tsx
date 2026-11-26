@@ -774,8 +774,17 @@ export default function App() {
     };
     window.addEventListener('popstate', follow);
     window.addEventListener('hashchange', follow);
+    // Inputs may consume Escape before it bubbles here (for example when cancelling a rename).
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented && dialogHistory().closeTop()) event.preventDefault();
+    };
+    document.addEventListener('keydown', escape);
     dialogHistory().start();
-    return () => { window.removeEventListener('popstate', follow); window.removeEventListener('hashchange', follow); };
+    return () => {
+      window.removeEventListener('popstate', follow);
+      window.removeEventListener('hashchange', follow);
+      document.removeEventListener('keydown', escape);
+    };
   }, []);
   function openHistory(walletId: string, period: HistoryPeriod, type = 'all') {
     if (mutationInFlight.current) return;

@@ -12,7 +12,11 @@ export function Modal({ title, subtitle, children, onClose }: { title: string; s
   close.current = onClose;
   useLayoutEffect(() => {
     onOpened?.();
-    return dialogHistory().opened(() => close.current());
+    return dialogHistory().opened(() => {
+      const panel = ref.current;
+      if (panel && !panel.contains(document.activeElement)) panel.focus();
+      close.current();
+    });
   }, [onOpened]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
@@ -26,8 +30,7 @@ export function Modal({ title, subtitle, children, onClose }: { title: string; s
     return () => { document.body.style.overflow = overflow; previous?.focus(); };
   }, []);
   return <div className="modal-backdrop" onMouseDown={e => { if (e.target === e.currentTarget) { e.preventDefault(); onClose(); } }}>
-    <div ref={ref} className="modal" role="dialog" aria-modal="true" aria-label={title} onKeyDown={e => {
-      if (e.key === 'Escape') onClose();
+    <div ref={ref} className="modal" role="dialog" tabIndex={-1} aria-modal="true" aria-label={title} onKeyDown={e => {
       if (e.key !== 'Tab') return;
       const focusables = Array.from(ref.current?.querySelectorAll<HTMLElement>('button:enabled, input:enabled, select:enabled, textarea:enabled, [tabindex="0"]') ?? [])
         .filter(el => el.getClientRects().length > 0);
