@@ -3029,9 +3029,18 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   melihat isi satu file. knip (`webpro-nl/knip`, ISC) mencari file, export, dan
   dependensi yang tidak dipakai di seluruh proyek, dengan plugin untuk Vite dan
   Vitest; Actual juga memakainya (`knip.jsonc` di akar repo mereka).
-  - [ ] **a.** (S) Pasang `knip` (devDependency) dengan `knip.json` (entri
+  - [x] **a.** (S) Pasang `knip` (devDependency) dengan `knip.json` (entri
     `src/main.tsx` dan `vite.config.ts`), jalankan sekali, lalu tulis temuannya
     di laporan tanpa mengubah kode.
+    *Selesai:* `npm run knip` menjalankan knip 6.48.0 secara lokal.
+    *Tes:* sebelum pemasangan perintah tersebut belum ada. Laporan pertama
+    menemukan 35 export nilai dan 21 export tipe yang belum punya pemakai,
+    serta 2 pasang export ganda (`walletBalanceAt`/`actualWalletBalance`
+    dan `Modal`/default). Tidak ada temuan file atau dependensi tak terpakai.
+    Knip keluar 1 karena temuan. Seluruh 2.051 tes unit (88 berkas) dan build
+    produksi lulus.
+    *Belum terbukti:* keamanan menghapus tiap export. Periksa pemanggil dan
+    kegunaan API satu per satu di MW-152b.
   - [ ] **b.** (S per kelompok) Rapikan export dan dependensi yang mati, satu
     kelompok per PR. — **butuh keputusan** pemilik untuk file yang mau dihapus
     (`AGENTS.md`: penghapusan file menunggu pemilik); daftarnya dilaporkan dulu.
