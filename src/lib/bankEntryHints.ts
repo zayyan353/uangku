@@ -15,7 +15,7 @@ export interface BankEntryPresentation {
 }
 
 /** Extract a bank-labelled merchant without treating its name as an operation. */
-function explicitMerchant(description: string, fingerprintVersion?: SourceFact['fingerprintVersion']): string | undefined {
+export function explicitMerchant(description: string, fingerprintVersion?: SourceFact['fingerprintVersion']): string | undefined {
   if (fingerprintVersion === 'generic-v1') return undefined;
   const markers = [...description.matchAll(/(?:^|[\s;])[İIıi][ŞSsş][Yy][Ee][Rr][İIıi]\s*:\s*/gu)];
   if (markers.length !== 1) return undefined;
