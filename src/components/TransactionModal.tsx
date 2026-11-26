@@ -1,4 +1,4 @@
-import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { ArrowLeftRight, BookmarkPlus, Check, ChevronLeft, ChevronRight, Lightbulb, Pencil, Trash2, Zap } from 'lucide-react';
 import { entrySignedAmount, formatDate, formatMoney, makeId, parseMoney, validateEntry, walletBalanceAt, type Entry, type State } from '../lib/finance';
 import { CategorySettingsContext } from '../hooks/useCategorySettings';
@@ -34,7 +34,8 @@ const TYPE_HINTS: Record<TxMode, string> = {
 };
 export interface EntrySaveOptions { reason: string; sourceDate: string | null; destinationDate: string | null; declareDates?: true }
 
-export default function TransactionModal({ data, state, undatedWallets, initialMode, initialWallet, existing, onSave, onSaveTemplate, onRemoveTemplate, onRenameTemplate, templates = [], templatesError = '', onClose, onBalanceMatched, balanceNeedsRecovery = false, onDelete, onUnpair, disabled = false }: {
+export default function TransactionModal({ data, state, receipt, undatedWallets, initialMode, initialWallet, existing, onSave, onSaveTemplate, onRemoveTemplate, onRenameTemplate, templates = [], templatesError = '', onClose, onBalanceMatched, balanceNeedsRecovery = false, onDelete, onUnpair, disabled = false }: {
+  receipt?: ReactNode;
   data: StoredData; state: State; undatedWallets: ReadonlySet<string>; initialMode: TxMode; initialWallet?: string; existing?: Entry;
   onSave: (entry: Entry, removeIds: string[], keepOpen?: boolean, options?: EntrySaveOptions) => Promise<boolean>; onClose: () => void; onBalanceMatched?: (walletName: string) => void; onDelete?: () => void; onUnpair?: () => void; disabled?: boolean;
   /** The ledger on screen is a recovery draft or the stored ledger could not be read. */
@@ -352,6 +353,7 @@ export default function TransactionModal({ data, state, undatedWallets, initialM
   const title = importedPending ? 'Cek transaksi ini' : type === 'adjustment' ? 'Cek saldo' : existing ? 'Ubah transaksi' : type === 'transfer' ? 'Pindah uang' : 'Catat transaksi';
   const subtitle = importedPending ? 'Pilih jenis yang benar. Dompet, tanggal, dan nominal mengikuti mutasi bank.' : type === 'movement' ? 'Satu sisi rekening. Tidak dihitung sebagai belanja atau pemasukan; cash tidak dibukukan.' : type === 'transfer' ? 'Uangnya berpindah. Total belanja tetap sama.' : 'Catat secukupnya. Kategori bisa dibereskan nanti.';
   return <Modal title={askDiscard ? 'Buang isian transaksi?' : title} subtitle={askDiscard ? undefined : subtitle} onClose={askDiscard ? () => setAskDiscard(false) : requestClose}>
+    {!askDiscard && receipt}
     {askDiscard && <>
       <div className="modal-body"><p className="confirm-copy" id="discard-draft-help">Perubahan di formulir ini belum disimpan.</p></div>
       <div className="modal-footer">

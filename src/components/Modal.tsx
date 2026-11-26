@@ -1,13 +1,19 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
 import { dialogHistory } from '../lib/dialogHistory';
 
+export const ModalOpenedContext = createContext<(() => void) | undefined>(undefined);
+
 export function Modal({ title, subtitle, children, onClose }: { title: string; subtitle?: string; children: ReactNode; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const onOpened = useContext(ModalOpenedContext);
   // The browser's Back asks for the same close as Escape, so a filled form still gets its discard question.
   const close = useRef(onClose);
   close.current = onClose;
-  useLayoutEffect(() => dialogHistory().opened(() => close.current()), []);
+  useLayoutEffect(() => {
+    onOpened?.();
+    return dialogHistory().opened(() => close.current());
+  }, [onOpened]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const overflow = document.body.style.overflow;

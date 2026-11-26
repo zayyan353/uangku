@@ -9,8 +9,8 @@ import { formatMoneyInput } from '../lib/moneyFormatting';
 import type { WalletUsage } from '../lib/walletLifecycle';
 import { useDiscardGuard } from '../hooks/useDiscardGuard';
 
-export default function WalletEditor({ existing, defaultCurrency, usage, onSave, onClose, onDelete, onArchive, disabled = false, disabledReason = '', currencies = LEGACY_CURRENCY_CODES , onManageCurrencies }: {
-  existing?: Wallet; defaultCurrency: Currency; usage?: WalletUsage; currencies?: readonly Currency[];
+export default function WalletEditor({ existing, prompt, defaultCurrency, usage, onSave, onClose, onDelete, onArchive, disabled = false, disabledReason = '', currencies = LEGACY_CURRENCY_CODES , onManageCurrencies }: {
+  existing?: Wallet; prompt?: string; defaultCurrency: Currency; usage?: WalletUsage; currencies?: readonly Currency[];
   onSave: (wallet: Wallet) => Promise<boolean>; onClose: () => void;
   onDelete?: () => void; onArchive?: () => void; disabled?: boolean; disabledReason?: string;
   /** New wallets only: leave the form for Kelola mata uang; the form reopens afterwards. */
@@ -44,6 +44,7 @@ export default function WalletEditor({ existing, defaultCurrency, usage, onSave,
   }
   return <Modal title={existing ? 'Atur dompet' : 'Tambah dompet'} subtitle="Satu dompet untuk satu tempat uang dan mata uang." onClose={guard.request}>
     <form onSubmit={submit}><fieldset disabled={disabled || busy} style={{ display: 'contents' }}><div className="modal-body form-grid">
+      {prompt && <p className="notice full" role="status">{prompt}</p>}
       {disabledReason && <div className="notice warning full" role="status">{disabledReason}</div>}
       <label className="field full"><span className="field-label">Nama dompet</span><input required maxLength={60} className="field-input" value={name} onChange={event => setName(event.target.value)} placeholder="Contoh: Ziraat utama, Papara" /></label>
       <label className="field"><span className="field-label">Mata uang</span><select className="select-input" value={currency} disabled={!!existing} onChange={event => setCurrency(event.target.value as Currency)}>{[...new Set([...currencies, currency])].map(code => <option key={code} value={code}>{code} · {currencyInfo(code).label}{!currencies.includes(code) ? existing ? ' (riwayat)' : ' (disembunyikan)' : ''}</option>)}</select>{existing && <span className="field-help">Mata uang tetap agar histori nominal tidak berubah.</span>}{!existing && onManageCurrencies && <button type="button" className="text-link field-link" onClick={() => { if (!saving.current && !busy) onManageCurrencies(); }}>Mata uang lain…</button>}</label>
