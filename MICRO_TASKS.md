@@ -2656,7 +2656,6 @@ MW-107. Tindakan pemilik lain ada di F2.
 
 | MW | Siapa | Pertanyaan |
 |---|---|---|
-| MW-89 | agen | Format transfer di CSV: dua baris bertanda, atau satu baris dengan kolom tambahan? |
 | MW-92 | pemilik | Apakah aturan 13 Nov (uang dari/ke orang lain = pemasukan/pengeluaran) berlaku umum, termasuk form manual dan Ziraat, atau hanya impor Jago? |
 | MW-99 | agen | Ambang pengingat cadangan: jumlah entri baru, atau setiap impor? |
 | MW-100d | agen | Mau cadangan otomatis ke satu file di desktop (hanya Chromium)? |
