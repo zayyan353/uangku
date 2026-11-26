@@ -3144,11 +3144,24 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   2026 dan muncul di Ringkasan dari 1 Desember sampai 31 Januari. Memakai
   MW-147a (merchant) dan MW-149a (total per hari); MW-154a dipakai bila sudah
   ada.
-  - [ ] **a.** (M) `src/lib/yearRecap.ts` + tes, per mata uang: total pemasukan dan
+  - [x] **a.** (M) `src/lib/yearRecap.ts` + tes, per mata uang: total pemasukan dan
     pengeluaran setahun, 5 kategori dan 5 merchant teratas, bulan dan hari
     paling boros, rentang terpanjang tanpa pengeluaran, serta umur uang akhir
     tahun bila ada. Selama tahunnya belum selesai, rekap menyebut sampai
     tanggal berapa datanya dihitung.
+    *Selesai:* rekap per mata uang memakai pengeluaran harian MW-149a,
+    kunci merchant MW-147a, dan umur uang MW-154a sampai akhir periode.
+    Pengeluaran serta biaya mengikuti tanggal posting. Biaya masuk ke
+    kategori Biaya transfer. Merchant memakai pokok belanja dan keterangan
+    bank bila tersedia. Peringkat seri diurutkan menurut nama, periode puncak
+    atau rentang seri memakai yang paling awal. Hari tanpa pengeluaran
+    berarti tidak ada pengeluaran tercatat pada hari itu.
+    *Tes:* suite awal gagal memuat modul yang belum tersedia. Tujuh kasus
+    menguji periode dan jendela tampil, batas nominal aman, urutan peringkat,
+    pengeluaran per mata uang, umur uang, hari kosong dan rentang di tepi.
+    Setelah perbaikan tipe penghitung rentang, build produksi serta 2.039
+    tes unit di 84 berkas lulus.
+    *Belum terbukti:* dialog, navigasi kartu, dan tampilan di perangkat.
   - [ ] **b.** (M) Dialog "Rekap 2026" dari Ringkasan dengan kartu yang bisa
     digeser, tanpa pustaka baru, dan mengikuti mode privasi (MW-153). Tidak ada
     unggah atau bagi otomatis; pengguna bisa mengambil tangkapan layar sendiri.
