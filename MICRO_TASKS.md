@@ -29,7 +29,7 @@ lulus, build lulus): temuan dan MW baru (MW-87 sampai MW-144) ada di bagian F.
 - Setiap MW: branch baru → ubah → `npm test` → `npm run build` → commit → PR ke
   `main` → CI hijau → merge → laporan ke pemilik.
 - **Masuk ke `main` lewat PR**, bukan push langsung. Alasannya: push ke
-  `main` = auto-deploy, dan CI menjalankan 16 tes browser Playwright yang tidak
+  `main` = auto-deploy, dan CI menjalankan 18 skrip browser Playwright di Chromium (17 di Firefox dan WebKit) yang tidak
   ikut di `npm test`. `ci.yml` jalan di `pull_request`, jadi kegagalan ketahuan
   sebelum masuk `main`. Merge hanya kalau CI hijau.
 - MW yang mengubah UI (07, 08, 11, 12b, 12c, 13a, 13b) bisa lolos tes lokal tapi
@@ -416,13 +416,14 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
   Prasyarat MW-63.
 
 - [ ] **MW-63 — Tema gelap lewat token, bukan daftar override**
-  Tema gelap sekarang 97 aturan dengan daftar `:is(...)` panjang; komponen baru
-  yang lupa didaftarkan otomatis rusak di gelap. Setelah MW-61/62, aturan dasar
-  memakai token sehingga tema gelap cukup mengganti nilai variabel. Kerjakan
-  bertahap, satu kelompok per PR: (a) permukaan & garis, (b) teks,
-  (c) kontrol form, (d) status/badge/banner.
-  *Selesai kalau:* blok override gelap tinggal pengecualian yang memang beda
-  struktur (mis. tombol utama lime), dan kontras tetap lulus.
+  Setelah MW-61 dan MW-62, pindahkan warna komponen ke token agar tema
+  gelap cukup mengganti nilai variabel. Satu kelompok per PR.
+  - [ ] **a.** Permukaan dan garis. Ditunda sampai ada cacat tema gelap terkait.
+  - [ ] **b.** Teks. Ditunda sampai ada cacat tema gelap terkait.
+  - [ ] **c.** Kontrol formulir. Ditunda sampai ada cacat tema gelap terkait.
+  - [ ] **d.** Status, badge, banner, dan ikon. F7 menjadwalkannya setelah MW-62.
+  *Selesai per kelompok kalau* warna terhitung dan kontras tetap terjaga di
+  kedua tema. Pertahankan override bila strukturnya memang berbeda.
 
 - [ ] **MW-64 — Satu definisi per selektor**
   Blok "Application-specific structure", "Local F", dan blok MW lama menimpa
@@ -433,11 +434,15 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
   (topbar, ringkasan, tabel, impor) bila diff terlalu besar.
 
 - [ ] **MW-65 — Buang CSS mati**
-  Kandidat (tidak ditemukan di `src/`, verifikasi ulang sebelum menghapus):
+  Kandidat yang hanya ditemukan di CSS pada `f847251`; periksa lagi
+  pemakaian class dinamis sebelum menghapus:
   `.balance-separator`, `.description-cell`, `.fee-row`, `.nav-icon`,
-  `.toast-icon`, `.selected-row`, `.quick-wallet-action` (+ `.wallet-row-wrap`),
-  `.wallet-icon.blue/.green/.orange`, `.form-grid .full-width`. Cek juga token
-  yang tidak dipakai (`--forest-light`, `--readable-*`).
+  `.toast-icon`, `.selected-row`, `.quick-wallet-action`,
+  `.wallet-icon.blue/.green/.orange`, `.form-grid .full-width`. Dua token yang
+  hanya ditemukan di deklarasi ialah `--forest-light` dan `--readable-muted`.
+  Pertahankan `.wallet-row-wrap` pada Ringkasan (`src/App.tsx:871`), serta
+  `--readable-negative` dan `--readable-positive` yang dipakai di
+  `src/styles.css:1603` dan `src/styles.css:1606`.
 
 - [ ] **MW-66 — Skala radius, ukuran teks, dan z-index**
   18 nilai radius (3–23px), ukuran teks 11–35px tersebar, z-index 30/40/60/100/150
@@ -457,15 +462,17 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
   `TransactionModal.tsx`, `TransactionTable.tsx`, `App.tsx`.
 
 - [ ] **MW-69 — Inline style → class**
-  16 `style={}` di `GenericImportMapper.tsx`, `StatementReview.tsx`,
-  `SourceDetails.tsx`, `WalletEditor.tsx`, `TransactionModal.tsx`. Juga
-  `--wallet-color` di `WalletsPage.tsx:8` diset tapi tidak dipakai CSS mana pun:
-  putuskan dipakai (ikon dompet berwarna per mata uang) atau dibuang.
+  Pada `f847251` ada 11 atribut `style` di TSX: dua di `GenericImportMapper`,
+  satu di `StatementReview`, dua di `SourceDetails`, satu di `WalletEditor`,
+  tiga di `TransactionModal` dan dua di `App`. Dua di `src/App.tsx:879`
+  mengatur warna dan panjang bilah per kategori secara dinamis.
+  `WalletsPage` sudah memakai class jenis dompet; `--wallet-color` sudah hilang.
+  F7 mengusulkan butir ini dibuang.
 
-- [ ] **MW-70 — Hilangkan `!important` pada nominal**
+- [ ] **MW-70 — Hilangkan `!important` pada nominal** *(menunggu pemilik)*
   `.amount-positive/.amount-negative` memakai `!important` (terang & gelap)
   untuk mengalahkan `.amount-cell strong`. Perbaiki lewat urutan/spesifisitas.
-  Sisakan hanya di `prefers-reduced-motion`.
+  Sisakan hanya di `prefers-reduced-motion`. Pemilik menentukan kapan MW ini masuk antrean.
 
 - [ ] **MW-71 — Pecah `styles.css` per area**
   Setelah MW-64/65: `base.css`, `layout.css`, `components.css`, halaman
@@ -479,7 +486,7 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
   `font-family: Inter` dideklarasikan tapi font tidak pernah dimuat, jadi yang
   tampil font sistem; berat seperti 550/560/590/620/630/670 dibulatkan beda-beda
   per OS. Pilih: (a) self-host Inter variable (woff2, tetap offline) atau
-  (b) pakai 400/500/600/700 saja. *Butuh keputusan pemilik.*
+  (b) pakai 400/500/600/700 saja. *Keputusan agen saat butir ini dijadwalkan.*
 
 - [ ] **MW-73 — Warna semantik badge & ikon di tema terang**
   Di terang, teks semua badge/ikon (masuk, keluar, transfer, penyesuaian, belum
@@ -492,11 +499,14 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
   `#334b38`, `#3a5138`, `#41543f`, `#43563f`, `#48613c`, `#4a5d43`, `#4c6540`…).
   Ringkas jadi `--text` dan `--text-strong`. Ada pergeseran warna kecil.
 
-- [ ] **MW-75 — State hover/aktif tombol**
-  Hover global hanya `filter: brightness(.985)` (nyaris tak terlihat);
-  `.button.secondary/.ghost/.danger`, `.icon-button`, `.text-link` tidak punya
-  hover sendiri di terang; `.nav-item` hanya mentransisikan `transform` sehingga
-  warna latar berganti mendadak.
+- [x] **MW-75 — State hover/aktif tombol**
+  *Selesai:* aturan tombol, ikon, tautan dan navigasi dari `00f1931` ada di
+  `src/styles.css:1468–1474,1481–1484` pada `f847251`.
+  *Tes:* Chromium 154, profil baru, situs publik `f847251`, tema terang
+  1440×900. Keenam kontrol merespons hover: secondary, ghost, danger, ikon,
+  tautan dan navigasi. Empat tombol meredup saat ditekan; transisi warna
+  navigasi berlangsung 0,16 detik.
+  *Belum terbukti:* sentuhan fisik dan pemeriksaan hover khusus Firefox/Safari.
 
 - [ ] **MW-76 — Cincin fokus seragam**
   Campuran 3px/offset 3px, 2px/offset 2px, 2px/offset −2px, dan
@@ -523,7 +533,7 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
   kelipatan 4px lewat token jarak. Mengubah tata letak beberapa piksel; kerjakan
   per halaman dan cek tangkapan layar.
 
-- [ ] **MW-81 — Modal di HP** *(opsional, butuh keputusan)*
+- [ ] **MW-81 — Modal di HP** *(opsional, menunggu pemilik)*
   Animasi buka 0,08–0,1 detik nyaris tak terasa; di ≤600px modal tetap kotak
   tengah. Opsi: lembar bawah (bottom sheet) dengan footer menempel, animasi
   ±0,18 detik, tetap hormati `prefers-reduced-motion`.
@@ -533,9 +543,7 @@ sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
   belum ada penyesuaian `forced-colors`/`prefers-contrast` (badge dan cincin
   fokus bergantung warna latar).
 
-**Urutan usul:** 61 → 62 → 63a–d → 65 → 64 → 66 → 67 → 70 → 68 → 69 → 71, lalu
-polesan 72 (setelah keputusan) → 73 → 74 → 75 → 76 → 77 → 78 → 79 → 80; 81–82
-bila diinginkan. MW-78 dan MW-79 kecil dan mandiri, boleh didahulukan.
+Prioritas D6 mengikuti bagian F7 dan gelombang 3 di akhir berkas.
 
 ## D7. Pembaca Ziraat (10 November 2026)
 
@@ -2004,8 +2012,8 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     pemicu peringatan tab diubah. Tombol dapat diklik di 320, 390 dan 1440.
     *Belum terbukti:* HP fisik dan pembaca layar belum diuji. Tanggal
     terakhir diperiksa tidak disimpan.
-  - [ ] **b.** — **butuh keputusan** Tanggal "terakhir dicek" per dompet. Bila
-    disetujui, simpan di kunci terpisah, bukan di format catatan.
+  - [ ] **b.** — **menunggu pemilik** Simpan tanggal "terakhir dicek" per dompet?
+    Usul ini memerlukan kunci penyimpanan tambahan.
 
 - [ ] **MW-117 — Kurs: contoh mengikuti arah pasangan mata uang**
   Untuk IDR → TRY kolomnya bertanya "1 IDR = berapa TRY?" dengan contoh statis
@@ -2077,12 +2085,16 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   biasa tidak tertutup oleh toast lama. Pada alur **Simpan & catat lagi**,
   struk sukses yang baru juga menghalangi klik **Tutup** pada lebar 320 dan
   390 px saat pesan masih tampil.
-  Membuka dialog kini menutup pesan sukses sebelumnya. Struk pencatatan
+  *Selesai 26 Nov 2026 (PR #98, `5294ac4`):* membuka dialog menutup pesan sukses sebelumnya. Struk pencatatan
   berulang muncul di bawah judul dalam form. Nominal kembali mendapat fokus
   ketika tombol penutup struk yang sedang difokuskan menghilang. Pesan galat
   tetap bisa diperiksa, dan **Lihat** tetap membuka transaksi yang baru
   disimpan dari form yang telah ditutup. Bila catatan atau transfer memerlukan
   dompet tambahan, alasannya tampil langsung pada form **Tambah dompet**.
+  *Tes (historis, PR #98):* pada `2f39735` klik Tutup gagal di lebar 320 dan
+  390 px. Pada kandidat, 2.008 tes unit dan build produksi lulus. Tujuh kasus
+  Chromium lulus, termasuk fokus setelah struk hilang dan aksi **Lihat**.
+  *Belum terbukti:* jangkauan tombol di HP fisik dan peramban selain Chromium.
 
 - [ ] **MW-124 — Halaman Transaksi di HP: baris pertama lebih dekat ke atas** (M)
   Di 390×844 baris transaksi pertama berada di y=1112 (dengan pengingat
@@ -2272,7 +2284,8 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   `src/components/CashflowOverview.tsx`, `tests/cashflow_browser.py`.
 
 - [x] **MW-167 — Transaksi tetap dapat dibuka ketika total riwayat melampaui batas angka aman** (S, tindak lanjut MW-166)
-  Riwayat menjumlahkan uang masuk dan keluar dalam satuan terkecil dengan
+  *Selesai 26 Nov 2026 (PR #89, `e17a263`):* riwayat menjumlahkan uang
+  masuk dan keluar dalam satuan terkecil dengan
   `BigInt`, dari seluruh baris yang lolos filter. Pemformat uang yang sudah
   mendukung `BigInt` dapat menampilkan jumlah persisnya, termasuk pecahannya.
   Pada profil uji, saldo bersih nol dan kedua total TRY masing-masing
@@ -2280,6 +2293,10 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dari Ringkasan pada layar 1440 dan 320 piksel mengosongkan halaman.
   Tes membuka rincian baris, mempersempit pencarian sampai satu catatan,
   berpindah ke USD, serta membandingkan byte catatan tersimpan.
+  *Tes (historis, PR #89):* dua regresi gagal pada `d7bf7c8`. Pada `e17a263`,
+  1.991/1.991 tes unit, build produksi, dan 25/25 kasus Chromium di
+  `tests/cashflow_browser.py` lulus, termasuk kedua regresi.
+  *Belum terbukti:* HP fisik dan peramban selain Chromium.
 
 - [x] **MW-129 — Kesegaran catatan per dompet**
   Kartu dompet dan Ringkasan memberi label "Saldo aktual `<hari ini>`" tanpa
@@ -2579,18 +2596,18 @@ run tersusul push yang lebih baru di branch yang sama.
     `127.0.0.1:4180` atau hapus bloknya.
 
 - [ ] **MW-144 — Pecah `App.tsx` lanjutan** (L)
-  `src/App.tsx` membesar lagi menjadi 746 baris (597 saat pemecahan di bagian
-  D), dengan 8 baris di atas 1.000 karakter (terpanjang 2.245 di baris 723). Hanya
+  Pada `f847251`, `src/App.tsx` berisi 911 baris (597 saat pemecahan di bagian
+  D). Ada 9 baris di atas 1.000 karakter; terpanjang 2.276 di baris 888. Hanya
   memindahkan kode; perilaku tidak berubah.
   - [ ] **a.** (M) Hook `useHistoryView`: kata cari, filter, periode, dompet,
     kategori, urutan, halaman, dan pilihan beserta memo-nya.
   - [ ] **b.** (M) Komponen `TransactionsPage` yang memiliki hook itu, sehingga
     mengetik hanya me-render ulang bagian tersebut. Ini melengkapi MW-112;
     MW-112a–c tetap dikerjakan di sana.
-  - [ ] **c.** (S) Pecah delapan baris di atas 1.000 karakter menjadi satu prop per
+  - [ ] **c.** (S) Pecah sembilan baris di atas 1.000 karakter menjadi satu prop per
     baris.
 
-### F7. Backlog CSS (D6): usul urutan baru *(sebagian)* — **keputusan pemilik**
+### F7. Backlog CSS (D6) — urutan kerja dan keputusan terbuka
 
 Angka `src/styles.css` saat tinjauan: 1.842 baris, 276 warna hex unik (494
 pemakaian; `#52634f` 122 kali), 59 blok `@media` (760px muncul 16 kali), 9
@@ -2599,22 +2616,18 @@ pemakaian; `#52634f` 122 kali), 59 blok `@media` (760px muncul 16 kali), 9
 terbukti adalah MW-91; selebihnya penilaian peninjau kode, bukan cacat. Tidak
 ada entri D6 yang diubah atau dicentang oleh bagian ini.
 
-- **Kerjakan:** MW-91 → MW-61 → MW-62 → MW-63 bagian (d) status/badge/banner
-  (ditambah ikon) → MW-73 → MW-65 → MW-68 (tepat sebelum MW-121).
-- **Tunda:** MW-63 bagian (a)–(c) sampai ada cacat tema gelap lain; MW-64
-  (gabungkan per area hanya saat area itu disentuh); MW-75; MW-81.
+- **Kerjakan setelah MW-155a dan MW-155b:** MW-61 → MW-62 → MW-63d (status,
+  badge, banner, ikon) → MW-73 → MW-65 → MW-68 → MW-121. MW-91 sudah selesai.
+- **Tunda:** MW-63a–c sampai ada cacat tema gelap terkait. Gabungkan aturan
+  MW-64 per area ketika area itu disentuh. Status tombol ada di entri MW-75.
 - **Usul dibuang:** MW-66, MW-67, MW-69, MW-71, MW-74, MW-80, MW-82. Tidak ada
   cacat yang terlihat pengguna yang ditelusuri ke sana, dan MW-71/MW-80 berisiko
   konflik atau menggeser piksel yang dijaga tes. Daftar buang ini usul peninjau
   kode saja; tiga peninjau lain mengusulkan menunda atau membiarkannya
   opsional, bukan membuang.
-- **Butuh keputusan:** MW-72 (font). MW-76 kecil dan opsional (klaim MW-75,
-  MW-76, dan MW-81 tidak diperiksa di aplikasi).
-- MW-61 dan MW-70 tetap MW tersendiri. Usul peninjau untuk meleburnya ke MW-63
-  bertentangan dengan aturan satu MW per PR, kecuali pemilik menulis ulang
-  entrinya. D6 menetapkan MW-63 dikerjakan setelah MW-61/62, jadi MW-61 masuk
-  urutan di atas sebelum MW-63 bagian (d). MW-70 belum punya tempat di urutan
-  itu; tempatnya ditentukan pemilik.
+- **Menunggu pemilik:** penjadwalan MW-70 dan pilihan tampilan modal HP
+  di MW-81. **Keputusan agen:** pilihan font MW-72 saat dijadwalkan.
+  MW-76 kecil dan opsional.
 
 ### F8. Dipertimbangkan, tidak diusulkan
 
@@ -2656,9 +2669,12 @@ MW-107. Tindakan pemilik lain ada di F2.
 
 | MW | Siapa | Pertanyaan |
 |---|---|---|
+| MW-70 | pemilik | Kapan perbaikan spesifisitas warna nominal masuk antrean CSS? |
+| MW-72 | agen | Muat Inter lokal atau rapikan berat font sistem? |
+| MW-81 | pemilik | Pakai lembar bawah untuk modal HP atau pertahankan tata letak sekarang? |
 | MW-92 | pemilik | Apakah aturan 13 Nov (uang dari/ke orang lain = pemasukan/pengeluaran) berlaku umum, termasuk form manual dan Ziraat, atau hanya impor Jago? |
 | MW-99 | agen | Ambang pengingat cadangan: jumlah entri baru, atau setiap impor? |
-| MW-100d | agen | Mau cadangan otomatis ke satu file di desktop (hanya Chromium)? |
+| MW-100d | pemilik | Mau cadangan otomatis ke satu file di desktop (hanya Chromium)? |
 | MW-101 | agen | Apakah pemulihan yang berhasil dihitung sebagai "punya cadangan"? |
 | MW-105b | pemilik | Perangkat dan browser mana yang dipakai, dan apakah **Cadangkan semuanya** menghasilkan file di sana? (uji oleh pemilik) |
 | MW-105d | agen | Mau "Uji file cadangan" (mengubah batasan MW-06)? |
@@ -2667,7 +2683,7 @@ MW-107. Tindakan pemilik lain ada di F2.
 | MW-109 | pemilik | Tetap `localStorage` dengan meter, atau pindah/kompres sekarang? |
 | MW-111 | agen | Target kecepatan simpan (jumlah baris dan perangkat)? |
 | MW-114 | agen | Service worker untuk offline: ya atau tidak? |
-| MW-116b | agen | Simpan tanggal "terakhir dicek" per dompet? |
+| MW-116b | pemilik | Boleh menambah kunci untuk tanggal "terakhir dicek" per dompet? |
 | MW-117b | agen | Mau tombol "balik arah" kurs dan peringatan bila kurs berbeda lebih dari 100×? |
 | MW-120c | pemilik | Boleh menerapkan ulang entri baru otomatis saat konflik dua tab? |
 | MW-124c | agen | Kontrol periode mana yang dipertahankan di Transaksi? |
@@ -2678,7 +2694,7 @@ MW-107. Tindakan pemilik lain ada di F2.
 | MW-135 | pemilik | Setujui mode impor tanpa saldo, dan kirim contoh file? |
 | MW-139 | pemilik | Ubah `AGENTS.md` supaya perubahan dokumen saja boleh melewati tes browser? Terima deploy setelah gate Chromium-saja di `main`, atau pertahankan gate penuh ±13 menit? |
 | MW-142c | agen | Cara menjalankan tes browser di sesi agen? |
-| F7 | agen | Urutan CSS baru dipakai; entri di daftar "usul dibuang" tidak dihapus dari file, hanya tidak dikerjakan. MW-72: font? |
+| F7 | agen | Urutan CSS mengikuti F7. Simpan entri yang diusulkan dibuang sebagai riwayat. |
 
 ## G. Alur kerja (18 November 2026)
 
@@ -2956,8 +2972,9 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   Untuk Actual ada beberapa server MCP buatan komunitas (mis.
   `s-stefanov/actual-mcp`) yang membuat Claude bisa membaca anggaran dan
   ditanyai dengan bahasa biasa. Data Uangku hanya ada di browser; salinannya
-  di luar browser adalah cadangan lengkap `uangku-lengkap-YYYY-MM-DD.json`
-  (`serializeFullBackup` di `src/lib/fullBackup.ts`).
+  di luar browser adalah cadangan lengkap `uangku-lengkap-YYYY-MM-DD-HHmm.json`
+  (tanggal dan jam lokal dari `downloadBackup` di `src/App.tsx:76`, dipanggil
+  dengan jenis `lengkap` di `src/App.tsx:295`; isi dari `src/lib/fullBackup.ts`).
   - [ ] **a.** (S) Tombol "Salin ringkasan untuk AI" di Ringkasan: teks ringkas
     satu bulan per mata uang (pemasukan, pengeluaran per kategori, selisih,
     status anggaran, dan merchant teratas bila MW-147a sudah ada), dengan
@@ -3037,20 +3054,41 @@ bagian F):
 
 ---
 
-**Urutan:**
-MW-00 → 01 → 02 → 03 → 03b → 04 → 05 → 06 → 16 → 07 → 08 → 09 → 10 → 17 → 11,
-lalu sisa C (12a–13b) atau D (14, 15, 18) sesuai kebutuhan.
+## Antrean per 26 November 2026
 
-**Urutan usul bagian F:** MW-87 → 93 → 95 → 96 → 97 → 88 → 90 → 110 → 113 →
-115 → 116a → 128 → 129, lalu sisanya menurut kebutuhan. MW-111 menyusul sesudah
-MW-110; targetnya ditetapkan agen dari hasil ukur MW-110 dan dicatat di
-entrinya. MW-87 lebih dulu karena bug nyata dan kecil; F2 sebelum F5 karena
-data hanya ada di browser; MW-110/111 sebelum MW-19/MW-20. Yang bertanda
-**butuh keputusan** mengikuti kolom "Siapa" di tabel keputusan.
+- [x] **MW-168 — Selaraskan antrean dengan kode di `f847251`**
+  *Selesai:* prioritas, status, pemegang keputusan dan rujukan diperbarui.
+  *Tes:* jumlah skrip dicocokkan dengan pemanggilan di `ci.yml`. Pemeriksaan
+  tampilan serta batas buktinya dicatat pada MW-75.
+  *Belum terbukti:* entri terbuka masih memerlukan pembuktian pada kandidat masing-masing.
 
-**Urutan usul bagian H:** MW-147a → 147b → 147c → 153 → 154 → 148 → 149 →
-161 (selesai sebelum 31 Desember) → 147d → 157 → 158a → 158b → 159a. Alat
-diselipkan di sela-sela dengan dua syarat: MW-156a sebelum MW-144, dan
-MW-155a–b sebelum MW CSS D6 berikutnya; MW-150, MW-151a, dan MW-152a bisa
-kapan saja. MW-151b menyusul MW-140 dan MW-160 menyusul MW-112c. MW-152b dan
-MW-159b menunggu pemilik.
+Satu butir atau sub-butir per PR. Periksa kembali rujukan baris pada kandidat.
+Lewati dan laporkan butir yang memerlukan perubahan format atau tempat data
+atau kebijakan pembukuan.
+
+1. **Bug dan keamanan data.** MW-136 → 118 → 126a → 120a → 120b → 117a →
+   102b → 101 → 99 → 100c. Pada MW-136 batalkan hanya run PR tersusul dengan
+   kunci nomor PR. Verifikasi pemanggilan CI oleh Publikasikan setelah merge.
+   Untuk MW-101 hitung sidik dari teks yang benar-benar tersimpan.
+2. **Fitur pilihan pemilik.** MW-147a → 147b → 147c (jenis `suggestions`) →
+   153a → 153b → 153c (baca preferensi sinkron saat render pertama dan catat
+   cakupan penyamaran dialog) → 149a → 154a → 161a → 161b → 161c →
+   154b → 148a → 148b → 149b → 149c → 147d. Rekap 2026 ditargetkan terbit
+   sebelum 31 Desember. Uji jendela 1 Desember–31 Januari dengan jam uji
+   tersendiri (jam tetap tes lain 31 Oktober, tes performa memakai jam asli).
+3. **Alat dan CI**, boleh diselipkan. MW-150a → 150b → 150c → 152a
+   (laporan saja) → 151a (peringatan) → 140a → 140b → 142a → 141b → 141a
+   (jalankan tes impor). Perubahan `ci.yml` atau `pages.yml` harus berurutan.
+   Lanjut MW-156a → 144c → 155a → 155b → 61 → 62 → 63d → 73 → 65 → 68 → 121.
+4. **Bila masih ada waktu.** MW-119 → 125 → 122 → 127 → 124a → 124b → 124c →
+   117b. Kecepatan: MW-112c → 112a → 112b, ukur ulang garis dasar sesudah
+   MW-162, lalu MW-111a. Fitur: MW-130a → 130b → 132a → 103 (permintaan
+   hanya ke origin sendiri dan perbarui kalimat Privasi).
+
+**Menunggu pemilik atau bahan:** MW-19, 20, 70, 81, 92, 105b, 108, 109,
+120c, 130d, 132b, 133, 134, 135, 139, 152b, 159b, 159c. MW-100d, 102a,
+104 dan 116b menambah tempat penyimpanan dan juga menunggu pemilik.
+
+**Ditunda:** MW-126b, 130c, 131, 114, 157, 158, 159a, 160, 105c, 105d,
+106c, 107, 100b, 138, 141c, 141d, 142b, 142c, 143, 144a, 144b, 151b,
+152c, 155c, 156b, 156c dan bagian CSS yang ditunda atau diusulkan dibuang di F7.
