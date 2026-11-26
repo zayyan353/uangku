@@ -1004,7 +1004,8 @@ html[data-theme="dark"] :is(.transactions-table tr.selected-row, .transactions-t
 html[data-theme="dark"] :is(.transactions-table th, .import-table th, .transactions-table td, .import-table td) { color: var(--text-muted); }
 html[data-theme="dark"] .table-wrap { scrollbar-color: #758b74 var(--surface); }
 html[data-theme="dark"] :is(.wallet-icon, .transaction-icon, .stat-icon, .category-heading-icon,
-  .add-wallet-icon, .import-file-icon, .import-step > span:first-child, .modal-close) {
+  .add-wallet-icon, .import-file-icon, .modal-close),
+html[data-theme="dark"] .import-step > span:first-child {
   color: var(--text-muted);
   background: var(--surface-raised);
 }
@@ -1016,7 +1017,7 @@ html[data-theme="dark"] :is(.wallet-icon.green, .wallet-icon.cash, .transaction-
   color: var(--success-text);
   background: var(--success-surface);
 }
-html[data-theme="dark"] :is(.wallet-icon.orange, .wallet-icon.ewallet, .stat-icon.expense, .badge.expense) {
+html[data-theme="dark"] :is(.wallet-icon.orange, .wallet-icon.ewallet, .transaction-icon.expense, .stat-icon.expense, .badge.expense) {
   color: #f0c7a0;
   background: #3d3024;
 }

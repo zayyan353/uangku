@@ -331,6 +331,44 @@ def storage_failure_case(case, denied_read):
     case.unchanged()
 
 
+def icon_fixture():
+    data = ordinary_fixture()
+    state = data['state']
+    transfer = next(e for e in state['entries'] if e['type'] == 'transfer')
+    next(w for w in state['wallets'] if w['id'] == transfer['toWalletId'])['kind'] = 'ewallet'
+    row = next(e for e in state['entries'] if e['type'] == 'expense')
+    state['entries'] = [{**row, 'id': kind, 'type': kind, 'note': kind,
+                         'category': '' if kind == 'adjustment' else row['category']}
+                        for kind in ('income', 'expense', 'adjustment', 'unreviewed')] + [transfer]
+    return compact(data)
+
+
+def dark_icon_colors(case):
+    case.goto()
+    case.resolved('dark', 'dark')
+    page = case.page
+
+    def colors(selector):
+        icon = page.locator(selector).first
+        expect(icon).to_be_visible()
+        return icon.evaluate('(el) => { const s = getComputedStyle(el); return [s.color, s.backgroundColor]; }')
+
+    stats = {kind: colors('.stat-icon.' + kind) for kind in ('income', 'expense')}
+    nav(page, 'Dompet')
+    bank, ewallet = colors('.wallet-icon.bank'), colors('.wallet-icon.ewallet')
+    neutral = colors('.add-wallet-icon')
+    nav(page, 'Transaksi')
+    types = ('income', 'expense', 'transfer', 'adjustment', 'unreviewed')
+    rows = {kind: colors('.transaction-icon.' + kind) for kind in types}
+    pairs = [neutral, *rows.values()]
+    for component in (0, 1):
+        assert len({pair[component] for pair in pairs}) == len(pairs), f'Semantic icon colors: {rows}, neutral: {neutral}'
+    assert rows['income'] == stats['income']
+    assert rows['expense'] == stats['expense'] == ewallet
+    assert rows['transfer'] == bank
+    case.unchanged()
+
+
 def visual_case(case, theme):
     case.goto()
     case.choose(theme)
@@ -442,6 +480,7 @@ def main():
             cases.append((f'explicit-{theme}-startup-reload',
                           {'scheme': 'dark' if theme == 'light' else 'light', 'theme': theme},
                           lambda case, theme=theme: persistence_case(case, theme)))
+        cases.append(('dark-semantic-icon-colors', {'width': 1440, 'theme': 'dark', 'financial': icon_fixture()}, dark_icon_colors))
         cases.append(('live-system-and-keyboard', {'scheme': 'dark'}, system_and_keyboard))
         cases.append(('real-second-tab-preference-sync', {'scheme': 'light'}, cross_tab_case))
         for number, invalid in enumerate(['sepia', 'DARK', 'null', '{broken', 'x' * 8193]):
