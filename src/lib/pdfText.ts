@@ -1,4 +1,5 @@
 import { Inflate, Unzlib } from 'fflate';
+import { MAX_PDF_DOCUMENT_MAPPINGS, MAX_PDF_FONT_MAPPINGS } from './importLimits';
 
 /** A piece of text the page draws from one position, in PDF user space
  * (points, origin bottom-left). Widths are not computed: callers place text by
@@ -450,7 +451,21 @@ const UNMAPPED_LIGATURES: Record<string, Record<number, string>> = {
   TTCommons: { 0x01e3: 'ft', 0x01e4: 'fh' },
 };
 
-function fontDecoder(document: PdfDocument, font: PdfDict): FontDecoder {
+interface ExtractionState {
+  runs: number;
+  mappedCodes: number;
+  fonts: Map<PdfDict, FontDecoder>;
+}
+
+const invalidMap = 'Peta karakter PDF tidak valid.';
+
+function validCodeSize(code: PdfString): number {
+  const width = code.bytes.length;
+  if (width < 1 || width > 4) fail(invalidMap);
+  return width;
+}
+
+function fontDecoder(document: PdfDocument, font: PdfDict, total: ExtractionState): FontDecoder {
   const subtype = nameOf(document.resolve(font.get('Subtype')));
   const composite = subtype === 'Type0';
   const map = new Map<number, string>();
@@ -460,6 +475,13 @@ function fontDecoder(document: PdfDocument, font: PdfDict): FontDecoder {
     const cmap = document.decode(toUnicode);
     const lexer = new Lexer(cmap);
     const ranges: number[] = [];
+    let fontCodes = 0;
+    // Count work, including a range that overwrites already mapped codes.
+    const reserve = (count: number) => {
+      fontCodes += count;
+      total.mappedCodes += count;
+      if (fontCodes > MAX_PDF_FONT_MAPPINGS || total.mappedCodes > MAX_PDF_DOCUMENT_MAPPINGS) fail(invalidMap);
+    };
     let mode = '';
     const pending: PdfValue[] = [];
     for (let token = readToken(lexer); token !== undefined; token = readToken(lexer)) {
@@ -473,21 +495,33 @@ function fontDecoder(document: PdfDocument, font: PdfDict): FontDecoder {
       if (!mode) continue;
       pending.push(token);
       if (mode === 'begincodespacerange' && pending.length === 2) {
-        if (isString(pending[0])) ranges.push(pending[0].bytes.length);
+        if (isString(pending[0])) ranges.push(validCodeSize(pending[0]));
         pending.length = 0;
       } else if (mode === 'beginbfchar' && pending.length === 2) {
         const [code, target] = pending;
-        if (isString(code) && isString(target)) map.set(toNumber(code.bytes), utf16(target.bytes));
+        if (isString(code) && isString(target)) {
+          validCodeSize(code);
+          reserve(1);
+          map.set(toNumber(code.bytes), utf16(target.bytes));
+        }
         pending.length = 0;
       } else if (mode === 'beginbfrange' && pending.length === 3) {
         const [low, high, target] = pending;
         pending.length = 0;
         if (!isString(low) || !isString(high)) continue;
+        if (validCodeSize(low) !== validCodeSize(high)) fail(invalidMap);
         const from = toNumber(low.bytes), to = toNumber(high.bytes);
-        if (to < from || to - from > 65_535) fail('Peta karakter PDF tidak valid.');
+        const length = to - from + 1;
+        if (length < 1 || length > 65_536) fail(invalidMap);
         if (Array.isArray(target)) {
-          target.forEach((item, offset) => { if (isString(item) && from + offset <= to) map.set(from + offset, utf16(item.bytes)); });
+          const count = Math.min(length, target.length);
+          reserve(count);
+          for (let offset = 0; offset < count; offset++) {
+            const item = target[offset];
+            if (isString(item)) map.set(from + offset, utf16(item.bytes));
+          }
         } else if (isString(target)) {
+          reserve(length);
           const base = target.bytes;
           for (let code = from; code <= to; code++) {
             const bytes = base.slice();
@@ -537,7 +571,7 @@ const multiply = (m: Matrix, n: Matrix): Matrix => [
 ];
 const round = (value: number): number => Math.round(value * 100) / 100;
 
-function pageRuns(document: PdfDocument, page: { dict: PdfDict; resources?: PdfDict }, total: { runs: number }): PdfTextRun[] {
+function pageRuns(document: PdfDocument, page: { dict: PdfDict; resources?: PdfDict }, total: ExtractionState): PdfTextRun[] {
   const contents = document.resolve(page.dict.get('Contents'));
   const streams = (Array.isArray(contents) ? contents.map(item => document.resolve(item)) : [contents]).filter(isStream);
   const parts = streams.map(stream => document.decode(stream));
@@ -552,7 +586,11 @@ function pageRuns(document: PdfDocument, page: { dict: PdfDict; resources?: PdfD
     if (!decoder) {
       const font = document.dict(fonts?.get(name));
       if (!font) fail('Huruf yang dipakai PDF tidak ditemukan.');
-      decoder = fontDecoder(document, font);
+      decoder = total.fonts.get(font);
+      if (!decoder) {
+        decoder = fontDecoder(document, font, total);
+        total.fonts.set(font, decoder);
+      }
       decoders.set(name, decoder);
     }
     return decoder;
@@ -642,6 +680,6 @@ export function extractPdfText(data: ArrayBuffer | Uint8Array): PdfTextRun[][] {
   if (!bytes.length) fail('File kosong.');
   if (bytes.length > MAX_FILE_BYTES) fail('File terlalu besar. Unduh riwayat dengan periode yang lebih singkat (maksimal 8 MB).');
   const document = new PdfDocument(bytes);
-  const total = { runs: 0 };
+  const total: ExtractionState = { runs: 0, mappedCodes: 0, fonts: new Map() };
   return document.pages().map(page => pageRuns(document, page, total));
 }
