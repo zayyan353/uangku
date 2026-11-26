@@ -5,15 +5,11 @@ import { effectiveCategorySettings } from './categorySettingsUpgrade';
 import { serializeFullBackup } from './fullBackup';
 import { BUDGETS_KEY, parseStoredBudgets, serializeBudgets, type BudgetMap } from './budgets';
 import { parseStoredTemplates, serializeTemplates, TEMPLATES_KEY, type TransactionTemplate } from './transactionTemplates';
-import { LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, baseClaimName, recoverProfile, restorePending, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
+import { BASE_CLAIM_MS, LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, baseClaimName, recoverProfile, restorePending, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
+import { withMetadataClaims } from './metadataClaims';
 
-export { LEDGER_LOCK };
+export { BASE_CLAIM_MS, LEDGER_LOCK };
 export const PERSISTENCE_BYTES = 8 * 1024 * 1024;
-/**
- * How long a write keeps the text it replaced claimed. Other tabs' views were measured to trail a write by tens of
- * milliseconds, and in a few runs by seconds; a view that trails for longer than this is not covered.
- */
-export const BASE_CLAIM_MS = 30_000;
 export type PersistenceStatus = 'unsaved' | 'saving' | 'saved' | 'failed' | 'conflict' | 'unsupported' | 'blocked';
 export interface PersistenceStorage {
   getItem(key: string): string | null;
@@ -152,7 +148,10 @@ async function commitPrepared(
       if (release === null) return { status: 'conflict' as const, message: conflictMessage };
       let written = false;
       try {
-        if (storage.getItem(RESTORE_JOURNAL) !== null) await locks.runExclusive(CATEGORY_LOCK, () => recoverProfile(storage));
+        if (storage.getItem(RESTORE_JOURNAL) !== null &&
+            !await locks.runExclusive(CATEGORY_LOCK, () => recoverProfile(storage, undefined, locks))) {
+          return { status: 'conflict' as const, message: conflictMessage };
+        }
         if (storage.getItem(STORAGE_KEY) !== expectedToken) {
           return { status: 'conflict' as const, message: conflictMessage };
         }
@@ -278,7 +277,7 @@ export class LedgerPersistenceController {
     let nextTemplates: string | undefined;
     try { if (categories.templates) nextTemplates = serializeTemplates(categories.templates); }
     catch (error) { this.update({ error: error instanceof Error ? error.message : 'Template pada cadangan tidak valid.' }); return false; }
-    let budgetsNotSaved = false, templatesNotSaved = false;
+    const unsavedSections: string[] = [];
     const expectedSettings = categories.expectedRaw;
     this.update({ pending: true, status: 'saving', error: '' });
     try {
@@ -288,16 +287,38 @@ export class LedgerPersistenceController {
       // displaced base before stale reads can pass the comparisons and overwrite settings.
       const names = await claimNames(locks, token, nextLedger);
       await withProfileLocks(locks, async () => {
-        const release = names ? await locks.claim?.(names.base) : undefined;
-        if (release === null) throw new Error(profileChangedMessage);
+        const claim = names ? await locks.claim?.(names.base) : undefined;
+        if (claim === null) throw new Error(profileChangedMessage);
+        let release = claim;
         let replacingLedger = false;
         try {
-          await recoverProfile(storage);
+          if (!await recoverProfile(storage, undefined, locks)) throw new Error(profileChangedMessage);
           if (storage.getItem(STORAGE_KEY) !== token || storage.getItem(CATEGORY_SETTINGS_KEY) !== expectedSettings) {
             throw new Error(profileChangedMessage);
           }
-          replacingLedger = nextLedger !== token;
-          await writeRestoredProfile(storage, token, nextLedger, expectedSettings, nextSettings);
+          // A backup without a section preserves it, even when this tab cannot read that key.
+          const sections = [
+            { key: BUDGETS_KEY, label: 'anggaran', next: nextBudgets },
+            { key: TEMPLATES_KEY, label: 'template', next: nextTemplates },
+          ].map(section => ({ ...section, raw: locks.claim && section.next !== undefined ? storage.getItem(section.key) : undefined }));
+          const bases = [{ key: CATEGORY_SETTINGS_KEY, raw: expectedSettings, message: profileChangedMessage }];
+          for (const { key, raw, label } of sections) {
+            if (raw !== undefined) bases.push({ key, raw, message: `Pengaturan ${label} berubah di tab lain. Buka kembali cadangan untuk memeriksa ulang.` });
+          }
+          await withMetadataClaims(storage, locks, bases, async target => {
+            if (storage.getItem(RESTORE_JOURNAL) !== null) throw new Error(restorePending);
+            if (storage.getItem(STORAGE_KEY) !== token) throw new Error(profileChangedMessage);
+            replacingLedger = nextLedger !== token;
+            await writeRestoredProfile(target, token, nextLedger, expectedSettings, nextSettings);
+            if (names) await ledgerWritten(locks, names, release);
+            release = undefined;
+            // The ledger commit point has passed. A refused optional write leaves the
+            // existing section in place and its warning must not undo the restore.
+            for (const { key, next, raw, label } of sections) {
+              if (next === undefined || next === (raw === undefined ? target.getItem(key) : raw)) continue;
+              try { target.setItem(key, next); } catch { unsavedSections.push(label); }
+            }
+          });
         } catch (error) {
           // Recovery and token checks never replace the ledger. After a failed write attempt,
           // retain protection if the ledger changed or the outcome cannot be read.
@@ -310,22 +331,13 @@ export class LedgerPersistenceController {
           }
           throw error;
         }
-        if (names) await ledgerWritten(locks, names, release);
-        // After the ledger commit point. A failed write leaves the previous
-        // budgets untouched and is reported; it never undoes the restore.
-        if (nextBudgets !== undefined && storage.getItem(BUDGETS_KEY) !== nextBudgets) {
-          try { storage.setItem(BUDGETS_KEY, nextBudgets); } catch { budgetsNotSaved = true; }
-        }
-        if (nextTemplates !== undefined && storage.getItem(TEMPLATES_KEY) !== nextTemplates) {
-          try { storage.setItem(TEMPLATES_KEY, nextTemplates); } catch { templatesNotSaved = true; }
-        }
       });
       this.baseToken = nextLedger;
       this.blockedRaw = null;
       this.knownTokens.set(candidate.data, nextLedger);
       this.update({ data: candidate.data, blocked: false, status: 'saved', pending: false, remoteChanged: false,
-        error: budgetsNotSaved || templatesNotSaved
-          ? `Catatan dan kategori sudah dipulihkan, tetapi ${budgetsNotSaved && templatesNotSaved ? 'anggaran dan template' : budgetsNotSaved ? 'anggaran' : 'template'} dari cadangan belum tersimpan. Periksa ruang penyimpanan browser.` : '' });
+        error: unsavedSections.length
+          ? `Catatan dan kategori sudah dipulihkan, tetapi ${unsavedSections.join(' dan ')} dari cadangan belum tersimpan. Periksa ruang penyimpanan browser.` : '' });
       this.ports.profileChanged?.();
       this.checkRemote();
       return true;
@@ -351,10 +363,19 @@ export class LedgerPersistenceController {
     };
     const exportCurrent = () => {
       verify();
-      const file = serializeFullBackup(ledger, effectiveCategorySettings(expectedCategoryRaw).settings, parseStoredBudgets(storage.getItem(BUDGETS_KEY)),
-        parseStoredTemplates(storage.getItem(TEMPLATES_KEY)));
-      verify();
-      return file;
+      const budgets = storage.getItem(BUDGETS_KEY), templates = storage.getItem(TEMPLATES_KEY);
+      const serialize = () => {
+        const file = serializeFullBackup(ledger, effectiveCategorySettings(expectedCategoryRaw).settings, parseStoredBudgets(budgets), parseStoredTemplates(templates));
+        verify();
+        return file;
+      };
+      if (!locks?.claim) return serialize();
+      const message = 'Cadangan lengkap belum dapat dibuat. Muat pengaturan terbaru lalu coba lagi.';
+      return withMetadataClaims(storage, locks, [
+        { key: CATEGORY_SETTINGS_KEY, raw: expectedCategoryRaw, message },
+        { key: BUDGETS_KEY, raw: budgets, message },
+        { key: TEMPLATES_KEY, raw: templates, message },
+      ], serialize);
     };
     if (!locks) return exportCurrent();
     return withProfileLocks(locks, async () => {

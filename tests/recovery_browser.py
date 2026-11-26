@@ -232,6 +232,43 @@ def test_stale_view_save_conflicts(browser, output):
         assert persisted_notes(a) == ['Stale view A']
 
 
+def test_stale_budget_editor(browser, output):
+    """MW-164c: a trailing budget editor keeps its draft and cannot replace a confirmed limit."""
+    from category_browser import BUDGETS, Case, budget_field
+
+    case = Case(browser, argparse.Namespace(url=URL), 'stale-budget-editor', empty=True)
+    try:
+        writer = case.page
+        initial = case.manager()
+        budget_field(initial, 'Kesehatan').fill('1')
+        case.save_manager(initial)  # Both editors start from the app's canonical category and budget text.
+
+        other = case.context.new_page()
+        other.goto(URL, wait_until='networkidle')
+        nav(other, 'Transaksi')
+        draft = case.manager(other)
+        field = budget_field(draft, 'Pendidikan')
+        field.fill('3')
+        other.evaluate(STALE_VIEW, BUDGETS)
+
+        first = case.manager()
+        budget_field(first, 'Kesehatan').fill('2')
+        case.save_manager(first)
+        expect(writer.locator('.toast')).to_contain_text('anggaran berhasil disimpan')
+        draft.get_by_role('button', name='Simpan pengaturan', exact=True).click()
+        other.wait_for_function("""() => !document.querySelector('[role=dialog]')
+            || document.body.innerText.includes('Anggaran berubah di tab lain')""")
+
+        reader = case.context.new_page()
+        reader.goto(URL, wait_until='domcontentloaded')
+        persisted = reader.evaluate('key => JSON.parse(localStorage.getItem(key))', BUDGETS)
+        assert persisted == {'TRY': {'Kesehatan': 200}}, f'Budget editor replaced a confirmed limit: {persisted}'
+        expect(other.locator('.toast')).to_contain_text('Anggaran berubah di tab lain')
+        expect(field).to_have_value('3')
+    finally:
+        case.context.close()
+
+
 def test_stale_full_backup(browser, output):
     """MW-164b: a full backup must include a save already reported successful in another tab."""
     with isolated(browser, fixture(), output, 'stale-full-backup') as (_, new_page, _):
@@ -974,6 +1011,7 @@ def main():
         ('stale-form-conflict', test_stale_form),
         ('two-tabs-sync-and-concurrent', test_clean_sync_and_concurrent_forms),
         ('stale-view-save-conflicts', test_stale_view_save_conflicts),
+        ('stale-budget-editor', test_stale_budget_editor),
         ('stale-full-backup', test_stale_full_backup),
         ('stale-restore-observer', test_stale_restore_observer),
         ('queued-saves-one-winner', test_queued_saves_one_winner),

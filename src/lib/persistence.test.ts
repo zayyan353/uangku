@@ -5,6 +5,7 @@ import { STORAGE_KEY, makeDemoData, serializeBackup, validateBackup, type Stored
 import { CATEGORY_LOCK, finishInterruptedRestore, RESTORE_JOURNAL } from './fullRestoreStorage';
 import { CATEGORY_SETTINGS_KEY, type CategorySettings } from './categorySettings';
 import { BUDGETS_KEY, type BudgetMap } from './budgets';
+import { TEMPLATES_KEY, type TransactionTemplate } from './transactionTemplates';
 
 function data(ids: string[] = []): StoredData {
   return { app: 'uangku', version: 1, demo: false, state: {
@@ -423,7 +424,7 @@ describe('coordinated persistence: fresh minimum reconstruction', () => {
 const text = (ids: string[] = []) => serializeBackup(data(ids));
 const notes = (raw: string | null) => raw === null ? [] : JSON.parse(raw).state.entries.map((entry: { note: string }) => entry.note);
 /** Written out here, not imported: the name is what tabs of different releases must agree on. */
-const claimName = (token: string | null) => `${LEDGER_LOCK}:base:${token === null ? 'kosong' : createHash('sha256').update(token).digest('hex')}`;
+const claimName = (token: string | null, namespace = LEDGER_LOCK) => `${namespace}:base:${token === null ? 'kosong' : createHash('sha256').update(token).digest('hex')}`;
 
 /**
  * One origin with several tabs. Each tab reads its own copy of storage, which shows another tab's write only
@@ -877,11 +878,86 @@ describe('coordinated full restore', () => {
     { id: 'personal', keyword: 'synthetic', category: 'Unused', mode: 'suggest' },
   ], keywordPackVersion: 7 };
   const after = JSON.stringify(settings), before = JSON.stringify({ ...settings, rules: [] });
+  const oldCategoryClaim = claimName(before, CATEGORY_SETTINGS_KEY), newCategoryClaim = claimName(after, CATEGORY_SETTINGS_KEY);
   const changed = 'Catatan atau kategori berubah sejak pratinjau dibuka. Buka kembali cadangan untuk memeriksa ulang.';
   const profile = (ids: string[]) => new Origin(text(ids), { [CATEGORY_SETTINGS_KEY]: before });
   type Tab = ReturnType<Origin['tab']>;
   const restore = (tab: Tab, ids: string[], categories: { expectedRaw?: string; budgets?: BudgetMap } = {}) =>
     tab.controller.setCandidate(data(ids), '', { restoreCategories: { settings, expectedRaw: before, ...categories } });
+
+  it.each(['export', 'restore'])('MW-164c: detects a stale category-only restore before %s', async operation => {
+    const origin = profile(['kept']);
+    const writer = origin.tab('writer'), reader = origin.tab('reader');
+    expect(await restore(writer, ['kept'])).toBe(true);
+    expect(reader.storage.getItem(CATEGORY_SETTINGS_KEY)).toBe(before);
+    const durable = new Map(origin.durable);
+    if (operation === 'export') await expect(reader.controller.exportFullBackup(before)).rejects.toThrow();
+    else expect(await restore(reader, ['replacement'])).toBe(false);
+    expect(origin.durable).toEqual(durable);
+    origin.deliver();
+    expect(JSON.parse(await reader.controller.exportFullBackup(after)).categorySettings).toEqual(settings);
+  });
+
+  it('MW-164c: preserves a journal that arrives during metadata claims', async () => {
+    const origin = profile(['old']), reader = origin.tab('reader');
+    const journal = JSON.stringify({ beforeLedger: createHash('sha256').update(text(['old'])).digest('hex'),
+      afterLedger: 'a'.repeat(64), beforeCategories: before, afterCategories: after });
+    origin.durable.set(RESTORE_JOURNAL, journal);
+    expect(reader.storage.getItem(RESTORE_JOURNAL)).toBeNull();
+    const claim = origin.locks.claim.bind(origin.locks);
+    vi.spyOn(origin.locks, 'claim').mockImplementation(name => {
+      if (name === oldCategoryClaim) reader.storage.catchUp();
+      return claim(name);
+    });
+    const write = vi.spyOn(reader.storage, 'setItem');
+    expect(await restore(reader, ['replacement'])).toBe(false);
+    expect(write).not.toHaveBeenCalled();
+    expect(origin.durable.get(RESTORE_JOURNAL)).toBe(journal);
+    expect(origin.locks.held()).toEqual([]);
+  });
+
+  const template: TransactionTemplate = { id: 't1', name: 'Kopi', type: 'expense', walletId: 'bank', currency: 'TRY', category: 'Belanja', note: '' };
+  describe.each([
+    { key: TEMPLATES_KEY, section: { templates: [template] }, replacement: { templates: [] } },
+    { key: BUDGETS_KEY, section: { budgets: { TRY: { Belanja: 300 } } }, replacement: { budgets: {} } },
+  ])('MW-164c: stale $key after a restore changed that section alone', ({ key, section, replacement }) => {
+    async function setup() {
+      const origin = new Origin(text(['kept']), { [CATEGORY_SETTINGS_KEY]: after });
+      const writer = origin.tab('writer'), reader = origin.tab('reader');
+      expect(await writer.controller.setCandidate(data(['kept']), '', { restoreCategories: { settings, expectedRaw: after, ...section } })).toBe(true);
+      expect(origin.durable.has(key)).toBe(true);
+      expect(reader.storage.getItem(key)).toBeNull();
+      return { origin, reader };
+    }
+
+    it('rejects a stale export until its view catches up', async () => {
+      const { origin, reader } = await setup();
+      await expect(reader.controller.exportFullBackup(after)).rejects.toThrow();
+      origin.deliver();
+      expect(JSON.parse(await reader.controller.exportFullBackup(after))).toMatchObject(section);
+    });
+
+    it('rejects a stale included section before writing any of the profile', async () => {
+      const { origin, reader } = await setup();
+      const durable = new Map(origin.durable);
+      const write = vi.spyOn(reader.storage, 'setItem');
+      const options = { restoreCategories: { settings, expectedRaw: after, ...replacement } };
+      expect(await reader.controller.setCandidate(data(['replacement']), '', options)).toBe(false);
+      expect(write).not.toHaveBeenCalled();
+      expect(origin.durable).toEqual(durable);
+      origin.deliver();
+      expect(await reader.controller.setCandidate(data(['replacement']), '', options)).toBe(true);
+      expect(origin.durable.get(key)).not.toBe(durable.get(key));
+    });
+
+    it('preserves the stored section when a backup omits it', async () => {
+      const { origin, reader } = await setup();
+      const durable = origin.durable.get(key);
+      reader.storage.unreadable = key;
+      expect(await reader.controller.setCandidate(data(['new']), '', { restoreCategories: { settings, expectedRaw: after } })).toBe(true);
+      expect(origin.durable.get(key)).toBe(durable);
+    });
+  });
 
   it.each(['refresh', 'export'])('MW-163: %s from a trailing tab preserves a completed restore', async operation => {
     const origin = profile(['old']);
@@ -906,7 +982,7 @@ describe('coordinated full restore', () => {
     expect(remove).not.toHaveBeenCalled();
     expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
     expect(origin.ledger).toBe(text(['restored']));
-    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+    expect(origin.locks.held()).toEqual([oldCategoryClaim, claimName(text(['old']))]);
 
     origin.deliver();
     await finishInterruptedRestore(reader.storage, origin.locks);
@@ -949,7 +1025,7 @@ describe('coordinated full restore', () => {
     expect(await restore(writer, ['restored'])).toBe(false);
     expect(origin.durable.has(RESTORE_JOURNAL)).toBe(true);
     expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
-    expect(origin.locks.held()).toEqual([]);
+    expect(origin.locks.held()).toEqual([oldCategoryClaim]);
 
     const locks = hasClaims ? origin.locks : { runExclusive: origin.locks.runExclusive.bind(origin.locks) };
     const reader = origin.tab('B', locks);
@@ -957,15 +1033,45 @@ describe('coordinated full restore', () => {
     expect(origin.ledger).toBe(text(['old']));
     expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(before);
     expect(origin.durable.has(RESTORE_JOURNAL)).toBe(false);
-    expect(origin.locks.held()).toEqual([]);
+    expect(origin.locks.held()).toEqual([hasClaims ? newCategoryClaim : oldCategoryClaim]);
+  });
+
+  it.each(['save', 'restore', 'export', 'refresh'])('MW-164c: %s leaves an interrupted journal for a tab that can see its staged categories', async operation => {
+    const origin = profile(['old']);
+    const writer = origin.tab('writer'), reader = origin.tab('reader');
+    const write = writer.storage.setItem.bind(writer.storage);
+    writer.storage.setItem = (key, value) => {
+      write(key, value);
+      if (key === RESTORE_JOURNAL) reader.storage.catchUp();
+    };
+    writer.storage.refuse = (key, value) => key === STORAGE_KEY || (key === CATEGORY_SETTINGS_KEY && value === before);
+    expect(await restore(writer, ['failed'])).toBe(false);
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
+    expect(reader.storage.getItem(CATEGORY_SETTINGS_KEY)).toBe(before);
+    expect(reader.storage.getItem(RESTORE_JOURNAL)).not.toBeNull();
+    const durable = new Map(origin.durable);
+    const set = vi.spyOn(reader.storage, 'setItem'), remove = vi.spyOn(reader.storage, 'removeItem');
+    if (operation === 'save') expect(await reader.controller.setCandidate(data(['new']))).toBe(false);
+    if (operation === 'restore') expect(await restore(reader, ['new'])).toBe(false);
+    if (operation === 'export') await expect(reader.controller.exportFullBackup(before)).rejects.toThrow();
+    if (operation === 'refresh') await finishInterruptedRestore(reader.storage, origin.locks);
+    expect(set).not.toHaveBeenCalled();
+    expect(remove).not.toHaveBeenCalled();
+    expect(origin.durable).toEqual(durable);
+    origin.deliver();
+    await finishInterruptedRestore(reader.storage, origin.locks);
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(before);
+    expect(origin.durable.has(RESTORE_JOURNAL)).toBe(false);
   });
 
   it('a trailing tab cannot save over the ledger another tab just restored', async () => {
     const origin = profile(['old']);
     const a = origin.tab('A'), b = origin.tab('B');
     expect(await restore(a, ['restored'])).toBe(true);
-    expect(origin.locks.requested).toEqual([{ name: claimName(text(['old'])), insideLedgerLock: true }]);
-    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+    expect(origin.locks.requested).toEqual([
+      { name: claimName(text(['old'])), insideLedgerLock: true }, { name: oldCategoryClaim, insideLedgerLock: true },
+    ]);
+    expect(origin.locks.held()).toEqual([oldCategoryClaim, claimName(text(['old']))]);
     expect(await b.controller.setCandidate(data(['old', 'b']))).toBe(false);
     expect(b.controller.getSnapshot()).toMatchObject({ dirty: true, status: 'conflict' });
     expect(notes(origin.ledger)).toEqual(['restored']);
@@ -991,14 +1097,14 @@ describe('coordinated full restore', () => {
     const a = origin.tab('A');
     a.storage.refuse = name => name === key;
     expect(await restore(a, ['restored'])).toBe(false);
-    expect(origin.locks.requested).toHaveLength(1);
+    expect(origin.locks.requested.map(request => request.name)).toEqual([claimName(text(['old'])), oldCategoryClaim]);
     expect(origin.locks.held()).toEqual([]);
     expect(origin.ledger).toBe(text(['old']));
     expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(before);
     a.storage.refuse = null;
     expect(await restore(a, ['restored'])).toBe(true);
     expect(notes(origin.ledger)).toEqual(['restored']);
-    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+    expect(origin.locks.held()).toEqual([oldCategoryClaim, claimName(text(['old']))]);
   });
 
   it('gives the claim back when a restore is interrupted before the ledger is written, and when the compare fails', async () => {
@@ -1009,7 +1115,7 @@ describe('coordinated full restore', () => {
     expect(await restore(a, ['restored'])).toBe(false);
     expect(origin.durable.has(RESTORE_JOURNAL)).toBe(true);
     expect(origin.ledger).toBe(text(['old']));
-    expect(origin.locks.held()).toEqual([]);
+    expect(origin.locks.held()).toEqual([oldCategoryClaim]);
     // Categories that changed since the preview: refused by the compare, claim returned.
     const other = profile(['old']);
     const b = other.tab('B');
@@ -1020,13 +1126,25 @@ describe('coordinated full restore', () => {
     expect(other.ledgerWriters).toEqual([]);
   });
 
-  it('keeps the claim when the ledger was restored and a later step failed', async () => {
+  it.each([true, false])('handles unreadable optional keys at the point they are checked (claim support: %s)', async hasClaims => {
     const origin = profile(['old']);
-    const a = origin.tab('A'), b = origin.tab('B');
+    const locks = hasClaims ? origin.locks : { runExclusive: origin.locks.runExclusive.bind(origin.locks) };
+    const a = origin.tab('A', locks);
     a.storage.unreadable = BUDGETS_KEY;
     expect(await restore(a, ['restored'], { budgets: { IDR: { Belanja: 5_000_000 } } })).toBe(false);
-    expect(notes(origin.ledger)).toEqual(['restored']);
-    expect(origin.locks.held()).toEqual([claimName(text(['old']))]);
+    // With claims the key must be readable before the first write. Legacy ports discover read errors after the commit.
+    expect(notes(origin.ledger)).toEqual(hasClaims ? ['old'] : ['restored']);
+    expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(hasClaims ? before : after);
+    expect(origin.locks.held()).toEqual([]);
+  });
+
+  it('keeps the ledger claim and reports the failed optional write after commit', async () => {
+    const origin = profile(['old']);
+    const a = origin.tab('A'), b = origin.tab('B');
+    a.storage.refuse = key => key === BUDGETS_KEY;
+    expect(await restore(a, ['restored'], { budgets: { IDR: { Belanja: 5_000_000 } } })).toBe(true);
+    expect(a.controller.getSnapshot().error).toMatch(/anggaran dari cadangan belum tersimpan/);
+    expect(origin.locks.held()).toEqual([oldCategoryClaim, claimName(text(['old']))]);
     expect(await b.controller.setCandidate(data(['old', 'b']))).toBe(false);
     expect(notes(origin.ledger)).toEqual(['restored']);
   });
@@ -1070,8 +1188,8 @@ describe('coordinated full restore', () => {
     expect(await restore(a, ['old'])).toBe(true);
     expect(origin.durable.get(CATEGORY_SETTINGS_KEY)).toBe(after);
     expect(origin.ledgerWriters).toEqual([]);
-    expect(origin.locks.held()).toEqual([]);
-    expect(origin.locks.revoked).toEqual([]);
+    expect(origin.locks.held()).toEqual([oldCategoryClaim]);
+    expect(origin.locks.revoked).toEqual([newCategoryClaim]);
     expect(await b.controller.setCandidate(data(['old', 'b']))).toBe(true);
   });
 
@@ -1094,7 +1212,7 @@ describe('coordinated full restore', () => {
     origin.deliver(); b.controller.checkRemote();
     expect(await restore(b, ['old'])).toBe(true);                               // The ['old'] text is stored again.
     expect(origin.ledger).toBe(text(['old']));
-    expect(origin.locks.held()).toEqual([claimName(text(['old', 'new']))]);
+    expect(origin.locks.held()).toEqual([oldCategoryClaim, claimName(text(['old', 'new']))]);
     origin.deliver(); a.controller.checkRemote();
     expect(await a.controller.setCandidate(data(['old', 'again']))).toBe(true);
     expect(notes(origin.ledger)).toEqual(['old', 'again']);

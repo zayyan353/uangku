@@ -1485,7 +1485,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *Batas.* Perlindungan tab yang tertinggal mengikuti masa klaim MW-162.
   Klaim dilepas sistem bila tab penulis ditutup.
 
-- [ ] **MW-164 — Jalur lain yang membaca di dalam kunci lalu menulis** (S–M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
+- [x] **MW-164 — Jalur lain yang membaca di dalam kunci lalu menulis** (S–M) (ditambahkan 25 November 2026, temuan penyelidikan MW-162)
   - [x] **a.** Pembersihan dompet cash kosong berjalan otomatis pada setiap
     tab yang memuat profil tersebut. Jika tab lain lebih dulu menyimpan,
     buang hanya draf pembersihan yang kalah dan tampilkan catatan terbaru.
@@ -1508,10 +1508,19 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     pada tab yang melihat catatan lama. Tes memeriksa penolakan ekspor
     sebelum tab menyusul, lalu membaca isi file yang diunduh sesudahnya.
     Jalur koordinasi kategori, anggaran, dan template diteliti di butir c.
-  - [ ] **c.** Ukur penulisan kategori dan anggaran
-    (`useCategorySettings.save`) serta penulisan template
-    (`useTransactionTemplates.change`) saat dua tab antre di CATEGORY_LOCK.
-    Tentukan kebutuhan klaim dari hasil pengukuran di tiap jalur.
+  - [x] **c.** Dua penyimpanan dari tab berbeda antre di `CATEGORY_LOCK`.
+    Di Chromium 154 pada `7c10d1e`, kedua tab melaporkan sukses tetapi
+    halaman baru kehilangan satu kategori dalam 3/24 putaran (pengaturan
+    630 byte) dan 10/24 putaran (124.551 byte). Satu anggaran hilang dalam
+    3/30 putaran dan satu template dalam 2/24 putaran. Pengukur menggunakan
+    formulir aplikasi dan pembacaan asli dari penyimpanan browser.
+    Setiap penulis kini mengklaim isi lama pada kunci yang bersangkutan.
+    Saat tab tertinggal, formulir mempertahankan draf. Ekspor, pemulihan
+    lengkap, dan pengembalian kategori dari jurnal memeriksa kunci yang
+    digunakannya. Ketika penulisan gagal, klaim mengikuti isi yang benar-benar
+    tersimpan, termasuk bila pengembalian ke nilai awal berhasil.
+    Batas 30 detik dan pelepasan klaim saat tab penulis ditutup mengikuti
+    MW-162. Hasil per mesin dan pengukuran ulang ada di PR MW-164c.
 
 **Tindakan pemilik (bukan kode):**
 

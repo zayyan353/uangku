@@ -1,8 +1,10 @@
 import { CATEGORY_SETTINGS_KEY } from './categorySettings';
 import { STORAGE_KEY } from './storage';
+import { digestStorageText, MetadataConflict, storageClaimName, withMetadataClaims } from './metadataClaims';
 import type { PersistenceLocks, PersistenceStorage } from './persistence';
 
 export const LEDGER_LOCK = `${STORAGE_KEY}:coordinated-write`;
+export { BASE_CLAIM_MS } from './metadataClaims';
 export const CATEGORY_LOCK = 'uangku:category-settings';
 export const RESTORE_JOURNAL = 'uangku:full-restore:v1';
 export const PROFILE_CHANGED = 'uangku:profile-changed';
@@ -70,33 +72,8 @@ interface Journal {
   afterCategories: string;
 }
 
-async function digest(raw: string | null) {
-  if (raw === null) return null;
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(raw));
-  return Array.from(new Uint8Array(hash), byte => byte.toString(16).padStart(2, '0')).join('');
-}
-
-/** The two texts hashed last for a claim name. A save's base is normally the text the previous save stored. */
-const claimDigests: Array<{ text: string; digest: string }> = [];
-
-/**
- * Name of the lock by which one write claims the ledger text it replaces (see commitPrepared in persistence.ts).
- * The name exists in the lock manager only and goes away with the claim: nothing is added to localStorage.
- */
-export async function baseClaimName(token: string | null): Promise<string> {
-  if (token === null) return `${LEDGER_LOCK}:base:kosong`;
-  let known = claimDigests.find(entry => entry.text === token)?.digest;
-  if (known === undefined) {
-    // TextEncoder replaces lone UTF-16 surrogates with U+FFFD. A legacy or damaged raw
-    // token can contain one, so give that case its own namespace and a lossless encoding.
-    known = /[\uD800-\uDFFF]/u.test(token)
-      ? `escaped:${await digest(JSON.stringify(token))}`
-      : (await digest(token))!;
-    claimDigests.push({ text: token, digest: known });
-    if (claimDigests.length > 2) claimDigests.shift();
-  }
-  return `${LEDGER_LOCK}:base:${known}`;
-}
+/** Ledger base claim shared by readers and writers of the original ledger key. */
+export const baseClaimName = (token: string | null) => storageClaimName(token, LEDGER_LOCK);
 
 function parseJournal(raw: string): Journal {
   const fail = () => { throw new Error('Catatan pemulihan lengkap tidak dapat dibaca. Data tersimpan belum diubah.'); };
@@ -124,7 +101,7 @@ function undoStagedCategories(storage: PersistenceStorage, journal: Journal) {
  * reader supplies its lock manager to check whether another tab has displaced
  * the ledger it sees. False means the reader must wait for a fresher view.
  */
-export async function recoverProfile(storage: PersistenceStorage, readerLocks?: PersistenceLocks): Promise<boolean> {
+export async function recoverProfile(storage: PersistenceStorage, readerLocks?: PersistenceLocks, categoryLocks = readerLocks): Promise<boolean> {
   const raw = storage.getItem(RESTORE_JOURNAL);
   if (raw === null) return true;
   const ledger = storage.getItem(STORAGE_KEY);
@@ -134,15 +111,24 @@ export async function recoverProfile(storage: PersistenceStorage, readerLocks?: 
     release();
   }
   const journal = parseJournal(raw);
-  const current = await digest(ledger);
-  // This tab can receive storage changes even while it holds the writer locks.
-  // Only act on the exact journal and ledger that passed the probe.
-  if (readerLocks?.claim && (storage.getItem(RESTORE_JOURNAL) !== raw || storage.getItem(STORAGE_KEY) !== ledger)) return false;
-  if (current === journal.beforeLedger) undoStagedCategories(storage, journal);
-  // The target ledger means the restore committed. An unrelated ledger belongs
-  // to a later writer. Neither permits undoing financial or category edits.
-  storage.removeItem(RESTORE_JOURNAL);
-  return true;
+  const current = await digestStorageText(ledger);
+  function finish(guarded: PersistenceStorage) {
+    // A different view may arrive during the digest or the category claim.
+    if (categoryLocks?.claim && (guarded.getItem(RESTORE_JOURNAL) !== raw || guarded.getItem(STORAGE_KEY) !== ledger)) return false;
+    if (current === journal.beforeLedger) undoStagedCategories(guarded, journal);
+    // A committed restore or a later ledger needs no rollback.
+    guarded.removeItem(RESTORE_JOURNAL);
+    return true;
+  }
+  if (current !== journal.beforeLedger || !categoryLocks?.claim) return finish(storage);
+  // Even skipping rollback based on a mismatch would discard the journal.
+  // Establish that the visible categories are current before making that decision.
+  const base = { key: CATEGORY_SETTINGS_KEY, raw: storage.getItem(CATEGORY_SETTINGS_KEY), message: restorePending };
+  try { return await withMetadataClaims(storage, categoryLocks, [base], finish); }
+  catch (error) {
+    if (error instanceof MetadataConflict) return false;
+    throw error;
+  }
 }
 
 export async function finishInterruptedRestore(storage: PersistenceStorage, locks: PersistenceLocks | undefined) {
@@ -162,7 +148,7 @@ export async function writeRestoredProfile(storage: PersistenceStorage, previous
     storage.setItem(STORAGE_KEY, nextLedger);
     return;
   }
-  const journal: Journal = { beforeLedger: await digest(previousLedger), afterLedger: (await digest(nextLedger))!,
+  const journal: Journal = { beforeLedger: await digestStorageText(previousLedger), afterLedger: (await digestStorageText(nextLedger))!,
     beforeCategories: previousCategories, afterCategories: nextCategories };
   const raw = JSON.stringify(journal);
   if (raw.length > journalLimit) throw new Error('Pengaturan kategori lama terlalu besar untuk dipulihkan dengan aman.');

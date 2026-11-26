@@ -3,7 +3,8 @@ import { STORAGE_KEY } from '../lib/storage';
 import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, KEYWORD_PACK_VERSION, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
 import { effectiveCategorySettings } from '../lib/categorySettingsUpgrade';
 import { BUDGETS_KEY, isEmptyBudgets, parseStoredBudgets, serializeBudgets, type BudgetMap } from '../lib/budgets';
-import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, requestExclusive, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
+import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
+import { withMetadataClaims } from '../lib/metadataClaims';
 
 export const CategorySettingsContext = createContext<CategorySettings>(defaultCategorySettings());
 export const unreadableBudgets = 'Anggaran tersimpan tidak dapat dibaca. Bagian anggaran dikunci agar anggaran lama tidak tertimpa.';
@@ -59,28 +60,34 @@ export function useCategorySettings() {
     // Validate before the lock; an empty map removes the key instead of storing "{}".
     const budgets = budgetChange ? parseStoredBudgets(serializeBudgets(budgetChange.budgets)) : undefined;
     const budgetsRaw = budgets && !isEmptyBudgets(budgets) ? serializeBudgets(budgets) : null;
-    if (!navigator.locks?.request) throw Error('Browser ini belum mendukung koordinasi pengaturan. Coba browser yang mendukung Web Locks.');
-    await finishInterruptedRestore(localStorage, browserLocks());
-    await requestExclusive(navigator.locks, CATEGORY_LOCK, () => {
-      if (localStorage.getItem(RESTORE_JOURNAL) !== null) throw Error(restorePending);
-      if (localStorage.getItem(CATEGORY_SETTINGS_KEY) !== expectedRaw) { setSnapshot(load()); throw Error('Pengaturan berubah di tab lain. Tutup lalu buka kembali pengelola kategori sebelum menyimpan.'); }
-      if (budgetChange && localStorage.getItem(BUDGETS_KEY) !== budgetChange.expectedRaw) { setSnapshot(load()); throw Error('Anggaran berubah di tab lain. Tutup lalu buka kembali pengelola kategori sebelum menyimpan.'); }
-      const writeBudgets = budgetChange !== undefined && budgetsRaw !== budgetChange.expectedRaw;
-      if (writeBudgets) {
-        if (budgetsRaw === null) localStorage.removeItem(BUDGETS_KEY); else localStorage.setItem(BUDGETS_KEY, budgetsRaw);
-      }
-      try { localStorage.setItem(CATEGORY_SETTINGS_KEY, raw); }
-      catch (error) {
-        // Settings and budgets are saved together or not at all.
+    const locks = browserLocks();
+    if (!locks) throw Error('Browser ini belum mendukung koordinasi pengaturan. Coba browser yang mendukung Web Locks.');
+    await finishInterruptedRestore(localStorage, locks);
+    const bases = [{ key: CATEGORY_SETTINGS_KEY, raw: expectedRaw, message: 'Pengaturan berubah di tab lain. Tutup lalu buka kembali pengelola kategori sebelum menyimpan.' }];
+    if (budgetChange) bases.push({ key: BUDGETS_KEY, raw: budgetChange.expectedRaw, message: 'Anggaran berubah di tab lain. Tutup lalu buka kembali pengelola kategori sebelum menyimpan.' });
+    try {
+      await locks.runExclusive(CATEGORY_LOCK, () => withMetadataClaims(localStorage, locks, bases, storage => {
+        if (storage.getItem(RESTORE_JOURNAL) !== null) throw Error(restorePending);
+        const writeBudgets = budgetChange !== undefined && budgetsRaw !== budgetChange.expectedRaw;
         if (writeBudgets) {
-          try { if (budgetChange.expectedRaw === null) localStorage.removeItem(BUDGETS_KEY); else localStorage.setItem(BUDGETS_KEY, budgetChange.expectedRaw); }
-          catch { /* load() below reports what is actually stored. */ }
+          if (budgetsRaw === null) storage.removeItem(BUDGETS_KEY); else storage.setItem(BUDGETS_KEY, budgetsRaw);
         }
-        setSnapshot(load());
-        throw error;
-      }
-      setSnapshot({ raw, settings, packAdded: 0, packUpdated: 0, error: '', ...(budgets ? { budgetsRaw, budgets, budgetsError: '' } : loadBudgets()) });
-    });
+        try { storage.setItem(CATEGORY_SETTINGS_KEY, raw); }
+        catch (error) {
+          // Restore the previous budget if the accompanying settings write fails.
+          if (writeBudgets) {
+            try {
+              if (budgetChange.expectedRaw === null) storage.removeItem(BUDGETS_KEY); else storage.setItem(BUDGETS_KEY, budgetChange.expectedRaw);
+            } catch { /* The snapshot below reloads the actual stored limits. */ }
+          }
+          throw error;
+        }
+        setSnapshot({ raw, settings, packAdded: 0, packUpdated: 0, error: '', ...(budgets ? { budgetsRaw, budgets, budgetsError: '' } : loadBudgets()) });
+      }));
+    } catch (error) {
+      setSnapshot(load());
+      throw error;
+    }
   }
   return { ...snapshot, recovering, save };
 }
