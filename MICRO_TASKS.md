@@ -30,7 +30,7 @@ lulus, build lulus): temuan dan MW baru (MW-87 sampai MW-144) ada di bagian F.
   `main` → CI hijau → merge → laporan ke pemilik.
 - **Masuk ke `main` lewat PR**, bukan push langsung. Alasannya: push ke
   `main` = auto-deploy, dan CI menjalankan 18 skrip browser Playwright di Chromium (17 di Firefox dan WebKit) yang tidak
-  ikut di `npm test`. `ci.yml` jalan di `pull_request`, jadi kegagalan ketahuan
+  ikut di `npm test`. Varian HP skrip sumber menambah satu eksekusi di setiap mesin. `ci.yml` jalan di `pull_request`, jadi kegagalan ketahuan
   sebelum masuk `main`. Merge hanya kalau CI hijau.
 - MW yang mengubah UI (07, 08, 11, 12b, 12c, 13a, 13b) bisa lolos tes lokal tapi
   gagal di tes browser. Kalau bisa, jalankan juga tes browser yang relevan di
@@ -2628,11 +2628,16 @@ run tersusul push yang lebih baru di branch yang sama.
     sudah berjalan di CI lewat `npm run build`; ini kemudahan lokal saja.
 
 - [ ] **MW-142 — Tes: varian HP `source_browser.py` dan satu daftar suite**
-  - [ ] **a.** (S) `python tests/source_browser.py --mobile` didokumentasikan di
-    `LOCAL_WORKFLOW.md:73` tetapi tidak pernah ada di `ci.yml`. Belum diketahui
-    apakah varian ini masih lulus; bisa jadi butuh perbaikan dulu. Tambahkan ke
-    kedua job tes browser di `ci.yml`. Bila gagal di CI, laporkan dan jangan
-    dipaksa; perbaikannya jadi MW terpisah (pola MW-03b).
+  - [x] **a.** (S) Jalankan `python tests/source_browser.py --mobile` di CI.
+    *Selesai:* seperti di `LOCAL_WORKFLOW.md:75`, kedua job tes browser
+    menjalankan varian HP dan menyimpan buktinya di direktori tersendiri
+    (`.github/workflows/ci.yml:90,122,236`).
+    *Tes:* pemeriksaan struktur gagal sebelum ada pemanggilan varian HP.
+    Setelah perubahan, Chromium menjadwalkan 19 eksekusi dan dua mesin lain
+    masing-masing 18. Varian HP lulus 5/5 di Chromium lokal; 2.051 tes unit
+    di 88 berkas serta build produksi lulus.
+    *Belum terbukti:* Firefox dan WebKit diperiksa pada CI. Emulasi ukuran
+    ponsel tidak menguji perangkat fisik.
   - [ ] **b.** (S) Satu file daftar suite yang dibaca CI dan `LOCAL_WORKFLOW.md`
     (sekarang `LOCAL_WORKFLOW.md` mendaftar 10 dari 18 suite CI).
   - [ ] **c.** (S–M) — **butuh keputusan** Tes browser bisa dijalankan di sesi agen:

@@ -87,6 +87,7 @@ jobs:
           python tests/jago_browser.py --output "$RUNNER_TEMP/uangku-browser-jago"
           python tests/cashflow_browser.py --output "$RUNNER_TEMP/uangku-browser-cashflow"
           python tests/source_browser.py --output "$RUNNER_TEMP/uangku-browser-source"
+          python tests/source_browser.py --mobile --output "$RUNNER_TEMP/uangku-browser-source-mobile"
           python tests/backfill_browser.py --output "$RUNNER_TEMP/uangku-browser-backfill"
           python tests/kerangka_browser.py --output "$RUNNER_TEMP/uangku-browser-kerangka"
           python tests/performance_browser.py --output "$RUNNER_TEMP/uangku-browser-performance" --median-budget-ms 7000 --frame-budget-ms 350
@@ -118,6 +119,7 @@ jobs:
             ${{ runner.temp }}/uangku-browser-jago
             ${{ runner.temp }}/uangku-browser-cashflow
             ${{ runner.temp }}/uangku-browser-source
+            ${{ runner.temp }}/uangku-browser-source-mobile
             ${{ runner.temp }}/uangku-browser-backfill
             ${{ runner.temp }}/uangku-browser-kerangka
             ${{ runner.temp }}/uangku-browser-performance
@@ -231,6 +233,7 @@ jobs:
           python tests/jago_browser.py --output "$out/jago"
           python tests/cashflow_browser.py --output "$out/cashflow"
           python tests/source_browser.py --output "$out/source"
+          python tests/source_browser.py --mobile --output "$out/source-mobile"
           python tests/backfill_browser.py --output "$out/backfill"
           python tests/kerangka_browser.py --output "$out/kerangka"
       - name: Simpan bukti pengujian browser
