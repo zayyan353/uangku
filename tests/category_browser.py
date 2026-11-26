@@ -476,12 +476,12 @@ def history_automation(case):
 
 
 
-def merchant_history_fixture():
+def merchant_history_fixture(merchant='Warung Contoh'):
     data = fixture(empty=True)
     for index in range(5):
         data['state']['entries'].append({
             'id': f'warung-{index}', 'date': f'2026-10-{20 + index}', 'type': 'expense',
-            'walletId': 'bank', 'amount': 2000, 'note': f'Warung Contoh #F-{index:010d}',
+            'walletId': 'bank', 'amount': 2000, 'note': f'{merchant} #F-{index:010d}',
             'category': 'Makan & minum' if index < 3 else UNCAT,
         })
     return data
@@ -516,6 +516,151 @@ def merchant_history(case):
     next(row for row in expected['state']['entries'] if row['id'] == 'warung-3')['category'] = 'Makan & minum'
     assert stored_document(page) == expected
     case.semantic_comparisons += 1
+
+
+def open_merchant_preview(page):
+    page.get_by_role('button', name='Isi kategori otomatis', exact=True).click()
+    preview = page.get_by_role('dialog', name='Isi kategori otomatis', exact=True)
+    rows = preview.locator('.category-automation-row')
+    source, other = rows.first, rows.last
+    expect(source.get_by_role('combobox')).to_have_value('')
+    other.get_by_role('combobox').select_option('Pendidikan')
+    return preview, source, other
+
+
+def open_merchant_rule(page, source):
+    create = source.get_by_role('button', name='Jadikan aturan', exact=True)
+    expect(create).to_be_visible()
+    create.click()
+    editor = page.get_by_role('dialog', name='Jadikan aturan', exact=True)
+    keyword = editor.get_by_role('textbox', name='Kata kunci')
+    selected_keyword = keyword.input_value()
+    assert selected_keyword
+    save = editor.get_by_role('button', name='Simpan aturan saran', exact=True)
+    return editor, keyword, selected_keyword, save
+
+
+def merchant_rule(case):
+    page = case.page
+    preview, source, other = open_merchant_preview(page)
+    editor, keyword, selected_keyword, save = open_merchant_rule(page, source)
+    keyword.fill('UBER')
+    save.click()
+    expect(editor.get_by_role('alert')).to_contain_text('sudah')
+    keyword.fill('frasa yang tidak ada')
+    save.click()
+    expect(editor.get_by_role('alert')).to_contain_text('keterangan')
+    assert page.evaluate('(key)=>localStorage.getItem(key)', SETTINGS) == case.settings_raw
+    keyword.fill(selected_keyword)
+    save.click()
+    expect(editor).to_have_count(0)
+    expect(preview.get_by_role('status')).to_contain_text('tersimpan')
+    expect(source.get_by_role('combobox')).to_be_focused()
+    expect(source).to_contain_text('Saran — pilih sendiri')
+    expect(source.get_by_role('combobox')).to_have_value('')
+    expect(other.get_by_role('combobox')).to_have_value('Pendidikan')
+    expect(preview.get_by_role('button', name='Terapkan 1 kategori')).to_be_enabled()
+    settings = page.evaluate('(key)=>JSON.parse(localStorage.getItem(key))', SETTINGS)
+    saved = [rule for rule in settings['rules'] if rule['keyword'] == selected_keyword]
+    assert len(saved) == 1 and saved[0]['mode'] == 'suggest' and saved[0]['category'] == 'Makan & minum'
+    assert all(rule in settings['rules'] for rule in settings_fixture()['rules'])
+    case.unchanged()
+    preview.get_by_role('button', name='Batal', exact=True).click()
+    page.get_by_role('button', name='Isi kategori otomatis', exact=True).click()
+    expect(preview.get_by_text('Saran — pilih sendiri', exact=False)).to_have_count(2)
+    expect(preview.get_by_role('button', name='Jadikan aturan')).to_have_count(0)
+    expect(preview.get_by_role('button', name='Terapkan 0 kategori')).to_be_disabled()
+    case.unchanged()
+
+
+def merchant_rule_quota(case):
+    page = case.page
+    preview, source, other = open_merchant_preview(page)
+    editor, keyword, selected_keyword, save = open_merchant_rule(page, source)
+    page.evaluate("""()=>{const set=Storage.prototype.setItem;window.rejectCategorySave=true;
+        Storage.prototype.setItem=function(key,value){if(key==='uangku:categories:v1'&&window.rejectCategorySave)
+        throw new DOMException('Synthetic quota','QuotaExceededError');return set.call(this,key,value);};}""")
+    save.click()
+    expect(editor.get_by_role('alert')).to_be_visible()
+    expect(keyword).to_have_value(selected_keyword)
+    assert page.evaluate('(key)=>localStorage.getItem(key)', SETTINGS) == case.settings_raw
+    case.unchanged()
+    page.evaluate('window.rejectCategorySave=false')
+    save.click()
+    expect(editor).to_have_count(0)
+    expect(preview.get_by_role('status')).to_contain_text('tersimpan')
+    expect(other.get_by_role('combobox')).to_have_value('Pendidikan')
+    case.unchanged()
+
+
+def merchant_rule_conflict(case):
+    page = case.page
+    _, source, other = open_merchant_preview(page)
+    editor, keyword, selected_keyword, save = open_merchant_rule(page, source)
+    peer = case.new_page()
+    peer.goto(case.args.url)
+    changed = settings_fixture()
+    changed['names'].append('Kategori tab kedua')
+    changed_raw = compact(changed)
+    peer.evaluate("""([key,value])=>{navigator.locks.request('uangku:category-settings',async()=>{
+        window.lockReady=true;await new Promise(resolve=>window.releaseLock=resolve);localStorage.setItem(key,value);
+    })}""", [SETTINGS, changed_raw])
+    peer.wait_for_function('window.lockReady')
+    save.click()
+    expect(save).to_be_disabled()
+    peer.evaluate('window.releaseLock()')
+    expect(editor.get_by_role('alert')).to_contain_text('berubah')
+    expect(keyword).to_have_value(selected_keyword)
+    assert page.evaluate('(key)=>localStorage.getItem(key)', SETTINGS) == changed_raw
+    editor.get_by_role('button', name='Batal', exact=True).click()
+    expect(other.get_by_role('combobox')).to_have_value('Pendidikan')
+    case.unchanged()
+
+
+def merchant_rule_recovery(case):
+    page = case.page
+    preview, _, other = open_merchant_preview(page)
+    peer = case.new_page()
+    peer.goto(case.args.url)
+    peer.evaluate("localStorage.setItem('uangku:full-restore:v1', '{')")
+    expect(preview.get_by_role('button', name='Terapkan 1 kategori')).to_be_disabled()
+    expect(preview.get_by_text('Pengaturan kategori berubah.', exact=False)).to_be_visible()
+    expect(other.get_by_role('combobox')).to_have_value('Pendidikan')
+    assert page.evaluate('(key)=>localStorage.getItem(key)', SETTINGS) == case.settings_raw
+    case.unchanged()
+
+
+def merchant_rule_capacity(case):
+    page = case.page
+    full = settings_fixture()
+    full['keywordPackVersion'] = 7
+    full['rules'] = [{'id': str(i), 'keyword': f'Toko sintetis {i}', 'category': 'Pendidikan',
+                      'mode': 'suggest'} for i in range(200)]
+    full_raw = compact(full)
+    page.evaluate('([k,v])=>localStorage.setItem(k,v)', [SETTINGS, full_raw])
+    page.reload()
+    nav(page, 'Transaksi')
+    _, source, _ = open_merchant_preview(page)
+    editor, keyword, selected_keyword, save = open_merchant_rule(page, source)
+    save.click()
+    expect(editor.get_by_role('alert')).to_contain_text('200 aturan')
+    expect(keyword).to_have_value(selected_keyword)
+    assert page.evaluate('(key)=>localStorage.getItem(key)', SETTINGS) == full_raw
+    case.unchanged()
+
+
+def protected_merchant_rule(case):
+    page = case.page
+    for raw in ['{', compact({**settings_fixture(), 'version': 999})]:
+        page.evaluate('([k,v])=>localStorage.setItem(k,v)', [SETTINGS, raw])
+        page.reload()
+        nav(page, 'Transaksi')
+        page.get_by_role('button', name='Isi kategori otomatis', exact=True).click()
+        preview = page.get_by_role('dialog', name='Isi kategori otomatis', exact=True)
+        expect(preview.get_by_role('button', name='Jadikan aturan').first).to_be_disabled()
+        preview.get_by_role('button', name='Batal', exact=True).click()
+        assert page.evaluate('(key)=>localStorage.getItem(key)', SETTINGS) == raw
+        case.unchanged()
 
 
 def write_statement(path):
@@ -985,6 +1130,14 @@ def main():
              ('budget-progress-mobile-dark', {'width': 390, 'theme': 'dark'}, budget_progress),
              ('history-auto-suggest-conflict-pending', {}, history_automation),
              ('merchant-history-suggestions', {'initial': merchant_history_fixture()}, merchant_history),
+             ('merchant-rule-simple', {'initial': merchant_history_fixture()}, merchant_rule),
+             ('merchant-rule-gofood', {'initial': merchant_history_fixture(
+                 'Pembayaran dengan Jago Pay · GoPay · 004 - GO-FOODWarung Contoh, Malang')}, merchant_rule),
+             ('merchant-rule-quota', {'initial': merchant_history_fixture()}, merchant_rule_quota),
+             ('merchant-rule-conflict', {'initial': merchant_history_fixture()}, merchant_rule_conflict),
+             ('merchant-rule-recovery', {'initial': merchant_history_fixture()}, merchant_rule_recovery),
+             ('merchant-rule-capacity', {'initial': merchant_history_fixture()}, merchant_rule_capacity),
+             ('merchant-rule-protected', {'initial': merchant_history_fixture()}, protected_merchant_rule),
              ('source-import-desktop', {'empty': True}, source_import),
              ('source-import-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, source_import),
              ('settings-stale-tab-CAS', {}, stale_settings),
