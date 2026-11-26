@@ -3,7 +3,7 @@ import { isCurrencyCode } from './currencyCatalog';
 import type { SourceDocument, SourceFact } from './sourceModel';
 import { interpretBankDescription, normalizeBankDescription } from './bankDescription';
 import { entryFingerprintVersion, indexBankWording } from './bankWording';
-import { actualBalanceProblem, createPostingDateIndex, entryPostings, type EntryPosting } from './transferPostings';
+import { actualBalanceProblem, createPostingDateIndex, entryPostings, isExpensePosting, type EntryPosting } from './transferPostings';
 
 export interface CashflowQuery {
   currency: Currency;
@@ -185,7 +185,7 @@ export function buildCashflowReport(data: SourceDocument, query: CashflowQuery):
       const group = groups.get(id) ?? { inflow: 0n, outflow: 0n, entries: new Set<string>() };
       if (amount > 0n) group.inflow += amount; else group.outflow -= amount;
       group.entries.add(entry.id); groups.set(id, group);
-      if (amount < 0n && (posting.role === 'fee' || (posting.role === 'ordinary' && entry.type === 'expense'))) {
+      if (isExpensePosting(entry, posting)) {
         const category = posting.role === 'fee' ? 'Biaya transfer' : entry.category.trim() || 'Belum dikategorikan';
         categories.set(category, (categories.get(category) ?? 0n) - amount);
       }

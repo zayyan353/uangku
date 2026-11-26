@@ -2885,11 +2885,23 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   Belum ada tampilan per hari; MW-131 merencanakan tren per bulan. Kotak 7 hari
   × 53 minggu yang makin gelap saat makin boros memperlihatkan pola yang tidak
   kelihatan di total bulanan, seperti akhir pekan atau awal bulan.
-  - [ ] **a.** (S–M) `src/lib/spendingCalendar.ts` + tes: per mata uang, total
+  - [x] **a.** (S–M) `src/lib/spendingCalendar.ts` + tes: per mata uang, total
     pengeluaran terkonfirmasi per hari (termasuk biaya, tanpa pindah uang antar
     dompet dan tanpa baris "Perlu dicek") untuk 53 minggu sampai `deviceDay()`
     (`src/lib/today.ts`), plus tingkat 0–4 dari kuartil hari yang ada
     pengeluarannya.
+    *Selesai:* pustaka memakai definisi pengeluaran yang sama dengan laporan
+    arus rekening. Biaya transfer mengikuti tanggal debit. Posting tanpa
+    tanggal tidak dimasukkan ke hari mana pun. Kalender menghasilkan 371 hari
+    sampai tanggal acuan, dengan ID transaksi untuk rincian harian. Fungsi
+    `dailySpending` juga menerima rentang rekap sendiri.
+    *Keputusan agen:* gunakan kuartil nearest-rank pada total positif. Nilai
+    yang sama selalu mendapat tingkat yang sama, dan hari tanpa belanja
+    mendapat tingkat 0.
+    *Tes:* uji awal gagal memuat pustaka yang belum ada. Sesudahnya keenam
+    kasus baru lulus, termasuk biaya, mata uang, tanggal, tahun kabisat,
+    seri dan overflow. Seluruh 2.024 tes unit di 82 berkas serta build lulus.
+    *Belum terbukti:* tampilan dan navigasi kalender menyusul di MW-149b/c.
   - [ ] **b.** (M) Panel lipat "Kalender pengeluaran" di Ringkasan: grid CSS tanpa
     pustaka, dihitung hanya saat panel dibuka (seperti MW-131b), warna lewat
     token tema terang dan gelap, dan `aria-label` per kotak, mis.
