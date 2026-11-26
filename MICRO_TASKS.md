@@ -2455,12 +2455,17 @@ gagal, 2 dibatalkan; job pada run #105 memakan 9:14, 9:45, dan 11:39; run
 Publikasikan #66 memakan 13:52, dengan build 25 detik dan deploy 13 detik; 12
 run tersusul push yang lebih baru di branch yang sama.
 
-- [ ] **MW-136 — CI: batalkan run PR yang tersusul** (S)
-  `ci.yml` tidak punya blok `concurrency`. Tambahkan, dikunci pada nomor PR
-  (dengan nilai cadangan seperti `github.run_id`, karena `ci.yml` juga dipanggil
-  `pages.yml` lewat `workflow_call` dan bisa dipicu manual, tanpa nomor PR),
-  dengan `cancel-in-progress` hanya untuk `pull_request`. Tidak mengubah aturan
-  "merge hanya setelah hijau".
+- [x] **MW-136 — CI: batalkan run PR yang tersusul** (S)
+  **Selesai.** Push berikutnya ke PR yang sama membatalkan pemeriksaan lama.
+  `ci.yml:17–19` mengelompokkan run PR menurut nomor PR dan run lain menurut
+  ID run. Publikasi memakai grup `pages` sendiri dan memanggil CI lewat
+  `pages.yml:27`.
+  **Tes.** Sebelum perubahan, pemeriksaan gagal karena blok concurrency belum
+  ada. Sesudahnya, evaluator ekspresi GitHub Actions lulus enam kasus lokal
+  untuk PR yang sama, PR berbeda, pemicu manual, dan push publikasi. Unit
+  2.008/2.008 lulus dan build produksi berhasil.
+  **Belum terbukti.** Pembatalan dua run yang bertumpang tindih pada runner
+  GitHub. Publikasi kandidat diperiksa setelah merge.
 
 - [x] **MW-137 — CI: batas waktu pada langkah yang bisa macet** (S)
   Di run Publikasikan #60 semua tes lulus, lalu langkah unggah bukti macet ±11
