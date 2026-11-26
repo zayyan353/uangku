@@ -118,6 +118,7 @@ def transfer_lifecycle(browser,out):
         page.get_by_role('dialog').get_by_role('button',name='Hapus',exact=True).click()
         dlg=page.get_by_role('dialog');dlg.get_by_label('Alasan tindakan',exact=True).fill('Uji penghapusan grup sintetis')
         dlg.get_by_role('button',name='Hapus transaksi',exact=True).click()
+        expect(page.locator('.toast')).to_have_text('Transaksi dihapus; data mutasi bank yang tersedia tetap dipertahankan.')
         deleted=wait_doc(page,lambda d:len(d['state']['entries'])==0)
         assert len(deleted['metadata']['deletedTransfers'])==1 and deleted['metadata']['facts']==paired['metadata']['facts']
         nav(page,'Impor mutasi');page.get_by_label('Alasan pemulihan transfer',exact=True).fill('Memulihkan seluruh grup uji')
@@ -205,6 +206,7 @@ def manual_delete_after_metadata(browser,out):
             page.get_by_role('button',name='Ubah '+note,exact=True).click()
             dialog().get_by_role('button',name='Hapus',exact=True).click()
             dialog().get_by_role('button',name='Hapus transaksi',exact=True).click()
+            expect(page.locator('.toast')).to_have_text('Transaksi dihapus.')
             after=wait_doc(page,lambda d:len(d['state']['entries'])==remaining)
             assert all(e['note']!=note for e in after['state']['entries'])
             expect(page.get_by_role('button',name='Ubah '+note,exact=True)).to_have_count(0)

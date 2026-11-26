@@ -661,7 +661,7 @@ export default function App() {
     const sourced = !!data.metadata?.links.some(link => link.entryId === entry.id);
     setConfirm({ title: 'Hapus transaksi ini?', text: sourced ? 'Interpretasi transaksi akan dihapus dari saldo. Data bank tetap disimpan, dan impor ulang memerlukan keputusan eksplisit agar tidak menggandakan transaksi.' : 'Saldo dompet akan dihitung ulang. Unduh cadangan bila catatan ini masih diperlukan.', label: 'Hapus transaksi', danger: true, requireReason: sourced, action: async (reason = '') => {
       const next = entry.type === 'transfer' ? executeTransferCommand(data, { kind: 'delete', entryId: entry.id, reason: reason || 'Pengguna menghapus transfer.', at: new Date().toISOString() }) : deleteSourcedEntry(data, entry.id, { reason: reason || 'Pengguna menghapus transaksi.', at: new Date().toISOString() });
-      if (await saveDocument(next, expectedToken)) notify('Transaksi dihapus; data mutasi bank yang tersedia tetap dipertahankan.');
+      if (await saveDocument(next, expectedToken)) notify(sourced ? 'Transaksi dihapus; data mutasi bank yang tersedia tetap dipertahankan.' : 'Transaksi dihapus.');
     } });
   }
   function unpairTransfer(entry: Entry) {

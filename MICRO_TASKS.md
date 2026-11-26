@@ -2121,9 +2121,16 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
 
 - [ ] **MW-126 — Hapus transaksi: pesan yang benar dan "Urungkan"**
   Menghapus transaksi manual bersifat permanen, dan toastnya menyebut data bank
-  yang tidak ada (`src/App.tsx:570-578`). Penghapusan butuh tiga langkah sengaja
+  yang tidak ada (diperbaiki pada `src/App.tsx:658–665`). Penghapusan butuh tiga langkah sengaja
   (ubah, Hapus, konfirmasi).
-  - [ ] **a.** (S) Toast "Transaksi dihapus." bila entri tidak punya data bank.
+  - [x] **a.** (S) Toast "Transaksi dihapus." bila entri tidak punya data bank.
+    *Selesai:* toast sesudah simpan memakai tautan entri yang juga menentukan
+    apakah konfirmasi memerlukan alasan.
+    *Tes:* sebelum perbaikan, penghapusan manual gagal pada teks toast. Sesudah
+    perbaikan kelima kasus Chromium di `tests/source_browser.py` lulus, termasuk
+    hapus manual di dokumen bermetadata dan hapus transfer bertaut mutasi.
+    Lokal: 2.008 tes unit dan build produksi lulus.
+    *Belum terbukti:* interaksi pada HP fisik.
   - [ ] **b.** (M) Aksi **Urungkan** di toast untuk entri tanpa tautan bank: tulis
     kembali lewat controller hanya bila token tersimpan masih token
     setelah-hapus; selain itu katakan catatan sudah berubah.
