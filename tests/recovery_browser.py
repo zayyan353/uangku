@@ -649,7 +649,7 @@ def test_blocked_metadata_confirmation(browser, output):
         page = new_page()
         before = page.evaluate('(key) => localStorage.getItem(key)', KEY)
         expect(page.get_by_test_id('save-status')).to_contain_text('Data lama dilindungi')
-        page.locator('.demo-banner button').click()
+        page.locator('.demo-banner').get_by_role('button', name='Mulai pakai data sendiri', exact=True).click()
         dlg = page.get_by_role('dialog')
         expect(dlg).to_contain_text(re.compile(r'data (lama|tersimpan)|catatan (lama|tersimpan)|data.*tidak.*(terbaca|didukung)', re.I))
         assert 'Data contoh akan diganti' not in dlg.inner_text()

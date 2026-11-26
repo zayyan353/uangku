@@ -830,7 +830,15 @@ export default function App() {
           <button className="button ghost small" onClick={closeReminder}>Nanti saja</button>
         </div>
       )}
-      {data.demo ? <div className="demo-banner"><span className="demo-banner-icon"><Sparkles size={20} /></span><div className="demo-banner-copy"><strong>Kenalan dulu pakai data contoh.</strong><span className={blocked ? 'demo-banner-alert' : page === 'import' ? 'demo-banner-import' : 'demo-banner-detail'}>{blocked ? 'Penyimpanan perlu dipulihkan. Yang tampil adalah contoh sementara.' : page === 'import' ? 'Mulai dengan data sendiri sebelum mengimpor mutasi asli.' : 'Transaksi yang kamu tambahkan di sini bisa dibawa saat mulai memakai data sendiri.'}</span></div><button className="button ghost small" disabled={ledger.pending || ledger.dirty} onClick={startOwn}>Mulai pakai data sendiri <ArrowRight size={16} /></button></div> : null}
+      {data.demo && <div className="demo-banner">
+        <span className="demo-banner-icon"><Sparkles size={20} /></span>
+        <div className="demo-banner-copy">
+          <strong>Kenalan dulu pakai data contoh.</strong>
+          <span className={blocked ? 'demo-banner-alert' : page === 'import' ? 'demo-banner-import' : 'demo-banner-detail'}>{blocked ? 'Penyimpanan perlu dipulihkan. Yang tampil adalah contoh sementara.' : page === 'import' ? 'Mulai dengan data sendiri sebelum mengimpor mutasi asli.' : 'Transaksi yang kamu tambahkan di sini bisa dibawa saat mulai memakai data sendiri.'}</span>
+          <div><span>Punya file cadangan?</span>{' '}<button type="button" className="text-link" onClick={() => restoreRef.current?.click()}>Pulihkan cadangan</button></div>
+        </div>
+        <button className="button ghost small" disabled={ledger.pending || ledger.dirty} onClick={startOwn}>Mulai pakai data sendiri <ArrowRight size={16} /></button>
+      </div>}
   </>;
   return <CategorySettingsContext.Provider value={categoryPreferences.settings}><div className="app-shell">
     <AppSidebar initial={avatarInitial} page={page} pendingCount={pendingCount} lastBackupText={lastBackupText} onNavigate={navigate} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} />
