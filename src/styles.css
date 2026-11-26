@@ -6,7 +6,6 @@
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   --forest: #173b31;
-  --forest-light: #264b3f;
   --lime: #d5ee96;
   --canvas: #f7f8f3;
   --muted: #52634f;
@@ -43,7 +42,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .nav-item { border: 0; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 12px; background: transparent; color: #b6c6bc; font-size: 14px; font-weight: 560; text-align: left; width: 100%; text-decoration: none; transition: transform .16s; }
 .nav-item:hover { background: #ffffff0a; color: white; }
 .nav-item.active { background: var(--lime); color: var(--forest); font-weight: 670; box-shadow: 0 3px 12px #10291f0a; }
-.nav-item svg, .nav-icon { width: 19px; height: 19px; stroke-width: 1.8; }
+.nav-item svg { width: 19px; height: 19px; stroke-width: 1.8; }
 .nav-count { margin-left: auto; border-radius: 7px; background: #ffffff14; padding: 2px 6px; font-size: 12px; min-width: 20px; text-align: center; }
 .nav-item.active .nav-count { background: #173b3114; }
 .sidebar-bottom { margin-top: auto; }
@@ -135,9 +134,9 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .wallet-row:last-child { border-bottom: 0; padding-bottom: 0; }
 .wallet-icon { width: 37px; height: 37px; border-radius: 12px; background: var(--icon-surface, #edf0e9); color: var(--text-muted); display: grid; place-items: center; flex-shrink: 0; font-size: 13px; font-weight: 720; letter-spacing: -.3px; }
 .wallet-icon svg { width: 18px; height: 18px; }
-.wallet-icon.blue, .wallet-icon.bank { background: var(--transfer-icon-surface, #eaf0f6); color: var(--info-text); }
-.wallet-icon.green, .wallet-icon.cash { background: var(--success-tint, #edf2e6); color: var(--success-text); }
-.wallet-icon.orange, .wallet-icon.ewallet { background: var(--expense-icon-surface, #f8eee3); color: var(--expense-text); }
+.wallet-icon.bank { background: var(--transfer-icon-surface, #eaf0f6); color: var(--info-text); }
+.wallet-icon.cash { background: var(--success-tint, #edf2e6); color: var(--success-text); }
+.wallet-icon.ewallet { background: var(--expense-icon-surface, #f8eee3); color: var(--expense-text); }
 .wallet-info { flex: 1; min-width: 0; }
 .wallet-name { font-size: 13px; font-weight: 620; color: #41543f; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wallet-detail { display: block; color: var(--text-muted); font-size: 11px; margin-top: 4px; }
@@ -210,14 +209,11 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .review-scope strong { color: #5e7b47; font-size: 14px; font-weight: 600; }
 .review-scope p { margin: 3px 0 0; }
 .review-scope .text-link { font-size: 12px; white-space: normal; }
-.quick-wallet-action { display: inline-flex; align-items: center; justify-content: center; gap: 5px; border: 1px solid #dce7cf; background: #f3f7ed; color: var(--text-muted); border-radius: 8px; padding: 6px 8px; min-height: 29px; font-size: 12px; font-weight: 550; white-space: nowrap; }
-.quick-wallet-action svg { width: 12px; height: 12px; }
 .wallet-row-wrap { display: flex; align-items: center; gap: 9px; border-bottom: 1px solid #f0f2eb; }
 .wallet-row-wrap:last-child { border-bottom: 0; }
 .wallet-row-wrap > .wallet-row { flex: 1; min-width: 0; border-bottom: 0; padding-top: 14px; padding-bottom: 14px; }
 .wallet-row-wrap:first-child > .wallet-row { padding-top: 0; }
 .wallet-row-wrap:last-child > .wallet-row { padding-bottom: 0; }
-.wallet-row-wrap .quick-wallet-action { width: 29px; height: 29px; padding: 0; flex-shrink: 0; }
 .wallet-card-actions { display: flex; align-items: center; gap: 12px; }
 .search-input { position: relative; flex: 1; min-width: 180px; }
 .search-input svg { position: absolute; left: 12px; top: 12px; width: 15px; height: 15px; color: var(--text-muted); }
@@ -240,7 +236,6 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .import-table { min-width: 650px; }
 .import-table td { font-size: 12px; }
 .import-table .field-input, .import-table .select-input { padding: 7px; min-height: 31px; font-size: 12px; border-radius: 7px; }
-.import-table .description-cell { max-width: 260px; overflow-wrap: anywhere; line-height: 1.6; }
 .import-table .duplicate { opacity: .45; }
 .import-summary { display: flex; gap: 21px; flex-wrap: wrap; padding: 18px; background: #f3f6eb; border-radius: 14px; margin: 18px 0; font-size: 13px; color: var(--text-muted); }
 .import-summary strong { display: block; color: var(--success-label, #4c6a3c); font-size: 17px; margin-bottom: 4px; font-weight: 600; }
@@ -271,7 +266,7 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 17px 14px; }
 .field { display: flex; flex-direction: column; gap: 7px; min-width: 0; margin-bottom: 16px; }
 .form-grid .field { margin-bottom: 0; }
-.field.full, .form-grid .full-width { grid-column: 1 / -1; }
+.field.full { grid-column: 1 / -1; }
 .field-label { font-size: 13px; color: var(--text-muted); font-weight: 550; }
 .field-help { color: var(--text-muted); font-size: 12px; line-height: 1.7; margin: 0; }
 .field .field-input, .field .select-input { width: 100%; }
@@ -297,11 +292,9 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .rate-preview { border: 1px solid var(--success-outline, #dfe9d3); border-radius: 12px; background: var(--success-tint, #f5f9ed); padding: 15px; color: var(--success-text); font-size: 13px; line-height: 1.8; margin: 14px 0; }
 .rate-preview strong { color: var(--success-label, #4b7332); font-size: 16px; font-weight: 600; }
 .rate-preview p { margin: 0; }
-.fee-row { display: flex; gap: 12px; align-items: center; }
 .checkbox-row { display: flex; align-items: flex-start; gap: 9px; color: var(--text-muted); font-size: 13px; line-height: 1.8; margin: 14px 0; }
 input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor: pointer; flex-shrink: 0; margin: 2px 0 0; }
 .toast { border: var(--toast-border, none); position: fixed; bottom: 27px; left: calc(50% + 116px); transform: translateX(-50%); display: flex; align-items: center; gap: 10px; background: var(--toast-surface, var(--forest)); color: var(--toast-text, #f3f8eb); border-radius: 13px; padding: 15px 20px; box-shadow: 0 8px 35px #102d2426; font-size: 14px; z-index: 150; max-width: min(90vw, 540px); line-height: 1.65; animation: fade-in .2s ease-out; }
-.toast-icon { color: var(--lime); }
 .toast svg { width: 18px; height: 18px; flex-shrink: 0; }
 .mobile-nav { display: none; }
 .backup-tools { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -348,7 +341,6 @@ input[type=checkbox] { accent-color: #5f823f; width: 15px; height: 15px; cursor:
 .balance-currency { font-size: 11px; font-weight: 550; letter-spacing: .8px; border: 1px solid #d5ee9633; padding: 5px 7px; border-radius: 6px; color: #d4e6bd; background: #ffffff05; }
 .balance-number { margin-bottom: 19px; }
 .balance-meta { font-size: 12px; }
-.balance-separator { opacity: .5; margin: 0 2px; }
 .balance-bottom { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; padding-top: 14px; margin-top: 18px; border-top: 1px solid #b8cdba1c; color: #9fb8a1; font-size: 11px; }
 .balance-bottom svg { width: 13px; height: 13px; }
 .balance-orbit.orbit-one { right: -82px; bottom: -80px; }
@@ -510,7 +502,6 @@ input.selection-checkbox, .selection-checkbox input[type=checkbox], .bulk-review
 th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
 .transaction-cell.selectable { gap: 10px; }
 .transaction-cell.selectable > .selection-checkbox { align-self: center; }
-.transactions-table tr.selected-row { background: #f7faef; }
 .transactions-table tbody tr:has(input.selection-checkbox:checked) { background: #f7faef; }
 .transfer-suggestion { display: flex; flex-direction: column; align-items: stretch; gap: 9px; grid-column: 1 / -1; padding: 14px; margin: 0 0 18px; border: 1px solid #dce7d2; border-radius: 12px; background: #f3f8eb; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
 .transfer-suggestion > svg { width: 19px; height: 19px; color: var(--text-muted); margin-top: 2px; }
@@ -671,7 +662,6 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .wallet-card .wallet-detail { font-size: 12px; }
   .wallet-card-footer { font-size: 12px; }
   .form-grid { grid-template-columns: 1fr; }
-  .form-grid .full-width { grid-column: 1; }
   .page-actions .button { padding-left: 12px; padding-right: 12px; font-size: 12px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -714,8 +704,6 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
   .pending-banner > span:nth-child(2) strong { font-size: 13px; }
   .review-scope { font-size: 12px; padding: 12px; }
   .review-scope strong { font-size: 13px; }
-  .quick-wallet-action { padding: 6px 7px; font-size: 11px; }
-  .wallet-row-wrap .quick-wallet-action { width: 40px; height: 40px; border-radius: 10px; }
   .transaction-title { font-size: 13px; }
   .transaction-note { font-size: 11px; }
   .transactions-table:not(.import-table) { min-width: 0; table-layout: fixed; width: 100%; }
@@ -791,7 +779,7 @@ th input.selection-checkbox { vertical-align: middle; margin-right: 8px; }
 
 
 /* Local F: visible controls, read-only amounts, and small-screen history. */
-:root { --readable-muted: #52634f; --readable-positive: #355921; --readable-negative: #8b3f2b; }
+:root { --readable-positive: #355921; --readable-negative: #8b3f2b; }
 button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, a:focus-visible { outline-color: #46712f; }
 .sidebar button:focus-visible, .sidebar a:focus-visible, .balance-card button:focus-visible { outline-color: var(--lime); }
 .field-input, .select-input, .search-input input, .button.secondary, .icon-button { border-color: var(--control-border); }
@@ -945,7 +933,6 @@ html[data-theme="dark"] {
   --info-surface: #213341;
   --purple-text: #dac8ef;
   --purple-surface: #312a40;
-  --readable-muted: #afc2af;
   --readable-positive: #b9db93;
   --readable-negative: #ffc1ad;
   color: var(--text);
@@ -1047,7 +1034,7 @@ html[data-theme="dark"] .button.primary { color: var(--forest); background: var(
 html[data-theme="dark"] .button.primary:hover:not(:disabled) { background: #e1f4b6; border-color: #e1f4b6; }
 html[data-theme="dark"] .button.ghost { color: var(--text-muted); background: transparent; }
 html[data-theme="dark"] .button.danger { color: var(--error-text); background: var(--error-surface); border-color: var(--error-border); }
-html[data-theme="dark"] :is(.button.secondary, .icon-button, .quick-wallet-action):hover:not(:disabled) { background: var(--surface-hover); }
+html[data-theme="dark"] :is(.button.secondary, .icon-button):hover:not(:disabled) { background: var(--surface-hover); }
 html[data-theme="dark"] :is(button, input, select, textarea, a, summary):focus-visible { outline-color: var(--focus); }
 html[data-theme="dark"] .theme-picker select:focus-visible { outline: none; }
 html[data-theme="dark"] :is(button:disabled, .button:disabled, .icon-button:disabled, input:disabled, select:disabled, textarea:disabled) {
@@ -1065,7 +1052,7 @@ html[data-theme="dark"] .wallet-row { background: transparent; }
 @media (hover: hover) { html[data-theme="dark"] :is(.transactions-table tbody tr:hover, .import-table tbody tr:hover) { background: var(--surface-hover); } }
 @media (hover: hover) { html[data-theme="dark"] .wallet-row:hover { background: var(--surface-hover); } }
 html[data-theme="dark"] .wallet-row:active { background: var(--surface-hover); }
-html[data-theme="dark"] :is(.transactions-table tr.selected-row, .transactions-table tbody tr:has(input.selection-checkbox:checked)) {
+html[data-theme="dark"] :is(.transactions-table tbody tr:has(input.selection-checkbox:checked)) {
   background: #293e25;
 }
 html[data-theme="dark"] :is(.transactions-table th, .import-table th, .transactions-table td, .import-table td) { color: var(--text-muted); }
@@ -1075,7 +1062,6 @@ html[data-theme="dark"] .category-budget-note { color: var(--text-muted); }
 html[data-theme="dark"] .category-row.over-budget .category-fill { background: var(--error-text); }
 html[data-theme="dark"] .category-row.over-budget :is(.category-value, .category-budget-note) { color: var(--error-text); }
 html[data-theme="dark"] .currency-tab.active { color: var(--text); background: var(--surface-raised); border-color: var(--control-border); }
-html[data-theme="dark"] .quick-wallet-action { color: var(--success-text); background: var(--success-surface); border-color: var(--success-border); }
 html[data-theme="dark"] .add-wallet-card { color: var(--text-muted); background: #16231b; border-color: var(--control-border); }
 html[data-theme="dark"] .add-wallet-card > strong { color: var(--text); }
 html[data-theme="dark"] .row-actions .icon-button { background: transparent; }
