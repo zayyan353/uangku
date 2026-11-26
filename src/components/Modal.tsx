@@ -2,10 +2,12 @@ import { createContext, useContext, useEffect, useLayoutEffect, useRef, type Rea
 import { X } from 'lucide-react';
 import { dialogHistory } from '../lib/dialogHistory';
 
+export const ModalConflictContext = createContext<ReactNode>(null);
 export const ModalOpenedContext = createContext<(() => void) | undefined>(undefined);
 
 export function Modal({ title, subtitle, children, onClose }: { title: string; subtitle?: string; children: ReactNode; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const conflict = useContext(ModalConflictContext);
   const onOpened = useContext(ModalOpenedContext);
   // The browser's Back asks for the same close as Escape, so a filled form still gets its discard question.
   const close = useRef(onClose);
@@ -39,6 +41,7 @@ export function Modal({ title, subtitle, children, onClose }: { title: string; s
       if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first?.focus(); }
     }}>
       <div className="modal-header"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div><button className="icon-button modal-close" aria-label="Tutup" onClick={onClose}><X size={20} /></button></div>
+      {conflict}
       {children}
     </div>
   </div>;

@@ -137,16 +137,23 @@ def test_stale_form(browser, output):
         draft_a.get_by_role('button', name='Simpan transaksi', exact=True).click()
         a.wait_for_function('(key) => JSON.parse(localStorage.getItem(key)).state.entries.length === 1', arg=KEY)
         draft_b.get_by_role('button', name='Simpan transaksi', exact=True).click()
-        expect(b.get_by_test_id('save-status')).to_contain_text('konflik')
+        problem = draft_b.get_by_test_id('save-status')
+        expect(problem).to_contain_text('konflik')
         assert persisted_notes(a) == ['Tab A durable']
-        b.get_by_role('dialog').get_by_role('button', name='Batal', exact=True).click()
-        b.get_by_role('button', name='Buang isian', exact=True).click()
         with b.expect_download() as info:
-            b.get_by_role('button', name='Unduh pekerjaan yang belum tersimpan', exact=True).click()
+            problem.get_by_role('button', name='Unduh pekerjaan yang belum tersimpan', exact=True).click()
         path = output / 'stale-form-recovery-synthetic.json'
         info.value.save_as(path)
         recovered = json.loads(path.read_text(encoding='utf-8'))
         assert 'Tab B recoverable' in [e['note'] for e in recovered['state']['entries']]
+        problem.get_by_role('button', name='Muat catatan terbaru', exact=True).click()
+        confirmation = b.get_by_role('dialog', name='Muat catatan terbaru?', exact=True)
+        confirmation.get_by_role('button', name='Batal', exact=True).click()
+        expect(draft_b.get_by_label(re.compile('Keterangan'))).to_have_value('Tab B recoverable')
+        problem.get_by_role('button', name='Muat catatan terbaru', exact=True).click()
+        confirmation.get_by_role('button', name='Muat catatan terbaru', exact=True).click()
+        expect(draft_b).to_have_count(0)
+        assert persisted_notes(b) == ['Tab A durable']
         a.reload(wait_until='networkidle')
         assert persisted_notes(a) == ['Tab A durable']
 

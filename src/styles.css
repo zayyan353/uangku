@@ -1349,6 +1349,7 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .save-pill { position: relative; display: inline-flex; align-items: center; gap: 6px; min-width: 0; padding: 4px 10px; border: 1px solid #dce5d0; border-radius: 999px; background: #f6f8ef; color: #52634f; font-size: 12px; line-height: 1.4; white-space: nowrap; }
 .save-pill.problem { color: #a55742; border-color: #f0d4c9; background: #fff3ee; }
 .save-pill.problem .status-dot { background: #d0714f; }
+.modal > .save-problem { max-height: 40dvh; overflow-y: auto; flex: 0 0 auto; }
 .notice.save-problem { flex-wrap: wrap; align-items: center; }
 html[data-theme="dark"] .save-pill { color: var(--text-muted); background: var(--surface); border-color: var(--line); }
 html[data-theme="dark"] .save-pill.problem { color: var(--error-text); background: var(--error-surface); border-color: var(--error-border); }

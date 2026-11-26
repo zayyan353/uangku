@@ -31,7 +31,7 @@ export default function CategoryAutomation({ data, onApply, onClose, disabled = 
   async function apply() {
     if (saving.current || disabled || !assignments.length || settings !== basis.settings) return;
     saving.current = true; setBusy(true); setError('');
-    try { if (!await onApply(assignments)) setError('Kategori belum tersimpan; pilihan tetap ada di sini. Tutup pratinjau untuk memeriksa status penyimpanan: unduh pekerjaan atau gunakan Coba simpan lagi. Jika ada konflik, buka data terbaru lalu buat ulang pratinjau.'); }
+    try { if (!await onApply(assignments)) setError('Kategori belum tersimpan; pilihan tetap ada di sini. Periksa pemberitahuan penyimpanan. Bila ada konflik, unduh pekerjaan sebelum memuat catatan terbaru lalu buat ulang pratinjau.'); }
     catch (error) { setError(error instanceof Error ? error.message : 'Kategori belum tersimpan.'); }
     finally { saving.current = false; setBusy(false); }
   }
