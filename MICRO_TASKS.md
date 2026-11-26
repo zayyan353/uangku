@@ -448,7 +448,19 @@ perubahan tampilan yang disengaja, periksa gambar beda dan catat hasilnya.
   - [ ] **a.** Permukaan dan garis. Ditunda sampai ada cacat tema gelap terkait.
   - [ ] **b.** Teks. Ditunda sampai ada cacat tema gelap terkait.
   - [ ] **c.** Kontrol formulir. Ditunda sampai ada cacat tema gelap terkait.
-  - [ ] **d.** Status, badge, banner, dan ikon. F7 menjadwalkannya setelah MW-62.
+  - [x] **d.** Status, badge, banner, dan ikon. F7 menjadwalkannya setelah MW-62.
+    *Selesai:* ikon transaksi dan badge kini memakai warna sesuai peran
+    (`src/styles.css:170`). Notice, hasil impor, status simpan, banner dan
+    toast memakai token tema. Warna latar pucat tiap komponen dipertahankan.
+    Selektor gelap pada tombol dalam banner menjaga urutan warna terhadap
+    tombol aktif, hover, dan nonaktif. Kontrol formulir tetap tercakup di (c).
+    *Tes:* pemeriksaan struktur pada basis menemukan 32 selektor gelap
+    komponen sasaran. Sesudah perubahan, pemeriksaan itu lulus dan 1.028
+    sampel komponen/tema/lebar memiliki nilai terhitung yang sama. Perbandingan
+    16 tangkapan dengan MW-62 mencatat 0 piksel berbeda. Tema 22/22, UX 21/21,
+    2.051 tes unit di 88 berkas dan build produksi lulus.
+    *Belum terbukti:* perangkat fisik, peramban selain Chromium dan kombinasi
+    kelas di luar sampel.
   *Selesai per kelompok kalau* warna terhitung dan kontras tetap terjaga di
   kedua tema. Pertahankan override bila strukturnya memang berbeda.
 
