@@ -162,7 +162,7 @@ function validGroupedInteger(text: string, separator: string): boolean {
     && parts.slice(1).every((part) => /^\d{3}$/.test(part));
 }
 
-export function formatMoney(minor: number, currency: Currency): string {
+export function formatMoney(minor: number | bigint, currency: Currency): string {
   return formatMinorMoney(minor, currency);
 }
 

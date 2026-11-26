@@ -337,6 +337,44 @@ def category_report_overflow(case):
     case.assert_unchanged()
 
 
+def history_overflow(case):
+    # MW-167: a zero net balance can contain inflows and outflows larger than MAX_SAFE_INTEGER.
+    p = case.page
+    nav(p, 'Transaksi')
+    scope = p.get_by_test_id('history-scope')
+    expect(scope).to_contain_text('4 transaksi')
+
+    def expect_flow(kind, label, value, symbol='₺'):
+        field = scope.get_by_test_id('history-' + kind)
+        expect(field).to_have_attribute('data-amount', str(value))
+        expect(field).to_have_text(re.compile('^' + label + ' ' + re.escape(symbol) + r'\s?' + re.escape(money_text(value)) + '$'))
+
+    limit = 2**53 - 1
+    expect_flow('inflow', 'masuk', limit + 100)
+    expect_flow('outflow', 'keluar', limit + 100)
+    row = p.locator('tr[data-entry-id="pending-out"]')
+    row.get_by_role('button', name=re.compile('^Rincian transaksi')).click()
+    detail = p.get_by_role('dialog', name='Rincian transaksi')
+    expect(detail).to_contain_text(money_text(limit))
+    detail.get_by_role('button', name='Tutup rincian').click()
+
+    # The totals follow all matching rows, and each direction is independent.
+    query = p.get_by_label('Cari transaksi', exact=True)
+    query.fill('pending-out')
+    expect(scope).to_contain_text('1 transaksi')
+    expect_flow('inflow', 'masuk', 0)
+    expect_flow('outflow', 'keluar', limit)
+    query.fill('confirmed-in')
+    expect_flow('inflow', 'masuk', 100)
+    expect_flow('outflow', 'keluar', 0)
+    query.fill('')
+    p.get_by_role('button', name=re.compile('USD.*Dolar AS')).click()
+    expect(scope).to_contain_text('1 transaksi')
+    expect_flow('inflow', 'masuk', 0, '$')
+    expect_flow('outflow', 'keluar', 700, '$')
+    case.assert_unchanged()
+
+
 def transfer_dominant(case):
     case.totals(25_000, 24_000, 1_000, 2_000)
     expect(case.page.get_by_test_id('cashflow-breakdown')).to_contain_text('Transfer')
@@ -695,6 +733,8 @@ def cases():
         ('category-report-overflow-with-budget', {'data': overflow}, category_report_overflow),
         ('category-report-overflow-phone-320-dark', {'data': overflow, 'width': 320, 'theme': 'dark'}, category_report_overflow),
         ('category-report-overflow-phone-390-light', {'data': overflow, 'width': 390, 'theme': 'light'}, category_report_overflow),
+        ('history-overflow-desktop', {'data': overflow}, history_overflow),
+        ('history-overflow-phone', {'data': overflow, 'width': 320, 'theme': 'dark'}, history_overflow),
         ('transfer-out-dominant-no-hidden-funds', {'data': dominant}, transfer_dominant),
         ('month-opening-cutoff-all-history', {'data': period}, period_cutoff),
         ('previous-purpose-year-boundary', {'data': year_boundary}, previous_purpose_year_boundary),
