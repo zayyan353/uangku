@@ -1880,3 +1880,13 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 .toast .toast-action { font: inherit; font-weight: 700; color: var(--lime); border: 1px solid currentColor; border-radius: 9px; padding: 5px 12px; margin-left: 10px; white-space: nowrap; cursor: pointer; }
 .toast.error .toast-action { color: #ffd0c2; }
 .history-scope:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; border-radius: 4px; }
+
+.recap-entry { margin: 16px 0; }
+.recap-card { touch-action: pan-y; min-height: 190px; padding: 20px; border: 1px solid var(--line); border-radius: var(--radius); color: var(--text); overflow-wrap: anywhere; }
+.recap-card h3 { margin: 0 0 18px; }
+.recap-card dt, .recap-controls > span { color: var(--text-muted); }
+.recap-card dd { margin: 3px 0 14px; font-size: 1.35rem; font-weight: 650; }
+.recap-ranks { padding-inline-start: 1.5rem; }
+.recap-ranks li { padding: 5px 0; }
+.recap-ranks strong { white-space: nowrap; }
+.recap-controls { align-items: center; justify-content: space-between; }

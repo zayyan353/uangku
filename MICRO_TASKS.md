@@ -3162,9 +3162,23 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     Setelah perbaikan tipe penghitung rentang, build produksi serta 2.039
     tes unit di 84 berkas lulus.
     *Belum terbukti:* dialog, navigasi kartu, dan tampilan di perangkat.
-  - [ ] **b.** (M) Dialog "Rekap 2026" dari Ringkasan dengan kartu yang bisa
+  - [x] **b.** (M) Dialog "Rekap 2026" dari Ringkasan dengan kartu yang bisa
     digeser, tanpa pustaka baru, dan mengikuti mode privasi (MW-153). Tidak ada
     unggah atau bagi otomatis; pengguna bisa mengambil tangkapan layar sendiri.
+    *Selesai:* tombol di Ringkasan membuka enam kartu untuk semua rekening
+    dalam mata uang terpilih. Kartu bisa digeser atau dijelajahi dengan tombol.
+    Hitungan baru dilakukan ketika dialog dibuka. Jika total melampaui batas,
+    pesan tampil di dialog dan Ringkasan tetap bisa dipakai.
+    *Keputusan agen:* dialog hanya membaca preferensi opsional
+    `uangku:privacy:v1` sejak render pertama dan menanggapi perubahan dari
+    tab lain. Kunci absen, `off`, `false` atau `0` berarti tampil. Nilai lain
+    atau akses ditolak berarti samarkan nominal serta nama kategori/merchant,
+    termasuk untuk pembaca layar. Mata uang, tanggal dan jumlah hari tetap
+    terbaca. Rekap tidak menulis preferensi. Sakelar global (MW-153) menunggu.
+    *Tes:* pada 1 Desember tombol gagal ditemukan sebelum perbaikan. Sesudah
+    perbaikan satu alur Chromium memeriksa nominal, navigasi, Esc dan buka
+    ulang dengan preferensi privasi. 2.039 tes unit di 84 berkas dan build lulus.
+    *Belum terbukti:* matriks browser tema dan lebar layar ada pada MW-161c.
   - [ ] **c.** (S) Tes browser 390 dan 1440, terang dan gelap.
 
 **Keputusan bagian H** (kolom **Siapa** sama artinya dengan tabel keputusan
