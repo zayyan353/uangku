@@ -3139,11 +3139,10 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   - [ ] **b.** (S) Bila hasilnya nyata dan tes lulus, pindah ke mode penuh. Bila
     tidak, catat angkanya di entri ini dan tutup PR tanpa merge.
 
-- [ ] **MW-161 — Rekap 2026 ala "Wrapped"**
+- [x] **MW-161 — Rekap 2026 ala "Wrapped"**
   Rekap setahun dalam kartu-kartu yang bisa digeser, siap sebelum 31 Desember
   2026 dan muncul di Ringkasan dari 1 Desember sampai 31 Januari. Memakai
-  MW-147a (merchant) dan MW-149a (total per hari); MW-154a dipakai bila sudah
-  ada.
+  MW-147a (merchant), MW-149a (total per hari), dan MW-154a (umur uang).
   - [x] **a.** (M) `src/lib/yearRecap.ts` + tes, per mata uang: total pemasukan dan
     pengeluaran setahun, 5 kategori dan 5 merchant teratas, bulan dan hari
     paling boros, rentang terpanjang tanpa pengeluaran, serta umur uang akhir
@@ -3179,7 +3178,18 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     perbaikan satu alur Chromium memeriksa nominal, navigasi, Esc dan buka
     ulang dengan preferensi privasi. 2.039 tes unit di 84 berkas dan build lulus.
     *Belum terbukti:* matriks browser tema dan lebar layar ada pada MW-161c.
-  - [ ] **c.** (S) Tes browser 390 dan 1440, terang dan gelap.
+  - [x] **c.** (S) Tes browser 390 dan 1440, terang dan gelap.
+    *Selesai:* empat kasus `recap-2026` di `tests/cashflow_browser.py`
+    menggunakan jam sintetis dan kedua batas jendela tampil. Kasus mencakup
+    navigasi enam kartu, tata letak, tanggal akhir perhitungan, mata uang
+    tanpa transaksi, penyamaran sejak dialog dibuka dan perubahan dari tab lain.
+    *Tes:* pada build MW-161a, uji 390 terang gagal mencari tombol 1 Desember.
+    Pada build produksi MW-161b keempat kasus Chromium lulus, termasuk
+    16 pembandingan byte catatan dan pemeriksaan nilai preferensi privasi.
+    Nominal dan nama tersamar di DOM kartu dan snapshot aksesibilitas.
+    2.039 tes unit di 84 berkas serta build produksi lulus.
+    *Belum terbukti:* perangkat fisik, gestur jari dan pembaca layar manual.
+    Pengujian lokal menggunakan viewport HP dan geser dengan pointer.
 
 **Keputusan bagian H** (kolom **Siapa** sama artinya dengan tabel keputusan
 bagian F):
