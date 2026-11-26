@@ -510,6 +510,36 @@ class OriginLocks implements PersistenceLocks {
   isInside(name: string) { return this.inside.has(name); }
 }
 
+describe('MW-164b: full backup from a tab that has not seen a save yet', () => {
+  it.each([null, text(['before'])])('refuses the displaced base and exports the winner once delivered', async base => {
+    const origin = new Origin(base);
+    const writer = origin.tab('writer'), reader = origin.tab('reader');
+    expect(await writer.controller.setCandidate(data(['winner']))).toBe(true);
+    expect(reader.storage.getItem(STORAGE_KEY)).toBe(base);
+    expect(reader.storage.getItem(RESTORE_JOURNAL)).toBeNull();
+    await expect(reader.controller.exportFullBackup(null)).rejects.toThrow(/muat catatan serta kategori terbaru/);
+    expect(origin.locks.held()).toEqual([claimName(base)]);
+
+    origin.deliver();
+    reader.controller.checkRemote();
+    const backup = JSON.parse(await reader.controller.exportFullBackup(null));
+    expect(backup.ledger).toEqual(data(['winner']));
+    expect(origin.locks.held()).toEqual([claimName(base)]);
+    expect(origin.ledgerWriters).toEqual(['writer']);
+  });
+
+  it('returns the claim even when backup contents cannot be read', async () => {
+    const base = text(['kept']), origin = new Origin(base);
+    const reader = origin.tab('reader');
+    reader.storage.unreadable = BUDGETS_KEY;
+    await expect(reader.controller.exportFullBackup(null)).rejects.toThrow();
+    expect(origin.locks.requested).toEqual([{ name: claimName(base), insideLedgerLock: true }]);
+    expect(origin.locks.held()).toEqual([]);
+    reader.storage.unreadable = null;
+    expect(await reader.controller.setCandidate(data(['next']))).toBe(true);
+  });
+});
+
 describe('MW-164a: conflict during automatic cash wallet cleanup', () => {
   function setup() {
     const legacy = data(['kept']);
