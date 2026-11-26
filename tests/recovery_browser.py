@@ -468,6 +468,113 @@ def test_concurrent_cash_cleanup(browser, output):
             assert stored(tab)['state'] == expected['state']
 
 
+def test_native_quota(browser, output):
+    """MW-98: exercise the origin's actual localStorage limit in a disposable profile."""
+    from category_browser import BUDGETS
+    from full_backup_browser import CATEGORIES, personal_settings, pick_backup, synthetic_page
+
+    template_key = 'uangku:templates:v1'
+    keys = [KEY, CATEGORIES, BUDGETS, template_key]
+    settings = personal_settings()
+    initial = fixture([expense('seed', note='Kept on disk')])
+    template = {'id': 'base', 'name': 'Base', 'type': 'expense', 'walletId': 'bca-idr',
+                'currency': 'IDR', 'category': 'Pendidikan', 'note': 'Old template'}
+    read_profile = 'keys => keys.map(key => localStorage.getItem(key))'
+    # Observe the actual rejected ledger write, including the exact text the app tried to save.
+    observe_ledger = """key => {
+      const write = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(k, value) {
+        try { return write.call(this, k, value); }
+        catch (err) {
+          if (this === localStorage && k === key) window.__quotaLedger = { name: err.name, value };
+          throw err;
+        }
+      };
+    }"""
+    quota_names = ('QuotaExceededError', 'NS_ERROR_DOM_QUOTA_REACHED')
+    with synthetic_page(browser, URL, 1440, initial, settings) as page:
+        page.evaluate('items => items.forEach(([k, v]) => localStorage.setItem(k, JSON.stringify(v)))',
+                      [[BUDGETS, {'IDR': {'Pendidikan': 100}}], [template_key, [template]]])
+        save_expense(page, note='Second durable row')
+        before = page.evaluate(read_profile, keys)
+        assert all(before)
+        # Fill in blocks of 65,536 ASCII characters, then a small tail. Different engines
+        # account for characters differently; stop after 256 blocks even if no write has failed.
+        filled = page.evaluate("""() => {
+          const prefix = 'test-only-quota:', size = 64 * 1024, block = 'x'.repeat(size);
+          let blocks = 0;
+          function fits(key, value) {
+            try { localStorage.setItem(prefix + key, value); return true; }
+            catch (err) {
+              if (err.name === 'QuotaExceededError' || err.name === 'NS_ERROR_DOM_QUOTA_REACHED') return false;
+              throw err;
+            }
+          }
+          while (blocks < 256 && fits(blocks, block)) blocks++;
+          if (!blocks || blocks === 256) throw Error('Native quota outside the bounded probe');
+          let tail = '';
+          for (const step of [4096, 256, 16, 1]) {
+            const chunk = 'x'.repeat(step);
+            while (tail.length + step <= size && fits('tail', tail + chunk)) tail += chunk;
+          }
+          return blocks * size + tail.length;
+        }""")
+        page.evaluate(observe_ledger, KEY)
+        draft = open_expense(page, note='Native quota draft', amount='7')
+        draft.get_by_role('button', name='Simpan transaksi', exact=True).click()
+        status = page.get_by_test_id('save-status')
+        expect(status).to_contain_text('penyimpanan gagal')
+        expect(status).to_contain_text('Penyimpanan browser penuh, jadi perubahan ini belum tersimpan.')
+        expect(status).to_contain_text('Unduh pekerjaan yang belum tersimpan')
+        attempted = page.evaluate('window.__quotaLedger')
+        assert attempted['name'] in quota_names
+        assert page.evaluate(read_profile, keys) == before
+        expect(draft).to_be_visible()
+        draft.get_by_role('button', name='Batal', exact=True).click()
+        page.get_by_role('button', name='Buang isian', exact=True).click()
+        with page.expect_download() as pending:
+            page.get_by_role('button', name='Unduh pekerjaan yang belum tersimpan', exact=True).click()
+        path = output / 'native-quota-draft.json'
+        pending.value.save_as(path)
+        assert path.read_bytes() == attempted['value'].encode('utf-8')
+        assert sorted(e['note'] for e in read_document(path)['state']['entries']) == [
+            'Kept on disk', 'Native quota draft', 'Second durable row']
+
+        # A fresh controller can confirm a restore while the first tab retains its failed draft.
+        # Leave room for the journal and replacement categories, but not the much larger ledger.
+        restore = page.context.new_page()
+        restore.goto(URL, wait_until='networkidle')
+        restore.evaluate("localStorage.removeItem('test-only-quota:0')")
+        restore.evaluate(observe_ledger, KEY)
+        large = fixture([expense(f'r{i}', note=f'Restored {i} ' + 'x' * 120) for i in range(1600)])
+        backup = {'app': 'uangku-full-backup', 'version': 1, 'ledger': large,
+                  'categorySettings': {**settings, 'names': [*settings['names'], 'From backup']},
+                  'budgets': {'IDR': {'Pendidikan': 200}}, 'templates': [{**template, 'name': 'From backup'}]}
+        content = json.dumps(backup).encode('utf-8')
+
+        def confirm():
+            pick_backup(restore, 'native-quota-full.json', content)
+            restore.get_by_role('dialog', name='Pulihkan cadangan lengkap?').get_by_role(
+                'button', name='Pulihkan semuanya', exact=True).click()
+
+        confirm()
+        expect(restore.get_by_test_id('save-status')).to_contain_text('Pemulihan lengkap gagal')
+        error_name, refused_length = restore.evaluate('() => [window.__quotaLedger.name, window.__quotaLedger.value.length]')
+        assert error_name in quota_names and refused_length > 64 * 1024
+        assert restore.evaluate(read_profile, keys) == before
+        assert restore.evaluate("localStorage.getItem('uangku:full-restore:v1')") is None
+        # The same valid file succeeds when space is available.
+        restore.evaluate("""() => Object.keys(localStorage).filter(k => k.startsWith('test-only-quota:'))
+            .forEach(k => localStorage.removeItem(k))""")
+        confirm()
+        expect(restore.locator('.toast')).to_contain_text('Cadangan lengkap dipulihkan')
+        ledger, categories, budgets, templates = map(json.loads, restore.evaluate(read_profile, keys))
+        assert semantic_document(ledger) == large
+        assert [categories, budgets, templates] == [backup['categorySettings'], backup['budgets'], backup['templates']]
+        print(json.dumps({'quota_filler_characters': filled, 'rejected_ledger_characters': refused_length,
+                          'native_error': error_name}), flush=True)
+
+
 def test_quota_retry(browser, output):
     with isolated(browser, fixture(), output, 'quota') as (_, new_page, _):
         page = new_page()
@@ -1036,6 +1143,7 @@ def main():
         ('stale-restore-observer', test_stale_restore_observer),
         ('queued-saves-one-winner', test_queued_saves_one_winner),
         ('concurrent-cash-cleanup', test_concurrent_cash_cleanup),
+        ('native-origin-quota', test_native_quota),
         ('quota-recovery-retry', test_quota_retry),
         ('missing-web-locks', test_no_web_locks),
         ('transaction-draft-close', test_transaction_draft_close),

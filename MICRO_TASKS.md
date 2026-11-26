@@ -1202,15 +1202,14 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   yang diubah: pemulihan lengkap dan penyimpanan pengaturan kategori masih
   memakai pesannya sendiri.
 
-- [ ] **MW-98 — Tes browser pada kuota penyimpanan sungguhan** (S–M)
-  Semua tes kuota sekarang memalsukan galatnya (`tests/browser_smoke.py:370`,
-  `tests/category_browser.py:524,566`, `tests/bank_description_browser.py:352`,
-  `tests/recovery_browser.py:180-214`), dan tes "mendekati 8 MiB" hanya tes
-  unit. Tambah satu tes pada build produksi yang mengisi `localStorage` sungguhan
-  sampai simpan berikutnya gagal, lalu memeriksa: label dan pesan gagal, data
-  tersimpan sama persis, unduhan pekerjaan-belum-tersimpan sama dengan draft,
-  dan pemulihan file di atas kuota tidak mengubah catatan, kategori, anggaran,
-  maupun template.
+- [x] **MW-98 — Tes browser pada kuota penyimpanan sungguhan** (S–M)
+  Kasus `native-origin-quota` di `tests/recovery_browser.py` mengisi kunci uji
+  dalam profil sintetis sampai browser menolak penulisan. Tes memeriksa status
+  dan pesan gagal serta membandingkan seluruh berkas unduhan draf, byte demi
+  byte, dengan catatan yang ditolak browser. Di tab baru, cadangan lengkap yang
+  valid tetapi melebihi sisa kuota gagal dipulihkan. Catatan, kategori, anggaran,
+  dan template diperiksa persis seperti semula. Berkas yang sama berhasil
+  dipulihkan sesudah ruang uji dikosongkan.
 
 - [ ] **MW-99 — Pengingat cadangan menurut jumlah perubahan** (S) *(sebagian)* — **butuh keputusan**
   Setelah cadangan lengkap, pengingat diam 7 hari apa pun yang berubah
