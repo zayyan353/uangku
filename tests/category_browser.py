@@ -18,7 +18,7 @@ from urllib.parse import urlsplit
 from xml.sax.saxutils import escape
 from zipfile import ZipFile, ZIP_DEFLATED
 
-from browser_support import (assert_production_url, install_playwright_path,
+from browser_support import (assert_production_url, backup_action, install_playwright_path,
                              launch_browser, new_page, read_document, stored_document)
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
@@ -187,6 +187,31 @@ def category_unload(case):
     assert warns(), 'Unapplied keyword did not warn'
     keyword.fill('')
     assert not warns(), 'Cleared input still warned'
+    case.unchanged()
+
+
+def download_link_lifetime(case, *, settings):
+    page = case.page
+    if settings:
+        dialog = case.manager()
+        dialog.get_by_role('tab', name='Berkas', exact=True).click()
+        button = dialog.get_by_role('button', name='Ekspor pengaturan kategori', exact=True)
+    else:
+        button = backup_action(page, 'Cadangkan semuanya')
+    # Freeze time before clicking so browser scheduling cannot move either boundary.
+    page.clock.pause_at('2026-10-31T12:10:00Z')
+    with page.expect_download() as pending:
+        button.evaluate('(button) => button.click()')
+    download = pending.value
+    path = case.args.output / download.suggested_filename
+    download.save_as(path)
+    read_blob = """async url => {
+      try { return await (await fetch(url)).text(); } catch { return null; }
+    }"""
+    page.clock.fast_forward(59_999)
+    assert page.evaluate(read_blob, download.url) == path.read_text(encoding='utf-8'), 'Download link expired before 60 seconds'
+    page.clock.fast_forward(1)
+    assert page.evaluate(read_blob, download.url) is None, 'Download link still available after 60 seconds'
     case.unchanged()
 
 
@@ -899,6 +924,8 @@ def main():
     build = assert_production_url(args.url)
     results = []
     cases = [('manager-desktop-light', {}, manager_lifecycle),
+             ('download-link-full', {'width': 390}, lambda c: download_link_lifetime(c, settings=False)),
+             ('download-link-settings', {'width': 390}, lambda c: download_link_lifetime(c, settings=True)),
              ('category-unload-unapplied-fields', {}, category_unload),
              ('rename-category-desktop', {}, rename_category),
              ('rename-category-mobile-dark', {'width': 390, 'theme': 'dark'}, rename_category),

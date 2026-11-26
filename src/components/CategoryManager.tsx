@@ -5,6 +5,7 @@ import MoneyEcho from './MoneyEcho';
 import { makeId } from '../lib/finance';
 import { CATEGORY_SETTINGS_LIMIT, KEYWORD_PACK_VERSION, categorySettingsExport, parseCategorySettingsExport, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
 import type { CategoryRule } from '../lib/categorization';
+import { downloadText } from '../lib/downloadText';
 import { mergeCurrentCategoryKeywordPack } from '../lib/categoryConfirmedMappings';
 import { mergeCurrentAutomaticBankMappings } from '../lib/bankAutoMappings';
 import { applyBudgetInputs, budgetInputs, type BudgetMap } from '../lib/budgets';
@@ -173,10 +174,7 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
     try {
       const text = categorySettingsExport(draft);
       if (new TextEncoder().encode(text).byteLength > CATEGORY_SETTINGS_LIMIT) throw new Error('Ekspor pengaturan maksimal 128 KiB.');
-      const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
-      const link = document.createElement('a');
-      link.href = url; link.download = `uangku-pengaturan-kategori-${new Date().toISOString().slice(0, 10)}.json`;
-      link.click(); setTimeout(() => URL.revokeObjectURL(url), 1_000);
+      downloadText(text, `uangku-pengaturan-kategori-${new Date().toISOString().slice(0, 10)}.json`);
       setError(''); setMessage('Pengaturan dalam formulir diunduh. File ini terpisah dari cadangan transaksi.');
     } catch (reason) { setError(errorMessage(reason)); }
   }

@@ -1306,13 +1306,15 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   `src/hooks/useLedgerStorage.ts`, tes terkait.
 
 - [ ] **MW-105 — Unduhan cadangan di HP** *(sebagian)*
-  Tautan blob dicabut 1 detik setelah klik (`src/App.tsx:69-74`), dan cadangan
-  dicatat berhasil tanpa syarat (`src/App.tsx:252-260`). Apakah HP benar-benar
+  Sebelum butir a, tautan blob dicabut 1 detik setelah klik. Cadangan
+  dicatat berhasil saat unduhan dimulai. Apakah HP benar-benar
   gagal menyimpan file **belum terbukti**: di Chromium desktop (juga dengan
   emulasi HP dan file 3,5 MB) unduhan selalu selesai.
-  - [ ] **a.** (S) Biarkan tautan blob hidup 60 detik, di `downloadText` dan di
-    unduhan pengaturan kategori yang memakai pola sama
-    (`src/components/CategoryManager.tsx:175-178`).
+  - [x] **a.** Unduhan dari aplikasi dan ekspor pengaturan kategori memakai
+    `downloadText` yang mencabut URL blob sesudah 60 detik. Di Chromium
+    dengan lebar 390 px, kedua tautan memuat isi file yang diunduh pada
+    59.999 ms dan telah dilepas pada 60.000 ms. Dua kasus itu gagal pada
+    build sebelumnya. Pengujian memakai jam browser terkontrol.
   - [ ] **b.** (pemilik) Jalankan cadangkan → pulihkan sekali di iPhone (Safari dan
     Layar Utama) dan Android; catat hasilnya di `STATUS.md`.
   - [ ] **c.** (S–M) Bila `navigator.canShare({files})` tersedia, tawarkan "Bagikan /
