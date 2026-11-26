@@ -2969,7 +2969,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     dan lima kasus Chromium kalender lulus.
     *Belum terbukti:* HP fisik, Firefox/WebKit lokal dan pembaca layar manual.
 
-- [ ] **MW-150 — Tes properti dengan fast-check**
+- [x] **MW-150 — Tes properti dengan fast-check**
   Tes unit sekarang memakai contoh yang dipilih tangan. fast-check
   (`dubzzz/fast-check`, MIT) membuat ratusan input acak untuk satu aturan dan
   memperkecil input yang gagal sampai contoh terkecil; `@fast-check/vitest`
@@ -2998,9 +2998,17 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     `-999252448`). Codec asli lulus 100 percobaan × 2 round-trip,
     2.050 tes unit di 87 berkas dan build lulus.
     *Belum terbukti:* semua kombinasi jenis metadata dan batas ukuran.
-  - [ ] **c.** (S) Properti cadangan lengkap: `parseRestoreFile` atas hasil
+  - [x] **c.** (S) Properti cadangan lengkap: `parseRestoreFile` atas hasil
     `serializeFullBackup` mengembalikan ledger, pengaturan kategori, anggaran,
     dan template yang sama (`src/lib/fullBackup.ts`).
+    *Selesai:* `src/lib/fullBackup.property.test.ts` menggunakan generator
+    sintetis MW-150b untuk ledger v1 dan ledger bertaut sumber. Aturan,
+    anggaran dan template yang hadir ikut dicocokkan, termasuk bagian opsional
+    yang tidak disertakan oleh serializer.
+    *Tes:* salinan dekoder yang melewatkan template gagal pada percobaan pertama
+    (seed `207488001`). Kode asli lulus 100 percobaan × 2 round-trip,
+    2.051 tes unit di 88 berkas dan build produksi.
+    *Belum terbukti:* semua susunan data yang dimungkinkan oleh format.
   Jumlah percobaan bawaan (100) dipertahankan supaya `npm test` tidak melambat;
   seed kegagalan ditulis di laporan.
 
