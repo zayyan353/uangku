@@ -1894,3 +1894,40 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 .age-of-money { margin-top: var(--block-gap); }
 
 .cashflow-export { margin-bottom: var(--block-gap); }
+
+.spending-calendar {
+  --day-size: 17px;
+  --spend-0: var(--surface-raised);
+  --spend-1: #c9e2b5;
+  --spend-2: #91bf76;
+  --spend-3: #599047;
+  --spend-4: #305f2a;
+  margin-top: var(--block-gap);
+}
+html[data-theme="dark"] .spending-calendar {
+  --spend-1: #bdd9a8;
+  --spend-2: #90bc7d;
+  --spend-3: #689c59;
+  --spend-4: #487b3e;
+}
+.spending-track { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; }
+.spending-scroll { max-width: 100%; overflow-x: auto; padding-bottom: 6px; }
+.spending-weekdays, .spending-grid { display: grid; grid-template-rows: repeat(7, var(--day-size)); gap: 3px; }
+.spending-weekdays { margin-top: 22px; align-items: center; }
+.spending-weekdays, .spending-months { color: var(--text-muted); font-size: 11px; }
+.spending-months, .spending-grid { width: max-content; grid-auto-flow: column; grid-auto-columns: var(--day-size); }
+.spending-months { display: grid; gap: 3px; height: 22px; }
+.spending-day { width: var(--day-size); height: var(--day-size); border: 1px solid var(--control-border); border-radius: 3px; padding: 0; background: var(--spend-0); }
+.spending-day[data-level="1"] { background: var(--spend-1); }
+.spending-day[data-level="2"] { background: var(--spend-2); }
+.spending-day[data-level="3"] { background: var(--spend-3); }
+.spending-day[data-level="4"] { background: var(--spend-4); }
+.spending-day[aria-pressed="true"], .spending-day:focus-visible { outline: 2px solid var(--text); outline-offset: -2px; }
+.spending-caption { margin: 8px 0 0; }
+.spending-details { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 12px; overflow-wrap: anywhere; }
+.spending-details h3 { font-size: 15px; margin: 0; }
+.spending-details ul { padding: 0; list-style: none; }
+.spending-details li { display: flex; justify-content: space-between; gap: 8px; margin: 8px 0; }
+.spending-details small { display: block; color: var(--text-muted); }
+.spending-details .text-link { display: block; }
+@media (max-width: 760px), (pointer: coarse) { .spending-calendar { --day-size: 44px; } }

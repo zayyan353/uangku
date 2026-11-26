@@ -2924,12 +2924,23 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     kasus baru lulus, termasuk biaya, mata uang, tanggal, tahun kabisat,
     seri dan overflow. Seluruh 2.024 tes unit di 82 berkas serta build lulus.
     *Belum terbukti:* tampilan dan navigasi kalender menyusul di MW-149b/c.
-  - [ ] **b.** (M) Panel lipat "Kalender pengeluaran" di Ringkasan: grid CSS tanpa
+  - [x] **b.** (M) Panel lipat "Kalender pengeluaran" di Ringkasan: grid CSS tanpa
     pustaka, dihitung hanya saat panel dibuka (seperti MW-131b), warna lewat
     token tema terang dan gelap, dan `aria-label` per kotak, mis.
     "12 Nov 2026: Rp45.000". Di layar 390px tampil 26 minggu terakhir atau
     bisa digeser. Tap kotak membuka daftar transaksi hari itu di panel kecil
     dengan tautan ke bulan tersebut di Transaksi; `HistoryQuery` tidak diubah.
+    *Selesai:* panel menghitung pengeluaran semua rekening dalam mata uang
+    terpilih ketika dibuka. Kalender bergulir ke minggu terbaru, dengan satu
+    titik Tab, tombol panah untuk pindah hari atau minggu, dan rincian
+    transaksi serta biaya menurut tanggal posting. Di HP kotak berukuran
+    44 piksel dan gulir mendatar berada di dalam panel.
+    *Tes:* pada build awal Chromium gagal menemukan panel. Sesudah perbaikan
+    kasus `spending-calendar-day-history` lulus: 371 kotak saat dibuka,
+    belanja dan biaya transfer di tanggal debit yang sama, serta Transaksi
+    terbuka pada bulan tersebut. Dua pemeriksaan byte catatan identik.
+    Seluruh 2.048 tes unit di 85 berkas dan build produksi lulus.
+    *Belum terbukti:* matriks tema dan layar menyusul pada MW-149c.
   - [ ] **c.** (S) Tes browser 1440 dan 390, terang dan gelap.
 
 - [ ] **MW-150 — Tes properti dengan fast-check**

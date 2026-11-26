@@ -37,6 +37,7 @@ import { executeTransferCommand } from './lib/transferCommands';
 import StatementReview from './components/StatementReview';
 import YearRecap from './components/YearRecap';
 import AgeOfMoneyCard from './components/AgeOfMoneyCard';
+import SpendingCalendar from './components/SpendingCalendar';
 import { isYearRecapVisible } from './lib/yearRecap';
 import { buildCashflowReport, type CashflowReport } from './lib/cashflowReport';
 import CashflowOverview, { CashflowBalance, FoldHeader, useMobileOverview } from './components/CashflowOverview';
@@ -917,6 +918,11 @@ export default function App() {
             return <div className={`category-row${limit !== undefined ? ' budgeted' : ''}${row.over ? ' over-budget' : ''}`} key={row.name}><div className="category-labels"><button type="button" className="category-name category-open" title={`Lihat transaksi ${row.name}`} onClick={() => openCategoryHistory(row.name)}><span className="category-dot" style={{ background: color }} />{row.name}<ChevronRight size={13} aria-hidden="true" /></button><strong className="category-value">{used}</strong></div><div className="category-track" {...(limit !== undefined ? { role: 'progressbar', 'aria-label': `Anggaran ${row.name}`, 'aria-valuemin': 0, 'aria-valuemax': 100, 'aria-valuenow': Math.round(width), 'aria-valuetext': `${used}. ${status}` } : {})}><span className="category-fill" style={{ width: `${width}%`, ...(row.over ? {} : { background: color }) }} /></div>{status && <span className="category-budget-note">{status}</span>}</div>;
           })}{(categoryRows.hidden > 0 || allCategoriesShown) && <button type="button" className="text-link category-more" data-testid="category-more" aria-expanded={allCategoriesShown} onClick={() => setAllCategoriesShown(shown => !shown)}>{allCategoriesShown ? 'Tampilkan lebih sedikit' : `+${categoryRows.hidden} kategori lainnya`}</button>}</div> : <div className="empty-state compact"><Leaf size={27} /><p>Belum ada pengeluaran terkonfirmasi dalam cakupan ini.</p></div>}{budgetsHidden && <p className="field-help category-budget-hint">Anggaran bulanan tampil saat periode bulanan dan semua rekening dipilih.</p>}{cashflowResult.report && <p className="category-legend">Hanya kategori pengeluaran terkonfirmasi. Semua debit rekening tetap dihitung pada arus di atas.</p>}</div></section></div>
         {!mobileOverview && overviewRecent}
+        <SpendingCalendar data={data} currency={currency} today={clockDay} onOpenMonth={targetMonth => {
+          if (mutationInFlight.current) return;
+          openHistory('all', 'month');
+          setMonth(targetMonth);
+        }} />
         <AgeOfMoneyCard data={data} currency={currency} today={clockDay} />
       </>}
       {page === 'wallets' && <WalletsPage hasCashArchive={cashWallets.length > 0} onOpenCashArchive={() => setCashArchiveOpen(true)} walletView={walletView} onWalletViewChange={setWalletView} activeCount={availableCurrencyWallets.length} archivedCount={archivedCurrencyWallets.length} currency={currency} currencyName={currencyLabel(currency)} clockDay={clockDay} total={walletPageTotal} wallets={displayedWallets} actualText={actualText} freshness={walletFreshnessRows} onOpenWallet={openWallet} onRecord={walletId => openTx('expense', walletId)} onCheckBalance={walletId => openTx('adjustment', walletId)} onShowHistory={w => { setCurrency(w.currency); openHistory(w.id, 'all'); }} onRestore={w => requestWalletAction(w, 'restore')} />}

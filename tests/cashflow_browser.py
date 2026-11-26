@@ -709,6 +709,26 @@ def source_fixture():
     return document(rows, [wallet(), wallet('digital', 'Synthetic ewallet', opening=0, kind='ewallet')], m)
 
 
+def spending_calendar(case):
+    page = case.page
+    toggle = page.get_by_role('button', name=re.compile('^Kalender pengeluaran'))
+    expect(toggle).to_have_attribute('aria-expanded', 'false')
+    expect(page.locator('.spending-day')).to_have_count(0)
+    toggle.click()
+    expect(page.locator('.spending-day')).to_have_count(371)
+    day = page.get_by_role('button', name=re.compile(r'^30 Sep 2026:.*4,50$'))
+    day.click()
+    details = page.get_by_role('region', name='Pengeluaran 30 Sep 2026', exact=True)
+    expect(details).to_contain_text('Buku sintetis')
+    expect(details).to_contain_text('Pendidikan')
+    expect(details).to_contain_text('Biaya transfer')
+    expect(details).not_to_contain_text('50,00')
+    details.get_by_role('button', name='Lihat bulan ini di Transaksi').click()
+    expect(page.get_by_label('Bulan laporan', exact=True)).to_have_value('2026-09')
+    expect(page.get_by_test_id('history-scope')).to_contain_text('September 2026')
+    case.assert_unchanged()
+
+
 def sankey_copy(case):
     page = case.page
     button = page.get_by_role('button', name='Salin untuk SankeyMATIC', exact=True)
@@ -949,6 +969,12 @@ def cases():
         ('cash-archive-excluded-preserved', {'data': archived_cash}, cash_archive),
         ('immutable-source-backup-read-filter', {'data': source_fixture()}, source_read_and_backup),
     ]
+    calendar_data = document([
+        entry('book', 300, 'expense', date='2026-09-30', note='Buku sintetis', category='Pendidikan'),
+        entry('transfer', 5000, 'transfer', date='2026-10-01', toWalletId='second', toAmount=5000, fee=150)],
+        [wallet(), wallet('second')],
+        metadata([transfer_context('transfer', source='2026-09-30', destination='2026-10-01')]))
+    result.append(('spending-calendar-day-history', {'data': calendar_data}, spending_calendar))
     export = ordinary_fixture()
     export['state']['wallets'] += [wallet('usd', currency='USD'), wallet('second-usd', currency='USD')]
     export['state']['entries'] += [
