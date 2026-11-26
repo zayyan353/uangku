@@ -104,13 +104,22 @@ describe('full and legacy backup files', () => {
     expect(failure(whole.slice(0, Math.floor(whole.length / 2))).detail).toMatch(/JSON/);
     // Refusals that already say what is wrong are shown as they are, with nothing to open.
     expect(failure(' '.repeat(MAX_RESTORE_BYTES + 1))).toEqual({ message: 'Ukuran mentah file pemulihan maksimal 32 MiB.', detail: '' });
-    expect(failure(JSON.stringify({ ...JSON.parse(whole), version: 2 }))).toEqual({ message: 'Versi cadangan lengkap belum didukung.', detail: '' });
-    // A backup written by a newer Uangku is a readable backup this version is too old for: each section's own
-    // refusal says so and must not turn into "pick another file".
     const parsed = JSON.parse(whole);
-    expect(failure(JSON.stringify({ ...parsed, categorySettings: { ...parsed.categorySettings, keywordPackVersion: 999 } }))).toEqual({ message: 'Versi paket kata kunci belum didukung.', detail: '' });
-    expect(failure(JSON.stringify({ app: 'uangku', version: 1, demo: false, state: { version: 2, wallets: [], entries: [] } }))).toEqual({ message: 'Versi data dalam cadangan belum didukung.', detail: '' });
-    expect(restoreFailure(new Error('Versi cadangan perpindahan belum didukung.'))).toEqual({ message: 'Versi cadangan perpindahan belum didukung.', detail: '' });
+    const newer = 'Data ini dibuat oleh Uangku versi lebih baru. Muat ulang halaman.';
+    for (const value of [
+      { ...parsed, version: 2, extra: true },
+      { ...parsed, categorySettings: { version: 2, extra: true } },
+      { ...parsed, categorySettings: { ...parsed.categorySettings, keywordPackVersion: 999 } },
+      { ...parsed, ledger: { app: 'uangku', version: 4 } },
+      { app: 'uangku', version: 2, codec: 'table-tuples-v7', extra: true },
+      { app: 'uangku', version: 1, demo: false, state: { version: 2, wallets: [], entries: [] } },
+    ]) expect(failure(JSON.stringify(value))).toEqual({ message: newer, detail: '' });
+    for (const value of [
+      { ...parsed, version: '2' }, { ...parsed, version: 0 }, { ...parsed, version: 1.5 },
+      { ...parsed, categorySettings: { ...parsed.categorySettings, keywordPackVersion: '8' } },
+      { app: 'lain', version: 9 }, { app: 'uangku', version: 2, codec: 'future-codec' },
+      { app: 'uangku', version: 1, demo: false, state: { version: -1, wallets: [], entries: [] } },
+    ]) expect(failure(JSON.stringify(value)).message).toBe(plain);
     // The rule is the whole sentence, not the words inside a longer validator text.
     expect(restoreFailure(new Error('Metadata sumber tidak valid: Versi fingerprint sumber belum didukung.')).message).toBe(plain);
     expect(restoreFailure(new RestoreRefusal('Selesaikan penyimpanan dulu.'))).toEqual({ message: 'Selesaikan penyimpanan dulu.', detail: '' });

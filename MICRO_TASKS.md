@@ -1266,25 +1266,27 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *File:* `src/lib/backupReminder.ts` + tes, `src/App.tsx`.
 
 - [ ] **MW-102 — Pengaturan kategori yang tidak terbaca tidak bisa ditimpa sekali klik** (S)
-  Pengaturan kategori dengan `keywordPackVersion` lebih baru dari yang dikenal
-  dianggap tidak terbaca: tidak ada peringatan di Ringkasan, **Cadangkan
-  semuanya** menolak dengan "Versi paket kata kunci belum didukung.", dan
-  **Kelola kategori** terbuka dengan bawaan lalu menimpa pengaturan tersimpan
-  dengan satu klik tanpa menyimpan salinan. Pemicunya sempit: tab atau aplikasi
-  Layar Utama versi lama yang berbagi penyimpanan dengan versi baru, dan
-  pengguna tetap menyimpan walau ada peringatan. Catatan keuangan tidak
-  tersentuh.
+  Pada versi sebelum butir b, tab lama dapat membuka bawaan lalu menimpa
+  pengaturan dengan paket kata kunci lebih baru. Untuk pengaturan yang rusak,
+  pilihan mengganti lewat formulir masih tersedia sampai keputusan butir a.
   - [ ] **a.** Simpan teks lama ke kunci samping sebelum mengganti, dan sediakan
     "Unduh pengaturan lama (mentah)"; **Simpan pengaturan** dinonaktifkan sampai
     tombol unduh itu dipakai.
-  - [ ] **b.** Kenali versi yang lebih baru: "dibuat oleh Uangku versi lebih baru,
-    muat ulang halaman", tanpa tawaran menimpa. Kalimat yang sama untuk cadangan
-    versi lebih baru saat pemulihan.
+  - [x] **b.** Kenali pengaturan dan cadangan dari versi Uangku yang lebih baru.
+    **Selesai.** Ringkasan dan pengelola kategori menyarankan muat ulang dan
+    melindungi pengaturan versi lebih baru dari simpan maupun pemulihan lengkap.
+    Pemulihan mengenali nomor versi Uangku dan keluarga codec tabel yang lebih
+    baru, termasuk ledger di dalam cadangan lengkap. Berkas rusak tetap mendapat
+    pesan tidak terbaca dan detail teknis.
+    **Tes.** Regresi pemulihan gagal sebelum perbaikan. Unit 2.008/2.008 (79
+    berkas), build produksi, serta dua kasus Chromium cadangan lengkap (desktop
+    dan HP) lulus. Pengaturan sintetis dengan penanda 8 dan field tambahan
+    tetap persis sama setelah membuka pengelola dan mencoba memulihkan.
+    **Belum terbukti.** Perangkat fisik, Safari asli dan instalasi Layar Utama.
 
-  *File:* `src/lib/categorySettings.ts`, `src/hooks/useCategorySettings.tsx`,
-  `src/components/CategoryManager.tsx`; untuk butir b juga asal pesan penolakan
-  cadangan versi lebih baru (`src/lib/fullBackup.ts:39`,
-  `src/lib/sourceCodec.ts:125`); tes terkait.
+  *File:* `src/lib/categorySettings.ts:68`, `src/hooks/useCategorySettings.tsx:58`,
+  `src/components/CategoryManager.tsx:195`, `src/lib/fullBackup.ts:47`,
+  `src/App.tsx:692`, `src/lib/fullBackup.test.ts`, `tests/full_backup_browser.py`.
 
 - [ ] **MW-103 — Pemberitahuan "versi baru tersedia"** (S)
   Aplikasi tidak pernah memeriksa versi baru; `BUILD_INFO.json` yang ditulis

@@ -204,10 +204,11 @@ def round_trip(destination, url, width, *, route=None, verify=None):
     expect(toast.locator('details')).not_to_have_attribute('open', '')
     expect(toast.locator('details span')).to_be_hidden()
     # A backup written by a newer Uangku is not "not a backup": its own refusal is shown, with nothing to open.
-    for name, value, refusal in [
-            ('newer-file.json', {**full, 'version': 2}, 'Versi cadangan lengkap belum didukung.'),
-            ('newer-keywords.json', {**full, 'categorySettings': {**full['categorySettings'], 'keywordPackVersion': 999}},
-             'Versi paket kata kunci belum didukung.')]:
+    refusal = 'Data ini dibuat oleh Uangku versi lebih baru. Muat ulang halaman.'
+    for name, value in [
+            ('newer-file.json', {**full, 'version': 2}),
+            ('newer-codec.json', {'app': 'uangku', 'version': 2, 'codec': 'table-tuples-v7'}),
+            ('newer-keywords.json', {**full, 'categorySettings': {**full['categorySettings'], 'keywordPackVersion': 999}})]:
         pick_backup(destination, f'synthetic-{name}', json.dumps(value).encode())
         toast = destination.locator('.toast.error')
         expect(toast).to_have_text(refusal)
@@ -390,8 +391,20 @@ def round_trip(destination, url, width, *, route=None, verify=None):
         expect(toast.locator('details')).to_have_count(0)
         assert raw_pair(journal_profile) == before_journal
         assert journal_profile.evaluate("() => localStorage.getItem('uangku:full-restore:v1')") == '{'
+    with synthetic_page(browser, url, width, ledger, {**settings, 'keywordPackVersion': 8, 'futureField': True}, route=route, verify=verify) as future:
+        before = raw_pair(future)
+        expect(future.get_by_text(refusal, exact=True)).to_be_visible()
+        future.get_by_role('button', name='Kelola kategori', exact=True).click()
+        dialog = future.get_by_role('dialog', name='Kelola kategori', exact=True)
+        expect(dialog).to_contain_text(refusal)
+        expect(dialog.get_by_role('button', name='Simpan pengaturan')).to_have_count(0)
+        dialog.get_by_role('button', name='Tutup', exact=True).last.click()
+        pick_backup(future, 'synthetic-full.json', file_bytes)
+        expect(future.get_by_role('dialog')).to_have_count(0)
+        expect(future.locator('.toast.error')).to_have_text(refusal)
+        assert raw_pair(future) == before
     return {'downloads': 1, 'restored_wallets': 2, 'restored_entries': 2, 'restored_bank_facts': 2,
-            'unused_category_restored': True, 'ordered_rules': 2, 'malformed_sections_rejected': 2, 'unreadable_files_explained': 4, 'newer_version_refusals_shown_plainly': 2, 'stale_refusal_cleared': True, 'corrupt_journal_backup_explained': True,
+            'unused_category_restored': True, 'ordered_rules': 2, 'malformed_sections_rejected': 2, 'unreadable_files_explained': 4, 'newer_version_refusals_shown_plainly': 3, 'stale_refusal_cleared': True, 'corrupt_journal_backup_explained': True,
             'preview_and_cancel_unchanged': True, 'stale_preview_preserved_peer_edit': True,
             'same_tab_refreshed_before_reload': True, 'legacy_preserved_category_settings': True,
             'restore_comparisons': {'full_file_missing_records': 9, 'bank_rows_matched_by_fingerprint': 2,

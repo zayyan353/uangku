@@ -1,5 +1,5 @@
 import { mergeCategoryKeywordPack } from './categoryKeywordPack';
-import { defaultCategorySettings, KEYWORD_PACK_VERSION, validateCategorySettings, type CategorySettings } from './categorySettings';
+import { defaultCategorySettings, KEYWORD_PACK_VERSION, readCategorySettings, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { CONFIRMED_CATEGORY_NAMES } from './categoryKeywordDefinitions';
 import { mergeConfirmedCategoryMappings } from './categoryConfirmedMappings';
 import { BANK_CATEGORY_NAMES, mergeBankCategoryMappings } from './categoryBankMappings';
@@ -8,7 +8,7 @@ import { mergeAtmNetworkMappings, mergeAutomaticBankMappings, mergeKeywordPack7M
 /** Only successful durable reads belong here. An absent key means the shipped defaults. */
 export function effectiveCategorySettings(raw: string | null) {
   return raw === null ? { settings: defaultCategorySettings(), added: 0, updated: 0, error: '' }
-    : upgradeCategorySettings(validateCategorySettings(JSON.parse(raw)));
+    : upgradeCategorySettings(readCategorySettings(JSON.parse(raw)));
 }
 
 /** Effective additions only: the caller retains the original raw CAS token.
