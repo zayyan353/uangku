@@ -523,7 +523,7 @@ def source_import(case):
     assert stored_document(p) == after
 
 
-def stale_settings(case):
+def stale_settings(case, *, delayed_reads=False):
     p = case.page
     second = case.new_page()
     second.goto(case.args.url, wait_until='networkidle')
@@ -531,12 +531,28 @@ def stale_settings(case):
     a, b = case.manager(), case.manager(second)
     case.add_name(a, 'Kategori tab pertama')
     case.add_name(b, 'Kategori tab usang')
+    if delayed_reads:
+        # MW-164c: the new storage event may reach tab B after it has acquired the category lock.
+        from recovery_browser import STALE_VIEW
+        second.evaluate(STALE_VIEW, SETTINGS)
     case.save_manager(a)
+    saved_raw = p.evaluate('(key) => localStorage.getItem(key)', SETTINGS)
     b.get_by_role('button', name='Simpan pengaturan', exact=True).click()
+    second.wait_for_function("""() => !document.querySelector('[role=dialog]')
+      || document.querySelector('[role=dialog] [role=alert]')""")
+    reader = case.new_page()
+    reader.goto(case.args.url, wait_until='networkidle')
+    raw = reader.evaluate('(key) => localStorage.getItem(key)', SETTINGS)
+    assert raw == saved_raw, "Tab B replaced tab A's saved categories"
     expect(b.get_by_role('alert')).to_be_visible()
+    expect(second.locator('.toast')).to_contain_text('Pengaturan berubah di tab lain')
     expect(b.locator('.category-manager-names li').filter(has_text='Kategori tab usang')).to_have_count(1)
-    saved = p.evaluate('(key)=>JSON.parse(localStorage.getItem(key))', SETTINGS)
+    saved = json.loads(raw)
     assert 'Kategori tab pertama' in saved['names'] and 'Kategori tab usang' not in saved['names']
+    if delayed_reads:
+        assert second.evaluate('window.__staleReads') > 0
+        second.evaluate("""() => { window.__catchUpLedger();
+          window.dispatchEvent(new StorageEvent('storage', { key: 'uangku:categories:v1' })); }""")
     b.get_by_role('button', name='Batal', exact=True).click()
     b.get_by_role('button', name='Buang perubahan', exact=True).click()  # Unsaved draft: the window asks first.
     b = case.manager(second)
@@ -660,6 +676,53 @@ def financial_conflict(case):
 
 
 TEMPLATES = 'uangku:templates:v1'
+
+
+def stale_template_add(case):
+    """MW-164c: a stale tab keeps its template draft and can retry after catching up."""
+    from recovery_browser import STALE_VIEW
+
+    def prepare(page, name):
+        page.get_by_role('button', name='Catat transaksi', exact=True).click()
+        dialog = page.get_by_role('dialog')
+        dialog.get_by_role('button', name='Simpan sebagai template', exact=True).click()
+        dialog.get_by_label('Nama template', exact=True).fill(name)
+        return dialog
+
+    second = case.new_page()
+    second.goto(case.args.url, wait_until='networkidle')
+    nav(second, 'Transaksi')
+    second.evaluate(STALE_VIEW, TEMPLATES)
+    first_draft = prepare(case.page, 'Template A')
+    second_draft = prepare(second, 'Template B')
+    first_draft.get_by_role('button', name='Simpan template', exact=True).click()
+    expect(first_draft.get_by_role('status').filter(has_text='Template “Template A” tersimpan')).to_be_visible()
+    saved = case.page.evaluate('(key) => localStorage.getItem(key)', TEMPLATES)
+    assert [row['name'] for row in json.loads(saved)] == ['Template A']
+
+    save = second_draft.get_by_role('button', name='Simpan template', exact=True)
+    success = second_draft.get_by_role('status').filter(has_text='Template “Template B” tersimpan')
+    error = second_draft.get_by_role('alert')
+    save.click()
+    expect(success.or_(error)).to_be_visible()
+    reader = case.new_page()
+    reader.goto(case.args.url, wait_until='networkidle')
+    raw = reader.evaluate('(key) => localStorage.getItem(key)', TEMPLATES)
+    assert raw == saved, f'Tab B replaced the saved list; a fresh tab reads {raw}'
+    expect(error).to_contain_text('Template berubah di tab lain')
+    expect(success).to_have_count(0)
+    expect(second_draft.get_by_label('Nama template', exact=True)).to_have_value('Template B')
+    assert second.evaluate('window.__staleReads') > 0
+
+    second.evaluate('window.__catchUpLedger()')
+    second.wait_for_function('([key, saved]) => localStorage.getItem(key) === saved', arg=[TEMPLATES, saved])
+    save.click()
+    expect(success).to_be_visible()
+    reader.reload(wait_until='networkidle')
+    rows = reader.evaluate('(key) => JSON.parse(localStorage.getItem(key))', TEMPLATES)
+    assert [row['name'] for row in rows] == ['Template A', 'Template B']
+    assert rows[0] == json.loads(saved)[0]
+    case.unchanged()
 
 
 def transaction_templates(case):
@@ -850,10 +913,12 @@ def main():
              ('source-import-desktop', {'empty': True}, source_import),
              ('source-import-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, source_import),
              ('settings-stale-tab-CAS', {}, stale_settings),
+             ('settings-delayed-storage-CAS', {}, lambda case: stale_settings(case, delayed_reads=True)),
              ('settings-quota-retains-draft', {}, settings_quota),
              ('settings-pending-close-guard', {}, pending_settings),
              ('financial-quota-draft-and-retry', {}, financial_quota),
              ('financial-stale-category-conflict', {}, financial_conflict),
+             ('template-stale-add-retry', {}, stale_template_add),
              ('transaction-templates-desktop', {}, transaction_templates),
              ('transaction-templates-mobile-dark', {'width': 390, 'theme': 'dark'}, transaction_templates),
              ('template-quick-fill-desktop', {}, template_quick_fill),

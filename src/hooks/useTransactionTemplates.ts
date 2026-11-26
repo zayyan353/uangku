@@ -1,7 +1,8 @@
+import { withMetadataClaims } from '../lib/metadataClaims';
 import { useEffect, useState } from 'react';
 import { appendTemplate, parseStoredTemplates, removeTemplate, renameTemplate, TEMPLATES_KEY, type TransactionTemplate } from '../lib/transactionTemplates';
 import { renameCategoryInTemplates } from '../lib/categoryRename';
-import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, requestExclusive, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
+import { browserLocks, CATEGORY_LOCK, finishInterruptedRestore, PROFILE_CHANGED, RESTORE_JOURNAL, restorePending } from '../lib/fullRestoreStorage';
 
 export const unreadableTemplates = 'Template tersimpan tidak dapat dibaca. Template baru belum dapat disimpan agar daftar lama tidak tertimpa.';
 
@@ -15,9 +16,7 @@ function load(): { raw: string | null; templates: TransactionTemplate[]; error: 
 
 /**
  * Transaction templates live under their own key, outside the ledger. Writes
- * share the category settings lock, which full restore also holds, and read
- * the stored list inside that lock, so a template saved in another tab is
- * never overwritten.
+ * share the category settings lock with full restore and claim the exact list they replace.
  */
 export function useTransactionTemplates() {
   const [snapshot, setSnapshot] = useState(load);
@@ -32,16 +31,20 @@ export function useTransactionTemplates() {
   }, []);
   /** Reads the stored list inside the shared lock, applies one change, and writes it back. A refused change leaves storage untouched. */
   async function change(apply: (raw: string | null) => { raw: string; templates: TransactionTemplate[] }): Promise<void> {
-    if (!navigator.locks?.request) throw Error('Browser ini belum mendukung koordinasi penyimpanan. Coba browser yang mendukung Web Locks.');
-    await finishInterruptedRestore(localStorage, browserLocks());
-    await requestExclusive(navigator.locks, CATEGORY_LOCK, () => {
-      if (localStorage.getItem(RESTORE_JOURNAL) !== null) throw Error(restorePending);
-      const current = localStorage.getItem(TEMPLATES_KEY);
-      let next: ReturnType<typeof appendTemplate>;
-      try { next = apply(current); }
-      catch (error) { setSnapshot(load()); throw error; }
-      localStorage.setItem(TEMPLATES_KEY, next.raw);
-      setSnapshot({ raw: next.raw, templates: next.templates, error: '' });
+    const locks = browserLocks();
+    if (!locks) throw Error('Browser ini belum mendukung koordinasi penyimpanan. Coba browser yang mendukung Web Locks.');
+    await finishInterruptedRestore(localStorage, locks);
+    await locks.runExclusive(CATEGORY_LOCK, async () => {
+      const raw = localStorage.getItem(TEMPLATES_KEY);
+      const message = 'Template berubah di tab lain. Periksa daftar terbaru lalu coba lagi.';
+      try {
+        await withMetadataClaims(localStorage, locks, [{ key: TEMPLATES_KEY, raw, message }], storage => {
+          if (storage.getItem(RESTORE_JOURNAL) !== null) throw Error(restorePending);
+          const next = apply(raw);
+          if (next.raw !== raw) storage.setItem(TEMPLATES_KEY, next.raw);
+          setSnapshot({ raw: next.raw, templates: next.templates, error: '' });
+        });
+      } catch (error) { setSnapshot(load()); throw error; }
     });
   }
   const add = (template: TransactionTemplate) => change(raw => appendTemplate(raw, template));
