@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, type CategorySettings } from './categorySettings';
 import { baseClaimName, browserLocks, CATEGORY_LOCK, claimLock, finishInterruptedRestore, LEDGER_LOCK, requestExclusive, RESTORE_JOURNAL, revokeLock } from './fullRestoreStorage';
+import { LAST_BACKUP_KEY, ledgerFingerprint, readLastBackup } from './backupReminder';
 import { BUDGETS_KEY, serializeBudgets } from './budgets';
 import { serializeTemplates, TEMPLATES_KEY } from './transactionTemplates';
 import { LedgerPersistenceController, type PersistenceLocks, type PersistenceStorage } from './persistence';
@@ -64,6 +65,7 @@ describe('full restore and export use one reviewed ledger/category pair', () => 
   it('restores both prior keys without changing their normal formats', async () => {
     const { store, restore, controller } = environment(null);
     expect(await restore()).toBe(true);
+    expect(readLastBackup(store)?.fingerprint).toBe(ledgerFingerprint(serializeBackup(updated)));
     expect(store.getItem(STORAGE_KEY)).toBe(serializeBackup(updated));
     expect(store.getItem(CATEGORY_SETTINGS_KEY)).toBe(nextRaw);
     expect(store.getItem(RESTORE_JOURNAL)).toBeNull();
@@ -74,7 +76,8 @@ describe('full restore and export use one reviewed ledger/category pair', () => 
     const pretty = JSON.stringify(initial, null, 2);
     const { store, restore, controller } = environment(previousRaw, true, pretty);
     expect(await restore(initial)).toBe(true);
-    expect(store.writes).toEqual([CATEGORY_SETTINGS_KEY]);
+    expect(store.writes).toEqual([CATEGORY_SETTINGS_KEY, LAST_BACKUP_KEY]);
+    expect(readLastBackup(store)?.fingerprint).toBe(ledgerFingerprint(pretty));
     expect(controller.getSnapshot().revisionToken).toBe(pretty);
     expect(await controller.setCandidate(updated)).toBe(true);
     expect(store.getItem(CATEGORY_SETTINGS_KEY)).toBe(nextRaw);
@@ -88,6 +91,7 @@ describe('full restore and export use one reviewed ledger/category pair', () => 
     expect(store.getItem(STORAGE_KEY)).toBe(serializeBackup(initial));
     expect(store.getItem(CATEGORY_SETTINGS_KEY)).toBeNull();
     expect(store.getItem(RESTORE_JOURNAL)).toBeNull();
+    expect(readLastBackup(store)).toBeNull();
     expect(await controller.retry()).toBe(false); // No partial ledger-only retry.
     store.fault = undefined;
     expect(await restore()).toBe(true);
@@ -136,6 +140,15 @@ describe('full restore and export use one reviewed ledger/category pair', () => 
     expect(await attempt).toBe(false);
     expect(store.writes).toEqual([CATEGORY_SETTINGS_KEY]);
     expect(store.getItem(STORAGE_KEY)).toBe(serializeBackup(initial));
+  });
+
+  it('keeps the fully restored profile when the optional reminder record cannot fit', async () => {
+    const { store, restore, controller } = environment();
+    store.fault = key => key === LAST_BACKUP_KEY;
+    expect(await restore()).toBe(true);
+    expect(controller.getSnapshot().error).toBe('');
+    expect(readLastBackup(store)).toBeNull();
+    expect(store.getItem(STORAGE_KEY)).toBe(serializeBackup(updated));
   });
 
   it('rejects stale financial bytes even when the category token still matches', async () => {
@@ -203,6 +216,7 @@ describe('budgets travel with full export and restore (MW-12a)', () => {
     const raw = store.getItem(STORAGE_KEY);
     expect(await controller.setCandidate(updated, '', { expectedToken: raw, restoreCategories: { settings, expectedRaw: previousRaw, budgets } })).toBe(true);
     expect(parseBackupText(store.getItem(STORAGE_KEY)!)).toEqual(updated);
+    expect(readLastBackup(store)).toBeNull();
     expect(store.map.get(BUDGETS_KEY)).toBe(old);
     expect(controller.getSnapshot().error).toMatch(/anggaran dari cadangan belum tersimpan/);
   });
