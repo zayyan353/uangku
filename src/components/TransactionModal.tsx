@@ -448,7 +448,7 @@ function TypeChoices({ options, type, onChange }: { options: TxMode[]; type: TxM
   const nudge = (direction: 1 | -1) => { const el = row.current; if (el) el.scrollBy({ left: direction * el.clientWidth * 0.6, behavior: 'smooth' }); };
   return <div className="type-choices">
     {edges.before && <button type="button" className="type-scroll before" tabIndex={-1} aria-hidden="true" onClick={() => nudge(-1)}><ChevronLeft size={16} /></button>}
-    <div ref={row} className="segmented-control" aria-label="Jenis transaksi" data-more-before={edges.before || undefined} data-more-after={edges.after || undefined}>{options.map(t => <button key={t} type="button" className={type === t ? 'active' : ''} onClick={() => onChange(t)}>{t === 'adjustment' ? 'Cek saldo' : typeLabels[t]}</button>)}</div>
+    <div ref={row} className="segmented-control transaction-types" aria-label="Jenis transaksi" data-more-before={edges.before || undefined} data-more-after={edges.after || undefined}>{options.map(t => <button key={t} type="button" className={type === t ? 'active' : ''} onClick={() => onChange(t)}>{t === 'adjustment' ? 'Cek saldo' : typeLabels[t]}</button>)}</div>
     {edges.after && <button type="button" className="type-scroll after" tabIndex={-1} aria-hidden="true" onClick={() => nudge(1)}><ChevronRight size={16} /></button>}
   </div>;
 }
