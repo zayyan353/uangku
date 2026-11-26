@@ -1892,3 +1892,5 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 .recap-controls { align-items: center; justify-content: space-between; }
 
 .age-of-money { margin-top: var(--block-gap); }
+
+.cashflow-export { margin-bottom: var(--block-gap); }

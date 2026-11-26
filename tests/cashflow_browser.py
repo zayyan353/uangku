@@ -709,6 +709,46 @@ def source_fixture():
     return document(rows, [wallet(), wallet('digital', 'Synthetic ewallet', opening=0, kind='ewallet')], m)
 
 
+def sankey_copy(case):
+    page = case.page
+    button = page.get_by_role('button', name='Salin untuk SankeyMATIC', exact=True)
+    dialog = page.get_by_role('dialog', name='Ekspor untuk SankeyMATIC', exact=True)
+    preview = dialog.get_by_role('textbox', name='Teks diagram', exact=True)
+    external = []
+    def observe(request):
+        if urlsplit(request.url).hostname == 'sankeymatic.com':
+            external.append(request.url)
+    page.on('request', observe)
+    # Check the actual preview in a fresh browser; no access to the system clipboard is needed.
+    page.evaluate("""Object.defineProperty(navigator, 'clipboard', { configurable: true,
+      value: { writeText: async () => { throw new DOMException('Denied', 'NotAllowedError'); } } })""")
+    button.click()
+    expected = ('// Uangku · 2026-10 · TRY\nPemasukan [50.00] Kas bulan ini\n'
+                'Kas bulan ini [21.00] Pendidikan\nKas bulan ini [29.00] Sisa')
+    expect(preview).to_have_value(expected)
+    expect(dialog.get_by_role('status')).to_contain_text('salin manual')
+    expect(preview).to_have_attribute('readonly', '')
+    preview.focus()
+    preview.press('ControlOrMeta+a')
+    assert preview.evaluate('el => el.value.slice(el.selectionStart, el.selectionEnd)') == expected
+    link = dialog.get_by_role('link', name='Buka SankeyMATIC', exact=True)
+    expect(link).to_have_attribute('href', 'https://sankeymatic.com/build/')
+    expect(link).to_have_attribute('target', '_blank')
+    dialog.get_by_role('button', name='Selesai', exact=True).click()
+    case.month('2026-09')
+    page.get_by_role('button', name=re.compile('USD.*Dolar AS')).click()
+    case.scope('usd')
+    page.evaluate('navigator.clipboard.writeText = async () => {}')
+    button.click()
+    expect(preview).to_have_value('// Uangku · 2026-09 · USD\nKas bulan ini [7.25] Tiket\nDari saldo [7.25] Kas bulan ini')
+    expect(dialog.get_by_role('status')).to_contain_text('Teks disalin')
+    dialog.get_by_role('button', name='Selesai', exact=True).click()
+    case.period('all')
+    expect(button).to_have_count(0)
+    assert external == []
+    case.assert_unchanged()
+
+
 def age_of_money(case):
     page = case.page
     card = page.get_by_role('region', name='Umur uang', exact=True)
@@ -909,6 +949,12 @@ def cases():
         ('cash-archive-excluded-preserved', {'data': archived_cash}, cash_archive),
         ('immutable-source-backup-read-filter', {'data': source_fixture()}, source_read_and_backup),
     ]
+    export = ordinary_fixture()
+    export['state']['wallets'] += [wallet('usd', currency='USD'), wallet('second-usd', currency='USD')]
+    export['state']['entries'] += [
+        entry('sept-usd', 725, 'expense', wallet_id='usd', date='2026-09-01', category='Tiket'),
+        entry('other-usd', 800, 'income', wallet_id='second-usd', date='2026-09-01')]
+    result.append(('sankey-copy-monthly-scope', {'data': export}, sankey_copy))
     aged = document([entry('income', 1_000, 'income', date='2026-09-25'),
         *[entry(f'buy-{i}', 100, 'expense', date='2026-10-09') for i in range(10)]],
         [wallet(opening=0), wallet('other', 'Synthetic second bank', opening=0),
