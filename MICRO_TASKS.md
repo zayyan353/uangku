@@ -426,12 +426,21 @@ perubahan tampilan yang disengaja, periksa gambar beda dan catat hasilnya.
   *Belum terbukti:* semua kombinasi status/halaman di luar cakupan suite,
   serta hasil pada perangkat dan font lain.
 
-- [ ] **MW-62 — Token status untuk tema terang**
+- [x] **MW-62 — Token status untuk tema terang**
   `--success-*`, `--warning-*`, `--error-*`, `--info-*`, `--purple-*`, dan
   `--surface-hover` hanya didefinisikan di tema gelap; tema terang menulis
   hex langsung di tiap komponen (notice, badge, save-pill, banner). Definisikan
   token yang sama di `:root` dengan nilai terang yang sekarang dipakai.
   Prasyarat MW-63.
+  *Selesai:* 14 token status dan hover yang dipakai tema gelap sekarang
+  memiliki nilai dasar terang. Warna isian invalid dan badge positif
+  mempertahankan nilai fallback sebelumnya.
+  *Tes:* pada basis, 14 nilai dasar belum lengkap. Semua kini tersedia.
+  Perbandingan Chromium terhadap pendahulu: 16/16 gambar viewport dengan
+  0 piksel beda; 1.028 sampel komponen/tema/ukuran dengan 0 perbedaan
+  nilai terhitung. Tema 22/22, UX 21/21, 2.051 tes unit di 88 file dan
+  build produksi lulus.
+  *Belum terbukti:* perangkat fisik, font lain, dan kondisi di luar sampel.
 
 - [ ] **MW-63 — Tema gelap lewat token, bukan daftar override**
   Setelah MW-61 dan MW-62, pindahkan warna komponen ke token agar tema
