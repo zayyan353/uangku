@@ -3165,11 +3165,23 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   dengan Pillow) cocok dengan tes browser yang ada. Jam di tes sudah dibekukan
   (`FIXED_TIME` dan `page.clock.install` di `tests/browser_support.py`), jadi
   tangkapan layarnya stabil.
-  - [ ] **a.** (S–M) `tests/visual_browser.py`: build produksi dengan data contoh,
+  - [x] **a.** (S–M) `tests/visual_browser.py`: build produksi dengan data contoh,
     tangkapan Ringkasan, Transaksi, Dompet, dan Impor pada 1440 dan 390, terang
     dan gelap, ke `--output`. Dengan `--baseline <folder>` setiap gambar
     dibandingkan, gambar bedanya ditulis, dan skrip gagal bila jumlah piksel
     beda melebihi `--max-diff` (bawaan 0).
+    *Selesai:* skrip memeriksa hash HTML produksi lalu mengambil 16 tangkapan
+    area layar pertama di profil sintetis baru pada jam tes. Label hash build
+    diberi teks tetap untuk perbandingan. PNG beda menandai piksel yang
+    berubah, termasuk piksel antialias dan perubahan ukuran.
+    *Tes:* perintah gagal sebelum skrip tersedia. Dua run Chromium pada
+    build yang sama cocok di 16/16 gambar (0 piksel). Mutasi satu piksel
+    ditolak pada ambang 0 dan diterima pada ambang 1. Dua gambar sintetis
+    1×2 dan 3×1 menghasilkan tiga piksel beda. 2.051 tes unit di 88 file
+    dan build lulus.
+    *Belum terbukti:* bagian di bawah viewport, font OS lain, dan HP fisik.
+    Percobaan full-page berbeda 12 piksel di tepi tombol tambah pada HP;
+    pasangan viewport harus stabil dalam dua pengambilan berurutan.
   - [ ] **b.** (S) Ubah aturan D6: jalankan skrip pada `main` dan pada branch di
     mesin yang sama, lalu tulis jumlah piksel beda di laporan (harus 0 untuk MW
     fondasi). Gambar acuan tidak disimpan di repo karena font dan sistem
