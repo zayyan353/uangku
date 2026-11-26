@@ -1338,8 +1338,13 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   mengukur 2,9 detik untuk PDF 400 rentang dan 8,6 detik untuk XLSX 53 KB
   berisi 31 MiB sel kosong. Hanya terjadi pada file yang rusak atau sengaja
   dibuat jahat.
-  - [ ] **a.** Batasi jumlah kode yang dipetakan per font dan per dokumen; gagal
-    dengan "Peta karakter PDF tidak valid."; tes unit dengan banyak rentang.
+  - [x] **a.** Pembaca PDF membatasi pemetaan hingga 65.536 kode per font
+    (seluruh ruang kode Identity dua byte) dan 262.144 per dokumen.
+    Pemetaan berulang tetap menghabiskan batas. Font yang dirujuk beberapa
+    halaman dibaca sekali. Jika batas terlampaui, impor berhenti dengan
+    "Peta karakter PDF tidak valid." sebelum rentang berikutnya diperluas.
+    Tes memakai batas kecil untuk memeriksa kedua jenis rentang, kode
+    tunggal, beberapa font, batas persis, dan pemakaian ulang antarhalaman.
   - [ ] **b.** Batasi jumlah sel worksheet sebelum baris dibangun; gagal dengan
     pesan yang jelas, isi tidak pernah ditebak.
   - [ ] **c.** (M, opsional) Pembacaan file di Web Worker.

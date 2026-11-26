@@ -13,6 +13,8 @@ export interface SyntheticPdfOptions {
   /** Base font name; the reader recognises some families' unmapped ligatures. */
   baseFont?: string;
   encrypt?: boolean;
+  /** Use an explicit, small ToUnicode map when testing parser limits. */
+  toUnicode?: string;
   /** Extra raw content appended to the first page. */
   rawContent?: string;
 }
@@ -67,7 +69,7 @@ export function syntheticPdf(pages: SyntheticText[][], options: SyntheticPdfOpti
 
   const catalog = add('', true);
   const pagesNumber = add('', true);
-  const toUnicode = add(stream('', encoder.encode(cmap)));
+  const toUnicode = add(stream('', encoder.encode(options.toUnicode ?? cmap)));
   const fontNames = { F1: 'Synthetic-Bold', F2: options.baseFont ?? 'Synthetic-Regular', F3: 'Synthetic-Italic' };
   const fonts = Object.fromEntries(Object.entries(fontNames).map(([key, name]) => {
     const descendant = add(`<< /Type /Font /Subtype /CIDFontType2 /BaseFont /ABCDEF+${name} /CIDSystemInfo << /Registry (Adobe) /Ordering (Identity) /Supplement 0 >> >>`, true);
