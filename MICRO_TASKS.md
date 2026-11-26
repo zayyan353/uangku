@@ -1079,12 +1079,16 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   aturan `reviewDemo` yang sudah ada, yang di zona waktu UTC+12 ke atas bisa
   menganggap baris contoh sebagai buatan pengguna.
 
-- [ ] **MW-94 — Nama file cadangan memuat jam** (S)
-  Nama sekarang hanya bertanggal (`src/App.tsx:222,228,258`), jadi dua cadangan
-  di hari yang sama hanya dibedakan akhiran " (1)" dari browser. Jadikan
-  `uangku-lengkap-YYYY-MM-DD-HHmm.json` (dan padanannya), lalu sebut nama file di
-  toast sukses. Periksa tes yang mencocokkan nama file. Isi file tidak diubah:
-  skema cadangan tertutup dan menolak field tambahan.
+- [x] **MW-94 — Nama file cadangan memuat jam** (S)
+  Cadangan lengkap, transaksi saja, dan salinan mentah data asli memakai nama
+  `uangku-<jenis>-YYYY-MM-DD-HHmm.json`. Tanggal dan jam diambil dari satu
+  pembacaan waktu lokal perangkat. Toast sukses menyebut nama yang disarankan
+  aplikasi. Dua unduhan sejenis dalam menit yang sama tetap dapat diberi
+  akhiran oleh browser.
+  *Tes:* pada build awal dua kasus Chromium gagal karena nama masih berakhir
+  pada tanggal. Sesudah perbaikan, empat kasus lulus, termasuk dua cadangan
+  lengkap pada 00.04 dan 00.05 di Istanbul ketika tanggal UTC masih sehari
+  sebelumnya, roundtrip transaksi, dan salinan mentah identik hingga tiap byte.
 
 - [x] **MW-95 — `.gitignore` menutup semua nama unduhan aplikasi** (S)
   Pola sekarang (`*backup*.json`, `*cadangan*.json`) tidak mengenai
