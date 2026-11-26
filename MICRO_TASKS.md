@@ -395,10 +395,20 @@ ditulis literal 120 kali), 97 aturan `html[data-theme="dark"]`, 30 blok `@media`
 (760px muncul 9 kali), 18 nilai radius, 17 nilai `font-weight`, 7 `!important`,
 16 `style={}` inline di TSX.
 
-Aturan main bagian ini: satu MW per PR. MW "fondasi" tidak boleh mengubah
-tampilan (bandingkan tangkapan layar 1440px & 390px, terang & gelap, sebelum dan
-sesudah). Setiap MW wajib menjalankan `tests/theme_browser.py` dan
-`tests/ux_browser.py` (keduanya memeriksa kontras) terhadap `npm run preview`.
+Kerjakan satu MW per PR. Jalankan `tests/theme_browser.py` dan
+`tests/ux_browser.py` terhadap build produksi kandidat untuk memeriksa kontras.
+
+Untuk perbandingan visual, pakai mesin, browser, font, dan skala yang sama.
+Pada checkout bersih `main` yang menjadi basis PR, jalankan `npm run build`
+dan `npm run preview`. Di terminal lain pada checkout itu, jalankan
+`python tests/visual_browser.py --output /tmp/uangku-acuan`. Hentikan preview.
+Ulangi build dan preview pada branch kandidat, lalu jalankan
+`python tests/visual_browser.py --baseline /tmp/uangku-acuan --output /tmp/uangku-kandidat`.
+Gunakan folder gambar terpisah di luar repo. Jalur di atas contoh untuk Linux.
+Skrip memeriksa hash HTML sebelum mengambil gambar. Catat jumlah piksel berbeda
+di laporan untuk 16 tangkapan area layar pertama (1440 dan 390, terang dan
+gelap, empat halaman). MW fondasi mensyaratkan 0 piksel per gambar. Untuk
+perubahan tampilan yang disengaja, periksa gambar beda dan catat hasilnya.
 
 ### Fondasi (tampilan tidak berubah)
 
@@ -3182,10 +3192,16 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     *Belum terbukti:* bagian di bawah viewport, font OS lain, dan HP fisik.
     Percobaan full-page berbeda 12 piksel di tepi tombol tambah pada HP;
     pasangan viewport harus stabil dalam dua pengambilan berurutan.
-  - [ ] **b.** (S) Ubah aturan D6: jalankan skrip pada `main` dan pada branch di
+  - [x] **b.** (S) Ubah aturan D6: jalankan skrip pada `main` dan pada branch di
     mesin yang sama, lalu tulis jumlah piksel beda di laporan (harus 0 untuk MW
     fondasi). Gambar acuan tidak disimpan di repo karena font dan sistem
     operasi berbeda antar-mesin.
+    *Selesai:* aturan D6 menentukan cara mengambil acuan dan kandidat
+    pada mesin yang sama, perintah, folder bukti, dan ambang 0 untuk fondasi.
+    *Tes:* instruksi perbandingan semula belum ada. Pada Chromium, 16/16
+    tangkapan viewport cocok dengan build pendahulu (0 piksel berbeda).
+    2.051 tes unit di 88 file dan build lulus.
+    *Belum terbukti:* area di luar viewport dan perbandingan lintas mesin.
   - [ ] **c.** (M, opsional) Job CI yang membangun `main` dan branch PR lalu
     membandingkan keduanya; gambar beda menjadi artefak.
 
