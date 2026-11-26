@@ -1345,8 +1345,13 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     "Peta karakter PDF tidak valid." sebelum rentang berikutnya diperluas.
     Tes memakai batas kecil untuk memeriksa kedua jenis rentang, kode
     tunggal, beberapa font, batas persis, dan pemakaian ulang antarhalaman.
-  - [ ] **b.** Batasi jumlah sel worksheet sebelum baris dibangun; gagal dengan
-    pesan yang jelas, isi tidak pernah ditebak.
+  - [x] **b.** Impor Ziraat dan impor umum memeriksa jumlah sel di seluruh
+    worksheet sebelum membentuk pohon XML lembar atau baris transaksi.
+    Batas 500.000 sel per buku kerja memberi ruang untuk ekspor 50.000
+    transaksi dengan beberapa kolom. Sel kosong dan sel dengan prefiks
+    namespace ikut dihitung. Teks mirip tag di dalam komentar atau CDATA
+    dilewati. Jika terlampaui, aplikasi meminta periode mutasi lebih singkat.
+    Tes menggunakan anggaran empat sel, termasuk batas bersama dua lembar.
   - [ ] **c.** (M, opsional) Pembacaan file di Web Worker.
 
 - [ ] **MW-107 — Content-Security-Policy** (S, opsional) *(sebagian)*

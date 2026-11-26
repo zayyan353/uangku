@@ -1,6 +1,7 @@
 import { unzipSync, strFromU8 } from 'fflate';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { xlsxEntityDecoder } from './xmlCharacterReferences';
+import { MAX_XLSX_CELLS } from './importLimits';
 import type { Currency, Entry, Wallet } from './finance';
 import { confirmedBankEntryType, interpretBankDescription, normalizeBankDescription, type BankDescriptionKind } from './bankDescription';
 
@@ -60,14 +61,67 @@ function text(value: unknown): string {
   return '';
 }
 
-function xml(source: Uint8Array): XmlNode {
-  const input = strFromU8(source);
+const invalidXml = 'Struktur XML di dalam file tidak didukung atau rusak. Unduh ulang XLSX dari bank.';
+
+function xml(source: Uint8Array | string): XmlNode {
+  const input = typeof source === 'string' ? source : strFromU8(source);
   if (/<!DOCTYPE|<!ENTITY/i.test(input) || XMLValidator.validate(input) !== true) {
-    return error('Struktur XML di dalam file tidak didukung atau rusak. Unduh ulang XLSX dari bank.');
+    return error(invalidXml);
   }
   return new XMLParser({ ignoreAttributes: false, removeNSPrefix: true,
     parseTagValue: false, parseAttributeValue: false, trimValues: false,
     entityDecoder: xlsxEntityDecoder, ignoreDeclaration: true }).parse(input) as XmlNode;
+}
+
+const xmlMarkupEnd: Readonly<Record<string, string | undefined>> = { '<!--': '-->', '<![CDATA[': ']]>', '<?': '?>' };
+
+const cellPath = ['worksheet', 'sheetData', 'row', 'c'];
+
+/** The end of an element tag, skipping any '>' inside quoted attribute values. */
+function tagEnd(input: string, position: number): number {
+  for (let i = position; i < input.length; i++) {
+    const char = input[i];
+    if (char === '>') return i;
+    if (char === '<') break;
+    if (char === '"' || char === "'") {
+      i = input.indexOf(char, i + 1);
+      if (i < 0) break;
+    }
+  }
+  return error(invalidXml);
+}
+
+/** Count actual cells before allocating worksheet nodes. Track only how many leading
+ * elements match the cell path; the XML validator still checks the complete structure. */
+function remainingCellBudget(input: string, remaining: number): number {
+  const markup = /<!--|<!\[CDATA\[|<\?|<(\/?)([^\s<>/!?]+)/g;
+  let depth = 0, matched = 0;
+  for (let token = markup.exec(input); token; token = markup.exec(input)) {
+    const closing = xmlMarkupEnd[token[0]];
+    if (closing) {
+      const end = input.indexOf(closing, markup.lastIndex);
+      if (end < 0) return error(invalidXml);
+      markup.lastIndex = end + closing.length;
+      continue;
+    }
+    const end = tagEnd(input, markup.lastIndex);
+    markup.lastIndex = end + 1;
+    if (token[1] === '/') {
+      depth--;
+      matched = Math.min(matched, depth);
+      continue;
+    }
+    const name = token[2];
+    if (depth === matched && name.slice(name.lastIndexOf(':') + 1) === cellPath[depth]) {
+      matched++;
+      if (matched === cellPath.length && --remaining < 0) {
+        return error('Terlalu banyak sel dalam file XLSX. Pilih periode mutasi yang lebih singkat.');
+      }
+    }
+    if (input[end - 1] === '/') matched = Math.min(matched, depth);
+    else depth++;
+  }
+  return remaining;
 }
 
 export interface StatementSheet { name: string; values: unknown[][]; formulas: Set<number>; numericCells: Set<string> }
@@ -98,7 +152,14 @@ export function readStatementWorkbook(data: ArrayBuffer, preserveNumericText = f
   const workbook = files['xl/workbook.xml'] ? xml(files['xl/workbook.xml']).workbook as XmlNode : undefined;
   const properties = workbook?.workbookPr as XmlNode | undefined;
   const date1904 = ['1', 'true'].includes(String(properties?.['@_date1904'] ?? ''));
-  const worksheetFiles = Object.entries(files).filter(([name]) => /^xl\/worksheets\/[^/]+\.xml$/.test(name));
+  let remaining = MAX_XLSX_CELLS;
+  const worksheetFiles = Object.entries(files)
+    .filter(([name]) => /^xl\/worksheets\/[^/]+\.xml$/.test(name))
+    .map(([path, bytes]) => {
+      const input = strFromU8(bytes);
+      remaining = remainingCellBudget(input, remaining);
+      return { path, input };
+    });
   const sheetNames = new Map<string, { name: string; ordinal: number }>();
   const relRoot = files['xl/_rels/workbook.xml.rels'] ? xml(files['xl/_rels/workbook.xml.rels']).Relationships as XmlNode : undefined;
   const relations = new Map(list(relRoot?.Relationship as XmlNode | XmlNode[] | undefined).filter(row => row['@_TargetMode'] !== 'External').map(row => [String(row['@_Id'] ?? ''), String(row['@_Target'] ?? '')]));
@@ -117,9 +178,9 @@ export function readStatementWorkbook(data: ArrayBuffer, preserveNumericText = f
     if (sheetNames.has(path)) return error('Referensi worksheet berulang.');
     sheetNames.set(path, { name: String(sheet['@_name'] ?? `Sheet ${ordinal + 1}`), ordinal });
   }
-  worksheetFiles.sort(([a], [b]) => (sheetNames.get(a)?.ordinal ?? Number.MAX_SAFE_INTEGER) - (sheetNames.get(b)?.ordinal ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b));
-  const sheets = worksheetFiles.map(([path, bytes], index) => {
-    const worksheet = xml(bytes).worksheet as XmlNode | undefined;
+  worksheetFiles.sort(({ path: a }, { path: b }) => (sheetNames.get(a)?.ordinal ?? Number.MAX_SAFE_INTEGER) - (sheetNames.get(b)?.ordinal ?? Number.MAX_SAFE_INTEGER) || a.localeCompare(b));
+  const sheets = worksheetFiles.map(({ path, input }, index) => {
+    const worksheet = xml(input).worksheet as XmlNode | undefined;
     const sheetData = worksheet?.sheetData as XmlNode | undefined;
     const formulas = new Set<number>();
     const numericCells = new Set<string>();
