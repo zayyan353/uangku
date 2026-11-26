@@ -1,11 +1,11 @@
 import {describe,it,expect} from 'vitest';
 import {zipSync,strToU8} from 'fflate';
 import {parseZiraatWorkbook,type ImportPreview} from './importer';
-import {inspectSourcedImport,prepareSourcedImport,applySourcedEntryEdit,type SourcedImportDecisions} from './sourceCommands';
+import {inspectSourcedImport,prepareSourcedImport,type SourcedImportDecisions} from './sourceCommands';
 import {executeTransferCommand,getTransferUnpairProblem} from './transferCommands';
 import {validateSourceDocument,type SourceDocument} from './sourceModel';
 import {serializeBackup,parseBackupText} from './storage';
-import {walletBalance,actualWalletBalance,type Entry,type Wallet} from './finance';
+import {walletBalance,actualWalletBalance,type Wallet} from './finance';
 const at='2026-10-30T10:00:00.000Z';
 const wallets:Wallet[]=[{id:'a',name:'Synthetic A',kind:'bank',currency:'TRY',openingBalance:50000},{id:'b',name:'Synthetic B',kind:'bank',currency:'TRY',openingBalance:0},{id:'c',name:'Synthetic cash',kind:'cash',currency:'TRY',openingBalance:0}];
 function workbook(date:string,amount:number,balance:number,note:string):ArrayBuffer{

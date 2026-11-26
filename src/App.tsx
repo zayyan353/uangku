@@ -3,13 +3,13 @@ import StartOwnModal from './components/StartOwnModal';
 import TransactionModal, { type TxMode, type EntrySaveOptions } from './components/TransactionModal';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  ArrowDownToLine, ArrowLeftRight, ArrowRight, Check, CheckCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp,
-  AlertTriangle, Download, FileSpreadsheet, FolderOpen, History, Leaf, Plus,
+  ArrowLeftRight, ArrowRight, CheckCheck, CheckCircle2, ChevronLeft, ChevronRight, CircleHelp,
+  AlertTriangle, Download, History, Leaf, Plus,
   Sparkles, Tags, Wallet as WalletIcon, X, Search,
 } from 'lucide-react';
 import {
-  CATEGORY_NAMES, formatDate, formatMoney, makeId,
-  validateEntry, walletBalanceAt,
+  formatDate, formatMoney, makeId,
+  walletBalanceAt,
   type Currency, type Entry, type State, type Wallet,
 } from './lib/finance';
 import { createEmptyState, MAX_RESTORE_BYTES, prepareBackup, serializeBackup, type StoredData } from './lib/storage';
@@ -28,7 +28,7 @@ import { useLedgerStorage } from './hooks/useLedgerStorage';
 import { useTransactionTemplates } from './hooks/useTransactionTemplates';
 import RecoveryImportView from './components/RecoveryImportView';
 import { preferredWallet, readPreferences, writePreferences } from './lib/preferences';
-import { canCategorize, categorizeEntries, transferCandidates } from './lib/review';
+import { canCategorize } from './lib/review';
 import BulkReviewPanel from './components/BulkReviewPanel';
 import { createHistoryIndex, queryHistory, paginateHistory, pageOfEntry, monthLabel, previousMonth, type HistoryPeriod } from './lib/historyView';
 import { createPostingDateIndex, entryPostings } from './lib/transferPostings';
@@ -45,7 +45,7 @@ import WalletEditor from './components/WalletEditor';
 import CurrencyManager from './components/CurrencyManager';
 import { currencyInfo } from './lib/currencyCatalog';
 import { visibleCurrencyCodes, setVisibleCurrencies } from './lib/currencySettings';
-import { archiveWallet, restoreWallet, createWallet, editWallet, deleteUnusedWallet, walletUsage, isWalletArchived, isArchivedLinkedEntry, archivedReadOnlyEntryIds, assertArchivedWalletsUnchanged } from './lib/walletLifecycle';
+import { archiveWallet, restoreWallet, createWallet, editWallet, deleteUnusedWallet, walletUsage, isWalletArchived, archivedReadOnlyEntryIds, assertArchivedWalletsUnchanged } from './lib/walletLifecycle';
 import { PrivacyNotice } from './components/PrivacyNotice';
 import { AccountMenu, AppSidebar, MobileFooter, MobileNav, NAVIGATION, type Page } from './components/AppNavigation';
 import { HistoryFilters, type HistorySort } from './components/HistoryFilters';

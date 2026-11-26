@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_CATEGORY_RULES, normalizeCategoryKeyword, type CategoryRule } from './categorization';
 import {
-  BANK_AUTOMATIC_RULE_UPDATES, BANK_CATEGORY_NAMES, BANK_CATEGORY_RULES,
+  BANK_AUTOMATIC_RULE_UPDATES, BANK_CATEGORY_RULES,
   BANK_ATM_FEE_RULES, BANK_ATM_NETWORK_RULES, BANK_KEYWORD_PACK_7_RULES, BANK_OPERATION_FEE_RULE,
   BANK_PREPAID_CREDIT_RULE, BANK_REVIEW_COMPLETION_RULES, mergeBankCategoryMappings,
 } from './categoryBankMappings';
