@@ -2070,12 +2070,19 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   lewat "Semua transaksi" dan "Reset filter". Tes yang keluar lewat dropdown
   perlu diperbarui.
 
-- [ ] **MW-123 — Toast lama tidak menutupi dialog berikutnya** (S) *(sebagian)*
+- [x] **MW-123 — Toast lama tidak menutupi dialog berikutnya** (S)
   Hanya terjadi bila dialognya tinggi: di 1440×900 pada dialog Pindah uang
   lintas mata uang toast menutupi bagian atas tombol X (bagian tengahnya tetap
   bisa diklik); di 390×844 toast menutupi judul dialog. Dialog Catat transaksi
-  biasa tidak tertutup. Tutup toast sukses saat dialog dibuka; toast galat
-  tetap.
+  biasa tidak tertutup oleh toast lama. Pada alur **Simpan & catat lagi**,
+  struk sukses yang baru juga menghalangi klik **Tutup** pada lebar 320 dan
+  390 px saat pesan masih tampil.
+  Membuka dialog kini menutup pesan sukses sebelumnya. Struk pencatatan
+  berulang muncul di bawah judul dalam form. Nominal kembali mendapat fokus
+  ketika tombol penutup struk yang sedang difokuskan menghilang. Pesan galat
+  tetap bisa diperiksa, dan **Lihat** tetap membuka transaksi yang baru
+  disimpan dari form yang telah ditutup. Bila catatan atau transfer memerlukan
+  dompet tambahan, alasannya tampil langsung pada form **Tambah dompet**.
 
 - [ ] **MW-124 — Halaman Transaksi di HP: baris pertama lebih dekat ke atas** (M)
   Di 390×844 baris transaksi pertama berada di y=1112 (dengan pengingat

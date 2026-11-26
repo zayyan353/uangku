@@ -1,7 +1,7 @@
-import Modal from './components/Modal';
+import Modal, { ModalOpenedContext } from './components/Modal';
 import StartOwnModal from './components/StartOwnModal';
 import TransactionModal, { type TxMode, type EntrySaveOptions } from './components/TransactionModal';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ArrowDownToLine, ArrowLeftRight, ArrowRight, Check, CheckCheck, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, CircleHelp,
   AlertTriangle, Download, FileSpreadsheet, FolderOpen, History, Leaf, Plus,
@@ -145,6 +145,7 @@ export default function App() {
   const cashCleanupAttempt = useRef<StoredData | null>(null);
   const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
   const [walletModal, setWalletModal] = useState<Wallet | 'new' | null>(null);
+  const [walletPrompt, setWalletPrompt] = useState('');
   const [demoReview, setDemoReview] = useState<{ data: StoredData; token: string | null } | null>(null);
   const [walletView, setWalletView] = useState<'active' | 'archive'>('active');
   const walletEditorBase = useRef<{ data: StoredData; token: string | null; editingId?: string } | null>(null);
@@ -153,7 +154,14 @@ export default function App() {
   const [confirmReason, setConfirmReason] = useState('');
   const [confirmBankAnnotations, setConfirmBankAnnotations] = useState(false);
   useEffect(() => { setConfirmReason(''); setConfirmBankAnnotations(false); }, [confirm]);
-  const [toast, setToast] = useState<{ text: string; error: boolean; detail?: string; action?: { label: string; run: () => void } } | null>(null);
+  const [toast, setToast] = useState<{ text: string; error: boolean; inTransactionForm?: boolean; detail?: string; action?: { label: string; run: () => void } } | null>(null);
+  const dismissPreviousSuccess = useCallback(() => setToast(current => current?.error ? current : null), []);
+  const dismissToast = useCallback(() => {
+    // Removing the focused receipt button must leave the keyboard in the open form.
+    const dialog = document.activeElement?.closest('.transaction-receipt')?.closest('[role="dialog"]');
+    dialog?.querySelector<HTMLElement>('[data-autofocus]')?.focus();
+    setToast(null);
+  }, []);
   const restoreRef = useRef<HTMLInputElement>(null);
   const state = data.state;
   const activeState = useMemo(() => activeAccountState(state), [state]);
@@ -167,7 +175,7 @@ export default function App() {
   /** A failure stays on screen until it is closed; it is not styled or timed like a success. */
   const notifyError = (text: string, detail?: string) => { const shown = detail === undefined ? describeFailure(text) : { message: text, detail }; setToast({ text: shown.message, error: true, ...(shown.detail ? { detail: shown.detail } : {}) }); };
   // A toast that offers an action stays longer, so there is time to reach its button.
-  useEffect(() => { if (toast && !toast.error) { const id = setTimeout(() => setToast(null), toast.action ? 10000 : 5500); return () => clearTimeout(id); } }, [toast]);
+  useEffect(() => { if (toast && !toast.error) { const id = setTimeout(dismissToast, toast.action ? 10000 : 5500); return () => clearTimeout(id); } }, [toast, dismissToast]);
   useEffect(() => { writePreferences({ ...preferences, currency }); }, [preferences, currency]);
   useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, historyPeriod, historyPage, reviewReason, historyWallet, historyCategory, historySort]);
   useEffect(() => { setHistoryPage(1); }, [query, filter, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet, historyCategory, historySort]);
@@ -216,9 +224,10 @@ export default function App() {
     try { await request.action(confirmReason.trim(), confirmBankAnnotations); }
     catch (error) { notifyError(error instanceof Error ? error.message : 'Perubahan ditolak; catatan lama dipertahankan.'); }
   }
-  function openWallet(value: Wallet | 'new') {
+  function openWallet(value: Wallet | 'new', prompt = '') {
     if (mutationInFlight.current || value !== 'new' && (value.kind === 'cash' || isWalletArchived(data, value.id))) return;
     walletEditorBase.current = { data, token: ledger.revisionToken, ...(value !== 'new' ? { editingId: value.id } : {}) };
+    setWalletPrompt(prompt);
     setWalletModal(value);
   }
   function actualText(walletId: string, code: Currency): string {
@@ -534,8 +543,8 @@ export default function App() {
   function openTx(type: TxMode, walletId = activityWalletId) {
     if (mutationInFlight.current) return;
     if (walletId && isWalletArchived(data, walletId)) { notify('Dompet diarsipkan. Pulihkan sebelum mencatat transaksi baru.'); return; }
-    if (!availableWallets.length) { openWallet('new'); notify('Tambahkan satu dompet terlebih dahulu.'); return; }
-    if (type === 'transfer' && availableWallets.length < 2) { openWallet('new'); notify('Transfer membutuhkan dua dompet.'); return; }
+    if (!availableWallets.length) { openWallet('new', 'Tambahkan satu dompet terlebih dahulu.'); return; }
+    if (type === 'transfer' && availableWallets.length < 2) { openWallet('new', 'Transfer membutuhkan dua dompet.'); return; }
     if (type === 'adjustment' && walletId) {
       try { if (undatedWallets.has(walletId)) throw new Error('Tanggal posting belum diketahui.'); walletBalanceAt(state, walletId, today(), postingContext); }
     catch (error) { notifyError(error instanceof Error ? error.message : 'Saldo aktual belum dapat dipastikan.'); return; }
@@ -610,13 +619,15 @@ export default function App() {
     const went = shownMonth && saved ? monthOutsideView(entryPostings(saved, next.metadata)
       .filter(posting => next.state.wallets.find(wallet => wallet.id === posting.walletId)?.currency === shownCurrency), shownMonth, activityWalletId) : null;
     const where = went ? ` di ${monthLabel(went)}` : '';
-    if (!keepOpen) {
+    if (keepOpen) {
+      setToast({ text: `Tersimpan${where}. Lanjut catat berikutnya.`, error: false, inTransactionForm: true });
+    } else {
       // The row that opened the form may have left the list; the effect below keeps focus from falling to the page.
       focusListStatus.current = !!txModal?.existing;
       setTxModal(null);
+      notify(entry.type === 'transfer' ? `Transfer tersimpan${where}. Kedua saldo sudah diperbarui.` : went ? `Tersimpan${where}.` : 'Transaksi tersimpan.',
+        went ? { label: 'Lihat', run: () => showSavedMonth(went, shownCurrency, entry.id) } : undefined);
     }
-    notify(entry.type === 'transfer' ? `Transfer tersimpan${where}. Kedua saldo sudah diperbarui.` : keepOpen ? `Tersimpan${where}. Lanjut catat berikutnya.` : went ? `Tersimpan${where}.` : 'Transaksi tersimpan.',
-      went && !keepOpen ? { label: 'Lihat', run: () => showSavedMonth(went, shownCurrency, entry.id) } : undefined);
     return true;
   }
   /** Opens Transaksi on the month a saved transaction went to, with the filters that could hide it cleared, on the page that holds it. */
@@ -833,7 +844,15 @@ export default function App() {
         <button className="button ghost small" disabled={ledger.pending || ledger.dirty} onClick={startOwn}>Mulai pakai data sendiri <ArrowRight size={16} /></button>
       </div>}
   </>;
-  return <CategorySettingsContext.Provider value={categoryPreferences.settings}><div className="app-shell">
+  const notification = toast && <div className={`toast${toast.error ? ' error' : toast.inTransactionForm ? ' transaction-receipt' : ''}`} role={toast.error ? 'alert' : 'status'}>
+    {toast.error ? <AlertTriangle size={19} /> : <CheckCircle2 size={19} />}
+    <span>{toast.text}{toast.detail && <details key={`${toast.text}\n${toast.detail}`} className="toast-detail">
+      <summary>Detail teknis</summary><span>{toast.detail}</span>
+    </details>}</span>
+    {toast.action && <button type="button" className="toast-action" onClick={() => { const run = toast.action!.run; setToast(null); run(); }}>{toast.action.label}</button>}
+    <button type="button" aria-label="Tutup pemberitahuan" onClick={dismissToast}><X size={15} /></button>
+  </div>;
+  return <CategorySettingsContext.Provider value={categoryPreferences.settings}><ModalOpenedContext.Provider value={dismissPreviousSuccess}><div className="app-shell">
     <AppSidebar initial={avatarInitial} page={page} pendingCount={pendingCount} lastBackupText={lastBackupText} onNavigate={navigate} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} />
     <main className="main-content"><header className="topbar"><div className="breadcrumb"><span className="breadcrumb-root">Ruang pribadi</span><ChevronRight className="breadcrumb-separator" size={13} aria-hidden="true" /><strong>{NAVIGATION.find(n => n.page === page)?.label}</strong></div><div className="topbar-tools"><ThemePicker onNotice={notify} />{ledger.dirty || storageError || blocked ? <span className="save-pill problem" title={ledger.label} aria-hidden="true"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span> : <span className={`save-pill${sampleOnly ? ' demo' : ''}`} title={sampleOnly ? 'Data contoh: belum ada catatanmu sendiri yang disimpan' : ledger.label} role="status" data-testid="save-status"><span className="status-dot" /><span className="save-pill-text">{sampleOnly ? 'Data contoh' : ledger.label}</span></span>}<button type="button" className="local-indicator" title="Privasi dan cadangan" onClick={() => setPrivacyOpen(true)}><span className="status-dot" /> Lokal & pribadi</button><AccountMenu nickname={nickname} initial={avatarInitial} onNicknameChange={changeNickname} lastBackupText={lastBackupText} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} /></div></header>
       <div className="page-content"><div className="page-header"><div>{page === 'overview' && <div className="eyebrow">SEDIKIT DICATAT, BANYAK TERBANTU</div>}<h1 className="page-title">{titles[page][0]} {page === 'overview' && <span className="greeting-leaf">✳</span>}</h1><p className="page-subtitle">{titles[page][1]}</p></div><div className="page-actions">{page === 'wallets' ? <button className="button primary" onClick={() => openWallet('new')}><Plus size={18} /> Tambah dompet</button> : page === 'import' ? <><button className="button ghost small import-setting" onClick={openCurrencyManager}>Kelola mata uang</button><button className="button ghost small import-setting" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></> : <><button className="button secondary" onClick={() => openTx('transfer')}><ArrowLeftRight size={17} /> Pindah uang</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></>}</div></div>
@@ -877,8 +896,8 @@ export default function App() {
     </main>
     <MobileNav page={page} pendingCount={pendingCount} onNavigate={navigate} onRecord={() => openTx('expense')} />
     <input ref={restoreRef} type="file" accept=".json,application/json" aria-label="File cadangan Uangku" hidden onChange={e => void restore(e.target.files?.[0])} />
-    {walletModal && <WalletEditor key={walletModal === 'new' ? 'new' : walletModal.id} existing={walletModal === 'new' ? undefined : walletModal} defaultCurrency={visibleCurrencies.includes(currency) ? currency : visibleCurrencies[0]} currencies={visibleCurrencies} usage={walletModal === 'new' || !state.wallets.some(wallet => wallet.id === walletModal.id) ? undefined : walletUsage(data, walletModal.id)} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported || walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id))} disabledReason={ledger.dirty || blocked || !ledger.supported ? 'Penyimpanan belum siap. Selesaikan pemulihan atau konflik pada status penyimpanan dahulu; isian tetap dipertahankan.' : walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id)) ? 'Dompet berubah, dihapus, atau diarsipkan di tab lain. Tutup untuk membuka daftar terbaru.' : ''} onSave={saveWallet} onClose={() => { if (!mutationInFlight.current) setWalletModal(null); }} onArchive={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'archive', walletEditorBase.current!)} onManageCurrencies={walletModal === 'new' ? () => { if (mutationInFlight.current) return; resumeWalletForm.current = true; setWalletModal(null); openCurrencyManager(); } : undefined} onDelete={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'delete', walletEditorBase.current!)} />}
-    {txModal && <TransactionModal data={data} state={state} onSaveTemplate={transactionTemplates.add} onRemoveTemplate={transactionTemplates.remove} onRenameTemplate={transactionTemplates.rename} templates={transactionTemplates.templates} templatesError={transactionTemplates.error} undatedWallets={undatedWallets} initialMode={txModal.type} initialWallet={txModal.walletId} existing={txModal.existing} disabled={ledger.pending} onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined} onSave={saveEntry} onClose={() => { if (!mutationInFlight.current) setTxModal(null); }} balanceNeedsRecovery={ledger.dirty || blocked} onBalanceMatched={walletName => { if (mutationInFlight.current) return; setTxModal(null); notify(`Saldo ${walletName} cocok dengan catatan. Tidak ada yang perlu dicatat.`); }} onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined} />}
+    {walletModal && <WalletEditor prompt={walletPrompt} key={walletModal === 'new' ? 'new' : walletModal.id} existing={walletModal === 'new' ? undefined : walletModal} defaultCurrency={visibleCurrencies.includes(currency) ? currency : visibleCurrencies[0]} currencies={visibleCurrencies} usage={walletModal === 'new' || !state.wallets.some(wallet => wallet.id === walletModal.id) ? undefined : walletUsage(data, walletModal.id)} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported || walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id))} disabledReason={ledger.dirty || blocked || !ledger.supported ? 'Penyimpanan belum siap. Selesaikan pemulihan atau konflik pada status penyimpanan dahulu; isian tetap dipertahankan.' : walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id)) ? 'Dompet berubah, dihapus, atau diarsipkan di tab lain. Tutup untuk membuka daftar terbaru.' : ''} onSave={saveWallet} onClose={() => { if (!mutationInFlight.current) setWalletModal(null); }} onArchive={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'archive', walletEditorBase.current!)} onManageCurrencies={walletModal === 'new' ? () => { if (mutationInFlight.current) return; resumeWalletForm.current = true; setWalletModal(null); openCurrencyManager(); } : undefined} onDelete={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'delete', walletEditorBase.current!)} />}
+    {txModal && <TransactionModal receipt={toast?.inTransactionForm ? notification : null} data={data} state={state} onSaveTemplate={transactionTemplates.add} onRemoveTemplate={transactionTemplates.remove} onRenameTemplate={transactionTemplates.rename} templates={transactionTemplates.templates} templatesError={transactionTemplates.error} undatedWallets={undatedWallets} initialMode={txModal.type} initialWallet={txModal.walletId} existing={txModal.existing} disabled={ledger.pending} onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined} onSave={saveEntry} onClose={() => { if (!mutationInFlight.current) setTxModal(null); }} balanceNeedsRecovery={ledger.dirty || blocked} onBalanceMatched={walletName => { if (mutationInFlight.current) return; setTxModal(null); notify(`Saldo ${walletName} cocok dengan catatan. Tidak ada yang perlu dicatat.`); }} onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined} />}
     {amountDetail && <AmountDetailModal entry={amountDetail} state={state} data={data} onClose={() => setAmountDetail(null)} onEdit={isCashLinkedEntry(state, amountDetail) || readOnlyEntryIds.has(amountDetail.id) ? undefined : () => { const entry = amountDetail; setAmountDetail(null); editEntry(entry); }} />}
     {currencyManager && <CurrencyManager data={currencyManager.data} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported} onSave={saveCurrencyList} onView={code => { resumeWalletForm.current = false; setCurrency(code); setCurrencyManager(null); navigate('overview'); }} onClose={() => { if (!mutationInFlight.current) setCurrencyManager(null); }} />}
     {categoryManager && <CategoryManager usage={categoryUsageNow} settings={categoryManager.settings} budgets={categoryManager.budgets} budgetsError={categoryManager.budgetsError} currencies={visibleCurrencies} currency={currency} notice={categoryPreferences.error || (categoryPreferences.packAdded || categoryPreferences.packUpdated ? `${categoryPreferences.packAdded} kata kunci tambahan aktif dan ${categoryPreferences.packUpdated} pemetaan bawaan disesuaikan. Kategori dan aturan pribadi dipertahankan.` : undefined)} onSave={saveCategorySettings} onClose={() => setCategoryManager(null)} />}
@@ -887,6 +906,6 @@ export default function App() {
     {privacyOpen && <PrivacyNotice persistence={persistence} usage={storageUsage} onClose={() => setPrivacyOpen(false)} />}
     {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={walletIds => void finishStartOwn(demoReview, undefined, false, walletIds)} />}
     {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.detail}{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua data bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button>{confirm.extra && !confirm.extra.primary && <button className="button secondary" disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}<button className={`button ${confirm.danger ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button>{confirm.extra?.primary && <button className="button primary" data-autofocus disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}</div></Modal>}
-    {toast && <div className={`toast${toast.error ? ' error' : ''}`} role={toast.error ? 'alert' : 'status'}>{toast.error ? <AlertTriangle size={19} /> : <CheckCircle2 size={19} />}<span>{toast.text}{toast.detail && <details key={`${toast.text}\n${toast.detail}`} className="toast-detail"><summary>Detail teknis</summary><span>{toast.detail}</span></details>}</span>{toast.action && <button type="button" className="toast-action" onClick={() => { const run = toast.action!.run; setToast(null); run(); }}>{toast.action.label}</button>}<button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)}><X size={15} /></button></div>}
-  </div></CategorySettingsContext.Provider>;
+    {!toast?.inTransactionForm && notification}
+  </div></ModalOpenedContext.Provider></CategorySettingsContext.Provider>;
 }

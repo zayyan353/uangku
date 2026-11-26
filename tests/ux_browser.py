@@ -870,6 +870,13 @@ def saved_elsewhere_case(browser, args, output, mobile):
         expect(toast.get_by_role('button', name='Lihat', exact=True)).to_have_count(0)
         expect(rows.filter(has_text='Synthetic elsewhere same month')).to_have_count(1)
 
+        # A receipt from the previous save clears when a new dialog opens.
+        transfer = page.get_by_role('button', name='Pindah uang', exact=True).first
+        transfer.click()
+        expect(dialogs).to_be_visible()
+        expect(toast).to_have_count(0, timeout=1_000)
+        dialogs.get_by_role('button', name='Tutup', exact=True).click()
+
         # Lihat clears a filter that would hide this expense even in its destination month.
         type_filter = page.get_by_label('Filter jenis transaksi', exact=True)
         type_filter.select_option('income')
@@ -931,6 +938,20 @@ def saved_elsewhere_case(browser, args, output, mobile):
         expect(scope).to_contain_text('November 2026')
         expect(page.get_by_label('Dompet riwayat', exact=True)).to_have_value('all')
         expect(rows.filter(has_text='Synthetic split transfer')).to_have_count(1)
+
+        # A persistent error from an unreadable backup stays available in the next dialog.
+        with page.expect_file_chooser() as pending:
+            backup_action(page, 'Pulihkan cadangan').click()
+        pending.value.set_files({'name': 'synthetic-invalid.json', 'mimeType': 'application/json', 'buffer': b'{'})
+        error = page.get_by_role('alert').filter(has_text='File ini bukan cadangan Uangku')
+        expect(error).to_be_visible()
+        transfer.click()
+        expect(dialogs).to_be_visible()
+        expect(error).to_be_visible()
+        error.get_by_text('Detail teknis', exact=True).click()
+        expect(error.locator('details')).to_have_attribute('open', '')
+        error.get_by_role('button', name='Tutup pemberitahuan').click()
+        dialogs.get_by_role('button', name='Tutup', exact=True).click()
         assert not errors, errors
         return {'name': label, 'status': 'passed'}
     except Exception:
@@ -1068,8 +1089,9 @@ def saved_page_case(browser, args, output, mobile):
         # Simpan & catat lagi names the month but offers no Lihat; the form stays open.
         month.select_option('2025-01')
         record('Synthetic page again', '2026-10-03', again=True)
-        expect(toast).to_contain_text('Tersimpan di Oktober 2026. Lanjut catat berikutnya.')
-        expect(toast.get_by_role('button', name='Lihat', exact=True)).to_have_count(0)
+        receipt = dialogs.get_by_role('status').filter(has_text='Tersimpan di Oktober 2026. Lanjut catat berikutnya.')
+        expect(receipt).to_be_visible()
+        expect(page.get_by_role('button', name='Lihat', exact=True)).to_have_count(0)
         expect(dialogs).to_have_count(1)
         # The repeat form restores focus on the next animation frame. Escape reaches
         # the dialog only after focus has returned from the disabled submit button.
@@ -1100,6 +1122,93 @@ def saved_page_case(browser, args, output, mobile):
         return {'name': label, 'status': 'passed'}
     except Exception:
         page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
+def repeat_entry_close_case(browser, args, output, width):
+    label = f'repeat-entry-close-{width}'
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    context, page, errors = storage_page(browser, True, raw)
+    try:
+        page.set_viewport_size({'width': width, 'height': 844})
+        page.goto(args.url, wait_until='networkidle')
+        page.get_by_label('Bulan laporan', exact=True).select_option('2025-01')
+        page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+        dialog = page.get_by_role('dialog')
+        dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+        amount = dialog.get_by_label('Nominal', exact=True)
+        amount.fill('7')
+        note = 'Synthetic repeat entry'
+        dialog.get_by_label(re.compile('Keterangan')).fill(note)
+        again = dialog.get_by_role('button', name='Simpan & catat lagi', exact=True)
+        again.click()
+        receipt = page.get_by_role('status').filter(has_text='Tersimpan di Oktober 2026. Lanjut catat berikutnya.')
+        expect(receipt).to_be_visible()
+        expect(amount).to_have_value('')
+        expect(amount).to_be_focused()
+        if width == 390:
+            # Dismissing just the receipt leaves the form ready to record a second transaction.
+            receipt.get_by_role('button', name='Tutup pemberitahuan', exact=True).click()
+            expect(receipt).to_have_count(0)
+            amount.fill('8')
+            dialog.get_by_label(re.compile('Keterangan')).fill(note)
+            again.click()
+            expect(receipt).to_be_visible()
+        # An ordinary click must reach the header while the save receipt is still on screen.
+        dialog.get_by_role('button', name='Tutup', exact=True).click(timeout=1_000)
+        expect(dialog).to_have_count(0)
+        stored = stored_document(page)
+        amounts = sorted(entry['amount'] for entry in stored['state']['entries'] if entry['note'] == note)
+        assert amounts == ([700, 800] if width == 390 else [700]), amounts
+        assert not errors, errors
+        return {'name': label, 'status': 'passed'}
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
+def receipt_keyboard_case(browser, args, output, mobile):
+    data = fixture()
+    data['state']['entries'] = []
+    data['state']['wallets'] = data['state']['wallets'][:1]
+    context, page, errors = storage_page(browser, mobile, json.dumps(data))
+    try:
+        page.goto(args.url, wait_until='networkidle')
+        page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+        dialog = page.get_by_role('dialog')
+        amount = dialog.get_by_label('Nominal', exact=True)
+        for expires in (True, False):
+            amount.fill('7')
+            dialog.get_by_role('button', name='Simpan & catat lagi', exact=True).click()
+            dismiss = dialog.get_by_role('button', name='Tutup pemberitahuan', exact=True)
+            expect(amount).to_be_focused()
+            # Reach the receipt with the keyboard just as a user can while it is being announced.
+            for _ in range(30):
+                if dismiss.evaluate('(el) => document.activeElement === el'):
+                    break
+                page.keyboard.press('Shift+Tab')
+            expect(dismiss).to_be_focused()
+            if expires:
+                page.clock.fast_forward(5_500)
+            else:
+                page.keyboard.press('Enter')
+            expect(dismiss).to_have_count(0)
+            expect(amount).to_be_focused(timeout=1_000)
+        page.keyboard.press('Escape')
+        expect(dialog).to_have_count(0)
+
+        # With only one wallet, opening the wallet form produces a fresh explanation.
+        page.get_by_role('button', name='Pindah uang', exact=True).first.click()
+        expect(page.get_by_role('dialog', name='Tambah dompet', exact=True)).to_be_visible()
+        expect(page.get_by_text('Transfer membutuhkan dua dompet.', exact=True)).to_be_visible(timeout=1_000)
+        assert not errors, errors
+        return {'name': 'receipt-keyboard', 'status': 'passed'}
+    except Exception:
+        page.screenshot(path=str(output / 'receipt-keyboard-failure.png'), full_page=True)
         raise
     finally:
         context.close()
@@ -1304,6 +1413,9 @@ def main():
                                        ('saved-elsewhere-mobile', saved_elsewhere_case, True),
                                        ('saved-page-desktop', saved_page_case, False),
                                        ('saved-page-mobile', saved_page_case, True),
+                                       ('repeat-entry-close-320', repeat_entry_close_case, 320),
+                                       ('repeat-entry-close-390', repeat_entry_close_case, 390),
+                                       ('receipt-keyboard', receipt_keyboard_case, True),
                                        ('statement-reminder-storage-recovery', statement_storage_case, False),
                                        ('statement-reminder-desktop', statement_reminder_case, False),
                                        ('statement-reminder-mobile', statement_reminder_case, True)]:
