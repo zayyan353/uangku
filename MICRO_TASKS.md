@@ -918,15 +918,18 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     transaksi, kelola kategori, dan pemeta CSV tidak diubah karena galatnya
     berasal dari pemeriksaan formulir, bukan validator.
 
-- [ ] **MW-89 — Unduh CSV: transfer bertanda benar, berbiaya, dan bermata uang tujuan** (S) — **butuh keputusan**
+- [x] **MW-89 — Unduh CSV: transfer bertanda benar, berbiaya, dan bermata uang tujuan** (S)
   Transfer Bank Jago → Ziraat (Rp 1.000.000 → ₺2.500, biaya Rp 6.500) diekspor
   sebagai satu baris `1000000.00,IDR` bertanda positif tanpa biaya di file IDR,
   dan file TL berisi baris IDR yang sama, bukan +2500.00 TRY. Transfer dalam
   mata uang yang sama juga satu baris positif. Akibatnya jumlah kolom Nominal
   tidak sama dengan saldo dompet, dan file TL memuat angka rupiah.
-  *Keputusan:* dua baris bertanda per transfer (satu per dompet), atau satu
-  baris dengan kolom tambahan (Biaya, Diterima, Mata uang tujuan). Daftar kolom
-  sekarang ditetapkan di MW-11.
+  Agen memilih satu baris per dompet yang cocok dengan filter. Pilihan ini
+  mempertahankan tujuh kolom MW-11 dan dapat dibalik hanya di pengekspor.
+  CSV contoh di atas memuat −1.006.500,00 IDR di Bank Jago atau 2.500,00 TRY
+  di Ziraat. Biaya sudah termasuk dalam debit. Pada transfer satu mata uang,
+  kedua baris muncul bila dompet dan bulan posting keduanya cocok. Tanggal
+  posting yang belum diketahui tetap kosong sesuai riwayat yang ditampilkan.
   *File:* `src/lib/csvExport.ts` + tes, `src/App.tsx:349-357`, satu pemeriksaan
   di tes browser. Hanya ekspor; format tersimpan tidak disentuh.
 
