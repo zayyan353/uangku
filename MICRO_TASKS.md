@@ -988,19 +988,13 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   diuji di tingkat unit, belum lewat layar. Seberapa sering jendela ±3 hari
   menambah permintaan keputusan pada data asli belum diukur.
 
-- [ ] **MW-91 — Ikon transaksi dan dompet di tema gelap mendapat warna semantiknya** (S) *(sebagian)*
-  Di tema gelap semua varian `.transaction-icon`, `.stat-icon`, dan
-  `.wallet-icon` berwarna sama (rgb(175,194,175) di atas rgb(38,58,45)).
-  Daftar `:is()` di `src/styles.css:1004-1008` memuat
-  `.import-step > span:first-child`, sehingga spesifisitasnya mengalahkan aturan
-  semantik di baris 1009-1028. Mengeluarkan anggota itu dari daftar memulihkan
-  warnanya untuk varian yang punya aturan gelap; ikon pengeluaran di tabel
-  (`.transaction-icon.expense`) tidak punya aturan sendiri di 1009-1028 dan
-  tetap netral. Dampaknya kosmetik: baris tetap terbedakan dari bentuk ikon dan
-  warna nominal. Catatan MW-73 "tema gelap sudah punya warna berbeda" saat ini
-  tidak benar untuk ikon, jadi kerjakan ini sebelum MW-73.
-  *File:* `src/styles.css`, `tests/theme_browser.py` (ikon pemasukan, transfer,
-  dan pengeluaran di gelap harus berbeda satu sama lain).
+- [x] **MW-91 — Ikon transaksi dan dompet di tema gelap mendapat warna semantiknya** (S)
+  Selektor nomor langkah impor kini berdiri sendiri sehingga aturan warna dasar
+  ikon tidak lagi mengalahkan varian. Ikon pengeluaran di tabel memakai pasangan
+  warna yang sama dengan statistik uang keluar.
+  *Tes:* `dark-semantic-icon-colors` di `tests/theme_browser.py` membandingkan
+  warna depan dan latar lima jenis ikon transaksi dengan ikon netral, serta
+  memeriksa pasangannya pada kartu arus kas, rekening bank, dan e-wallet.
 
 - [ ] **MW-92 — Contoh "Perpindahan dana" di form mengikuti keputusan 13 November** (S) — **butuh keputusan**
   Petunjuk di `src/components/TransactionModal.tsx:30` memberi contoh "kiriman
