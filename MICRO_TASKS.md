@@ -2254,14 +2254,18 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     kembali lewat controller hanya bila token tersimpan masih token
     setelah-hapus; selain itu katakan catatan sudah berubah.
 
-- [ ] **MW-127 — Pencarian memberi tahu hasil di mata uang lain** (S)
-  Pencarian meluas ke semua periode tetapi tetap di mata uang yang aktif, dan
-  keadaan kosong tidak menyebut ada hasil di mata uang lain. Tampilkan jumlah
-  hasil per mata uang lain sebagai tombol ("6 hasil di TL") yang berpindah tab
-  dan mempertahankan kata cari.
-  *File:* `src/lib/historyView.ts` + tes, `src/App.tsx:719-722` (pelebaran
-  periode saat mencari) dan `:726` (keadaan kosong),
-  `tests/kerangka_browser.py`.
+- [x] **MW-127 — Pencarian memberi tahu hasil di mata uang lain** (S)
+  **Selesai.** Saat pencarian di mata uang aktif kosong, tombol menunjukkan jumlah
+  hasil per mata uang lain. Memilih tombol mempertahankan kata cari, periode,
+  jenis, dan kategori. Filter dompet kembali ke semua dompet di mata uang tujuan.
+  *File:* `src/lib/historyView.ts:102`, `src/lib/historyView.test.ts`,
+  `src/App.tsx:375` (jumlah), `:1115` (periode) dan `:1172` (tombol),
+  `tests/kerangka_browser.py:82`.
+  **Tes.** Sebelum perbaikan, 1 dari 26 tes pustaka gagal dan Chromium gagal
+  menemukan tombol USD. Sesudahnya, `npm test` 2.052/2.052 (88 berkas),
+  `npm run build` berhasil, dan 6/6 kasus Chromium pada build produksi lulus
+  (desktop dan HP, termasuk pencarian dari IDR ke TL dan hasil di USD).
+  **Belum terbukti.** Safari, Firefox, dan perangkat HP fisik.
 
 ### F5. Fitur
 

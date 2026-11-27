@@ -98,6 +98,18 @@ export function queryHistory(index: HistoryIndex, options: HistoryQuery): Entry[
   return found.map(row => row.entry);
 }
 
+/** Count the rows a search would show after switching currency. Wallet filters belong to the current currency. */
+export function otherCurrencyMatches(index: HistoryIndex, options: HistoryQuery): { currency: Currency; count: number }[] {
+  if (!options.query.trim() || options.reviewQueue) return [];
+  const matches: { currency: Currency; count: number }[] = [];
+  for (const currency of index.rowsByCurrency.keys()) {
+    if (currency === options.currency) continue;
+    const count = queryHistory(index, { ...options, currency, walletId: undefined }).length;
+    if (count) matches.push({ currency, count });
+  }
+  return matches;
+}
+
 export function historyPostingInfo(index: HistoryIndex, entryId: string, currency?: Currency) {
   const row = index.byId.get(entryId);
   return {

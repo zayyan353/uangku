@@ -30,7 +30,7 @@ import RecoveryImportView from './components/RecoveryImportView';
 import { preferredWallet, readPreferences, writePreferences } from './lib/preferences';
 import { canCategorize } from './lib/review';
 import BulkReviewPanel from './components/BulkReviewPanel';
-import { createHistoryIndex, queryHistory, paginateHistory, pageOfEntry, monthLabel, previousMonth, type HistoryPeriod } from './lib/historyView';
+import { createHistoryIndex, queryHistory, otherCurrencyMatches, paginateHistory, pageOfEntry, monthLabel, previousMonth, type HistoryPeriod, type HistoryQuery } from './lib/historyView';
 import { createPostingDateIndex, entryPostings } from './lib/transferPostings';
 import { applySourcedEntryEdit, applySourcedBulkCategory, deleteSourcedEntry, saveTransferEntry } from './lib/sourceCommands';
 import { executeTransferCommand } from './lib/transferCommands';
@@ -366,11 +366,14 @@ export default function App() {
     // The wording index reads metadata only (as in TransactionTable), so a saved edit does not rebuild it.
     [data.metadata, searching]);
   const activityType = page === 'transactions' ? filter : 'all';
-  const allTransactions = useMemo(() => queryHistory(historyIndex, {
+  const activityFilters = useMemo<HistoryQuery>(() => ({
     currency, month, query: activityQuery, type: activityType, period: activityPeriod, walletId: activityWalletId, category: page === 'transactions' && historyCategory !== 'all' ? historyCategory : undefined,
     reviewQueue: isReviewQueue, reviewReason, reviewExcludedWalletIds: archivedWalletIds, reviewExcludedEntryIds: readOnlyEntryIds,
     shownText: historyTitles,
-  }), [historyTitles, historyIndex, currency, month, activityQuery, activityType, activityPeriod, activityWalletId, isReviewQueue, reviewReason, archivedWalletIds, readOnlyEntryIds, page, historyCategory]);
+  }), [historyTitles, currency, month, activityQuery, activityType, activityPeriod, activityWalletId, isReviewQueue, reviewReason, archivedWalletIds, readOnlyEntryIds, page, historyCategory]);
+  const allTransactions = useMemo(() => queryHistory(historyIndex, activityFilters), [historyIndex, activityFilters]);
+  const matchesElsewhere = useMemo(() => allTransactions.length ? [] : otherCurrencyMatches(historyIndex, activityFilters),
+    [allTransactions, historyIndex, activityFilters]);
   // The index hands rows over newest first; the other orders are a copy, the entries themselves are untouched.
   const orderedTransactions = useMemo(() => page !== 'transactions' || historySort === 'newest' ? allTransactions
     : historySort === 'oldest' ? [...allTransactions].reverse()
@@ -1164,8 +1167,12 @@ export default function App() {
         quickCategory={isReviewQueue ? { names: categoryPreferences.settings.names, apply: (entry, category) => void applyQuickCategory(entry, category) } : undefined}
         empty={isReviewQueue && pendingCount === 0
         ? <div className="empty-state" data-testid="review-empty"><CheckCircle2 size={30} /><h3>Semua sudah rapi</h3><p>Tidak ada catatan yang perlu dicek atau diisi kategorinya.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Kembali ke semua transaksi</button></div></div>
-        : historyFiltered
-        ? <div className="empty-state" data-testid="history-empty-filtered"><Search size={30} /><h3>Tidak ada yang cocok</h3><p>Tidak ada transaksi untuk filter atau pencarian ini.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Reset filter</button>{!isReviewQueue && historyPeriod === 'month' && <button className="button secondary small" onClick={() => setHistoryPeriod('all')}>Lihat semua periode</button>}</div></div>
+        : historyFiltered || matchesElsewhere.length > 0
+        ? <div className="empty-state" data-testid="history-empty-filtered"><Search size={30} /><h3>Tidak ada yang cocok</h3><p>Tidak ada transaksi untuk filter atau pencarian ini.</p><div className="empty-actions">
+          {matchesElsewhere.map(({ currency: code, count }) => <button key={code} type="button" className="button secondary small" onClick={() => setCurrency(code)}>
+            {count} hasil di {code === 'TRY' ? 'TL' : code}
+          </button>)}
+          <button className="button secondary small" onClick={resetHistory}>Reset filter</button>{!isReviewQueue && historyPeriod === 'month' && <button className="button secondary small" onClick={() => setHistoryPeriod('all')}>Lihat semua periode</button>}</div></div>
         : <div
           className="empty-state"
           data-testid="history-empty"

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createHistoryIndex, HISTORY_PAGE_SIZE, historyPostingInfo, monthLabel, pageOfEntry, paginateHistory, queryHistory, type HistoryQuery } from './historyView';
+import { createHistoryIndex, otherCurrencyMatches, HISTORY_PAGE_SIZE, historyPostingInfo, monthLabel, pageOfEntry, paginateHistory, queryHistory, type HistoryQuery } from './historyView';
 import type { Entry, State } from './finance';
 
 const entry = (id: string, date: string, extra: Partial<Entry> = {}): Entry => ({ id, date, walletId: 'try', type: 'expense', amount: 500, category: 'Belanja', note: 'Kopi', ...extra });
@@ -56,6 +56,20 @@ describe('read-only transaction history', () => {
     const index = createHistoryIndex(makeState([entry('old', '2025-01-03'), entry('current', '2026-10-04')]));
     expect(queryHistory(index, query({ query: 'kopi', period: 'all' })).map(e => e.id)).toEqual(['current', 'old']);
     expect(queryHistory(index, query({ query: 'kopi' })).map(e => e.id)).toEqual(['current']);
+  });
+  it('counts matching rows in other currency tabs using the filters those tabs will show', () => {
+    const index = createHistoryIndex(makeState([
+      entry('try-old', '2025-01-01', { note: 'Toko sintetis', category: 'Belanja' }),
+      entry('try-new', '2026-10-02', { note: 'Judul mentah', category: 'Belanja' }),
+      entry('other-category', '2026-10-03', { note: 'Toko sintetis', category: 'Lainnya' }),
+      entry('income', '2026-10-04', { type: 'income', note: 'Toko sintetis', category: 'Belanja' }),
+    ]));
+    const options = query({ currency: 'IDR', period: 'all', walletId: 'idr', query: 'TOKO', category: 'Belanja',
+      type: 'expense', shownText: row => row.id === 'try-new' ? 'Toko dari bank' : '' });
+    expect(otherCurrencyMatches(index, options)).toEqual([{ currency: 'TRY', count: 2 }]);
+    expect(otherCurrencyMatches(index, { ...options, period: 'month' })).toEqual([{ currency: 'TRY', count: 1 }]);
+    expect(otherCurrencyMatches(index, { ...options, reviewQueue: true })).toEqual([]);
+    expect(otherCurrencyMatches(index, { ...options, query: '   ' })).toEqual([]);
   });
   it('includes both currencies of a transfer and searches both wallet names', () => {
     const index = createHistoryIndex(makeState([entry('fx', '2026-10-04', { type: 'transfer', toWalletId: 'idr', toAmount: 250000, category: '' })]));
