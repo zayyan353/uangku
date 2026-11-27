@@ -442,6 +442,43 @@ def budget_progress(case):
     case.unchanged()
 
 
+def budget_warning(case):
+    p = case.page
+    limits = compact({'TRY': {'Pendidikan': 1500, 'Kategori lama': 2500, 'Kesehatan': 1}})
+    p.evaluate('([key,value]) => localStorage.setItem(key,value)', [BUDGETS, limits])
+    p.reload(wait_until='networkidle')
+    nav(p, 'Ringkasan')
+    warning = p.get_by_test_id('budget-warning')
+    backup = p.get_by_test_id('backup-reminder')
+    expect(backup).to_be_visible()
+    expect(warning).to_have_count(0)
+    with p.expect_download():
+        backup.get_by_role('button', name='Cadangkan sekarang').click()
+    expect(warning).to_be_visible()
+    expect(warning).to_contain_text('Pendidikan')
+    expect(warning).to_contain_text('melewati batas')
+    expect(warning).to_contain_text('1 kategori lain')
+    expect(warning).not_to_contain_text('Kesehatan')
+    p.get_by_label('Dompet', exact=True).select_option('cash')
+    expect(warning).to_contain_text('Pendidikan')
+    p.get_by_label('Periode arus rekening', exact=True).select_option('all')
+    expect(warning).to_contain_text('Oktober 2026')
+    expect(warning).to_contain_text('semua rekening TRY')
+    assert p.evaluate('(key) => localStorage.getItem(key)', BUDGETS) == limits
+    for limit, message in [(2501, None), (2500, 'hampir habis'), (2000, 'habis.')]:
+        value = compact({'TRY': {'Pendidikan': limit}})
+        p.evaluate('([key,value]) => localStorage.setItem(key,value)', [BUDGETS, value])
+        p.reload(wait_until='networkidle')
+        if message is None:
+            expect(warning).to_have_count(0)
+        else:
+            expect(warning.locator('strong')).to_have_text('Anggaran Pendidikan ' + message.rstrip('.') + '.')
+        assert p.evaluate('(key) => localStorage.getItem(key)', BUDGETS) == value
+    warning.get_by_role('button', name='Nanti saja').click()
+    expect(warning).to_have_count(0)
+    case.unchanged()
+
+
 def history_automation(case):
     p = case.page
     before = stored_document(p)
@@ -1126,6 +1163,8 @@ def main():
              ('full-backup-mobile', {'width': 390, 'theme': 'dark'}, category_suite_case),
              ('budget-limits-desktop', {}, budget_limits),
              ('budget-limits-mobile-dark', {'width': 390, 'theme': 'dark'}, budget_limits),
+             ('budget-warning-desktop', {}, budget_warning),
+             ('budget-warning-mobile-dark', {'width': 390, 'theme': 'dark'}, budget_warning),
              ('budget-progress-desktop', {}, budget_progress),
              ('budget-progress-mobile-dark', {'width': 390, 'theme': 'dark'}, budget_progress),
              ('history-auto-suggest-conflict-pending', {}, history_automation),

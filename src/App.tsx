@@ -23,7 +23,7 @@ import { dialogHistory } from './lib/dialogHistory';
 import { monthOutsideView } from './lib/savedPeriod';
 import { carryDemo } from './lib/demoTransition';
 import type { CandidateOptions } from './lib/persistence';
-import { categoryBudgetRows, type BudgetMap } from './lib/budgets';
+import { budgetProgress, categoryBudgetRows, type BudgetMap } from './lib/budgets';
 import { useLedgerStorage } from './hooks/useLedgerStorage';
 import { useTransactionTemplates } from './hooks/useTransactionTemplates';
 import RecoveryImportView from './components/RecoveryImportView';
@@ -279,16 +279,16 @@ export default function App() {
   // exactly what is stored now; the next save brings it back.
   const storageWarning = !data.demo && !blocked && !ledger.dirty && !storageError && storageUsage?.level === 'warning' && reminderDismissedOn !== clockDay && lastBackup?.fingerprint !== currentFingerprint;
   // Import advice waits until the ledger is readable and saved and the other reminders are clear.
-  const canShowStatementReminder = page === 'overview' && !data.demo && !blocked && !ledger.dirty
+  const canShowOverviewReminder = page === 'overview' && !data.demo && !blocked && !ledger.dirty
     && !storageError && !storageWarning && !reminderReason && reminderDismissedOn !== clockDay;
   const staleWallets = useMemo(() => {
-    if (!canShowStatementReminder) return [];
+    if (!canShowOverviewReminder) return [];
     const names = new Map(availableWallets.map(wallet => [wallet.id, wallet.name]));
     return staleStatements(data, clockDay).flatMap(({ walletId, statementThrough }) => {
       const name = names.get(walletId);
       return name === undefined ? [] : [{ name, through: statementThrough }];
     });
-  }, [canShowStatementReminder, data, clockDay, availableWallets]);
+  }, [canShowOverviewReminder, data, clockDay, availableWallets]);
   function closeReminder() {
     dismissReminder(clockDay);
     setReminderDismissedOn(clockDay);
@@ -505,6 +505,26 @@ export default function App() {
   const monthlyBudgets = categoryPreferences.budgets[currency];
   const budgetsShown = cashflowPeriod === 'month' && cashflowScope === 'all';
   const budgetsHidden = !budgetsShown && !!monthlyBudgets && Object.keys(monthlyBudgets).length > 0;
+  const budgetMonth = cashflowPeriod === 'month' ? month : clockDay.slice(0, 7);
+  const canShowBudgetWarning = canShowOverviewReminder && staleWallets.length === 0;
+  const budgetWarning = useMemo(() => {
+    if (!canShowBudgetWarning || !monthlyBudgets) return null;
+    try {
+      const report = budgetsShown ? cashflowResult.report : buildCashflowReport(data, { currency, month: budgetMonth, today: clockDay, period: 'month' });
+      if (!report || report.notStarted) return null;
+      const warnings = report.categoryTotals.flatMap(([name, spent]) => {
+        if (!Object.hasOwn(monthlyBudgets, name)) return [];
+        const limit = monthlyBudgets[name];
+        const { status } = budgetProgress(spent, limit, budgetMonth, clockDay);
+        return status === 'safe' ? [] : [{ name, spent, limit, status }];
+      });
+      const first = warnings.find(warning => warning.status === 'over') ?? warnings[0];
+      return first ? { ...first, others: warnings.length - 1 } : null;
+    } catch {
+      // A monthly total outside the safe range cannot support a budget comparison.
+      return null;
+    }
+  }, [canShowBudgetWarning, monthlyBudgets, budgetsShown, cashflowResult.report, data, currency, budgetMonth, clockDay]);
   const [allCategoriesShown, setAllCategoriesShown] = useState(false);
   // The category panel folds like the two cashflow panels; open by default, and the choice lasts while the app stays open.
   const [categoryPanelOpen, setCategoryPanelOpen] = useState(true);
@@ -899,6 +919,14 @@ export default function App() {
           <button className="button ghost small" onClick={closeReminder}>Nanti saja</button>
         </div>
       )}
+      {budgetWarning && <div className="backup-reminder" role="status" data-testid="budget-warning">
+        <span className="demo-banner-icon"><AlertTriangle size={20} /></span>
+        <div className="demo-banner-copy">
+          <strong>Anggaran {budgetWarning.name} {budgetWarning.status === 'over' ? 'melewati batas' : budgetWarning.spent === budgetWarning.limit ? 'habis' : 'hampir habis'}.</strong>
+          <span>{monthLabel(budgetMonth)} · semua rekening {currency}. Pengeluaran terkonfirmasi {formatMoney(budgetWarning.spent, currency)} dari {formatMoney(budgetWarning.limit, currency)}.{budgetWarning.others > 0 && ` Ada ${budgetWarning.others} kategori lain yang juga mencapai 80% atau lebih.`}</span>
+        </div>
+        <button className="button ghost small" onClick={closeReminder}>Nanti saja</button>
+      </div>}
       {data.demo && <div className="demo-banner">
         <span className="demo-banner-icon"><Sparkles size={20} /></span>
         <div className="demo-banner-copy">
