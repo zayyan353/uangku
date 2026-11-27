@@ -2097,13 +2097,10 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   - [ ] **b.** — **menunggu pemilik** Simpan tanggal "terakhir dicek" per dompet?
     Usul ini memerlukan kunci penyimpanan tambahan.
 
-- [ ] **MW-117 — Kurs: contoh mengikuti arah pasangan mata uang**
-  Untuk IDR → TRY kolomnya dulu bertanya "1 IDR = berapa TRY?" dengan contoh statis
-  "400,5" dan "16000" (kini `src/components/TransactionModal.tsx:392–393`), yang hanya
-  cocok untuk arah sebaliknya. Mengetik 400 menghasilkan "₺400.000.000
-  diterima" tanpa peringatan. Tidak sepenuhnya diam-diam: pratinjau ada tepat di
-  bawah kolom dan simpan terkunci sampai "Kurs ini sesuai transaksi saya"
-  dicentang.
+- [x] **MW-117 — Kurs: contoh mengikuti arah pasangan mata uang**
+  Isian dan pratinjau transfer lintas mata uang ada di
+  `src/components/TransactionModal.tsx:402–420`. Pengguna mengonfirmasi
+  kurs sebelum menyimpan transaksi.
   - [x] **a.** (S) Contoh mengikuti pasangan mata uang.
     *Selesai:* isian menunjukkan jumlah mata uang tujuan untuk satu unit mata
     uang asal. Petunjuk angka menjelaskan cara mengetik desimal tanpa
@@ -2113,9 +2110,23 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     kasus FX di `tests/currency_import_browser.py`, 2.008 tes unit dan build
     produksi lulus.
     *Belum terbukti:* belum diperiksa pada HP fisik.
-  - [ ] **b.** (M) — **butuh keputusan** Tombol "balik arah" (kurs diketik sebagai
-    "1 TRY = … IDR") dan peringatan bila kurs berbeda lebih dari 100× dari kurs
-    terakhir pasangan itu. Arti kurs yang tersimpan tidak berubah.
+  - [x] **b.** (M) Balik arah isian kurs dan bandingkan dengan riwayat.
+    *Keputusan agen:* tombol membalik satuan kutipan tanpa menukar dompet.
+    Mengetik ulang dalam arah sebaliknya tetap menyimpan kurs dalam satuan
+    tujuan per unit asal. Hanya membalik tampilan mempertahankan nilai
+    asal, termasuk nominal tujuan pada catatan lama.
+    *Selesai:* peringatan muncul bila kurs baru lebih dari 100 kali atau
+    kurang dari 1/100 kurs transfer terakhir pada pasangan tersebut. Ini
+    peringatan karena nilai transaksi sebenarnya tetap ditentukan pengguna.
+    Pembanding dari `src/lib/transferRate.ts:5` memakai tanggal catatan
+    terbaru, termasuk arah terbalik, dan mengabaikan entri yang sedang
+    disunting. Pada tanggal sama dipakai entri terakhir dalam urutan ledger.
+    *Tes:* kasus baru pada HP sintetis gagal di build awal karena tombol
+    belum ada. Kelima kasus FX di `tests/currency_import_browser.py` lulus
+    di Chromium, termasuk kedua ambang, arah terbalik, konfirmasi, overflow
+    dan sunting keterangan pada nominal legacy maksimum. 2.052 tes unit di
+    88 berkas serta build produksi lulus.
+    *Belum terbukti:* pengoperasian pada HP fisik dan pembaca layar.
 
 - [x] **MW-118 — Esc selalu menutup dialog** (S)
   *Selesai:* di `src/App.tsx:778`, Esc yang sampai di `document` meminta
@@ -2881,7 +2892,7 @@ MW-107. Tindakan pemilik lain ada di F2.
 | MW-111 | agen | Target kecepatan simpan (jumlah baris dan perangkat)? |
 | MW-114 | agen | Service worker untuk offline: ya atau tidak? |
 | MW-116b | pemilik | Boleh menambah kunci untuk tanggal "terakhir dicek" per dompet? |
-| MW-117b | agen | Mau tombol "balik arah" kurs dan peringatan bila kurs berbeda lebih dari 100×? |
+| MW-117b | agen | Diputuskan: arah isian dapat dibalik dan selisih lebih dari 100 kali diberi peringatan. |
 | MW-120c | pemilik | Boleh menerapkan ulang entri baru otomatis saat konflik dua tab? |
 | MW-124c | agen | Diputuskan: pemilih bulan berpanah dipertahankan dengan label “Periode transaksi”. Pilihan bulan tertentu dan seluruh catatan ada di satu tempat. |
 | MW-130d | pemilik | Batas bulanan keseluruhan atau sisa anggaran dibawa? |

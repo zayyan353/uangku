@@ -11,6 +11,7 @@ import { formatMoneyInput } from '../lib/moneyFormatting';
 import { preferredDestination } from '../lib/preferences';
 import { convertMinorCurrency, deriveCurrencyRate, currencyDigits, isCurrencyConversionConsistent } from '../lib/currencyCatalog';
 import { transferCandidates } from '../lib/review';
+import { latestTransferRate } from '../lib/transferRate';
 import type { StoredData } from '../lib/storage';
 import { isWalletArchived, archivedReadOnlyEntryIds } from '../lib/walletLifecycle';
 import { templateFill, type TransactionTemplate } from '../lib/transactionTemplates';
@@ -23,6 +24,7 @@ export type TxMode = 'expense' | 'income' | 'transfer' | 'adjustment' | 'movemen
 const today = () => deviceDay();
 const yesterday = () => dayBefore(today());
 const moneyInput = formatMoneyInput;
+const editableRate = new Intl.NumberFormat('id-ID', { useGrouping: false, maximumSignificantDigits: 17 });
 const typeLabels = { expense: 'Pengeluaran', income: 'Pemasukan', transfer: 'Transfer', movement: 'Perpindahan dana', adjustment: 'Penyesuaian', unreviewed: 'Perlu dicek' };
 /** One line under the type tabs; "Perpindahan dana" and "Transfer" are otherwise easy to mix up. */
 const TYPE_HINTS: Record<TxMode, string> = {
@@ -84,7 +86,8 @@ export default function TransactionModal({ data, state, receipt, undatedWallets,
     return initial == null ? '' : moneyInput(initial, state.wallets.find(wallet => wallet.id === existing.walletId)?.currency ?? 'IDR');
   });
   const [received, setReceived] = useState(existing?.toAmount ? moneyInput(existing.toAmount, state.wallets.find(wallet => wallet.id === existing.toWalletId)?.currency ?? 'IDR') : '');
-  const [rateText, setRate] = useState(existing?.rate?.toString().replace('.', ',') ?? '');
+  const [rateInput, setRateInput] = useState(() => ({ text: existing?.rate ? editableRate.format(existing.rate) : '', inverse: false }));
+  const [showInverse, setShowInverse] = useState(false);
   const [fxMode, setFxMode] = useState<'rate' | 'received'>('rate');
   const [fee, setFee] = useState(existing?.fee ? moneyInput(existing.fee, state.wallets.find(wallet => wallet.id === existing.walletId)?.currency ?? 'IDR') : '');
   const [date, setDate] = useState(existing?.date ?? today());
@@ -104,7 +107,7 @@ export default function TransactionModal({ data, state, receipt, undatedWallets,
   const [error, setError] = useState('');
   useEffect(() => { if (error) { validationRef.current?.scrollIntoView({ block: 'nearest' }); validationRef.current?.focus({ preventScroll: true }); } }, [error]);
   const amountRef = useRef<HTMLInputElement>(null);
-  const draft = { type, walletId, toWalletId, movementDirection, amount, received, rateText, fxMode, fee,
+  const draft = { type, walletId, toWalletId, movementDirection, amount, received, rateInput, fxMode, fee,
     date, destinationDate, sourceDate, declareDates, reason, note, category, confirmed, pairId };
   const cleanDraft = useRef(draft);
   const saving = useRef(false);
@@ -154,7 +157,16 @@ export default function TransactionModal({ data, state, receipt, undatedWallets,
   const destination = state.wallets.find(w => w.id === toWalletId);
   const crossCurrency = type === 'transfer' && source && destination && source.currency !== destination.currency;
   const minor = parseMoney(amount, source?.currency ?? 'IDR');
-  const rateNumber = /^\d+(?:[.,]\d+)?$/.test(rateText.trim()) ? Number(rateText.replace(',', '.')) : NaN;
+  // Changing the displayed direction must not round-trip a stored rate through its reciprocal.
+  // Only a keystroke replaces the original quote and the direction in which it was entered.
+  const rawRate = /^\d+(?:[.,]\d+)?$/.test(rateInput.text.trim()) ? Number(rateInput.text.replace(',', '.')) : NaN;
+  const rateNumber = rateInput.inverse ? 1 / rawRate : rawRate;
+  const canInvert = rawRate > 0 && Number.isFinite(rawRate) && Number.isFinite(1 / rawRate);
+  const displayedRate = showInverse === rateInput.inverse ? rateInput.text : canInvert ? editableRate.format(1 / rawRate) : '';
+  const quoteFrom = showInverse ? destination?.currency : source?.currency;
+  const quoteTo = showInverse ? source?.currency : destination?.currency;
+  const lastRate = useMemo(() => crossCurrency ? latestTransferRate(state, source.currency, destination.currency, existing?.id) : undefined,
+    [crossCurrency, state, source, destination, existing?.id]);
   let toMinor: number | null = !crossCurrency ? minor : null;
   let effectiveRate = crossCurrency ? rateNumber : 1;
   let conversionFailed = false;
@@ -187,7 +199,7 @@ export default function TransactionModal({ data, state, receipt, undatedWallets,
   useUnloadWarning(() => hasUnsavedInput()
     || (templateName !== null && templateName !== initialTemplateName.current)
     || (templateEdit !== null && templateEdit.name !== templates.find(template => template.id === templateEdit.id)?.name));
-  const invalidFx = !!crossCurrency && (conversionFailed || (fxMode === 'rate' && !!rateText.trim() && (!Number.isFinite(rateNumber) || rateNumber <= 0 || minor !== null && toMinor === null)) || (fxMode === 'received' && !!received.trim() && (toMinor === null || toMinor <= 0)) || (toMinor !== null && !Number.isSafeInteger(toMinor)));
+  const invalidFx = !!crossCurrency && (conversionFailed || (fxMode === 'rate' && !!rateInput.text.trim() && (!Number.isFinite(rateNumber) || rateNumber <= 0 || minor !== null && toMinor === null)) || (fxMode === 'received' && !!received.trim() && (toMinor === null || toMinor <= 0)) || (toMinor !== null && !Number.isSafeInteger(toMinor)));
   const pairCandidates = type === 'transfer' && existing ? state.entries.filter(e =>
     e.id !== existing.id && !readOnlyEntryIds.has(e.id) && !state.wallets.some(w => w.kind === 'cash' && w.id === e.walletId) && (e.type === 'unreviewed' || e.type === 'movement') && e.walletId === (incomingPending ? walletId : toWalletId)
     && (incomingPending ? e.amount < 0 : e.amount > 0)
@@ -389,8 +401,22 @@ export default function TransactionModal({ data, state, receipt, undatedWallets,
         <label className="field full"><span className="field-label"><span id="transaction-amount-label">{type === 'adjustment' ? 'Saldo yang benar sekarang' : type === 'transfer' ? 'Nominal yang keluar' : 'Nominal'}</span> <span id="transaction-amount-currency" className="field-currency">{source?.currency}</span></span><input ref={amountRef} data-autofocus required autoComplete="off" className="field-input amount-input" inputMode="decimal" aria-labelledby="transaction-amount-label" aria-describedby="transaction-amount-currency" aria-invalid={invalid.amount || undefined} placeholder="0" value={amount} disabled={importedPending && (!incomingPending || type !== 'transfer')} onChange={e => { setAmount(e.target.value); setConfirmed(false); }} /><MoneyEcho text={amount} currency={source?.currency} />{source && currencyDigits(source.currency) !== 2 && <span className="field-help">{source.currency} memakai {currencyDigits(source.currency)} desimal.{currencyDigits(source.currency) > 0 ? ' Gunakan koma untuk desimal; titik tunggal dengan tiga digit ditolak karena ambigu.' : ' Isi nominal bulat tanpa pecahan.'}</span>}{type === 'adjustment' && source && <span className="field-help">{adjustment?.current != null ? <>Saldo catatan hari ini ({formatDate(balanceDay)}) {formatMoney(adjustment.current, source.currency)}. <span data-testid="adjustment-difference" data-difference={adjustmentDifference ?? ''}>{adjustmentDifference === null ? 'Isi saldo yang benar untuk melihat selisihnya.' : adjustmentDifference === 0 ? 'Sama dengan catatan, jadi tidak ada selisih untuk dicatat.' : `Selisih ${adjustmentDifference > 0 ? '+' : '−'}${formatMoney(Math.abs(adjustmentDifference), source.currency)} akan dicatat sebagai penyesuaian.`}</span></> : adjustment?.error}</span>}</label>
         {crossCurrency && <div className="field full fx-section">
           <div className="segmented-control compact" role="group" aria-label="Cara mengisi kurs"><button type="button" aria-pressed={fxMode === 'rate'} className={fxMode === 'rate' ? 'active' : ''} disabled={!!incomingPending} onClick={() => { setFxMode('rate'); setConfirmed(false); }}>Isi kurs</button><button type="button" aria-pressed={fxMode === 'received'} className={fxMode === 'received' ? 'active' : ''} onClick={() => { setFxMode('received'); setConfirmed(false); }}>Isi jumlah diterima</button></div>
-          {fxMode === 'rate' ? <label className="field"><span className="field-label">1 {source.currency} = berapa {destination.currency}?</span><input required aria-invalid={invalidFx} aria-describedby="fx-input-help fx-input-feedback" inputMode="decimal" className="field-input" placeholder={`Jumlah ${destination.currency} untuk 1 ${source.currency}`} value={rateText} onChange={e => { setRate(e.target.value); setConfirmed(false); }} /></label> : <label className="field"><span id="transaction-received-label" className="field-label">Nominal yang diterima ({destination.currency})</span><input required aria-labelledby="transaction-received-label" aria-invalid={invalidFx} aria-describedby="fx-input-help fx-input-feedback" className="field-input" inputMode="decimal" placeholder="0" value={received} disabled={!!incomingPending} onChange={e => { setReceived(e.target.value); setConfirmed(false); }} /><MoneyEcho text={received} currency={destination.currency} /></label>}
+          {fxMode === 'rate' ? <>
+            <label className="field"><span className="field-label">1 {quoteFrom} = berapa {quoteTo}?</span>
+              <input required aria-invalid={invalidFx} aria-describedby="fx-input-help fx-input-feedback" inputMode="decimal" className="field-input"
+                placeholder={`Jumlah ${quoteTo} untuk 1 ${quoteFrom}`} value={displayedRate}
+                onChange={e => { setRateInput({ text: e.target.value, inverse: showInverse }); setConfirmed(false); }} />
+            </label>
+            <button type="button" className="text-link" aria-pressed={showInverse} disabled={!!rateInput.text && !canInvert}
+              onClick={() => { setShowInverse(!showInverse); setConfirmed(false); }}>Balik arah kurs</button>
+          </> : <label className="field"><span id="transaction-received-label" className="field-label">Nominal yang diterima ({destination.currency})</span><input required aria-labelledby="transaction-received-label" aria-invalid={invalidFx} aria-describedby="fx-input-help fx-input-feedback" className="field-input" inputMode="decimal" placeholder="0" value={received} disabled={!!incomingPending} onChange={e => { setReceived(e.target.value); setConfirmed(false); }} /><MoneyEcho text={received} currency={destination.currency} /></label>}
           <p id="fx-input-help" className="field-help">{fxMode === 'rate' ? `Isi kurs dari transaksi tanpa pemisah ribuan. Gunakan koma atau titik untuk desimal. Jumlah ${destination.currency} dihitung dari nominal di atas.` : `Isi jumlah ${destination.currency} yang benar-benar masuk; kursnya dihitung sendiri.`}</p>{invalidFx && <p id="fx-input-feedback" className="notice error" role="alert">Kurs atau nominal diterima belum valid. Gunakan angka positif tanpa pemisah ribuan untuk kurs.</p>}<div className="rate-preview"><ArrowLeftRight size={18} /><div><strong>{toMinor !== null && Number.isSafeInteger(toMinor) ? formatMoney(toMinor, destination.currency) : '—'} diterima</strong><span>1 {source.currency} = {Number.isFinite(effectiveRate) ? new Intl.NumberFormat('id-ID', { maximumFractionDigits: 8 }).format(effectiveRate) : '…'} {destination.currency}</span>{Number.isFinite(effectiveRate) && effectiveRate > 0 && effectiveRate < 1 && <span data-testid="rate-inverse">atau 1 {destination.currency} ≈ {new Intl.NumberFormat('id-ID', { maximumFractionDigits: 4 }).format(1 / effectiveRate)} {source.currency}</span>}</div></div>
+          {lastRate && Number.isFinite(effectiveRate) && effectiveRate > 0 && !invalidFx
+            && (effectiveRate > lastRate.rate * 100 || effectiveRate < lastRate.rate / 100) &&
+            <p className="notice warning" role="status" data-testid="fx-rate-warning">
+              Periksa arah dan angka kurs. Selisihnya lebih dari 100 kali dibanding transfer {formatDate(lastRate.date)}
+              {' '}(1 {source.currency} ≈ {editableRate.format(lastRate.rate)} {destination.currency}).
+            </p>}
           <label className={`checkbox-row${invalid.confirm ? ' invalid' : ''}`}><input type="checkbox" aria-invalid={invalid.confirm || undefined} checked={confirmed} onChange={e => { setConfirmed(e.target.checked); if (e.target.checked && invalid.confirm) setError(''); }} />Kurs ini sesuai transaksi saya</label><p className="field-help">Kurs ini disimpan untuk transaksi ini. Tidak mengikuti perubahan kurs harian.</p>
         </div>}
         {type === 'transfer' && <>
