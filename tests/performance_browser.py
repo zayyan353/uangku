@@ -89,6 +89,26 @@ def percentile(values, fraction):
     return sorted(values)[max(0, math.ceil(fraction * len(values)) - 1)]
 
 
+def measure_keystrokes(page, rows):
+    """Time each input event through the next paint opportunity, outside the save budgets."""
+    search = page.get_by_label('Cari transaksi', exact=True)
+    search.fill('')
+    durations = []
+    for char in 'row 0000':
+        search.evaluate("""input => {
+            window.__keyPaint = new Promise(resolve => input.addEventListener('input', () => {
+                const start = performance.now();
+                requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now() - start)));
+            }, {once: true, capture: true}));
+        }""")
+        search.press('Space' if char == ' ' else char)
+        durations.append(round(page.evaluate('window.__keyPaint'), 3))
+    # All fixture notes end in a five-digit row number. This prefix selects 00000 through 00009.
+    expect(search).to_have_value('row 0000')
+    expect(page.locator('.transactions-table tbody tr')).to_have_count(min(rows, 10))
+    return durations
+
+
 def run_sample(browser, args, output, index, fixture, html_sha):
     context = browser.new_context(viewport={'width': 1440, 'height': 1000}, timezone_id='Europe/Istanbul')
     raw = json.dumps(fixture, separators=(',', ':'))
@@ -155,6 +175,8 @@ def run_sample(browser, args, output, index, fixture, html_sha):
         expect(page.get_by_label('Cari transaksi', exact=True)).to_be_visible()
         assert stored_document(page)['state']['entries'] == expected
         assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == before_raw, 'Reload rewrote saved bytes'
+        result['keystroke_ms'] = measure_keystrokes(page, args.rows)
+        assert page.evaluate('(key)=>localStorage.getItem(key)', KEY) == before_raw, 'Search rewrote saved bytes'
         assert not errors, errors
         result['browser_runtime'] = page.evaluate('''() => ({hardware_concurrency:navigator.hardwareConcurrency,
             device_memory_gb:navigator.deviceMemory ?? null,user_agent:navigator.userAgent})''')
@@ -314,9 +336,12 @@ def main():
     after = source_hashes()
     times = [r['batch_ms'] for r in results if r['status'] == 'passed']
     frames = [r['ui']['max_frame_gap_ms'] for r in results if r['status'] == 'passed']
+    keys = [elapsed for r in results if r['status'] == 'passed' for elapsed in r['keystroke_ms']]
     metrics = {'median_batch_ms': statistics.median(times) if times else None,
                'p95_batch_ms': percentile(times, .95) if times else None,
-               'maximum_active_frame_gap_ms': max(frames) if frames else None}
+               'maximum_active_frame_gap_ms': max(frames) if frames else None,
+               'median_keystroke_ms': statistics.median(keys) if keys else None,
+               'maximum_keystroke_ms': max(keys) if keys else None}
     checks = {'all_samples_passed': len(times) == args.samples, 'source_stable': before == after,
               'median_budget': bool(times) and metrics['median_batch_ms'] <= args.median_budget_ms,
               'p95_budget': bool(times) and metrics['p95_batch_ms'] <= args.p95_budget_ms,
