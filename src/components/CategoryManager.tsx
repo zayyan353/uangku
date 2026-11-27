@@ -21,7 +21,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : 'Pengaturan belum dapat diproses.';
 }
 
-export default function CategoryManager({ settings, budgets = {}, budgetsError = '', currencies = [], currency, usage = {}, onSave, onClose, notice }: {
+export default function CategoryManager({ newerVersion = false, settings, budgets = {}, budgetsError = '', currencies = [], currency, usage = {}, onSave, onClose, notice }: {
   settings: CategorySettings;
   /** Stored monthly limits; budgets are edited per currency and saved with the settings. */
   budgets?: BudgetMap;
@@ -34,6 +34,7 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
   onSave: (next: CategorySettings, nextBudgets?: BudgetMap, renames?: CategoryRename[]) => Promise<boolean>;
   onClose: () => void;
   notice?: string;
+  newerVersion?: boolean;
 }) {
   const [draft, setDraft] = useState(() => structuredClone(settings));
   const budgetCurrencies = [...new Set([...(currency ? [currency] : []), ...currencies])];
@@ -190,6 +191,11 @@ export default function CategoryManager({ settings, budgets = {}, budgetsError =
     } catch (reason) { setError(errorMessage(reason)); }
     finally { busyRef.current = false; setPending(null); if (fileRef.current) fileRef.current.value = ''; }
   }
+
+  if (newerVersion) return <Modal title="Kelola kategori" onClose={close}>
+    <div className="modal-body"><p className="notice warning" role="alert">{notice}</p></div>
+    {guard.prompt}
+  </Modal>;
 
   return <Modal title="Kelola kategori" subtitle="Kategori dan aturan milikmu, tersimpan di browser ini." onClose={close}>
     <div className="category-manager" aria-busy={pending !== null}>

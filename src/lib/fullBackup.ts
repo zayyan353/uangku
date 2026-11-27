@@ -1,7 +1,9 @@
-import { CATEGORY_SETTINGS_LIMIT, validateCategorySettings, type CategorySettings } from './categorySettings';
+import { CATEGORY_SETTINGS_LIMIT, readCategorySettings, validateCategorySettings, type CategorySettings } from './categorySettings';
 import { assertJsonBudget, utf8Bytes } from './jsonBudget';
 import { BUDGETS_LIMIT, isEmptyBudgets, validateBudgets, type BudgetMap } from './budgets';
 import { TEMPLATES_LIMIT, validateTemplates, type TransactionTemplate } from './transactionTemplates';
+import { NewerVersionError, rejectNewerVersion } from './newerVersion';
+import { MULTICURRENCY_SOURCE_CODEC } from './sourceCodec';
 import { sourceKeys } from './sourceModel';
 import { MAX_RESTORE_BYTES, serializeBackup, validateBackup, type StoredData } from './storage';
 
@@ -30,9 +32,6 @@ export function serializeFullBackup(ledger: StoredData, categorySettings: Catego
 /** A refusal whose own text already tells the user what is wrong; it is shown as it is. */
 export class RestoreRefusal extends Error {}
 
-/** A file written by a newer Uangku. The validators already say so in plain words, each for its own section. */
-const UNSUPPORTED_VERSION = /^Versi [^:]+ belum didukung\.$/;
-
 export const UNREADABLE_RESTORE_FILE = 'File ini bukan cadangan Uangku yang bisa dibaca. Pilih file uangku-lengkap-….json atau uangku-cadangan-….json.';
 
 /**
@@ -40,8 +39,24 @@ export const UNREADABLE_RESTORE_FILE = 'File ini bukan cadangan Uangku yang bisa
  * often English: it is kept as a detail the user can open, never shown as the message.
  */
 export function restoreFailure(reason: unknown): { message: string; detail: string } {
-  if (reason instanceof RestoreRefusal || reason instanceof Error && UNSUPPORTED_VERSION.test(reason.message)) return { message: reason.message, detail: '' };
+  if (reason instanceof RestoreRefusal || reason instanceof NewerVersionError) return { message: reason.message, detail: '' };
   return { message: UNREADABLE_RESTORE_FILE, detail: reason instanceof Error ? reason.message : typeof reason === 'string' ? reason : '' };
+}
+
+/** Check the version on either a standalone ledger or the ledger inside a full file. */
+function readLedgerFile(value: unknown): StoredData {
+  if (value && typeof value === 'object' && 'app' in value && value.app === 'uangku' && 'version' in value) {
+    rejectNewerVersion(value.version, 3);
+    if (value.version === 2 && 'codec' in value && typeof value.codec === 'string') {
+      const version = /^table-tuples-v([1-9]\d*)$/.exec(value.codec);
+      if (version) rejectNewerVersion(Number(version[1]), Number(MULTICURRENCY_SOURCE_CODEC.split('-v')[1]));
+    }
+    if ((value.version === 1 || value.version === 3) && 'state' in value) {
+      const state = value.state;
+      if (state && typeof state === 'object' && 'version' in state) rejectNewerVersion(state.version, 1);
+    }
+  }
+  return validateBackup(value);
 }
 
 /** Decode both sections before any caller can offer to apply the restore. */
@@ -50,12 +65,13 @@ export function parseRestoreFile(text: string): RestoreFile {
     throw new RestoreRefusal('Ukuran mentah file pemulihan maksimal 32 MiB.');
   }
   const file = JSON.parse(text);
-  if (file?.app !== FULL_BACKUP_APP) return { kind: 'ledger', ledger: validateBackup(file) };
+  if (file?.app !== FULL_BACKUP_APP) return { kind: 'ledger', ledger: readLedgerFile(file) };
+  rejectNewerVersion(file.version, 1);
 
   const full = sourceKeys(file, [...FULL_BACKUP_FIELDS, ...FULL_BACKUP_OPTIONAL], FULL_BACKUP_FIELDS, 'cadangan lengkap');
-  if (full.version !== 1) throw new RestoreRefusal('Versi cadangan lengkap belum didukung.');
+  if (full.version !== 1) throw new Error('Versi cadangan lengkap tidak valid.');
   assertJsonBudget(full.categorySettings, CATEGORY_SETTINGS_LIMIT, 'pengaturan kategori cadangan');
-  const categorySettings = validateCategorySettings(full.categorySettings);
+  const categorySettings = readCategorySettings(full.categorySettings);
   let budgets: BudgetMap | undefined;
   if (Object.hasOwn(full, 'budgets')) {
     assertJsonBudget(full.budgets, BUDGETS_LIMIT, 'anggaran cadangan');
@@ -66,5 +82,5 @@ export function parseRestoreFile(text: string): RestoreFile {
     assertJsonBudget(full.templates, TEMPLATES_LIMIT, 'template cadangan');
     templates = validateTemplates(full.templates);
   }
-  return { kind: 'full', ledger: validateBackup(full.ledger), categorySettings, ...(budgets ? { budgets } : {}), ...(templates ? { templates } : {}) };
+  return { kind: 'full', ledger: readLedgerFile(full.ledger), categorySettings, ...(budgets ? { budgets } : {}), ...(templates ? { templates } : {}) };
 }

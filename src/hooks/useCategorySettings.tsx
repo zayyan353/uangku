@@ -1,4 +1,5 @@
 import { createContext, useEffect, useState } from 'react';
+import { NewerVersionError, newerVersionMessage } from '../lib/newerVersion';
 import { STORAGE_KEY } from '../lib/storage';
 import { CATEGORY_SETTINGS_KEY, defaultCategorySettings, KEYWORD_PACK_VERSION, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
 import { effectiveCategorySettings } from '../lib/categorySettingsUpgrade';
@@ -27,7 +28,7 @@ function loadCategories() {
     }
     const effective = effectiveCategorySettings(raw);
     return { raw, settings: effective.settings, packAdded: effective.added, packUpdated: effective.updated ?? 0, error: effective.error };
-  } catch { return { raw, settings: { ...defaultCategorySettings(), rules: [] }, packAdded: 0, packUpdated: 0, error: 'Pengaturan kategori belum dapat dibaca. Pencocokan otomatis dihentikan sementara. Menyimpan formulir akan mengganti pengaturan yang tidak terbaca.' }; }
+  } catch (reason) { return { raw, settings: { ...defaultCategorySettings(), rules: [] }, packAdded: 0, packUpdated: 0, error: reason instanceof NewerVersionError ? newerVersionMessage : 'Pengaturan kategori belum dapat dibaca. Pencocokan otomatis dihentikan sementara. Menyimpan formulir akan mengganti pengaturan yang tidak terbaca.' }; }
 }
 export function useCategorySettings() {
   const [snapshot, setSnapshot] = useState(load);
@@ -54,6 +55,7 @@ export function useCategorySettings() {
     };
   }, [recovering]);
   async function save(next: CategorySettings, expectedRaw: string | null, budgetChange?: BudgetChange): Promise<void> {
+    if (snapshot.error === newerVersionMessage) throw new NewerVersionError();
     if (recovering) throw Error(restorePending);
     const checked = validateCategorySettings(next);
     const settings = validateCategorySettings({ ...checked, keywordPackVersion: KEYWORD_PACK_VERSION }), raw = JSON.stringify(settings);
@@ -89,5 +91,5 @@ export function useCategorySettings() {
       throw error;
     }
   }
-  return { ...snapshot, recovering, save };
+  return { ...snapshot, recovering, newerVersion: snapshot.error === newerVersionMessage, save };
 }

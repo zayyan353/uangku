@@ -1,3 +1,4 @@
+import { rejectNewerVersion } from './newerVersion';
 import { CATEGORY_NAMES } from './finance';
 import { DEFAULT_CATEGORY_RULES, type CategoryRule } from './categorization';
 import { mergeCategoryKeywordPack } from './categoryKeywordPack';
@@ -63,9 +64,20 @@ export function isUncategorized(category: string): boolean { return !category.tr
 export function categorySettingsExport(settings: CategorySettings): string {
   return JSON.stringify({ app: 'uangku-category-settings', version: 1, settings: validateCategorySettings(settings) });
 }
+/** Inspect versions before applying this build's closed schema to parsed settings. */
+export function readCategorySettings(value: unknown): CategorySettings {
+  if (value && typeof value === 'object' && 'version' in value) {
+    rejectNewerVersion(value.version, 1);
+    if (value.version === 1 && 'keywordPackVersion' in value) rejectNewerVersion(value.keywordPackVersion, KEYWORD_PACK_VERSION);
+  }
+  return validateCategorySettings(value);
+}
+
 export function parseCategorySettingsExport(raw: string): CategorySettings {
   if (new TextEncoder().encode(raw).length > CATEGORY_SETTINGS_LIMIT) throw Error('File pengaturan kategori maksimal 128 KiB.');
-  const wrapper = object(JSON.parse(raw), ['app', 'version', 'settings']);
+  const file = JSON.parse(raw);
+  if (file?.app === 'uangku-category-settings') rejectNewerVersion(file.version, 1);
+  const wrapper = object(file, ['app', 'version', 'settings']);
   if (wrapper.app !== 'uangku-category-settings' || wrapper.version !== 1) throw Error('File ini bukan pengaturan kategori Uangku.');
-  return validateCategorySettings(wrapper.settings);
+  return readCategorySettings(wrapper.settings);
 }
