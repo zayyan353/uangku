@@ -2838,9 +2838,18 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     terbentuk dalam 402 ms, dan 1.000 pencarian selesai dalam 9 ms.
     *Belum terbukti:* waktu pratinjau lengkap pada HP. Label dan pemilihan
     saran oleh pengguna diuji pada MW-147c.
-  - [ ] **c.** (M) Saran itu tampil di "Isi kategori otomatis" berlabel "Saran dari
+  - [x] **c.** (M) Saran itu tampil di "Isi kategori otomatis" berlabel "Saran dari
     riwayat"; pilihan bawaannya tetap "Lewati", sama seperti saran aturan. Tes
     browser di `tests/category_browser.py` atau `tests/bank_auto_browser.py`.
+    *Selesai:* dialog menampilkan sumber saran dan frekuensi kategori pada
+    merchant tersebut (`src/components/CategoryAutomation.tsx:50`).
+    *Tes:* kasus `merchant-history-suggestions` di `tests/category_browser.py`
+    awalnya gagal karena label belum ada. Pada build produksi sesudah perbaikan,
+    dua kasus Chromium lulus (saran riwayat dan aturan). Membuka, memilih
+    tanpa menerapkan, dan membatalkan menjaga isi penyimpanan identik; setelah
+    Terapkan hanya kategori yang dipilih berubah. 2.018 tes unit di 81 berkas
+    dan build produksi lulus.
+    *Belum terbukti:* pembaca layar serta perangkat fisik.
   - [ ] **d.** (S–M) Tombol "Jadikan aturan" pada saran: menambah aturan kata kunci
     biasa bermode saran lewat jalur simpan yang dipakai Kelola kategori
     (`src/components/CategoryManager.tsx`), jadi format pengaturan tidak

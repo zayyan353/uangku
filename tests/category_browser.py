@@ -86,11 +86,11 @@ def without_categories(data):
 
 
 class Case:
-    def __init__(self, browser, args, name, *, width=1440, theme='light', empty=False):
+    def __init__(self, browser, args, name, *, width=1440, theme='light', empty=False, initial=None):
         self.args, self.name, self.width = args, name, width
         self.errors, self.contrasts = [], []
         self.byte_comparisons, self.semantic_comparisons = 0, 0
-        self.raw = compact(fixture(empty))
+        self.raw = compact(initial if initial is not None else fixture(empty))
         self.settings_raw = compact(settings_fixture())
         parts = urlsplit(args.url)
         self.context = browser.new_context(
@@ -473,6 +473,49 @@ def history_automation(case):
     p.reload(wait_until='networkidle')
     assert stored_document(p) == after
     case.semantic_comparisons += 2
+
+
+
+def merchant_history_fixture():
+    data = fixture(empty=True)
+    for index in range(5):
+        data['state']['entries'].append({
+            'id': f'warung-{index}', 'date': f'2026-10-{20 + index}', 'type': 'expense',
+            'walletId': 'bank', 'amount': 2000, 'note': f'Warung Contoh #F-{index:010d}',
+            'category': 'Makan & minum' if index < 3 else UNCAT,
+        })
+    return data
+
+
+def merchant_history(case):
+    page = case.page
+    before = stored_document(page)
+    launch = page.get_by_role('button', name='Isi kategori otomatis', exact=True)
+    dialog = page.get_by_role('dialog', name='Isi kategori otomatis', exact=True)
+    launch.click()
+    rows = dialog.locator('.category-automation-row')
+    expect(rows).to_have_count(2)
+    for row in rows.all():
+        expect(row.get_by_text('Saran dari riwayat', exact=False)).to_be_visible()
+        expect(row).to_contain_text('3 dari 3 transaksi terakhir')
+        expect(row.get_by_role('combobox')).to_have_value('')
+        expect(row.locator('option:checked')).to_have_text('Lewati')
+    expect(dialog.get_by_role('button', name='Terapkan 0 kategori')).to_be_disabled()
+    case.unchanged()
+    chosen = rows.filter(has_text='Warung Contoh #F-0000000003').get_by_role('combobox')
+    chosen.select_option('Makan & minum')
+    dialog.get_by_role('button', name='Batal', exact=True).click()
+    case.unchanged()
+    launch.click()
+    expect(chosen).to_have_value('')
+    chosen.select_option('Makan & minum')
+    case.unchanged()
+    dialog.get_by_role('button', name='Terapkan 1 kategori', exact=True).click()
+    expect(dialog).to_have_count(0)
+    expected = copy.deepcopy(before)
+    next(row for row in expected['state']['entries'] if row['id'] == 'warung-3')['category'] = 'Makan & minum'
+    assert stored_document(page) == expected
+    case.semantic_comparisons += 1
 
 
 def write_statement(path):
@@ -941,6 +984,7 @@ def main():
              ('budget-progress-desktop', {}, budget_progress),
              ('budget-progress-mobile-dark', {'width': 390, 'theme': 'dark'}, budget_progress),
              ('history-auto-suggest-conflict-pending', {}, history_automation),
+             ('merchant-history-suggestions', {'initial': merchant_history_fixture()}, merchant_history),
              ('source-import-desktop', {'empty': True}, source_import),
              ('source-import-mobile-dark', {'empty': True, 'width': 390, 'theme': 'dark'}, source_import),
              ('settings-stale-tab-CAS', {}, stale_settings),
