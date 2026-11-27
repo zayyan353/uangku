@@ -2594,8 +2594,15 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dan hilang saat satu dompet dipilih. Anggaran hanya menghitung pengeluaran
   terkonfirmasi, jadi tepat setelah impor angkanya terlalu rendah sampai baris
   "Perlu dicek" ditinjau.
-  - [ ] **a.** (S) Pembantu murni di `src/lib/budgets.ts` + tes: porsi terpakai,
-    porsi bulan berjalan, status (aman / hampir habis dari 80% / lewat).
+  - [x] **a.** (S) `budgetProgress` di `src/lib/budgets.ts` menghitung porsi
+    batas yang terpakai dan porsi bulan kalender yang telah berjalan sampai
+    hari ini (inklusif). Bulan lalu bernilai 1, bulan mendatang 0.
+    *Keputusan:* 80% sampai tepat 100% termasuk hampir habis. Di atas 100%
+    berarti lewat. Perbandingan memakai satuan terkecil sebelum pembulatan.
+    *Tes:* 3 kasus regresi gagal sebelum fungsi ada; sesudahnya 2.056 tes
+    unit di 88 berkas dan build produksi lulus. Kasus meliputi tahun kabisat,
+    batas 80/100%, nominal mendekati batas aman dan masukan tidak valid.
+    *Belum terbukti:* tampilan peringatan diuji pada subbutir b.
   - [ ] **b.** (S–M) Satu banner di Ringkasan bila ada anggaran hampir habis atau
     lewat.
   - [ ] **c.** (M) Di form pengeluaran: "Sisa anggaran Makan & minum bulan ini: Rp

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyBudgetInputs, BUDGETS_LIMIT, budgetInputs, categoryBudgetRows, isEmptyBudgets, parseStoredBudgets, serializeBudgets, validateBudgets } from './budgets';
+import { applyBudgetInputs, budgetProgress, BUDGETS_LIMIT, budgetInputs, categoryBudgetRows, isEmptyBudgets, parseStoredBudgets, serializeBudgets, validateBudgets } from './budgets';
 
 describe('validateBudgets', () => {
   it('accepts per-currency monthly limits in minor units', () => {
@@ -134,5 +134,31 @@ describe('categoryBudgetRows (MW-12c)', () => {
     expect(rows.find(row => row.name === 'F')).toMatchObject({ over: true, remaining: -100 });
     expect(rows.find(row => row.name === 'Apel')).toMatchObject({ spent: 0, remaining: 50, over: false });
     expect(hidden).toBe(1);
+  });
+});
+
+describe('budgetProgress', () => {
+  it('compares exact minor units before rounding the display', () => {
+    const limit = 9_007_199_254_740_990;
+    const threshold = 7_205_759_403_792_792;
+    for (const [spent, status] of [[0, 'safe'], [threshold - 1, 'safe'], [threshold, 'near'], [limit, 'near'], [limit + 1, 'over']] as const) {
+      expect(budgetProgress(spent, limit, '2024-02', '2024-02-15')).toEqual({
+        used: spent / limit, elapsed: 15 / 29, status,
+      });
+    }
+  });
+
+  it('counts the local calendar day inclusively and clamps months outside today', () => {
+    expect(budgetProgress(175, 100, '2026-02', '2026-02-01')).toEqual({ used: 1.75, elapsed: 1 / 28, status: 'over' });
+    expect(budgetProgress(0, 100, '2026-01', '2026-02-01').elapsed).toBe(1);
+    expect(budgetProgress(0, 100, '2026-03', '2026-02-01').elapsed).toBe(0);
+  });
+
+  it('rejects invalid amounts, limits, and calendar dates', () => {
+    for (const [spent, limit] of [[-1, 50], [10, 0], [1.5, 50], [10, Number.MAX_SAFE_INTEGER + 1]]) {
+      expect(() => budgetProgress(spent, limit, '2026-04', '2026-04-01')).toThrow(RangeError);
+    }
+    expect(() => budgetProgress(0, 1, '2026-13', '2026-01-01')).toThrow(RangeError);
+    expect(() => budgetProgress(0, 1, '2026-01', '2026-02-29')).toThrow(RangeError);
   });
 });
