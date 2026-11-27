@@ -2589,7 +2589,7 @@ run tersusul push yang lebih baru di branch yang sama.
   (lihat F2) sebelum ini. Gate Chromium-saja di `main` baru bisa dikerjakan
   sesudah MW-138.
 
-- [ ] **MW-140 — Izin workflow dan pin action**
+- [x] **MW-140 — Izin workflow dan pin action**
   - [x] **a.** (S) Batasi izin publikasi ke job deploy.
     *Selesai:* `.github/workflows/pages.yml:14,31–33,69–71` memberi build
     `contents: read` dan `pages: read`. Dengan nilai bawaan `enablement: false`,
@@ -2600,7 +2600,14 @@ run tersusul push yang lebih baru di branch yang sama.
     pemindaian lokal zizmor. 2.051 tes unit dan build produksi lulus.
     *Belum terbukti:* penggunaan token sesungguhnya diperiksa pada run
     **Publikasikan Uangku** pertama sesudah merge.
-  - [ ] **b.** (S) Pin setiap action ke SHA commit, dengan tag di komentar.
+  - [x] **b.** (S) Pin setiap action ke SHA commit, dengan tag di komentar.
+    *Selesai:* keempat belas rujukan action eksternal di dua workflow memakai
+    tujuh SHA commit resmi. Komentar di samping tiap SHA mencatat tag asalnya.
+    *Tes:* pemeriksaan rujukan gagal pada tag, lalu lulus untuk 14/14 SHA yang
+    dicocokkan ke tag melalui API GitHub. Temuan `unpinned-uses` zizmor turun
+    dari 14 ke 0. Sebanyak 2.051 tes unit dan build produksi lulus.
+    *Belum terbukti:* eksekusi action di GitHub diperiksa pada CI dan publikasi.
+    Pin hanya mencakup rujukan action langsung dalam repo ini.
 
 - [ ] **MW-141 — Dependensi dan pemeriksaan kompiler** *(sebagian)*
   `npm audit` saat tinjauan: 8 temuan; 7 "high" semuanya alat build/tes lewat
