@@ -1923,3 +1923,10 @@ html[data-theme="dark"] .spending-calendar {
 .spending-details small { display: block; color: var(--text-muted); }
 .spending-details .text-link { display: block; }
 @media (max-width: 760px), (pointer: coarse) { .spending-calendar { --day-size: 44px; } }
+
+.currency-balances { margin: 0 0 18px; padding: 14px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+.currency-balances h2 { margin: 0; font-size: 15px; color: var(--text); }
+.currency-balances p, .currency-balances dt { color: var(--text-muted); font-size: 13px; }
+.currency-balances p { margin: 4px 0 12px; }
+.currency-balances dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 7rem), 1fr)); gap: 8px 16px; margin: 0; }
+.currency-balances dd { margin: 2px 0 0; color: var(--text); font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }

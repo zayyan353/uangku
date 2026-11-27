@@ -2633,9 +2633,22 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   - [ ] **c.** (S) Pilih satu kategori untuk melihat barisnya selama 6 bulan.
 
 - [ ] **MW-132 — Saldo semua mata uang berdampingan**
-  Saldo dan laporan hanya tampil satu mata uang per tab.
-  - [ ] **a.** (S, tanpa keputusan) Strip "Semua mata uang" di Ringkasan/Dompet:
-    saldo tiap mata uang berdampingan, **tidak** dijumlahkan.
+  Laporan per mata uang tetap dapat dipilih lewat tab.
+  - [x] **a.** *Selesai:* strip “Semua mata uang” di Ringkasan dan Dompet
+    menunjukkan saldo rekening dan e-wallet per tanggal perangkat, termasuk
+    dompet arsip. Setiap mata uang yang memiliki rekening atau e-wallet
+    ditampilkan tersendiri. Kalender posting menentukan sisi transfer dan
+    biayanya. Jika tanggal posting belum diketahui, batas saldo awal belum
+    tercapai, atau angka terlampau besar, saldo mata uang itu ditandai
+    “Belum dapat dipastikan” (`src/lib/finance.ts:290`,
+    `src/components/CurrencyBalances.tsx:4`).
+    *Tes:* sebelum perbaikan, tiga unit dan dua kasus Chromium gagal.
+    Lulus 2.059 tes unit (88 berkas), build produksi, 39 kasus arus rekening,
+    24 kasus Dompet serta 1 pemeriksaan tambahan pada lebar 320 px dalam
+    tema gelap (Chromium). Data sintetis memeriksa batas angka, saldo arsip,
+    dua tanggal transfer, dan saldo hari ini setelah memilih bulan lampau
+    (`src/lib/finance.test.ts:40`, `tests/cashflow_browser.py:595`).
+    *Belum terbukti:* tata letak pada HP fisik dan pembacaan oleh pembaca layar.
   - [ ] **b.** (L) — **butuh keputusan** Perkiraan total memakai kurs acuan yang
     diketik pemilik, berlabel jelas "perkiraan". `README.md:27` menyatakan
     nominal berbeda mata uang tidak dijumlahkan langsung, jadi aturan itu harus

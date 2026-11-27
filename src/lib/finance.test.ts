@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  buildDemoState, formatDate, formatMoney, parseMoney, summaryForCurrency,
+  buildDemoState, currentCurrencyBalances, formatDate, formatMoney, parseMoney, summaryForCurrency,
   validateEntry, validateWallet, walletBalance,
   type Entry, type State, type Wallet,
 } from './finance';
@@ -34,6 +34,41 @@ describe('monetary input preserves exact minor units', () => {
   it('accepts the exact safe integer boundary but not a cent more', () => {
     expect(parseMoney('90071992547409.91')).toBe(Number.MAX_SAFE_INTEGER);
     expect(parseMoney('90071992547409.92')).toBeNull();
+  });
+});
+
+describe('current balances by account currency', () => {
+  const day = '2026-10-31';
+  const transfer = entry({ id: 'transfer', type: 'transfer', walletId: 'bank-idr', toWalletId: 'bank-try',
+    amount: 50_000, toAmount: 100, fee: 200, rate: 0.002 });
+  const rows = state([transfer]);
+
+  it('counts each dated transfer leg and its fee on the relevant day, including holdings of the same currency', () => {
+    const mixed: State = { ...rows, wallets: [...wallets,
+      { ...wallets[2], id: 'digital', kind: 'ewallet', openingBalance: -1_000 },
+      { ...wallets[1], id: 'cash-usd', currency: 'USD', openingBalance: 30_000 }] };
+    const dates = { transfers: [{ entryId: transfer.id, sourceDate: day, destinationDate: '2026-11-01' }] };
+    expect(Object.fromEntries(currentCurrencyBalances(mixed, day, dates))).toEqual({ IDR: 99_949_800, TRY: 9_000 });
+    expect(currentCurrencyBalances(mixed, '2026-11-01', dates).get('TRY')).toBe(9_100);
+  });
+
+  it('marks only the affected currency unknown for an undated leg or an approved baseline after the cutoff', () => {
+    const dates = { transfers: [{ entryId: transfer.id, sourceDate: null, destinationDate: day }] };
+    expect(Object.fromEntries(currentCurrencyBalances(rows, day, dates))).toEqual({ IDR: null, TRY: 10_100 });
+    const baseline = { baselines: [{ id: 'b', walletId: 'bank-try', status: 'confirmed' as const,
+      boundary: { kind: 'before-source' as const, date: '2026-11-01' } }], baselineDecisions: [{ baselineId: 'b' }] };
+    expect(Object.fromEntries(currentCurrencyBalances(rows, day, baseline))).toEqual({ IDR: 99_949_800, TRY: null });
+  });
+
+  it('sums exactly across wallets and confines wallet or currency overflow to that currency', () => {
+    const max = Number.MAX_SAFE_INTEGER;
+    const other = { ...wallets[0], id: 'second', openingBalance: max };
+    const mixed: State = { ...state(), wallets: [{ ...wallets[0], openingBalance: 1 }, other, wallets[2]] };
+    expect(Object.fromEntries(currentCurrencyBalances(mixed, day))).toEqual({ IDR: null, TRY: 10_000 });
+    mixed.wallets.push({ ...other, id: 'negative', openingBalance: -max });
+    expect(currentCurrencyBalances(mixed, day).get('IDR')).toBe(1);
+    mixed.entries.push(entry({ type: 'income', walletId: other.id, amount: 1 }));
+    expect(currentCurrencyBalances(mixed, day).get('IDR')).toBeNull();
   });
 });
 
