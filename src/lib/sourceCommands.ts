@@ -242,7 +242,7 @@ function legacyXmlText(text: string): string {
 function xmlObservationKey(fact: SourceFact, description: string, reference: string): string {
   return JSON.stringify([fact.walletId, fact.currency, fact.postedOn, fact.signedAmount, fact.balanceAfter, description, reference]);
 }
-function matchRow(data: SourceDocument, wallet: Wallet, row: ImportRow, index: SourceIndex): Match {
+function matchRow(wallet: Wallet, row: ImportRow, index: SourceIndex): Match {
   const incoming=factFor(row,wallet,''),target=factSignature(incoming);
   const candidates=index.factsByFingerprint.get(row.sourceKey)??[];
   const exact=candidates.filter(fact=>factSignature(fact)===target);
@@ -316,7 +316,7 @@ function projectedState(data: SourceDocument, walletId?: string): State {
 function legacyDecisions(decisions: SourcedImportDecisions): ImportDecisions {
   return Object.fromEntries(Object.entries(decisions).filter(([,d])=>d?.resolution==='skip'||d?.resolution==='distinct')) as ImportDecisions;
 }
-function reviewFor(data: SourceDocument,wallet: Wallet,row: ImportRow,match: Match,index: SourceIndex): SourceReview|undefined {
+function reviewFor(wallet: Wallet,row: ImportRow,match: Match,index: SourceIndex): SourceReview|undefined {
   const disposition=index.dispositions.get(match.fact?.id??'');
   let status:SourceReviewStatus|undefined;
   if(match.ambiguous||match.collision)status='identity-ambiguous';
@@ -351,7 +351,7 @@ function reviewFor(data: SourceDocument,wallet: Wallet,row: ImportRow,match: Mat
 }
 export function inspectSourcedImport(data:SourceDocument,wallet:Wallet,preview:ImportPreview,decisions:SourcedImportDecisions={}):SourcedInspection {
   const index=sourceIndex(data),sourceReviews:Record<string,SourceReview>={};
-  for(const row of preview.rows){const review=reviewFor(data,wallet,row,matchRow(data,wallet,row,index),index);if(review)sourceReviews[row.id]=review;}
+  for(const row of preview.rows){const review=reviewFor(wallet,row,matchRow(wallet,row,index),index);if(review)sourceReviews[row.id]=review;}
   const base=inspectImport(projectedState(data,wallet.id),wallet,{...preview,rows:preview.rows.map(row=>sourceReviews[row.id]?{...row,selected:false,duplicate:false}:row)});
   let needsReview=base.changedFingerprintIds.length>0;
   const rows=base.rows.map((row,i)=>{const review=sourceReviews[row.id];if(!review)return row;const original=preview.rows[i],decision=decisions[row.id];
@@ -395,7 +395,7 @@ export function prepareSourcedImport(data:SourceDocument,wallet:Wallet,preview:I
     const next=structuredClone(data),metadata=next.metadata??emptyMetadata();next.metadata=metadata;
     const factIds=new Set(metadata.facts.map(f=>f.id)),rowSources=new Map<string,SourceFact>();
     for(const [i,row]of ordered.entries()){
-      const match=matchRow(data,wallet,row,index),fact=match.fact??factFor(row,wallet,`sf:${batchId}:${i}`);
+      const match=matchRow(wallet,row,index),fact=match.fact??factFor(row,wallet,`sf:${batchId}:${i}`);
       if(!match.fact){if(factIds.has(fact.id))throw new Error('ID batch impor sudah dipakai untuk fakta lain.');metadata.facts.push(fact);factIds.add(fact.id);}
       rowSources.set(row.id,fact);
     }
@@ -430,7 +430,7 @@ export function prepareSourcedImport(data:SourceDocument,wallet:Wallet,preview:I
     }
     const restoredGroups=new Set<string>();
     for(const row of inspection.rows){const review=inspection.sourceReviews[row.id];if(!review||!['restore','distinct'].includes(decisions[row.id]?.resolution??''))continue;
-      const fact=rowSources.get(row.id)!,match=matchRow(data,wallet,row,index);
+      const fact=rowSources.get(row.id)!,match=matchRow(wallet,row,index);
       if(match.deletedTransfer){const id=match.deletedTransfer.entry.id;if(restoredGroups.has(id))continue;const restored=executeTransferCommand(next,{kind:'restore-deleted',entryId:id,reason:'Pulihkan seluruh transfer sesuai snapshot penghapusan, kedua tanggal, biaya, dan koreksinya.',at});next.state=restored.state;Object.assign(metadata,restored.metadata);appended.push(next.state.entries.find(e=>e.id===id)!);restoredGroups.add(id);continue;}
       const previous=match.entry??match.legacyEntry;if(previous?.type==='transfer')throw new Error(E4_MESSAGE);
       const restored=review.status==='alternate-source' ? entriesFromImport([{...row, selected:true, duplicate:false}],wallet.id,batchId)[0] : bankEntry(fact,previous?.id??`entry:${row.sourceKey}:${batchId}`,batchId,previous,index.annotations.get(fact.id));

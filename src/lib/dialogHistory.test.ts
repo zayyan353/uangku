@@ -345,7 +345,7 @@ describe('MW-113b dialog history', () => {
     expect([refused.asked, state.page, b.index]).toEqual([0, '', 0]);
     // Once writes work again the open dialog gets its entry with the next change.
     b.win.history.pushState = push;
-    const next = dialog(keeper);
+    dialog(keeper);
     b.idle();
     expect([b.index, b.entries.length]).toEqual([1, 2]);
   });

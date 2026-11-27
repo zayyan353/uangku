@@ -2618,9 +2618,14 @@ run tersusul push yang lebih baru di branch yang sama.
   - [ ] **a.** (S) Naikkan `fast-xml-parser` ke 5.12.1 dan vite/vitest ke rilis
     terbaru dalam versi mayor yang sama (saat tinjauan: vite 8.3.5 → 8.3.8,
     vitest 5.0.5 → 5.1.1; untuk vitest itu rilis minor).
-  - [ ] **b.** (S) Nyalakan `noUnusedLocals` dan `noUnusedParameters`: 16 galat (11
-    impor mati di `src/App.tsx`, 2 parameter di `src/lib/sourceCommands.ts`, 3 di
-    file tes).
+  - [x] **b.** (S) Nyalakan `noUnusedLocals` dan `noUnusedParameters`.
+    *Selesai:* kedua opsi ada di `tsconfig.json`. Sepuluh impor di
+    `src/App.tsx`, dua parameter fungsi privat di `src/lib/sourceCommands.ts`
+    dan empat deklarasi tak terpakai dalam tes dirapikan. Pemanggilan yang
+    menguji efek membuka dialog tetap dilakukan.
+    *Tes:* build pertama melaporkan 16 galat TS6133. Setelah koreksi build
+    produksi dan 2.051 tes unit di 88 berkas lulus.
+    *Belum terbukti:* kompiler hanya memeriksa file yang dicakup tsconfig.
   - [ ] **c.** (S) `.github/dependabot.yml` untuk `npm` dan `github-actions`
     (supaya SHA yang dipin di MW-140b ikut diperbarui), mingguan dan
     dikelompokkan. Setiap PR Dependabot memicu gate penuh ±12 menit.
