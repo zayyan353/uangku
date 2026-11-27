@@ -1240,7 +1240,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
 - [ ] **MW-100 — Penyimpanan kosong menawarkan "Pulihkan cadangan"; status persisten terlihat** (S) *(sebagian)*
   Profil yang terhapus dibuka sebagai data contoh. Jawaban
   `navigator.storage.persist()` hanya tampil di jendela Privasi
-  (`src/App.tsx:741`, `src/lib/storagePersistence.ts:47-58`).
+  (`src/components/PrivacyNotice.tsx:11`, `src/lib/storagePersistence.ts:47–59`).
   - [x] **a.** Banner data contoh menampilkan "Punya file cadangan?" dan tombol
     **Pulihkan cadangan**. Tombol membuka pemilih JSON dan pratinjau yang sama
     dengan menu. Di Chromium desktop dan ponsel, membatalkan pratinjau
@@ -1250,10 +1250,14 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   - [ ] **b.** Status "penyimpanan persisten: tidak" terlihat di dekat label simpan,
     dengan tautan ke penjelasannya. Jawaban `persist()` di perangkat pemilik
     belum diuji; di browser uji hasilnya "tidak".
-  - [ ] **c.** Kalimat di Privasi tentang Safari yang dapat menghapus data setelah 7
-    hari tidak dibuka. Sesi AI tidak bisa mengeceknya: tulis sebagai kemungkinan
-    ("dapat"), dan jadikan pernyataan pasti hanya sesudah pemilik mengeceknya
-    di iPhone asli (bersama MW-105b).
+  - [x] **c.** Peringatan di Privasi tentang Safari dan data lokal.
+    *Selesai:* `src/components/PrivacyNotice.tsx:14` menjelaskan bahwa Safari
+    dapat menghapus catatan setelah tujuh hari penggunaan Safari tanpa interaksi
+    di Uangku. Batas tersebut mengikuti [penjelasan WebKit tentang ITP](https://webkit.org/blog/10218/full-third-party-cookie-blocking-and-more/).
+    *Tes:* pemeriksaan teks awal gagal; kedua kasus Chromium penyimpanan
+    desktop dan emulasi HP lulus sesudah perubahan. Lokal: 2.009 tes unit
+    dan build produksi lulus.
+    *Belum terbukti:* penghapusan aktual di iPhone fisik pemilik (MW-105b).
   - [ ] **d.** (M, opsional) — **butuh keputusan** Cadangan otomatis di Chromium
     desktop: pemilik memilih satu file sekali (File System Access API); setiap
     simpan yang berhasil menulis ulang cadangan lengkap ke file itu; kegagalan

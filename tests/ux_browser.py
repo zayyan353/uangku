@@ -279,6 +279,7 @@ def storage_case(browser, args, output, mobile):
         expect(reminder).to_be_visible()
         expect(warning).to_have_count(0)
         dialog = open_privacy(page)
+        expect(dialog).to_contain_text('Safari dapat menghapus catatan setelah 7 hari penggunaan Safari tanpa interaksi dengan Uangku.')
         used = page.evaluate(STORAGE_SUM_JS)
         assert len(raw) < used < 100_000, used
         usage = dialog.get_by_test_id('storage-usage')
