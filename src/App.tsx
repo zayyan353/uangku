@@ -183,8 +183,9 @@ export default function App() {
   // A toast that offers an action stays longer, so there is time to reach its button.
   useEffect(() => { if (toast && !toast.error) { const id = setTimeout(dismissToast, toast.action ? 10000 : 5500); return () => clearTimeout(id); } }, [toast, dismissToast]);
   useEffect(() => { writePreferences({ ...preferences, currency }); }, [preferences, currency]);
-  useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, reviewQueueOpen, historyPeriod, historyPage, reviewReason, historyWallet, historyCategory, historySort]);
-  useEffect(() => { setHistoryPage(1); }, [query, filter, reviewQueueOpen, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet, historyCategory, historySort]);
+  // A change in the filters resets these controls. Selecting rows or paging alone must still work.
+  useEffect(() => { if (selectedEntryIds.length) setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, reviewQueueOpen, historyPeriod, historyPage, reviewReason, historyWallet, historyCategory, historySort]);
+  useEffect(() => { if (historyPage !== 1) setHistoryPage(1); }, [query, filter, reviewQueueOpen, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet, historyCategory, historySort]);
   useEffect(() => { setAmountDetail(null); }, [state]);
   async function persistCandidate(next: StoredData, options?: CandidateOptions & { replaceLedger?: boolean }): Promise<boolean> {
     if (mutationInFlight.current) return false;

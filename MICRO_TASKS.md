@@ -1728,12 +1728,19 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   perlambatan dan median 160 ms (maks 448) pada CPU 4×. Median pada CPU 4× sama
   pada 1.000 dan 5.000 baris (maksimum 208 ms lawan 448 ms): biayanya render
   ulang penuh `App` dua kali per ketikan
-  (state pencarian dan efek seleksi kini di `src/App.tsx:119,186`), bukan jumlah baris. Besar perbaikannya belum
+  (state pencarian dan efek seleksi kini di `src/App.tsx:119,187–188`), bukan jumlah baris. Besar perbaikannya belum
   diukur.
-  - [ ] **a.** Pembaruan di `src/App.tsx:186` tidak membuat array baru bila sudah
-    kosong. Memindahkan state pencarian keluar dari `App` bukan bagian butir
-    ini; itu dikerjakan sebagai MW-144a–b. Kerjakan butir c lebih dulu supaya
-    hasil a dan b terukur.
+  - [x] **a.** Lewati reset seleksi yang sudah kosong ketika filter berubah.
+    *Selesai:* efek di `src/App.tsx:187–188` juga melewati reset pagination bila
+    sudah di halaman pertama. Kedua efek sebelumnya menjadwalkan pembaruan
+    ketika mengetik; memperbaiki efek seleksi saja masih menghasilkan dua
+    commit React per ketikan pada build produksi.
+    *Tes:* dua ketikan dengan seleksi kosong menghasilkan empat commit React
+    pada induk dan dua sesudah perbaikan. Seleksi yang terisi tetap kosong
+    setelah pencarian diganti dan byte ledger identik. Pada 40 ketikan di
+    10.000 baris, median 34,1 ms, maksimum 73,9 ms. Kelima batch edit dan satu
+    impor v2 lulus; 2.052 tes unit di 88 berkas dan build produksi lulus.
+    *Belum terbukti:* peningkatan latensi yang konsisten di HP fisik.
   - [ ] **b.** Simpan judul huruf kecil di dalam indeks, bukan dihitung per baris per
     ketikan (`src/lib/historyView.ts:91-92`).
   - [x] **c.** Sampel ketikan di `tests/performance_browser.py:92,178,339–344`.
