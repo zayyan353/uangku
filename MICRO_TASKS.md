@@ -2862,7 +2862,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   berformat `Sumber [Angka] Tujuan`, dan memprosesnya di browser pengguna.
   Uangku cukup menyusun teksnya; pengguna menempelkannya sendiri di
   sankeymatic.com/build, jadi aplikasi tetap tanpa permintaan jaringan.
-  - [ ] **a.** (S) `src/lib/sankeyText.ts` + tes, dari `buildCashflowReport`
+  - [x] **a.** (S) `src/lib/sankeyText.ts` + tes, dari `buildCashflowReport`
     (`src/lib/cashflowReport.ts`) untuk satu mata uang dan satu bulan. Baris
     `Pemasukan [incomeTotal] Kas bulan ini`, lalu satu baris
     `Kas bulan ini [nominal] <kategori>` per isi `categoryTotals`. Bila
@@ -2872,6 +2872,17 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     dibersihkan dari `[` dan `]`, juga dari awalan `:` dan `//` yang berarti
     khusus di SankeyMATIC. Kategori bernilai ≤ 0 dilewati dan disebut di baris
     komentar. Baris pertama: `// Uangku · <bulan> · <mata uang>`.
+    *Selesai:* nominal diekspor dalam digit mayor sesuai katalog. Hanya arus
+    positif dihitung pada simpul pusat. Nama kategori tetap terpisah setelah
+    karakter khusus dibersihkan, termasuk jika menyerupai nama simpul pusat.
+    *Tes:* uji awal gagal karena modul belum ada. Setelah penyesuaian harapan
+    tes untuk IDR (2 digit menurut katalog), sembilan kasus lulus, begitu juga
+    2.048 tes unit di 85 berkas dan build produksi. Keluaran fungsi untuk
+    Oktober 2026 ditampilkan di SankeyMATIC upstream `a6d8053e` yang dijalankan
+    lokal di browser: 5 simpul, 4 arus, masuk dan keluar Kas bulan ini
+    masing-masing USD 1.234,56 tanpa selisih.
+    *Belum terbukti:* tampilan pada situs publik sankeymatic.com/build;
+    akses HTTPS dari lingkungan pengujian mendapat 403 dari proxy.
   - [ ] **b.** (S) Tombol "Salin untuk SankeyMATIC" di Ringkasan
     (`src/components/CashflowOverview.tsx`) dengan pratinjau teks yang bisa
     dipilih (cadangan bila clipboard ditolak) dan tautan ke
