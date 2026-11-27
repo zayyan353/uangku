@@ -3,6 +3,7 @@ import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { formatDate, formatMoney, type Currency, type Wallet } from '../lib/finance';
 import { monthLabel } from '../lib/historyView';
 import type { CashflowReport } from '../lib/cashflowReport';
+import SankeyExport from './SankeyExport';
 
 interface Props {
   report?: CashflowReport;
@@ -140,5 +141,6 @@ export default function CashflowOverview({ report, error, currency, month, perio
     </section>
     <section className="panel cashflow-breakdown-panel"><FoldHeader title="Rincian arus rekening" description="Jenis operasi mengikuti keterangan mutasi; tujuan belanjanya bisa tetap belum diketahui." summary={!report ? 'Rincian arus belum dapat dihitung · ketuk untuk melihat' : breakdownCount ? `${breakdownCount} jenis operasi · ketuk untuk melihat` : 'Belum ada arus · ketuk untuk melihat'} open={breakdownOpen} controls={breakdownId} onToggle={() => setFolds(f => ({ ...f, breakdown: !breakdownOpen }))} /><div className="cashflow-table-wrap fold-body" id={breakdownId} hidden={!breakdownOpen}><table className="cashflow-table" data-testid="cashflow-breakdown"><thead><tr><th>Jenis operasi</th><th>Uang masuk</th><th>Uang keluar</th></tr></thead><tbody>{report?.breakdown.map(row => <tr key={row.id}><th scope="row">{row.label}</th><td>{flow(row.inflow)}</td><td>{flow(row.outflow)}</td></tr>)}{!breakdownCount && <tr className="cashflow-empty"><td colSpan={3}>{report ? 'Belum ada arus pada periode ini.' : 'Rincian arus belum dapat dihitung.'}</td></tr>}</tbody>{breakdownCount > 0 && <tfoot><tr data-testid="cashflow-breakdown-total"><th scope="row">Jumlah</th><td>{amount(report?.inflow)}</td><td>{amount(report?.outflow)}</td></tr></tfoot>}</table></div></section>
     </>}
+    {report && period === 'month' && !report.notStarted && <div className="cashflow-export"><SankeyExport report={report} currency={currency} month={month} /></div>}
   </div>;
 }

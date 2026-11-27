@@ -2855,7 +2855,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     (`src/components/CategoryManager.tsx`), jadi format pengaturan tidak
     berubah. Mengubahnya ke otomatis tetap pilihan pengguna.
 
-- [ ] **MW-148 — Ekspor diagram aliran uang ke SankeyMATIC**
+- [x] **MW-148 — Ekspor diagram aliran uang ke SankeyMATIC**
   Ringkasan sudah menyebut pemasukan, pengeluaran berkategori, dan selisih
   (MW-128), tetapi tanpa gambar aliran. SankeyMATIC (`nowthis/sankeymatic`,
   lisensi ISC) menggambar diagram Sankey dari teks satu aliran per baris,
@@ -2883,11 +2883,22 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     masing-masing USD 1.234,56 tanpa selisih.
     *Belum terbukti:* tampilan pada situs publik sankeymatic.com/build;
     akses HTTPS dari lingkungan pengujian mendapat 403 dari proxy.
-  - [ ] **b.** (S) Tombol "Salin untuk SankeyMATIC" di Ringkasan
+  - [x] **b.** (S) Tombol "Salin untuk SankeyMATIC" di Ringkasan
     (`src/components/CashflowOverview.tsx`) dengan pratinjau teks yang bisa
     dipilih (cadangan bila clipboard ditolak) dan tautan ke
     sankeymatic.com/build di tab baru. Tes browser memeriksa isi pratinjau,
     bukan clipboard.
+    *Selesai:* tombol menyalin laporan bulan, mata uang, dan cakupan dompet
+    terpilih. Dialog menampilkan teks yang bisa dipilih saat clipboard
+    ditolak, serta tautan yang dibuka pengguna sendiri di tab baru.
+    *Tes:* sebelum perubahan, Chromium gagal menemukan tombol. Sesudahnya
+    kasus `sankey-copy-monthly-scope` lulus: pratinjau TRY dan USD sesuai
+    cakupan, teks terpilih bisa disalin manual, dan tidak ada permintaan
+    ke SankeyMATIC saat ekspor. Lima pembandingan catatan identik. Seluruh
+    2.048 tes unit di 85 berkas dan build produksi lulus.
+    *Belum terbukti:* clipboard perangkat pengguna. Tes browser mensimulasikan
+    penolakan dan keberhasilan. Verifikasi diagram lokal dan batas akses
+    situs publik dicatat di MW-148a.
   *Selesai kalau:* teks contoh menghasilkan diagram seimbang di SankeyMATIC
   (masuk sama dengan keluar di node tengah); pengecekan manualnya dicatat di
   laporan.
