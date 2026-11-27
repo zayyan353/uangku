@@ -2164,19 +2164,19 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     tambah ke data terbaru lewat Web Lock dan validasi yang sama. Perilaku sekarang
     (berhenti dan simpan draft) mengikuti aturan token di `AGENTS.md`.
 
-- [ ] **MW-121 — Pilihan jenis dan nama kolom terbaca oleh pembaca layar** (S)
-  Lima tombol "Jenis transaksi" dan sakelar "Isi kurs / Isi jumlah diterima"
-  tidak membawa status terpilih (`src/components/TransactionModal.tsx:370`,
-  `:430`). Nama yang diumumkan juga berbeda dari label yang terlihat: di "Cek
-  saldo" kolom saldo bernama "Nominal" dan "Dompet" bernama "Dompet asal"
-  (`:365`, `:368`); di Transfer kolom "Tanggal" bernama "Tanggal debit"
-  (`:380`). Tambahkan `role="group"` dan `aria-pressed`, dan buat nama
-  mengikuti label per mode. MW-68 mengganti selektor CSS yang bergantung pada
-  `aria-label` yang sama; kerjakan MW-68 tepat sebelum ini (satu MW per PR).
-  Tes browser memakai nama sekarang: `get_by_label` dengan "Nominal" 42 kali
-  dan "Dompet asal" 30 kali, masing-masing di 10 file `tests/*.py`, serta
-  "Tanggal debit" 2 kali. Pertahankan nama untuk mode lain atau perbarui tesnya
-  di PR yang sama.
+- [x] **MW-121 — Pilihan jenis dan nama kolom terbaca oleh pembaca layar** (S)
+  *Selesai:* lima jenis transaksi dan dua cara mengisi kurs menggunakan grup
+  tombol dengan status terpilih (`src/components/TransactionModal.tsx:391`,
+  `:451`). Nama dompet, nominal, kurs dan tanggal mengikuti label yang
+  terlihat untuk tiap mode (`:386–402`). Kode mata uang menjadi deskripsi
+  nominal. Tanggal debit dan kredit tetap dibedakan ketika tanggalnya dipisah.
+  *Tes:* pada build MW-68, uji Chromium menemukan 0 dari 5 tombol dalam grup
+  jenis. Pada kandidat, uji desktop dan HP di `tests/ux_browser.py:196`
+  memeriksa kelima mode dan kedua arah pasangan mata uang. Di Ringkasan,
+  pemilih Dompet pada form dan filter halaman bernama sama. Pemeriksaan
+  dompet form yang sempat gagal kini lulus dengan cakupan dialog.
+  Sebanyak 2.051 tes unit dalam 88 berkas dan build produksi lulus.
+  *Belum terbukti:* ucapan pembaca layar dan interaksi di perangkat fisik.
 
 - [ ] **MW-122 — Di antrean "Perlu dirapikan", filter jenis tidak keluar diam-diam** (S)
   Memilih jenis lain di dalam antrean menghapus judul antrean dan menampilkan

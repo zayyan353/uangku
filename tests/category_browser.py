@@ -949,7 +949,7 @@ def transaction_templates(case):
     assert stored() is None
     p.get_by_role('button', name='Catat transaksi', exact=True).click()
     dialog = p.get_by_role('dialog')
-    dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+    dialog.get_by_label('Dompet', exact=True).select_option('bank')
     dialog.get_by_label('Nominal', exact=True).fill('45')
     dialog.get_by_label(re.compile('^Kategori')).select_option('Makan & minum')
     dialog.get_by_label(re.compile('^Keterangan')).fill('Kopi pagi')

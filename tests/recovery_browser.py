@@ -78,7 +78,7 @@ def nav(page, label):
 def open_expense(page, *, note, amount='1', wallet='bca-idr', date='2026-10-30'):
     page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
     dlg = page.get_by_role('dialog')
-    dlg.get_by_label('Dompet asal', exact=True).select_option(wallet)
+    dlg.get_by_label('Dompet', exact=True).select_option(wallet)
     dlg.get_by_label('Nominal', exact=True).fill(amount)
     dlg.locator('input[type=date]').fill(date)
     dlg.get_by_label(re.compile('Keterangan')).fill(note)
@@ -733,7 +733,7 @@ def test_transaction_draft_close(browser, output):
         open_expense(page, note='Saved once', wallet='cash-idr')
         dialog.get_by_role('button', name='Simpan & catat lagi', exact=True).click()
         expect(dialog.get_by_label('Nominal', exact=True)).to_have_value('')
-        expect(dialog.get_by_label('Dompet asal', exact=True)).to_have_value('cash-idr')
+        expect(dialog.get_by_label('Dompet', exact=True)).to_have_value('cash-idr')
         dialog.get_by_role('button', name='Batal', exact=True).click()
         expect(dialog).to_have_count(0)
         assert persisted_notes(page) == ['Original note', 'Saved once']
@@ -977,7 +977,7 @@ def test_adjust_unavailable(browser, output):
             wallet_id = 'cash-idr' if scenario == 'removed-wallet' else 'bca-idr'
             page.locator(f'[data-wallet-id="{wallet_id}"]').get_by_role('button', name='Cek saldo', exact=True).click()
             dialog = page.get_by_role('dialog')
-            amount = dialog.get_by_label('Nominal', exact=True)
+            amount = dialog.get_by_label('Saldo yang benar sekarang', exact=True)
             matched = dialog.get_by_role('button', name='Saldo cocok · tutup', exact=True)
             save = dialog.get_by_role('button', name='Simpan transaksi', exact=True)
             amount.fill('0' if scenario == 'removed-wallet' else '1000')
@@ -993,7 +993,7 @@ def test_adjust_unavailable(browser, output):
                 other.evaluate("""(key) => { const data = JSON.parse(localStorage.getItem(key));
                     data.state.wallets = data.state.wallets.filter(w => w.id !== 'cash-idr');
                     localStorage.setItem(key, JSON.stringify(data)); }""", KEY)
-                expect(dialog.get_by_label('Dompet asal').locator('option:checked')).to_contain_text('tidak tersedia')
+                expect(dialog.get_by_label('Dompet', exact=True).locator('option:checked')).to_contain_text('tidak tersedia')
             elif scenario == 'unreadable':
                 other.evaluate("(key) => localStorage.setItem(key, '{broken')", KEY)
                 expect(page.get_by_test_id('save-status')).to_contain_text('pemulihan diperlukan')
@@ -1025,7 +1025,7 @@ def test_adjust_today(browser, output):
         dlg = page.get_by_role('dialog')
         hint = dlg.locator('.field-help').filter(has_text='Saldo catatan')
         expect(hint).to_contain_text('100.000')
-        target = dlg.get_by_label('Nominal', exact=True)
+        target = dlg.get_by_label('Saldo yang benar sekarang', exact=True)
         save = dlg.get_by_role('button', name='Simpan transaksi', exact=True)
         matched = dlg.get_by_role('button', name='Saldo cocok · tutup', exact=True)
         difference = dlg.get_by_test_id('adjustment-difference')

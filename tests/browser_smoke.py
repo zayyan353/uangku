@@ -140,7 +140,7 @@ def check_desktop(browser, tmp):
     # Expense with the category left at its optional default.
     nav(page, "Ringkasan")
     page.get_by_role("button", name="Catat transaksi", exact=True).click()
-    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Dompet", exact=True).select_option("bca-idr")
     dialog(page).get_by_label("Nominal", exact=True).fill("25000")
     dialog(page).get_by_label(re.compile("Keterangan")).fill("Tes makan")
     dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
@@ -151,13 +151,13 @@ def check_desktop(browser, tmp):
 
     # Same-currency transfer: both balances change; only its fee is spending.
     page.get_by_role("button", name="Pindah uang", exact=True).click()
-    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
-    dialog(page).get_by_label("Dompet tujuan", exact=True).select_option("bca-digital-idr")
+    dialog(page).get_by_label("Dari dompet", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Ke dompet", exact=True).select_option("bca-digital-idr")
     # With a valid destination and no fee the received amount would only repeat the amount typed,
     # so nothing is shown; in particular an empty amount does not ask for a different destination.
     transfer_hint = dialog(page).locator(".notice.full")
     expect(transfer_hint).to_have_count(0)
-    dialog(page).get_by_label("Nominal", exact=True).fill("100000")
+    dialog(page).get_by_label("Nominal yang keluar", exact=True).fill("100000")
     expect(transfer_hint).to_have_count(0)
     # A fee makes the received amount differ from what leaves the wallet, so it is spelled out.
     dialog(page).get_by_label(re.compile("Biaya tambahan")).fill("2500")
@@ -169,10 +169,10 @@ def check_desktop(browser, tmp):
 
     # Cross-currency transfer cannot save before explicit rate confirmation.
     page.get_by_role("button", name="Pindah uang", exact=True).click()
-    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
-    dialog(page).get_by_label("Dompet tujuan", exact=True).select_option("ziraat-try")
-    dialog(page).get_by_label("Nominal", exact=True).fill("100000")
-    dialog(page).get_by_label("Kurs transaksi", exact=True).fill("0,0025")
+    dialog(page).get_by_label("Dari dompet", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Ke dompet", exact=True).select_option("ziraat-try")
+    dialog(page).get_by_label("Nominal yang keluar", exact=True).fill("100000")
+    dialog(page).get_by_label("1 IDR = berapa TRY?", exact=True).fill("0,0025")
     dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
     expect(dialog(page).get_by_role("alert")).to_contain_text("Konfirmasi kurs")
     assert len(state(page)["entries"]) == 2
@@ -320,11 +320,11 @@ def check_regressions(browser, tmp):
     original_arrival_balance = balance(state(page), "ziraat-try")
     page.get_by_role("button", name="Cek Kredit transfer contoh", exact=True).click()
     dialog(page).get_by_role("button", name="Transfer", exact=True).click()
-    source = dialog(page).get_by_label("Dompet asal", exact=True)
+    source = dialog(page).get_by_label("Dari dompet", exact=True)
     assert source.locator('option[value="ziraat-try"]').count() == 0
-    expect(dialog(page).get_by_label("Dompet tujuan", exact=True)).to_be_disabled()
+    expect(dialog(page).get_by_label("Ke dompet", exact=True)).to_be_disabled()
     source.select_option("papara-try")
-    dialog(page).get_by_label("Nominal", exact=True).fill("100")
+    dialog(page).get_by_label("Nominal yang keluar", exact=True).fill("100")
     # A single bank leg does not prove the counterpart's posting date. Supply
     # the known synthetic source date explicitly rather than having it guessed.
     dialog(page).get_by_label('Tanggal debit', exact=True).fill(FIXED_TIME.date().isoformat())
@@ -345,7 +345,7 @@ def check_regressions(browser, tmp):
     original = seed(page, paired=True)["state"]
     page.get_by_role("button", name="Cek Kredit transfer contoh", exact=True).click()
     dialog(page).get_by_role("button", name="Transfer", exact=True).click()
-    dialog(page).get_by_label("Dompet asal", exact=True).select_option("papara-try")
+    dialog(page).get_by_label("Dari dompet", exact=True).select_option("papara-try")
     dialog(page).get_by_label(re.compile("^Catatan pasangan")).select_option("synthetic-departure")
     dialog(page).get_by_label(re.compile("Biaya tambahan")).fill("5")
     dialog(page).get_by_role("button", name="Simpan hasil cek", exact=True).click()
@@ -371,7 +371,7 @@ def check_regressions(browser, tmp):
       };
     }""")
     page.get_by_role("button", name="Catat transaksi", exact=True).click()
-    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Dompet", exact=True).select_option("bca-idr")
     dialog(page).get_by_label("Nominal", exact=True).fill("25")
     dialog(page).get_by_label(re.compile("Keterangan")).fill("Catatan terbaru belum tersimpan")
     dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
@@ -436,28 +436,29 @@ def check_daily_use(browser, tmp):
     page.get_by_role("button", name="Catat transaksi", exact=True).click()
     amount = dialog(page).get_by_label("Nominal", exact=True)
     expect(amount).to_be_focused()
-    dialog(page).get_by_label("Dompet asal", exact=True).select_option("papara-try")
+    dialog(page).get_by_label("Dompet", exact=True).select_option("papara-try")
     amount.fill("10")
     dialog(page).get_by_label(re.compile("Keterangan")).fill("Ewallet lira uji preferensi")
     dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
     page.get_by_role("button", name="Catat transaksi", exact=True).click()
-    expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value("papara-try")
+    expect(dialog(page).get_by_label("Dompet", exact=True)).to_have_value("papara-try")
     dialog(page).get_by_role("button", name="Tutup", exact=True).click()
     page.reload()
     expect(page.locator(".currency-tab").filter(has_text="Lira Turki")).to_have_attribute("aria-pressed", "true")
     page.get_by_role("button", name="Catat transaksi", exact=True).click()
-    expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value("papara-try")
+    expect(dialog(page).get_by_label("Dompet", exact=True)).to_have_value("papara-try")
     expect(dialog(page).get_by_label("Nominal", exact=True)).to_be_focused()
     dialog(page).get_by_role("button", name="Tutup", exact=True).click()
 
     # A same-currency destination should be the default instead of a surprise FX form.
     page.get_by_role("button", name="Pindah uang", exact=True).click()
-    source_id = dialog(page).get_by_label("Dompet asal", exact=True).input_value()
-    destination_id = dialog(page).get_by_label("Dompet tujuan", exact=True).input_value()
+    source_id = dialog(page).get_by_label("Dari dompet", exact=True).input_value()
+    destination_id = dialog(page).get_by_label("Ke dompet", exact=True).input_value()
     currencies = {wallet["id"]: wallet["currency"] for wallet in state(page)["wallets"]}
     assert source_id != destination_id
     assert currencies[source_id] == currencies[destination_id] == "TRY"
-    expect(dialog(page).get_by_label("Kurs transaksi", exact=True)).to_have_count(0)
+    expect(dialog(page).get_by_role("group", name="Cara mengisi kurs", exact=True)).to_have_count(0)
+    expect(dialog(page).get_by_label("1 TRY = berapa TRY?", exact=True)).to_have_count(0)
     dialog(page).get_by_role("button", name="Tutup", exact=True).click()
 
     # Save-and-repeat keeps useful context, clears the previous purchase, and cannot resave blanks.
@@ -471,7 +472,7 @@ def check_daily_use(browser, tmp):
     expect(dialog(page)).to_be_visible()
     expect(dialog(page).get_by_label("Nominal", exact=True)).to_have_value("")
     expect(dialog(page).get_by_label(re.compile("Keterangan"))).to_have_value("")
-    expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value("papara-try")
+    expect(dialog(page).get_by_label("Dompet", exact=True)).to_have_value("papara-try")
     expect(dialog(page).get_by_label("Tanggal", exact=True)).to_have_value(repeated_date)
     expect(dialog(page).get_by_label("Nominal", exact=True)).to_be_focused()
     assert len(state(page)["entries"]) == count_before + 1
@@ -566,16 +567,17 @@ def check_daily_use(browser, tmp):
     ]:
         page.locator(".currency-tab").filter(has_text=currency_label).click()
         page.get_by_role("button", name="Catat transaksi", exact=True).click()
-        expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value(bank_id)
-        dialog(page).get_by_label("Dompet asal", exact=True).select_option(alternate_id)
+        expect(dialog(page).get_by_label("Dompet", exact=True)).to_have_value(bank_id)
+        dialog(page).get_by_label("Dompet", exact=True).select_option(alternate_id)
         dialog(page).get_by_role("button", name="Transfer", exact=True).click()
-        source_id = dialog(page).get_by_label("Dompet asal", exact=True).input_value()
-        destination_id = dialog(page).get_by_label("Dompet tujuan", exact=True).input_value()
+        source_id = dialog(page).get_by_label("Dari dompet", exact=True).input_value()
+        destination_id = dialog(page).get_by_label("Ke dompet", exact=True).input_value()
         wallet_map = {wallet["id"]: wallet for wallet in state(page)["wallets"]}
         assert source_id == alternate_id and destination_id != source_id
         assert wallet_map[destination_id]["currency"] == expected_currency
         assert wallet_map[destination_id]["kind"] == "bank"
-        expect(dialog(page).get_by_label("Kurs transaksi", exact=True)).to_have_count(0)
+        expect(dialog(page).get_by_role("group", name="Cara mengisi kurs", exact=True)).to_have_count(0)
+        expect(dialog(page).get_by_label(f"1 {expected_currency} = berapa {expected_currency}?", exact=True)).to_have_count(0)
         dialog(page).get_by_role("button", name="Tutup", exact=True).click()
         page.get_by_role("button", name="Buang isian", exact=True).click()
     assert state(page)["entries"] == []
@@ -589,7 +591,7 @@ def check_daily_use(browser, tmp):
     page.get_by_label("File mutasi Ziraat", exact=True).set_input_files(fixture)
     expect(page.get_by_role("button", name="Simpan 3 transaksi", exact=True)).to_be_visible()
     page.get_by_role("button", name="Catat transaksi", exact=True).click()
-    dialog(page).get_by_label("Dompet asal", exact=True).select_option("ziraat-try")
+    dialog(page).get_by_label("Dompet", exact=True).select_option("ziraat-try")
     dialog(page).get_by_label("Nominal", exact=True).fill("10")
     dialog(page).get_by_label(re.compile("Keterangan")).fill("Manual setelah pratinjau")
     dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
@@ -712,7 +714,7 @@ def check_import_cleanup(browser, tmp):
     ledger_select(page, "Belanja contoh A").check()
     expect(page.locator(".bulk-review-panel")).to_be_visible()
     page.get_by_role("button", name="Catat transaksi", exact=True).click()
-    dialog(page).get_by_label("Dompet asal", exact=True).select_option("bca-idr")
+    dialog(page).get_by_label("Dompet", exact=True).select_option("bca-idr")
     dialog(page).get_by_label("Nominal", exact=True).fill("5")
     dialog(page).get_by_label(re.compile("Keterangan")).fill("Catatan setelah pilihan kategori")
     dialog(page).get_by_role("button", name="Simpan transaksi", exact=True).click()
@@ -799,8 +801,8 @@ def check_import_cleanup(browser, tmp):
     expect(dialog(page).get_by_role("button", name=re.compile(r"^Cocokkan transfer BCA pada "))).to_have_count(0)
     assert state(page) == original
     suggested.click()
-    expect(dialog(page).get_by_label("Dompet asal", exact=True)).to_have_value("bca-idr")
-    expect(dialog(page).get_by_label("Dompet tujuan", exact=True)).to_have_value("bca-digital-idr")
+    expect(dialog(page).get_by_label("Dari dompet", exact=True)).to_have_value("bca-idr")
+    expect(dialog(page).get_by_label("Ke dompet", exact=True)).to_have_value("bca-digital-idr")
     expect(dialog(page).get_by_label(re.compile(r"^Catatan pasangan"))).to_have_value("pair-destination")
     assert state(page) == original
     dialog(page).get_by_role("button", name="Simpan hasil cek", exact=True).click()

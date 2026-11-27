@@ -432,7 +432,7 @@ def movement_form(case):
     p.get_by_role('button', name='Catat transaksi', exact=True).click()
     dialog = p.get_by_role('dialog')
     dialog.get_by_role('button', name='Perpindahan dana', exact=True).click()
-    dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+    dialog.get_by_label('Dompet', exact=True).select_option('bank')
     for invalid in ['-10', '0']:
         dialog.get_by_label('Nominal', exact=True).fill(invalid)
         dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
@@ -503,7 +503,7 @@ def legacy_cash_archive(case):
     expect(p.locator('.balance-number')).to_contain_text('80')
     p.get_by_role('button', name='Catat transaksi', exact=True).click()
     dialog = p.get_by_role('dialog')
-    assert 'legacy-cash' not in dialog.get_by_label('Dompet asal', exact=True).locator('option').evaluate_all('(els)=>els.map(el=>el.value)')
+    assert 'legacy-cash' not in dialog.get_by_label('Dompet', exact=True).locator('option').evaluate_all('(els)=>els.map(el=>el.value)')
     dialog.get_by_role('button', name='Batal', exact=True).click()
     path = case.args.output / 'legacy-cash-preserved.json'
     with p.expect_download() as download:

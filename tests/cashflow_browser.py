@@ -464,9 +464,9 @@ def scoped_activity(case):
     for action in ['Catat transaksi', 'Pindah uang']:
         p.get_by_role('button', name=action, exact=True).click()
         dialog = p.get_by_role('dialog')
-        expect(dialog.get_by_label('Dompet asal', exact=True)).to_have_value('digital')
+        expect(dialog.get_by_label('Dari dompet' if action == 'Pindah uang' else 'Dompet', exact=True)).to_have_value('digital')
         if action == 'Pindah uang':
-            expect(dialog.get_by_label('Dompet tujuan', exact=True)).to_have_value('bank')
+            expect(dialog.get_by_label('Ke dompet', exact=True)).to_have_value('bank')
         dialog.get_by_role('button', name='Batal', exact=True).click()
     case.month('2026-09')
     expect(rows).to_have_text(['Synthetic flow digital-september'])
@@ -486,7 +486,7 @@ def scoped_activity(case):
     case.scope('all')
     expect(rows).to_have_count(3)
     p.get_by_role('button', name='Catat transaksi', exact=True).click()
-    expect(p.get_by_label('Dompet asal', exact=True)).to_have_value('bank')
+    expect(p.get_by_role('dialog').get_by_label('Dompet', exact=True)).to_have_value('bank')
     p.get_by_role('button', name='Batal', exact=True).click()
     case.assert_unchanged()
 

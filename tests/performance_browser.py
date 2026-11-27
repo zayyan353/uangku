@@ -227,7 +227,7 @@ def run_import_sample(browser, args, output, index, csv_bytes, html_sha):
         expect(page.locator('.transactions-table tbody tr')).to_have_count(min(50, rows))
         page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
         dlg = page.get_by_role('dialog')
-        dlg.get_by_label('Dompet asal', exact=True).select_option(IMPORT_WALLET['id'])
+        dlg.get_by_label('Dompet', exact=True).select_option(IMPORT_WALLET['id'])
         dlg.get_by_label('Nominal', exact=True).fill('15')
         dlg.get_by_label(re.compile('^Keterangan')).fill(MANUAL_NOTE)
         save = dlg.get_by_role('button', name='Simpan transaksi', exact=True)

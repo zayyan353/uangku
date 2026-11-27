@@ -247,8 +247,8 @@ class Case:
         else:p.get_by_role('button',name='Catat transaksi',exact=True).first.click()
         dialog=p.get_by_role('dialog');expect(dialog).to_be_visible()
         if not destination:dialog.get_by_role('button',name='Pemasukan' if mode=='income' else 'Pengeluaran',exact=True).click()
-        dialog.get_by_label('Dompet asal',exact=True).select_option(source)
-        if destination:dialog.get_by_label('Dompet tujuan',exact=True).select_option(destination)
+        dialog.get_by_label('Dari dompet' if destination else 'Dompet',exact=True).select_option(source)
+        if destination:dialog.get_by_label('Ke dompet',exact=True).select_option(destination)
         return dialog
 
     def screenshot(self,label):
@@ -341,8 +341,8 @@ def precision_kwd_clf(case):
 
 
 def fx_usd_jpy(case):
-    dialog=case.tx('usd','jpy');dialog.get_by_label('Nominal',exact=True).fill('100')
-    dialog.get_by_label('Kurs transaksi',exact=True).fill('150')
+    dialog=case.tx('usd','jpy');dialog.get_by_label('Nominal yang keluar',exact=True).fill('100')
+    dialog.get_by_label('1 USD = berapa JPY?',exact=True).fill('150')
     dialog.get_by_label('Kurs ini sesuai transaksi saya',exact=False).check()
     dialog.get_by_role('button',name='Simpan transaksi',exact=True).click();expect(dialog).to_have_count(0)
     data=case.saved();row=data['state']['entries'][0]
@@ -352,9 +352,9 @@ def fx_usd_jpy(case):
 
 
 def fx_jpy_kwd(case):
-    dialog=case.tx('jpy','kwd');dialog.get_by_label('Nominal',exact=True).fill('15000')
+    dialog=case.tx('jpy','kwd');dialog.get_by_label('Nominal yang keluar',exact=True).fill('15000')
     dialog.get_by_role('button',name='Isi jumlah diterima',exact=True).click()
-    dialog.get_by_label('Nominal diterima',exact=True).fill('1,250')
+    dialog.get_by_label('Nominal yang diterima (KWD)',exact=True).fill('1,250')
     dialog.get_by_label('Kurs ini sesuai transaksi saya',exact=False).check()
     dialog.get_by_role('button',name='Simpan transaksi',exact=True).click();expect(dialog).to_have_count(0)
     data=case.saved();row=data['state']['entries'][0]
@@ -364,8 +364,8 @@ def fx_jpy_kwd(case):
 
 
 def fx_overflow(case):
-    dialog=case.tx('jpy','kwd');dialog.get_by_label('Nominal',exact=True).fill(str(9_007_199_254_740_991))
-    dialog.get_by_label('Kurs transaksi',exact=True).fill('1')
+    dialog=case.tx('jpy','kwd');dialog.get_by_label('Nominal yang keluar',exact=True).fill(str(9_007_199_254_740_991))
+    dialog.get_by_label('1 JPY = berapa KWD?',exact=True).fill('1')
     expect(dialog.locator('#fx-input-feedback')).to_be_visible()
     dialog.get_by_label('Kurs ini sesuai transaksi saya',exact=False).check()
     dialog.get_by_role('button',name='Simpan transaksi',exact=True).click()
