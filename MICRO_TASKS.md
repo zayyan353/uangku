@@ -1256,14 +1256,21 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     simpan yang berhasil menulis ulang cadangan lengkap ke file itu; kegagalan
     dilaporkan dan tidak pernah menghalangi simpan. Tidak tersedia di HP.
 
-- [ ] **MW-101 — Sesudah memulihkan, tidak muncul "Belum ada cadangan lengkap"** (S) — **butuh keputusan**
-  Tepat setelah pemulihan lengkap di browser baru, banner "Belum ada cadangan
-  lengkap." dan baris "Cadangan terakhir: belum ada" tampil, karena hanya unduhan
-  **Cadangkan semuanya** yang menulis catatan cadangan. Petunjuk iPhone (MW-10)
-  justru menyuruh mencadangkan di Safari lalu memulihkan di Layar Utama.
-  *Keputusan:* apakah pemulihan yang berhasil dihitung sebagai "punya cadangan"
-  sampai data berubah. Ini mengubah arti catatan yang ditetapkan MW-06.
-  *File:* `src/lib/backupReminder.ts` + tes, `src/App.tsx`.
+- [x] **MW-101 — Sesudah memulihkan, tidak muncul "Belum ada cadangan lengkap"** (S)
+  **Keputusan agen.** Pemulihan lengkap yang berhasil dihitung sebagai punya
+  cadangan karena pengguna baru saja memilih file yang dapat dibaca. Waktu
+  pada label adalah waktu pemulihan di browser ini. Pemulihan transaksi saja
+  atau pemulihan yang gagal menyimpan suatu bagian mempertahankan penanda lama.
+  **Selesai.** Controller mencatat sidik teks ledger yang disimpan saat masih
+  memegang kunci profil, termasuk spasi asli saat hanya kategori yang berubah
+  (`src/lib/persistence.ts:285–325`). Setelah pemulihan, UI membaca penanda
+  yang tersimpan (`src/App.tsx:713`). Penolakan penulisan penanda karena kuota
+  tetap membiarkan catatan dan pengaturan yang telah berhasil dipulihkan.
+  **Tes.** Dua regresi unit merah sebelum perubahan. Unit 2.009/2.009 (79
+  berkas) dan build lulus. Dua kasus Chromium cadangan lengkap lulus pada
+  desktop dan HP, termasuk label di profil baru sebelum dan setelah muat ulang.
+  **Belum terbukti.** Keberadaan file di luar browser sesudah pemulihan, serta
+  Safari dan instalasi Layar Utama pada perangkat fisik.
 
 - [ ] **MW-102 — Pengaturan kategori yang tidak terbaca tidak bisa ditimpa sekali klik** (S)
   Pada versi sebelum butir b, tab lama dapat membuka bawaan lalu menimpa
@@ -2715,7 +2722,6 @@ MW-107. Tindakan pemilik lain ada di F2.
 | MW-92 | pemilik | Apakah aturan 13 Nov (uang dari/ke orang lain = pemasukan/pengeluaran) berlaku umum, termasuk form manual dan Ziraat, atau hanya impor Jago? |
 | MW-99 | agen | Ambang pengingat cadangan: jumlah entri baru, atau setiap impor? |
 | MW-100d | pemilik | Mau cadangan otomatis ke satu file di desktop (hanya Chromium)? |
-| MW-101 | agen | Apakah pemulihan yang berhasil dihitung sebagai "punya cadangan"? |
 | MW-105b | pemilik | Perangkat dan browser mana yang dipakai, dan apakah **Cadangkan semuanya** menghasilkan file di sana? (uji oleh pemilik) |
 | MW-105d | agen | Mau "Uji file cadangan" (mengubah batasan MW-06)? |
 | MW-107 | pemilik | Opsional: pindahkan Uangku ke origin sendiri? (tidak diperlukan untuk CSP) |

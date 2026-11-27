@@ -308,6 +308,7 @@ def round_trip(destination, url, width, *, route=None, verify=None):
 
     # A legacy finance-only backup replaces the ledger and preserves the current personal rules.
     saved_categories = raw_pair(destination)[1]
+    backup_record = destination.evaluate("localStorage.getItem('uangku:last-backup:v1')")
     legacy = json.loads(dest_before[0])
     dialog = ledger_preview('synthetic-legacy.json', legacy)
     expect(dialog).to_contain_text('Pengaturan kategori dan aturan pribadi tetap dipakai')
@@ -317,6 +318,7 @@ def round_trip(destination, url, width, *, route=None, verify=None):
     expect(destination.locator('.toast')).to_contain_text('Cadangan berhasil dipulihkan')
     assert stored_document(destination) == semantic_document(legacy)
     assert raw_pair(destination)[1] == saved_categories
+    assert destination.evaluate("localStorage.getItem('uangku:last-backup:v1')") == backup_record
 
     # MW-93, the reviewed case: the same number of records on both sides, one of them only in this browser.
     close_toast(destination)
@@ -378,6 +380,14 @@ def round_trip(destination, url, width, *, route=None, verify=None):
                 pick_backup(other_profile, 'synthetic-full.json', file_bytes, button=restore)
                 other_profile.get_by_role('dialog').get_by_role('button', name='Pulihkan semuanya', exact=True).click()
                 expect(banner).to_have_count(0)
+                expect(other_profile.get_by_test_id('backup-reminder')).to_have_count(0)
+                label = other_profile.get_by_test_id('last-backup')
+                expect(label).not_to_have_text('Cadangan terakhir: belum ada')
+                marker = other_profile.evaluate("localStorage.getItem('uangku:last-backup:v1')")
+                assert json.loads(marker)['fingerprint']
+                other_profile.reload(wait_until='domcontentloaded')
+                expect(label).not_to_have_text('Cadangan terakhir: belum ada')
+                expect(other_profile.get_by_test_id('backup-reminder')).to_have_count(0)
                 assert stored_document(other_profile) == semantic_document(json.loads(file_bytes)['ledger'])
     # MW-88a: with a restore journal that is not JSON, "Cadangkan semuanya" answers in plain words, not the
     # parser's, and nothing stored is touched.

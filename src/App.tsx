@@ -709,7 +709,10 @@ export default function App() {
             const saved = await persistCandidate(restored, {
               ...options, restoreCategories: { settings, expectedRaw: categoryPreferences.raw, ...(backup.budgets ? { budgets: backup.budgets } : {}), ...(backup.templates ? { templates: backup.templates } : {}) },
             });
-            if (saved) notify('Cadangan lengkap dipulihkan. Transaksi dan pengaturan kategori sudah tersimpan.');
+            if (saved) {
+              setLastBackup(readLastBackup());
+              notify('Cadangan lengkap dipulihkan. Transaksi dan pengaturan kategori sudah tersimpan.');
+            }
             else notifyError('Cadangan lengkap belum dipulihkan. Periksa status penyimpanan sebelum mencoba lagi.');
           },
         });

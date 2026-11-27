@@ -1,16 +1,16 @@
 /**
- * Record of the last "Cadangkan semuanya" download, kept under its own key and
+ * Record of the last full backup download or completed restore, kept under its own key and
  * never inside the ledger format.
  *
  * Limits: a browser cannot confirm that the file was really kept on the device.
- * "Recorded" here means the download was triggered without an error.
+ * The record refers to the download trigger or to the local completion of a full restore.
  */
 export const LAST_BACKUP_KEY = 'uangku:last-backup:v1';
 
 export interface LastBackup {
-  /** ISO 8601 time the download was triggered. */
+  /** ISO 8601 time of the download trigger or full restore. */
   at: string;
-  /** Fingerprint of the stored ledger text that was exported. */
+  /** Fingerprint of the stored ledger text at full export or restore. */
   fingerprint: string;
 }
 
@@ -67,8 +67,8 @@ export function readLastBackup(storage: StorageLike | undefined = browserStorage
 }
 
 /**
- * Records a triggered full backup. Returns false when storage is unavailable or
- * full; a failed record must never undo or block the download itself.
+ * Records a full backup download or completed restore. Returns false when storage is unavailable or
+ * full; a failed record must never undo or block either operation.
  */
 export function recordBackup(storedLedger: string, at: Date = new Date(), storage: StorageLike | undefined = browserStorage()): boolean {
   if (!storage || Number.isNaN(at.getTime())) return false;

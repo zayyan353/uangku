@@ -6,6 +6,7 @@ import { serializeFullBackup } from './fullBackup';
 import { BUDGETS_KEY, parseStoredBudgets, serializeBudgets, type BudgetMap } from './budgets';
 import { parseStoredTemplates, serializeTemplates, TEMPLATES_KEY, type TransactionTemplate } from './transactionTemplates';
 import { BASE_CLAIM_MS, LEDGER_LOCK, CATEGORY_LOCK, RESTORE_JOURNAL, baseClaimName, recoverProfile, restorePending, withProfileLocks, writeRestoredProfile } from './fullRestoreStorage';
+import { recordBackup } from './backupReminder';
 import { withMetadataClaims } from './metadataClaims';
 
 export { BASE_CLAIM_MS, LEDGER_LOCK };
@@ -318,6 +319,9 @@ export class LedgerPersistenceController {
               if (next === undefined || next === (raw === undefined ? target.getItem(key) : raw)) continue;
               try { target.setItem(key, next); } catch { unsavedSections.push(label); }
             }
+            // A settings-only restore can preserve the ledger's original formatting.
+            // Record those exact bytes while the restored profile is still locked.
+            if (!unsavedSections.length) recordBackup(nextLedger, new Date(), target);
           });
         } catch (error) {
           // Recovery and token checks never replace the ledger. After a failed write attempt,
