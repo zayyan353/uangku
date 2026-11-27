@@ -54,7 +54,7 @@ export function useCategorySettings() {
       window.removeEventListener('focus', refresh);
     };
   }, [recovering]);
-  async function save(next: CategorySettings, expectedRaw: string | null, budgetChange?: BudgetChange): Promise<void> {
+  async function save(next: CategorySettings, expectedRaw: string | null, budgetChange?: BudgetChange) {
     if (snapshot.error === newerVersionMessage) throw new NewerVersionError();
     if (recovering) throw Error(restorePending);
     const checked = validateCategorySettings(next);
@@ -86,6 +86,7 @@ export function useCategorySettings() {
         }
         setSnapshot({ raw, settings, packAdded: 0, packUpdated: 0, error: '', ...(budgets ? { budgetsRaw, budgets, budgetsError: '' } : loadBudgets()) });
       }));
+      return { raw, settings };
     } catch (error) {
       setSnapshot(load());
       throw error;

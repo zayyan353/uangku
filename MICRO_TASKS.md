@@ -2796,12 +2796,10 @@ semua sub-hurufnya selesai atau dibatalkan. Tidak ada MW di sini yang membuat
 aplikasi meminta jaringan, dan tidak ada yang mengisi kategori, membuat
 catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
 
-- [ ] **MW-147 — Kategori yang belajar dari riwayat**
-  "Isi kategori otomatis" (`src/components/CategoryAutomation.tsx`, lewat
-  `entryCategorySuggestions` di `src/lib/categorySuggestions.ts`) hanya memakai
-  aturan kata kunci dan pola bank; catatan tanpa kecocokan tetap "Belum
-  dikategorikan", padahal kategori yang dulu dipilih untuk merchant yang sama
-  sudah tersimpan. Actual membuat aturan kategori dari kebiasaan pengguna:
+- [x] **MW-147 — Kategori yang belajar dari riwayat**
+  Sebelum MW-147, "Isi kategori otomatis" hanya memakai aturan kata kunci
+  dan pola bank. Kategori yang dulu dipilih untuk merchant yang sama sudah
+  tersimpan di riwayat. Actual membuat aturan kategori dari kebiasaan pengguna:
   `getProbableCategory` di
   `packages/loot-core/src/server/transactions/transaction-rules.ts` melihat 5
   transaksi terakhir dari penerima yang sama dalam ±180 hari dan memakai
@@ -2842,7 +2840,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     riwayat"; pilihan bawaannya tetap "Lewati", sama seperti saran aturan. Tes
     browser di `tests/category_browser.py` atau `tests/bank_auto_browser.py`.
     *Selesai:* dialog menampilkan sumber saran dan frekuensi kategori pada
-    merchant tersebut (`src/components/CategoryAutomation.tsx:50`).
+    merchant tersebut (`src/components/CategoryAutomation.tsx:61`).
     *Tes:* kasus `merchant-history-suggestions` di `tests/category_browser.py`
     awalnya gagal karena label belum ada. Pada build produksi sesudah perbaikan,
     dua kasus Chromium lulus (saran riwayat dan aturan). Membuka, memilih
@@ -2850,10 +2848,23 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     Terapkan hanya kategori yang dipilih berubah. 2.018 tes unit di 81 berkas
     dan build produksi lulus.
     *Belum terbukti:* pembaca layar serta perangkat fisik.
-  - [ ] **d.** (S–M) Tombol "Jadikan aturan" pada saran: menambah aturan kata kunci
+  - [x] **d.** (S–M) Tombol "Jadikan aturan" pada saran: menambah aturan kata kunci
     biasa bermode saran lewat jalur simpan yang dipakai Kelola kategori
     (`src/components/CategoryManager.tsx`), jadi format pengaturan tidak
     berubah. Mengubahnya ke otomatis tetap pilihan pengguna.
+    *Selesai:* kata kunci yang dapat disunting harus cocok dengan keterangan
+    transaksi pada pencocok literal. Untuk `GO-FOODWarung Contoh, Malang`,
+    frasa awalnya `foodwarung contoh malang`. Tombol menyimpan lewat
+    `useCategorySettings.save` dengan token pengaturan saat pratinjau dibuka.
+    Pilihan transaksi tetap tersedia setelah aturan saran disimpan.
+    *Tes:* sebelum perubahan, kasus produksi gagal menemukan "Jadikan aturan".
+    Sesudahnya 7 kasus Chromium baru dan 2 kasus lama (saran riwayat dan
+    konflik Kelola kategori) lulus. Pengujian mencakup frasa Jago, pilihan
+    awal Lewati, fokus, duplikat, 200 aturan, kuota, dua tab, pemulihan
+    dengan token kategori tetap, serta pengaturan rusak/versi baru. Byte
+    transaksi dan preferensi identik. 2.048 tes unit di 85 berkas dan build
+    produksi lulus.
+    *Belum terbukti:* browser selain Chromium dan ragam keterangan bank lain.
 
 - [x] **MW-148 — Ekspor diagram aliran uang ke SankeyMATIC**
   Ringkasan sudah menyebut pemasukan, pengeluaran berkategori, dan selisih
