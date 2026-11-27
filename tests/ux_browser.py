@@ -59,6 +59,13 @@ CONTRAST_JS = r'''() => {
 }'''
 
 
+def check_phone_fields(scope):
+    fields = scope.locator('input:not([type=checkbox],[type=radio]):visible, select:visible, textarea:visible')
+    sizes = fields.evaluate_all("""fields => fields.map(field => [field.getAttribute('aria-label') || field.name
+        || field.className, parseFloat(getComputedStyle(field).fontSize)])""")
+    assert sizes and all(size >= 16 for _, size in sizes), sizes
+
+
 def check_transaction_types(dialog):
     choices = dialog.get_by_role('group', name='Jenis transaksi', exact=True)
     expect(choices.get_by_role('button')).to_have_count(5)
@@ -106,6 +113,13 @@ def run_case(browser, args, output, mobile):
         nav.get_by_role('button', name='Transaksi', exact=True).click()
         expect(page.locator('.transactions-table tbody tr')).to_have_count(50)
         unchanged()
+        if mobile:
+            for width in (360, 390):
+                page.set_viewport_size({'width': width, 'height': 844})
+                check_phone_fields(page)
+                grid = page.locator('.filter-fields')
+                assert grid.evaluate("grid => getComputedStyle(grid).gridTemplateColumns.split(' ').length") == 2
+                assert grid.evaluate('grid => grid.scrollWidth <= grid.clientWidth + 1')
         if not mobile:
             search = page.get_by_label('Cari transaksi', exact=True)
             search.fill('Synthetic transfer detail')
@@ -214,6 +228,8 @@ def run_case(browser, args, output, mobile):
         page.get_by_role('button', name='Pindah uang', exact=True).first.click()
         dlg = page.get_by_role('dialog')
         check_transaction_types(dlg)
+        if mobile:
+            check_phone_fields(dlg)
         for source, target, sent, received in [('bank', 'try-bank', 'IDR', 'TRY'),
                                                ('try-bank', 'bank', 'TRY', 'IDR')]:
             dlg.get_by_label('Dari dompet', exact=True).select_option(source)

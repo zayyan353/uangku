@@ -816,6 +816,8 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
 .amount-detail dd { margin: 0; color: var(--text); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; white-space: normal; }
 .field-input[aria-invalid="true"] { border: 2px solid #8b3f2b; }
 @media (max-width: 760px) {
+  /* Focused text fields on iOS need 16px to avoid zooming. Keep the larger amount field. */
+  #root :where(input:not(.amount-input, [type="checkbox"], [type="radio"]), select, textarea) { font-size: 16px; }
   .filter-fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); align-items: stretch; gap: 8px; }
   .filter-fields > .search-input, .filter-fields > :nth-child(even):last-child { grid-column: 1 / -1; }
   .filter-fields > .search-input, .filter-fields > .select-input, .filter-fields > .history-period { width: 100%; min-width: 0; }

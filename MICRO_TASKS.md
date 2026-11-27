@@ -2222,13 +2222,16 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   - [ ] **c.** — **butuh keputusan** Hapus salah satu dari dua kontrol periode. Tes
     browser memilih kontrol lewat label "Periode transaksi".
 
-- [ ] **MW-125 — Kontrol form 16px di HP** (S)
-  Di 390×844 ukuran huruf kolom form 12–14px (`src/styles.css:222`, `:225`,
-  `:436`, `:612`); hanya Nominal yang lebih besar. Safari iOS memperbesar
-  halaman saat kolom di bawah 16px mendapat fokus; efek itu **tidak**
-  direproduksi di sini (Chromium tidak melakukannya). Di ≤760px jadikan input,
-  select, dan textarea 16px, lalu periksa ulang grid filter dua kolom MW-44 di
-  360px dan 390px. Konfirmasi di iPhone asli sebelum dan sesudah.
+- [x] **MW-125 — Kontrol form 16px di HP** (S)
+  *Selesai:* pada lebar ≤760 px kolom teks, pemilih dan textarea memakai
+  huruf 16 px; nominal mempertahankan huruf yang lebih besar
+  (`src/styles.css:815–817`).
+  *Tes:* sebelum perubahan delapan pemilih/isian yang terlihat di Transaksi
+  berukuran 13–14 px pada lebar 360 px. Sesudah perubahan ukuran kontrol
+  di Transaksi dan dialog transfer minimal 16 px. Grid filter tetap dua
+  kolom tanpa luapan pada 360 dan 390 px (`tests/ux_browser.py:119–122,232`).
+  Dua kasus UX Chromium, 2.051 tes unit dan build produksi lulus.
+  *Belum terbukti:* perilaku zoom ketika fokus di Safari pada iPhone asli.
 
 - [ ] **MW-126 — Hapus transaksi: pesan yang benar dan "Urungkan"**
   Menghapus transaksi manual bersifat permanen, dan toastnya menyebut data bank
