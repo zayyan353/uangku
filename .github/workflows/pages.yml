@@ -13,8 +13,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: pages
@@ -30,6 +28,9 @@ jobs:
 
   build:
     name: Siapkan situs
+    permissions:
+      contents: read
+      pages: read # configure-pages membaca konfigurasi situs yang sudah aktif.
     needs: verify
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -65,6 +66,9 @@ jobs:
 
   deploy:
     name: Publikasikan situs
+    permissions:
+      pages: write
+      id-token: write
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10

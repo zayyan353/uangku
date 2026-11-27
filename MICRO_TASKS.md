@@ -2590,14 +2590,16 @@ run tersusul push yang lebih baru di branch yang sama.
   sesudah MW-138.
 
 - [ ] **MW-140 — Izin workflow dan pin action**
-  - [ ] **a.** (S) `pages.yml`: `pages: write` dan `id-token: write` hanya pada job
-    `deploy`; sekarang job `build` (yang menjalankan `npm ci` dan
-    `npm run build`) ikut mewarisinya. Ini hanya merapikan izin: paket build
-    yang jahat tetap menguasai HTML yang diterbitkan apa pun izin tokennya;
-    yang benar-benar mengecilkan risiko adalah butir b dan MW-138. Job `build`
-    juga menjalankan `actions/configure-pages@v5`; periksa apakah langkah itu
-    butuh izin Pages sebelum izinnya dicabut. `pages.yml` tidak jalan di CI PR,
-    jadi periksa run Publikasikan pertama sesudah merge.
+  - [x] **a.** (S) Batasi izin publikasi ke job deploy.
+    *Selesai:* `.github/workflows/pages.yml:14,31–33,69–71` memberi build
+    `contents: read` dan `pages: read`. Dengan nilai bawaan `enablement: false`,
+    `configure-pages@v5` membaca konfigurasi lewat `repos.getPages`. Hanya
+    job deploy dapat menulis ke Pages dan meminta token OIDC.
+    *Tes:* pemeriksaan izin tiap job gagal pada workflow lama dan lulus
+    sesudah perubahan. Dua temuan `excessive-permissions` hilang dalam
+    pemindaian lokal zizmor. 2.051 tes unit dan build produksi lulus.
+    *Belum terbukti:* penggunaan token sesungguhnya diperiksa pada run
+    **Publikasikan Uangku** pertama sesudah merge.
   - [ ] **b.** (S) Pin setiap action ke SHA commit, dengan tag di komentar.
 
 - [ ] **MW-141 — Dependensi dan pemeriksaan kompiler** *(sebagian)*
