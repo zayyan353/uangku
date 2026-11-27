@@ -2951,6 +2951,11 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     kandidat keempat kasus Chromium lulus tanpa galat halaman, dengan empat
     tangkapan dan 12 pembandingan byte catatan. Seluruh 2.048 tes unit di
     85 berkas serta build produksi lulus.
+    Pada PR #123 (Periksa 46047211400), keempat kasus Firefox gagal setelah
+    Tab dari judul panel. Wadah gulir kini memakai `tabIndex={-1}` sehingga
+    hari aktif menjadi titik Tab kalender. Uji keyboard tetap memeriksa satu
+    tekanan Tab. Sesudah perbaikan, 2.048 tes unit di 85 berkas, build produksi
+    dan lima kasus Chromium kalender lulus.
     *Belum terbukti:* HP fisik, Firefox/WebKit lokal dan pembaca layar manual.
 
 - [ ] **MW-150 — Tes properti dengan fast-check**
