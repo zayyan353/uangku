@@ -2986,10 +2986,18 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     lulus 100 percobaan pada empat mata uang (400 round-trip), 2.049 tes unit
     di 86 berkas dan build produksi lulus.
     *Belum terbukti:* setiap kombinasi nominal dan mata uang.
-  - [ ] **b.** (S–M) Generator `SourceDocument` sintetis (khusus tes) dan properti
+  - [x] **b.** (S–M) Generator `SourceDocument` sintetis (khusus tes) dan properti
     `decodeSourceWire(encodeSourceWire(doc))` sama dengan `doc`
     (`src/lib/sourceCodec.ts`), termasuk kolom yang nilainya seragam lalu
     berbeda di satu baris (lihat MW-109).
+    *Selesai:* setiap contoh berisi 2–12 mutasi sintetis, saldo berjalan, tautan
+    entri dan satu rekening koran. Tes mencocokkan hasil dekode ketika catatan
+    seragam dan setelah satu baris berbeda (`src/lib/sourceCodec.property.test.ts`).
+    *Tes:* tes awal gagal tanpa generator. Salinan uji codec yang selalu
+    menganggap catatan seragam ditolak pada percobaan pertama (seed
+    `-999252448`). Codec asli lulus 100 percobaan × 2 round-trip,
+    2.050 tes unit di 87 berkas dan build lulus.
+    *Belum terbukti:* semua kombinasi jenis metadata dan batas ukuran.
   - [ ] **c.** (S) Properti cadangan lengkap: `parseRestoreFile` atas hasil
     `serializeFullBackup` mengembalikan ledger, pengaturan kategori, anggaran,
     dan template yang sama (`src/lib/fullBackup.ts`).
