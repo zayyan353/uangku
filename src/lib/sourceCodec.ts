@@ -57,9 +57,14 @@ function pack(data: SourceDocument): Partial<Record<TableName, SourceTable>> {
     if (!hasOwn(arrays,name)) continue;
     const values = arrays[name]!; const fields = Object.keys(schema(name)).filter(key => values.some(row => hasOwn(row,key)));
     const defaults: JsonRecord = {};
-    for (const field of fields) if (values.length && values.every(row => hasOwn(row,field) && JSON.stringify(row[field]) === JSON.stringify(values[0][field]))) defaults[field] = values[0][field];
-    // Identity values always remain explicit, even in one-row tables.
-    delete defaults.id;
+    for (const field of fields) {
+      // Identity values always remain explicit, even in one-row tables.
+      if (field === 'id' || !hasOwn(values[0], field)) continue;
+      const first = values[0][field];
+      const firstJson = first !== null && typeof first === 'object' ? JSON.stringify(first) : undefined;
+      if (values.every(row => hasOwn(row, field) && (row[field] === first
+        || (firstJson !== undefined && JSON.stringify(row[field]) === firstJson)))) defaults[field] = first;
+    }
     const transform = (field: string, value: unknown): unknown => {
       const kind = schema(name)[field];
       if (isRef(kind)) { sourceCheck(typeof value === 'string' && references[kind].has(value),'Referensi encode tidak ditemukan.'); return references[kind].get(value); }
@@ -82,7 +87,11 @@ function intern(tables: Partial<Record<TableName, SourceTable>>): string[] {
     for (const [field,value] of Object.entries(table.d)) add(field,value);
     for (const row of table.r) { let cell = 1; table.k.forEach((field,index) => { if ((row[0] as number) & 2 ** index) add(field,row[cell++]); }); }
   }
-  const dictionary = [...counts].filter(([value,count]) => count * (jsonBytes(value) - 6) > jsonBytes(value) + 1).map(([value]) => value).sort();
+  const dictionary = [...counts].filter(([value, count]) => {
+    if (count === 1) return false;
+    const bytes = jsonBytes(value);
+    return count * (bytes - 6) > bytes + 1;
+  }).map(([value]) => value).sort();
   const positions = new Map(dictionary.map((value,index) => [value,index]));
   for (const [name,table] of Object.entries(tables) as [TableName,SourceTable][]) {
     const encode = (field: string, value: unknown) => isString(schema(name)[field]) && typeof value === 'string' && positions.has(value) ? positions.get(value) : value;

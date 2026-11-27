@@ -1703,25 +1703,40 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   sebabnya belum diketahui, jadi baseline dan target MW-111 harus diukur dengan
   sampel ini.
 
-- [ ] **MW-111 — Percepat jalur simpan** (M–L) — **butuh keputusan**
+- [ ] **MW-111 — Percepat jalur simpan** (M–L) *(sebagian)*
   Setiap simpan memvalidasi dan mengemas ulang seluruh catatan
-  (`src/lib/persistence.ts:70-76`). Pada 10.000 baris, biaya pustakanya saja
-  (diukur di Node, di luar browser) 569–592 ms per simpan dan 1.140–1.149 ms
-  saat memuat. Butuh MW-110 lebih dulu
-  supaya hasilnya terukur.
-  - [ ] **a.** (S–M) Penghematan codec tanpa mengubah format
-    (`src/lib/sourceCodec.ts:42,60`). Hasilnya bisa lebih kecil dari perkiraan
-    awal: `every` di baris 60 berhenti di baris pertama yang berbeda, dan
-    `src/lib/jsonBudget.ts:11` sudah menyimpan hasil per string serta melewati
-    `TextEncoder` untuk ASCII. Profil CPU tidak diulang pemeriksa; ukur dengan
-    MW-110.
+  (`src/lib/persistence.ts:82–88`). MW-162 menghitung sidik untuk Web Locks
+  (`src/lib/persistence.ts:107–110`). Audit awal di Node pada 10.000 baris
+  mencatat 569–592 ms untuk simpan dan 1.140–1.149 ms untuk muat.
+  - [x] **a.** (S–M) Kurangi biaya pengemasan codec.
+    *Selesai:* pengemasan membandingkan nilai primitif secara langsung.
+    Kamus melewati string yang muncul sekali dan menghitung ukuran string
+    lain sekali per nilai (`src/lib/sourceCodec.ts:60–66,90–94`).
+    *Tes:* pada 5.000 fakta dan 5.001 transaksi sintetis, pemeriksaan awal
+    mendapati ID dompet diserialisasi 20.012 kali. Kini hanya 2 kali. Dokumen
+    v2 tersimpan, hasil encoder dan hasil persiapan cadangan sama byte demi
+    byte pada kedua revisi. Di Node 24, median sembilan pengukuran encode
+    turun dari 182,2 menjadi 149,9 ms. Sebanyak 53 tes codec, kapasitas dan
+    roundtrip pada tiga berkas, 2.053 tes unit pada 88 berkas, dan build lulus.
+    *Browser:* garis dasar sesudah MW-162 pada Chromium 154 produksi, kuota
+    4 CPU, lima profil dengan 5.000 baris impor per revisi. Median klik sampai
+    tersimpan / dialog tertutup adalah 667,7 / 969,5 ms pada induk,
+    558,9 / 867,9 ms pada kandidat, dan 522,1 / 756,3 ms pada
+    pengulangan. Seluruh 30 sampel v1/v2 selesai. Jeda frame v1 pada sampel
+    pertama sebesar 347,3 ms di induk serta 378,1 dan 350,4 ms pada kandidat,
+    sehingga dua rangkaian kandidat melampaui anggaran 350 ms. Perintah CI
+    lokal (5 batch v1 dan satu impor 2.000 baris v2) lulus, dengan jeda
+    maksimum 310,8 ms.
+    *Belum terbukti:* perbaikan pada HP fisik dan besar peningkatan yang
+    konsisten pada mesin lain.
   - [ ] **b.** (M) Lewati validasi dan pengemasan ulang bagian yang identik dengan
     snapshot yang sudah tervalidasi. Hitungan ukuran dan penolakan overflow
     wajib tetap; tes kapasitas harus hijau.
   - [ ] **c.** (S–M) Jalan pintas yang sama saat memuat.
 
-  *Keputusan:* target, mis. 5.000 baris impor tersimpan di bawah 1 detik di
-  HP-mu; angka itu menjadi anggaran CI. Kerjakan sebelum MW-19/MW-20.
+  *Keputusan agen:* sasaran 111a ialah menurunkan median biaya encode pada
+  profil sintetis 5.000 baris di kontainer 4 CPU dan mempertahankan byte
+  dokumen. Anggaran CI untuk durasi simpan di HP menunggu pengukuran perangkat.
 
 - [x] **MW-112 — Kotak cari tidak me-render ulang seluruh aplikasi per ketikan** (M)
   Pada audit awal, satu ketikan di "Cari transaksi" memakan median 32 ms (maks 72) tanpa
@@ -2911,7 +2926,7 @@ MW-107. Tindakan pemilik lain ada di F2.
 | MW-107 | pemilik | Opsional: pindahkan Uangku ke origin sendiri? (tidak diperlukan untuk CSP) |
 | MW-108 | pemilik | Mau cadangan berfrasa sandi? |
 | MW-109 | pemilik | Tetap `localStorage` dengan meter, atau pindah/kompres sekarang? |
-| MW-111 | agen | Target kecepatan simpan (jumlah baris dan perangkat)? |
+| MW-111 | agen | 111a mengukur biaya encode 5.000 baris di kontainer 4 CPU. Target simpan di HP menunggu pengukuran perangkat. |
 | MW-114 | agen | Service worker untuk offline: ya atau tidak? |
 | MW-116b | pemilik | Boleh menambah kunci untuk tanggal "terakhir dicek" per dompet? |
 | MW-117b | agen | Diputuskan: arah isian dapat dibalik dan selisih lebih dari 100 kali diberi peringatan. |
