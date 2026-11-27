@@ -10,7 +10,8 @@
     "dev": "vite --host 127.0.0.1 --port 4180 --strictPort",
     "build": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4180 --strictPort",
-    "test": "vitest run"
+    "test": "vitest run",
+    "knip": "knip"
   },
   "dependencies": {
     "fast-xml-parser": "5.11.2",
@@ -26,6 +27,7 @@
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.2",
     "fast-check": "4.11.0",
+    "knip": "6.48.0",
     "typescript": "5.9.3",
     "vite": "8.3.5",
     "vite-plugin-singlefile": "2.3.4",
