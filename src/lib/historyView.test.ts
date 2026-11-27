@@ -10,6 +10,20 @@ const makeState = (entries: Entry[]): State => ({ version: 1, wallets: [
 const query = (extra: Partial<HistoryQuery> = {}): HistoryQuery => ({ currency: 'TRY', month: '2026-10', period: 'month', query: '', type: 'all', ...extra });
 
 describe('read-only transaction history', () => {
+  it('indexes a displayed title once across keystrokes and refreshes it when the title lookup changes', () => {
+    const row = entry('bank', '2026-10-01');
+    const index = createHistoryIndex(makeState([row]));
+    let reads = 0;
+    const shownText = () => { reads++; return 'TOKO BUKU'; };
+    for (const text of ['toko', 'toko b', 'TOKO BUKU']) {
+      expect(queryHistory(index, query({ query: text, shownText }))).toEqual([row]);
+    }
+    expect(reads).toBe(1);
+    const changed = () => 'TOKO KACA';
+    expect(queryHistory(index, query({ query: 'buku', shownText: changed }))).toEqual([]);
+    expect(queryHistory(index, query({ query: 'kaca', shownText: changed }))).toEqual([row]);
+  });
+
   it('uses selected-wallet dates for same-currency split-month filtering and ordering', () => {
     const state = makeState([entry('split', '2026-10-31', { type: 'transfer', toWalletId: 'second', toAmount: 500, category: '' }), entry('ordinary', '2026-10-30')]);
     state.wallets.push({ id: 'second', name: 'Second TRY', currency: 'TRY', kind: 'bank', openingBalance: 0 });

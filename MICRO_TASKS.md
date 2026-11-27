@@ -1723,13 +1723,12 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   *Keputusan:* target, mis. 5.000 baris impor tersimpan di bawah 1 detik di
   HP-mu; angka itu menjadi anggaran CI. Kerjakan sebelum MW-19/MW-20.
 
-- [ ] **MW-112 — Kotak cari tidak me-render ulang seluruh aplikasi per ketikan** (M) *(sebagian)*
-  Satu ketikan di "Cari transaksi" memakan median 32 ms (maks 72) tanpa
+- [x] **MW-112 — Kotak cari tidak me-render ulang seluruh aplikasi per ketikan** (M)
+  Pada audit awal, satu ketikan di "Cari transaksi" memakan median 32 ms (maks 72) tanpa
   perlambatan dan median 160 ms (maks 448) pada CPU 4×. Median pada CPU 4× sama
   pada 1.000 dan 5.000 baris (maksimum 208 ms lawan 448 ms): biayanya render
   ulang penuh `App` dua kali per ketikan
-  (state pencarian dan efek seleksi kini di `src/App.tsx:119,187–188`), bukan jumlah baris. Besar perbaikannya belum
-  diukur.
+  (state pencarian dan efek seleksi kini di `src/App.tsx:119,187–188`).
   - [x] **a.** Lewati reset seleksi yang sudah kosong ketika filter berubah.
     *Selesai:* efek di `src/App.tsx:187–188` juga melewati reset pagination bila
     sudah di halaman pertama. Kedua efek sebelumnya menjadwalkan pembaruan
@@ -1741,8 +1740,16 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     10.000 baris, median 34,1 ms, maksimum 73,9 ms. Kelima batch edit dan satu
     impor v2 lulus; 2.052 tes unit di 88 berkas dan build produksi lulus.
     *Belum terbukti:* peningkatan latensi yang konsisten di HP fisik.
-  - [ ] **b.** Simpan judul huruf kecil di dalam indeks, bukan dihitung per baris per
-    ketikan (`src/lib/historyView.ts:91-92`).
+  - [x] **b.** Simpan judul huruf kecil di dalam indeks.
+    *Selesai:* `src/lib/historyView.ts:74–88,108` menyimpan judul yang sudah
+    dibaca selama indeks dan sumber nama bank masih berlaku. Membaca judul
+    pertama kali hanya saat teks dan nominal belum cocok.
+    *Tes:* sebelum perubahan, tiga awalan pencarian membaca judul tiga kali.
+    Sesudahnya, sekali. Pergantian sumber nama tetap menampilkan nama baru.
+    Sebanyak 27 tes riwayat dan 2.053 tes unit di 88 berkas lulus. Pada build
+    produksi, 5 batch edit dan 1 impor v2 lulus. Dari 40 ketikan di 10.000
+    baris, median 29,65 ms dan maksimum 77,9 ms.
+    *Belum terbukti:* latensi pada HP fisik.
   - [x] **c.** Sampel ketikan di `tests/performance_browser.py:92,178,339–344`.
     *Selesai:* pada profil sintetis yang sudah menyelesaikan uji simpan, ketik
     delapan karakter satu per satu. Ukur dari peristiwa input sampai callback
