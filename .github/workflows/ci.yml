@@ -249,3 +249,24 @@ jobs:
       - name: Catat bila bukti tidak tersimpan
         if: always() && steps.evidence.outcome != 'success'
         run: echo "::warning::Bukti pengujian browser ${{ matrix.browser }} untuk kandidat ini tidak terunggah (unggahan gagal atau melewati batas 5 menit). Hasil tes di atas tetap berlaku."
+
+  zizmor:
+    name: Peringatan keamanan workflow
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Ambil kode
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Periksa workflow dengan zizmor
+        id: audit
+        continue-on-error: true
+        run: |
+          python3 -m venv "$RUNNER_TEMP/zizmor"
+          "$RUNNER_TEMP/zizmor/bin/pip" install --disable-pip-version-check zizmor==1.33.1
+          "$RUNNER_TEMP/zizmor/bin/zizmor" --offline .github/
+      - name: Catat peringatan pemeriksaan workflow
+        if: steps.audit.outcome == 'failure'
+        run: echo "::warning::Pemeriksaan zizmor memiliki temuan atau gagal dijalankan. Lihat langkah pemeriksaan workflow."

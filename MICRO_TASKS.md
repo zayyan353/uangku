@@ -3013,14 +3013,23 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   seed kegagalan ditulis di laporan.
 
 - [ ] **MW-151 — zizmor: pemeriksa keamanan workflow**
-  `ci.yml` dan `pages.yml` merujuk 13 action lewat tag (mis.
+  Saat tinjauan awal `ci.yml` dan `pages.yml` merujuk 13 action lewat tag (mis.
   `actions/checkout@v6`), dan MW-140 berencana mempersempit izin serta mem-pin
   SHA. zizmor (`zizmorcore/zizmor`) memeriksa workflow GitHub Actions secara
   statis; audit `unpinned-uses` dan `excessive-permissions` miliknya sama
   dengan isi MW-140, dan ia juga memeriksa konfigurasi Dependabot (MW-141c).
-  - [ ] **a.** (S) Job ringan baru di `ci.yml` yang menjalankan zizmor (versi
+  - [x] **a.** (S) Job ringan baru di `ci.yml` yang menjalankan zizmor (versi
     dipin) dalam mode offline pada `.github/`, mula-mula hanya sebagai
     peringatan sampai MW-140 selesai. Temuan awal ditulis di laporan.
+    *Selesai:* job **Peringatan keamanan workflow** memasang zizmor 1.33.1,
+    memeriksa `.github/` dengan `--offline` dan menampilkan peringatan saat
+    pemeriksaan menemukan masalah atau gagal berjalan (`ci.yml:253–272`).
+    Kegagalan job tambahan ini diperbolehkan pada masa pelaporan.
+    *Tes:* pemeriksaan struktur gagal sebelum job ditambahkan dan lulus
+    sesudahnya. Pemindaian lokal menghasilkan 20 temuan: 14 `unpinned-uses`,
+    2 `excessive-permissions`, 3 `artipacked`, 1 `self-repository`.
+    Seluruh 2.051 tes unit dan build produksi lulus.
+    *Belum terbukti:* anotasi GitHub pada PR dan publikasi diperiksa saat rilis.
   - [ ] **b.** (S) Sesudah MW-140, jadikan pemblokir. Pengecualian yang disengaja
     ditulis di `zizmor.yml` beserta alasannya.
 
