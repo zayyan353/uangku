@@ -111,7 +111,7 @@ def transfer_lifecycle(browser,out):
         assert dates['sourceDate']=='2026-10-31'and dates['destinationDate']=='2026-11-01'
         assert paired['metadata']['facts']==separate['metadata']['facts']
         assert saldo(paired,'bank')==10000 and saldo(paired,'cash')==2000
-        page.get_by_label('Filter jenis transaksi',exact=True).select_option('all')
+        page.locator('.review-scope').get_by_role('button',name='Semua transaksi',exact=True).click()
         page.get_by_label('Periode transaksi',exact=True).select_option('all')
         note=paired['state']['entries'][0]['note']
         page.get_by_role('button',name='Ubah '+(note or 'transaksi'),exact=True).click()

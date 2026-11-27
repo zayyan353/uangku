@@ -118,6 +118,7 @@ export default function App() {
   const [cashflowPeriod, setCashflowPeriod] = useState<'month' | 'all'>('month');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
+  const [reviewQueueOpen, setReviewQueueOpen] = useState(false);
   const [reviewReason, setReviewReason] = useState<ReviewReason>('all');
   const [historyWallet, setHistoryWallet] = useState('all');
   const [historyPeriod, setHistoryPeriod] = useState<HistoryPeriod>('month');
@@ -182,8 +183,8 @@ export default function App() {
   // A toast that offers an action stays longer, so there is time to reach its button.
   useEffect(() => { if (toast && !toast.error) { const id = setTimeout(dismissToast, toast.action ? 10000 : 5500); return () => clearTimeout(id); } }, [toast, dismissToast]);
   useEffect(() => { writePreferences({ ...preferences, currency }); }, [preferences, currency]);
-  useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, historyPeriod, historyPage, reviewReason, historyWallet, historyCategory, historySort]);
-  useEffect(() => { setHistoryPage(1); }, [query, filter, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet, historyCategory, historySort]);
+  useEffect(() => { setSelectedEntryIds([]); }, [state, page, currency, month, query, filter, reviewQueueOpen, historyPeriod, historyPage, reviewReason, historyWallet, historyCategory, historySort]);
+  useEffect(() => { setHistoryPage(1); }, [query, filter, reviewQueueOpen, historyPeriod, historyCurrency, historyMonth, reviewReason, historyWallet, historyCategory, historySort]);
   useEffect(() => { setAmountDetail(null); }, [state]);
   async function persistCandidate(next: StoredData, options?: CandidateOptions & { replaceLedger?: boolean }): Promise<boolean> {
     if (mutationInFlight.current) return false;
@@ -352,8 +353,8 @@ export default function App() {
   const archivedWalletIds = useMemo(() => new Set(data.metadata?.walletArchives?.map(row => row.walletId) ?? []), [data.metadata]);
   const pendingReview = useMemo(() => reviewCounts(activeState.entries.filter(entry => !readOnlyEntryIds.has(entry.id))), [activeState.entries, data.metadata, readOnlyEntryIds]);
   const pendingCount = pendingReview.total;
-  const isReviewQueue = page === 'transactions' && filter === 'pending';
-  const validHistoryWallet = activeState.wallets.find(wallet => wallet.id === historyWallet && (filter === 'pending' ? !isWalletArchived(data, wallet.id) : wallet.currency === historyCurrency))?.id;
+  const isReviewQueue = page === 'transactions' && reviewQueueOpen;
+  const validHistoryWallet = activeState.wallets.find(wallet => wallet.id === historyWallet && (reviewQueueOpen ? !isWalletArchived(data, wallet.id) : wallet.currency === historyCurrency))?.id;
   useEffect(() => { if (historyWallet !== 'all' && !validHistoryWallet) setHistoryWallet('all'); }, [historyWallet, validHistoryWallet]);
   const historyIndex = useMemo(() => createHistoryIndex(activeState, postingContext), [activeState, postingContext]);
   const activityWalletId = page === 'overview' ? dashboardWallet?.id : page === 'transactions' ? validHistoryWallet : undefined;
@@ -795,10 +796,10 @@ export default function App() {
       document.removeEventListener('keydown', escape);
     };
   }, []);
-  function openHistory(walletId: string, period: HistoryPeriod, type = 'all') {
+  function openHistory(walletId: string, period: HistoryPeriod, scope: 'history' | 'review' = 'history') {
     if (mutationInFlight.current) return;
     historyScrollY.current = 0;
-    setPage('transactions'); setQuery(''); setHistoryWallet(walletId); setFilter(type); setReviewReason('all');
+    setPage('transactions'); setQuery(''); setHistoryWallet(walletId); setFilter('all'); setReviewQueueOpen(scope === 'review'); setReviewReason('all');
     setHistoryPeriod(period); setHistoryPage(1); setSelectedEntryIds([]); setHistoryCategory('all'); setHistorySort('newest'); periodBeforeSearch.current = null;
   }
   // A ledger without a single entry gets a way in instead of panels of Rp 0.
@@ -815,7 +816,7 @@ export default function App() {
     if (categoryPreferences.settings.names.includes(name)) setHistoryCategory(name); else setQuery(name);
   }
   /** Review nudge and latest entries; on phones they follow the cashflow cards instead of closing the page. */
-  const overviewRecent = <>{pendingCount > 0 && <button className="pending-banner" onClick={() => openHistory('all', 'all', 'pending')}><span className="pending-icon"><CircleHelp size={20} /></span><span className="pending-banner-copy"><strong>{pendingCount} catatan bisa dirapikan nanti</strong><span>{[pendingReview.type > 0 && `${pendingReview.type} jenis perlu dicek`, pendingReview.category > 0 && `${pendingReview.category} kategori belum diisi`].filter(Boolean).map(reason => `${reason}. `).join('').replace(/\. (?=\d)/g, ' · ')}Saldo sudah tercatat.</span></span><span className="pending-cta">Cek catatan <ArrowRight size={16} /></span></button>}
+  const overviewRecent = <>{pendingCount > 0 && <button className="pending-banner" onClick={() => openHistory('all', 'all', 'review')}><span className="pending-icon"><CircleHelp size={20} /></span><span className="pending-banner-copy"><strong>{pendingCount} catatan bisa dirapikan nanti</strong><span>{[pendingReview.type > 0 && `${pendingReview.type} jenis perlu dicek`, pendingReview.category > 0 && `${pendingReview.category} kategori belum diisi`].filter(Boolean).map(reason => `${reason}. `).join('').replace(/\. (?=\d)/g, ' · ')}Saldo sudah tercatat.</span></span><span className="pending-cta">Cek catatan <ArrowRight size={16} /></span></button>}
     {!startGuide && <section className="panel transactions-panel"><div className="panel-header"><div><h2>Transaksi terbaru</h2><p>{dashboardWallet?.name ?? `Semua dompet ${currency}`} · {cashflowPeriod === 'all' ? 'Semua periode' : reportMonth}</p></div><button className="text-link" onClick={() => openHistory(cashflowScope, cashflowPeriod)}>Semua transaksi <ArrowRight size={15} /></button></div><TransactionTable entries={allTransactions.slice(0, 5)} state={state} data={data} onEdit={editEntry} onDetail={setAmountDetail} /></section>}</>;
   // On a phone the Ringkasan reads top-down in the order things depend on each other:
   // currency, balance, scope and period, money in and out. Banners and the month field follow that order.
@@ -1124,6 +1125,7 @@ export default function App() {
         onWalletChange={setHistoryWallet}
         typeFilter={filter}
         onTypeFilterChange={setFilter}
+        onOpenReview={() => { setFilter('all'); setReviewQueueOpen(true); }}
         reviewReason={reviewReason}
         onReviewReasonChange={setReviewReason}
         onReset={resetHistory}
@@ -1163,7 +1165,7 @@ export default function App() {
         empty={isReviewQueue && pendingCount === 0
         ? <div className="empty-state" data-testid="review-empty"><CheckCircle2 size={30} /><h3>Semua sudah rapi</h3><p>Tidak ada catatan yang perlu dicek atau diisi kategorinya.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Kembali ke semua transaksi</button></div></div>
         : historyFiltered
-        ? <div className="empty-state" data-testid="history-empty-filtered"><Search size={30} /><h3>Tidak ada yang cocok</h3><p>Tidak ada transaksi untuk filter atau pencarian ini.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Reset filter</button>{historyPeriod === 'month' && <button className="button secondary small" onClick={() => setHistoryPeriod('all')}>Lihat semua periode</button>}</div></div>
+        ? <div className="empty-state" data-testid="history-empty-filtered"><Search size={30} /><h3>Tidak ada yang cocok</h3><p>Tidak ada transaksi untuk filter atau pencarian ini.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Reset filter</button>{!isReviewQueue && historyPeriod === 'month' && <button className="button secondary small" onClick={() => setHistoryPeriod('all')}>Lihat semua periode</button>}</div></div>
         : <div
           className="empty-state"
           data-testid="history-empty"
@@ -1205,7 +1207,7 @@ export default function App() {
             >Berikutnya <ChevronRight size={16} />
             </button>
           </div>}</nav>}</section>}
-      {page === 'import' && <>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}<RecoveryImportView data={data} key={data.demo ? 'demo' : 'own'} state={state} demo={data.demo} onStart={startOwn} onImport={importState} onBackup={lastBackup?.fingerprint === currentFingerprint ? undefined : backupAll} notify={notify} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} preferredCurrency={currency} onAddWallet={(requested) => { if (requested) setCurrency(requested); openWallet('new'); }} onOpenReview={() => openHistory('all', 'all', 'pending')} onOpenHistory={walletId => { const target = state.wallets.find(item => item.id === walletId); if (target) setCurrency(target.currency); openHistory(target ? walletId : 'all', 'all'); }} /><StatementReview data={data} onCommit={saveDocument} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} /></>}
+      {page === 'import' && <>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}<RecoveryImportView data={data} key={data.demo ? 'demo' : 'own'} state={state} demo={data.demo} onStart={startOwn} onImport={importState} onBackup={lastBackup?.fingerprint === currentFingerprint ? undefined : backupAll} notify={notify} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} preferredCurrency={currency} onAddWallet={(requested) => { if (requested) setCurrency(requested); openWallet('new'); }} onOpenReview={() => openHistory('all', 'all', 'review')} onOpenHistory={walletId => { const target = state.wallets.find(item => item.id === walletId); if (target) setCurrency(target.currency); openHistory(target ? walletId : 'all', 'all'); }} /><StatementReview data={data} onCommit={saveDocument} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} /></>}
       <MobileFooter onBackupAll={data.demo || blocked ? undefined : () => void backupAll()} />
       </div>
     </main>
