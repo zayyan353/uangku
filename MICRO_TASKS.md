@@ -2975,11 +2975,17 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   memperkecil input yang gagal sampai contoh terkecil; `@fast-check/vitest`
   mendukung Vitest 5. Hanya masuk `devDependencies`, jadi `index.html` tidak
   berubah. Cocok untuk aturan "format v1 dan roundtrip" di `AGENTS.md`.
-  - [ ] **a.** (S) Pasang `fast-check` dan `@fast-check/vitest`. Properti pertama:
+  - [x] **a.** (S) Pasang `fast-check` dan `@fast-check/vitest`. Properti pertama:
     `parseMoney(formatMoneyInput(x, c), c) === x` untuk nominal aman dan mata
     uang dengan 0, 2, 3, dan 4 digit pecahan (`src/lib/finance.ts`,
     `src/lib/moneyFormatting.ts`). Bila properti gagal, catat temuannya sebagai
     MW baru dulu; jangan mengubah kode aplikasi di MW ini.
+    *Selesai:* `src/lib/moneyRoundtrip.property.test.ts` menguji nominal bertanda
+    dari MIN_SAFE_INTEGER hingga MAX_SAFE_INTEGER pada JPY, TRY, KWD dan CLF.
+    *Tes:* impor adapter gagal sebelum paket dipasang. Sesudahnya satu properti
+    lulus 100 percobaan pada empat mata uang (400 round-trip), 2.049 tes unit
+    di 86 berkas dan build produksi lulus.
+    *Belum terbukti:* setiap kombinasi nominal dan mata uang.
   - [ ] **b.** (S–M) Generator `SourceDocument` sintetis (khusus tes) dan properti
     `decodeSourceWire(encodeSourceWire(doc))` sama dengan `doc`
     (`src/lib/sourceCodec.ts`), termasuk kolom yang nilainya seragam lalu
