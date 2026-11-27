@@ -24,6 +24,7 @@ import { monthOutsideView } from './lib/savedPeriod';
 import { carryDemo } from './lib/demoTransition';
 import type { CandidateOptions } from './lib/persistence';
 import { budgetProgress, categoryBudgetRows, type BudgetMap } from './lib/budgets';
+import { useBuildUpdate } from './hooks/useBuildUpdate';
 import { useLedgerStorage } from './hooks/useLedgerStorage';
 import { useTransactionTemplates } from './hooks/useTransactionTemplates';
 import RecoveryImportView from './components/RecoveryImportView';
@@ -508,7 +509,11 @@ export default function App() {
   const budgetsShown = cashflowPeriod === 'month' && cashflowScope === 'all';
   const budgetsHidden = !budgetsShown && !!monthlyBudgets && Object.keys(monthlyBudgets).length > 0;
   const budgetMonth = cashflowPeriod === 'month' ? month : clockDay.slice(0, 7);
-  const canShowBudgetWarning = canShowOverviewReminder && staleWallets.length === 0;
+  const buildUpdate = useBuildUpdate();
+  // Import can hold a file preview. Leave reloading to a deliberate action on another page.
+  const showBuildUpdate = buildUpdate && page !== 'import' && !blocked && !ledger.dirty && !ledger.pending
+    && !storageError && !storageWarning && !reminderReason && staleWallets.length === 0;
+  const canShowBudgetWarning = canShowOverviewReminder && staleWallets.length === 0 && !showBuildUpdate;
   const budgetWarning = useMemo(() => {
     if (!canShowBudgetWarning || !monthlyBudgets) return null;
     try {
@@ -862,6 +867,12 @@ export default function App() {
     if (value !== 'all') setMonth(value);
   }
   const monthControl = page !== 'wallets' && page !== 'import' ? <div className="month-stepper" role="group" aria-label="Periode laporan"><button type="button" className="icon-button" aria-label="Bulan sebelumnya" disabled={periodAll} onClick={() => setMonth(priorMonth(month))}><ChevronLeft size={16} /></button><label className="date-pill"><History size={15} aria-hidden="true" /><select aria-label={page === 'transactions' ? 'Periode transaksi' : 'Bulan laporan'} value={periodAll ? 'all' : month} onChange={e => choosePeriod(e.target.value)}><option value="all">Seluruh catatan</option>{monthChoices.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button type="button" className="icon-button" aria-label="Bulan berikutnya" disabled={periodAll} onClick={() => setMonth(nextMonth(month))}><ChevronRight size={16} /></button></div> : null;
+  const versionNotice = showBuildUpdate && <div className={data.demo ? undefined : 'backup-reminder'} role="status" data-testid="build-update">
+    <strong>Versi baru tersedia.</strong>{' '}
+    <button className={data.demo ? 'text-link' : 'button ghost small'} onClick={() => {
+      if (!document.querySelector('[aria-modal="true"]') && !mutationInFlight.current) window.location.reload();
+    }}>Muat ulang</button>
+  </div>;
   const banners = <>
       {storageWarning ? <div
         className="backup-reminder"
@@ -921,6 +932,7 @@ export default function App() {
           <button className="button ghost small" onClick={closeReminder}>Nanti saja</button>
         </div>
       )}
+      {!data.demo && versionNotice}
       {budgetWarning && <div className="backup-reminder" role="status" data-testid="budget-warning">
         <span className="demo-banner-icon"><AlertTriangle size={20} /></span>
         <div className="demo-banner-copy">
@@ -934,6 +946,7 @@ export default function App() {
         <div className="demo-banner-copy">
           <strong>Kenalan dulu pakai data contoh.</strong>
           <span className={blocked ? 'demo-banner-alert' : page === 'import' ? 'demo-banner-import' : 'demo-banner-detail'}>{blocked ? 'Penyimpanan perlu dipulihkan. Yang tampil adalah contoh sementara.' : page === 'import' ? 'Mulai dengan data sendiri sebelum mengimpor mutasi asli.' : 'Transaksi yang kamu tambahkan di sini bisa dibawa saat mulai memakai data sendiri.'}</span>
+          {versionNotice}
           <div><span>Punya file cadangan?</span>{' '}<button type="button" className="text-link" onClick={() => restoreRef.current?.click()}>Pulihkan cadangan</button></div>
         </div>
         <button className="button ghost small" disabled={ledger.pending || ledger.dirty} onClick={startOwn}>Mulai pakai data sendiri <ArrowRight size={16} /></button>

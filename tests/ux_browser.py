@@ -326,6 +326,112 @@ def close_privacy(page, dialog):
     expect(page.get_by_role('dialog')).to_have_count(0)
 
 
+def build_update_case(browser, args, output, mobile):
+    """MW-103: only a verified same-origin release can offer a deliberate reload."""
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    context, page, errors = storage_page(browser, mobile, raw)
+    requested = []
+    external = []
+    target = args.url.rstrip('/') + '/BUILD_INFO.json'
+    response = {'status': 404, 'body': ''}
+    context.add_cookies([{'name': 'synthetic', 'value': 'private', 'url': args.url}])
+    context.add_init_script("localStorage.setItem('uangku:budgets:v1', JSON.stringify({IDR:{Belanja:1000}}))")
+    context.add_init_script('''(() => {
+      window.releaseChecks = [];
+      const original = window.fetch.bind(window);
+      window.fetch = async (...args) => {
+        const request = new Request(...args);
+        try { return await original(...args); }
+        finally {
+          if (new URL(request.url).pathname.endsWith('/BUILD_INFO.json')) {
+            window.releaseChecks.push([request.cache, request.credentials, request.redirect, request.mode]);
+          }
+        }
+      };
+    })()''')
+    def manifest(route):
+        requested.append(route.request)
+        route.fulfill(**response)
+    context.route('**/BUILD_INFO.json', manifest)
+    page.on('request', lambda request: external.append(request.url) if request.url.startswith('https://example.invalid/') else None)
+    context.route('https://example.invalid/**', lambda route: route.abort())
+
+    def focus():
+        before = page.evaluate('window.releaseChecks.length')
+        with page.expect_request(target, timeout=5000):
+            page.evaluate('window.dispatchEvent(new Event("focus"))')
+        page.wait_for_function('n => window.releaseChecks.length > n', arg=before)
+
+    try:
+        page.goto(args.url.rstrip('/') + '/?private=synthetic', wait_until='networkidle')
+        build = page.get_by_test_id('build-version').inner_text().split()[-1]
+        assert re.fullmatch('[a-f0-9]{7,40}', build), build
+        warning = page.get_by_test_id('build-update')
+        backup = page.get_by_test_id('backup-reminder')
+        expect(backup).to_be_visible()
+        # A real check needs no referrer, cookies, financial bytes or query string.
+        focus()
+        expect(warning).to_have_count(0)
+        newer = {'status': 200, 'json': {'commit': ('a' if build[0] != 'a' else 'b') * 40}}
+        response = newer
+        focus()
+        expect(backup).to_be_visible()
+        expect(warning).to_have_count(0)
+        with page.expect_download():
+            backup.get_by_role('button', name='Cadangkan sekarang').click()
+        expect(backup).to_have_count(0)
+        expect(warning).to_be_visible()
+        expect(page.get_by_test_id('budget-warning')).to_have_count(0)
+        for reply in [
+            {'status': 200, 'json': {'commit': build.ljust(40, '0')}},
+            {'status': 200, 'body': '<html>Preview fallback</html>'},
+            {'status': 200, 'json': {'commit': 'invalid'}},
+            {'status': 302, 'headers': {'Location': 'https://example.invalid/foreign-release'}},
+        ]:
+            response = reply
+            focus()
+            expect(warning).to_have_count(0)
+        expect(page.get_by_test_id('budget-warning')).to_be_visible()
+        assert not external, external
+        before_offline = page.evaluate('window.releaseChecks.length')
+        context.set_offline(True)
+        page.wait_for_function('!navigator.onLine')
+        page.evaluate('window.dispatchEvent(new Event("focus"))')
+        expect(warning).to_have_count(0)
+        assert page.evaluate('window.releaseChecks.length') == before_offline
+        context.set_offline(False)
+        page.wait_for_function('navigator.onLine')
+        page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+        dialog = page.get_by_role('dialog')
+        note = dialog.get_by_label(re.compile('Keterangan'))
+        note.fill('Synthetic draft for a version check')
+        response = newer
+        focus()
+        expect(note).to_have_value('Synthetic draft for a version check')
+        assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw
+        dialog.get_by_role('button', name='Tutup', exact=True).click()
+        page.get_by_role('button', name='Buang isian', exact=True).click()
+        expect(warning).to_be_visible()
+        expect(warning).to_contain_text('Versi baru tersedia')
+        for request in requested:
+            assert request.method == 'GET' and request.url == target and request.post_data is None
+            headers = request.all_headers()
+            assert 'referer' not in headers and 'cookie' not in headers
+        checks = page.evaluate('window.releaseChecks')
+        assert all(options == ['no-store', 'omit', 'error', 'same-origin'] for options in checks), checks
+        privacy = open_privacy(page)
+        expect(privacy).to_contain_text('memeriksa versi terbaru di alamat situs yang sama')
+        close_privacy(page, privacy)
+        with page.expect_navigation(wait_until='networkidle'):
+            warning.get_by_role('button', name='Muat ulang', exact=True).click()
+        assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw
+        assert not errors, errors
+        return {'name': 'build-update-mobile' if mobile else 'build-update-desktop', 'status': 'passed',
+                'manifest_checks': len(requested), 'cross_origin_requests': len(external)}
+    finally:
+        context.close()
+
+
 def fill_storage(page, target, label):
     """Fills the origin to exactly `target` characters. Returns False when this engine's own quota refuses it."""
     filled = page.evaluate(STORAGE_FILL_JS, target)
@@ -1494,6 +1600,7 @@ def main():
             for name, case, mobile in [('desktop', run_case, False), ('mobile', run_case, True),
                                        ('storage-desktop', storage_case, False), ('storage-mobile', storage_case, True),
                                        ('storage-gating', storage_gating_case, False),
+                                       ('build-update-desktop', build_update_case, False), ('build-update-mobile', build_update_case, True),
                                        ('routes-desktop', route_case, False), ('routes-mobile', route_case, True),
                                        ('dialog-back-desktop', dialog_back_case, False),
                                        ('dialog-back-mobile', dialog_back_case, True),
