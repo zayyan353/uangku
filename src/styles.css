@@ -1555,7 +1555,7 @@ html[data-theme="dark"] .import-table .select-input.select-input { background-si
 @media (max-width: 760px) {
   .category-toolbar { gap: 8px; margin-bottom: 12px; }
   .transactions-panel > .category-toolbar { padding-bottom: 12px; margin-bottom: 12px; }
-  .category-toolbar > .field-help { font-size: 12px; line-height: 1.4; }
+  .category-toolbar > .field-help { display: none; }
 }
 .history-scope strong { color: var(--text); font-weight: 650; }
 

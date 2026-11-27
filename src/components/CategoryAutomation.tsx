@@ -44,7 +44,7 @@ export default function CategoryAutomation({ data, settingsRaw, settingsError, o
     catch (error) { setError(error instanceof Error ? error.message : 'Kategori belum tersimpan.'); }
     finally { saving.current = false; setBusy(false); }
   }
-  return <><Modal title="Isi kategori otomatis" subtitle="Tinjau kategori dan konfirmasi mutasi bank yang dikenali." onClose={() => { if (!saving.current) onClose(); }}>
+  return <><Modal title="Isi kategori otomatis" subtitle="Tinjau kategori dan konfirmasi mutasi bank yang dikenali dari semua periode." onClose={() => { if (!saving.current) onClose(); }}>
     <div className="modal-body">
     {rows.length > 0 && <><div className="notice success">{auto} cocok dengan aturan otomatis · {rows.length - auto} perlu pilihan. Catatan tanpa kecocokan tetap belum dikategorikan.</div>
     <details className="automation-rules"><summary>Apa yang terjadi saat Terapkan?</summary><p className="field-help">Semua periode dan mata uang. Kategori manual dipertahankan. Saat Terapkan, mutasi bank yang dikenali juga dikonfirmasi: tarik ATM menjadi pengeluaran, setor ATM menjadi pemasukan, dan transfer bank tetap perpindahan dana; PREPAID masuk menjadi pemasukan Cashback; refund masalah ATM yang jelas menjadi Pengembalian dana. Pembayaran kartu tanpa kecocokan merchant memakai Belanja sebagai kategori umum, tanpa menebak barang yang dibeli. Nominal, saldo rekening, tanggal, dan data bank tetap. Mutasi lainnya tetap perlu dicek.</p></details></>}
