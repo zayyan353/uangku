@@ -1890,3 +1890,5 @@ body:has(.modal-backdrop) .toast { bottom: auto; top: 18px; z-index: 120; }
 .recap-ranks li { padding: 5px 0; }
 .recap-ranks strong { white-space: nowrap; }
 .recap-controls { align-items: center; justify-content: space-between; }
+
+.age-of-money { margin-top: var(--block-gap); }

@@ -2974,7 +2974,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   - [ ] **c.** (S) Tes browser: aktifkan, muat ulang, pastikan Ringkasan,
     Transaksi, dan Dompet tidak menampilkan digit nominal; lalu matikan lagi.
 
-- [ ] **MW-154 — Umur uang (Age of Money)**
+- [x] **MW-154 — Umur uang (Age of Money)**
   Ukuran dari YNAB: rata-rata berapa hari antara uang masuk dan uang itu
   dipakai; 30–50 hari berarti hidup dari uang bulan lalu, bukan dari gajian
   berikutnya. Actual menghitungnya di
@@ -3011,8 +3011,17 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     sepuluh sampel. Seluruh 2.032 tes unit di 83 berkas dan build lulus.
     *Belum terbukti:* urutan intrahari sesungguhnya saat hanya tanggal yang
     tersedia. Tampilan kartu menyusul pada MW-154b.
-  - [ ] **b.** (S) Satu kartu di Ringkasan, mis. "Umur uang: 23 hari", untuk mata
+  - [x] **b.** (S) Satu kartu di Ringkasan, mis. "Umur uang: 23 hari", untuk mata
     uang yang dipilih, dengan penjelasan satu kalimat.
+    *Selesai:* kartu Umur uang memakai semua rekening dalam mata uang
+    terpilih sampai hari ini. Komponen menyimpan hasil perhitungan selama
+    data, mata uang, dan hari acuan tetap. Pesan kegagalan tampil di kartu.
+    *Tes:* pada build awal, Chromium gagal mencari kartu. Sesudah implementasi
+    kasus `age-of-money-currency` lulus: 14 hari untuk TRY, tetap 14 setelah
+    bulan dan dompet diganti, lalu “Belum cukup data” saat USD dipilih.
+    Empat pembandingan isi catatan identik, 2.039 tes unit di 84 berkas dan
+    build produksi lulus.
+    *Belum terbukti:* perangkat fisik dan waktu hitung pada perangkat pemilik.
   Aturan transfer lintas mata uang di butir a boleh diubah agen bila hasil tes
   janggal (mudah dibatalkan); catat alasannya di entri ini.
 

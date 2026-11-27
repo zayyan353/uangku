@@ -709,6 +709,20 @@ def source_fixture():
     return document(rows, [wallet(), wallet('digital', 'Synthetic ewallet', opening=0, kind='ewallet')], m)
 
 
+def age_of_money(case):
+    page = case.page
+    card = page.get_by_role('region', name='Umur uang', exact=True)
+    expect(card).to_contain_text('14 hari')
+    expect(card).to_contain_text('semua rekening TRY')
+    case.month('2026-09')
+    case.scope('other')
+    expect(card).to_contain_text('14 hari')
+    page.get_by_role('button', name=re.compile('USD.*Dolar AS')).click()
+    expect(card).to_contain_text('Belum cukup data')
+    expect(card).to_contain_text('semua rekening USD')
+    case.assert_unchanged()
+
+
 def recap_2026(case):
     page = case.page
     privacy = 'uangku:privacy:v1'
@@ -895,6 +909,11 @@ def cases():
         ('cash-archive-excluded-preserved', {'data': archived_cash}, cash_archive),
         ('immutable-source-backup-read-filter', {'data': source_fixture()}, source_read_and_backup),
     ]
+    aged = document([entry('income', 1_000, 'income', date='2026-09-25'),
+        *[entry(f'buy-{i}', 100, 'expense', date='2026-10-09') for i in range(10)]],
+        [wallet(opening=0), wallet('other', 'Synthetic second bank', opening=0),
+         wallet('usd', 'Synthetic dollar bank', currency='USD', opening=0)])
+    result.append(('age-of-money-currency', {'data': aged}, age_of_money))
     recap_data = document([
         entry('salary', 1_234_567, 'income', date='2026-01-01'),
         entry('buy', 98_765, 'expense', date='2026-12-01', category='Kategori Sintetis', note='Toko Sintetis'),
