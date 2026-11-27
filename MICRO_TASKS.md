@@ -2683,8 +2683,15 @@ run tersusul push yang lebih baru di branch yang sama.
   - [ ] **b.** (M) Komponen `TransactionsPage` yang memiliki hook itu, sehingga
     mengetik hanya me-render ulang bagian tersebut. Ini melengkapi MW-112;
     MW-112a–c tetap dikerjakan di sana.
-  - [ ] **c.** (S) Pecah sembilan baris di atas 1.000 karakter menjadi satu prop per
+  - [x] **c.** (S) Pecah sembilan baris di atas 1.000 karakter menjadi satu prop per
     baris.
+    *Selesai:* pada basis `ba9bd89`, sembilan baris JSX melampaui 1.000
+    karakter (maksimum 2.276 di baris 933). Tag dan prop di sembilan baris itu
+    dipisah. Baris terpanjang kini 953 karakter.
+    *Tes:* batas 1.000 gagal sebelum perubahan dan lulus sesudahnya. Seluruh
+    18.208 token sintaks JavaScript hasil transpilasi TypeScript identik,
+    termasuk teks elemen JSX. 2.051 tes di 88 file dan build produksi lulus.
+    *Belum terbukti:* tampilan belum diperiksa di perangkat fisik.
 
 ### F7. Backlog CSS (D6) — urutan kerja dan keputusan terbuka
 

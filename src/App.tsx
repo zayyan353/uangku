@@ -836,7 +836,49 @@ export default function App() {
   }
   const monthControl = page !== 'wallets' && page !== 'import' ? <div className="month-stepper" role="group" aria-label="Periode laporan"><button type="button" className="icon-button" aria-label="Bulan sebelumnya" disabled={periodAll} onClick={() => setMonth(priorMonth(month))}><ChevronLeft size={16} /></button><label className="date-pill"><History size={15} aria-hidden="true" /><select aria-label="Bulan laporan" value={periodAll ? 'all' : month} onChange={e => choosePeriod(e.target.value)}><option value="all">Seluruh catatan</option>{monthChoices.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button type="button" className="icon-button" aria-label="Bulan berikutnya" disabled={periodAll} onClick={() => setMonth(nextMonth(month))}><ChevronRight size={16} /></button></div> : null;
   const banners = <>
-      {storageWarning ? <div className="backup-reminder" role="status" data-testid="storage-warning"><span className="demo-banner-icon"><AlertTriangle size={20} /></span><div className="demo-banner-copy"><strong>Ruang penyimpanan browser terpakai {storageUsage.percent}%.</strong><span>Bila penuh, simpan atau impor berikutnya ditolak; catatan yang sudah tersimpan tetap utuh. Unduh cadangan lengkap sekarang.</span></div><button className="button ghost small" onClick={() => void backupAll()}>Cadangkan sekarang</button><button className="button ghost small" onClick={closeReminder}>Nanti saja</button></div> : reminderReason && <div className="backup-reminder" role="status" data-testid="backup-reminder" data-reason={reminderReason}><span className="demo-banner-icon"><Download size={20} /></span><div className="demo-banner-copy"><strong>{reminderReason === 'never' ? 'Belum ada cadangan lengkap.' : 'Sudah lebih dari 7 hari sejak cadangan terakhir.'}</strong><span>{reminderReason === 'never' ? 'Catatan hanya tersimpan di browser ini. Unduh satu file cadangan supaya tidak hilang bila data situs terhapus.' : 'Catatan sudah berubah sejak itu. Unduh cadangan lengkap yang baru.'}</span></div><button className="button ghost small" onClick={() => void backupAll()}>Cadangkan sekarang</button><button className="button ghost small" onClick={closeReminder}>Nanti saja</button></div>}
+      {storageWarning ? <div
+        className="backup-reminder"
+        role="status"
+        data-testid="storage-warning"
+      >
+        <span className="demo-banner-icon">
+          <AlertTriangle size={20} />
+        </span>
+        <div className="demo-banner-copy">
+          <strong>Ruang penyimpanan browser terpakai {storageUsage.percent}%.</strong>
+          <span>Bila penuh, simpan atau impor berikutnya ditolak; catatan yang sudah tersimpan tetap utuh. Unduh cadangan lengkap sekarang.</span>
+        </div>
+        <button
+          className="button ghost small"
+          onClick={() => void backupAll()}
+        >Cadangkan sekarang</button>
+        <button
+          className="button ghost small"
+          onClick={closeReminder}
+        >Nanti saja</button>
+      </div> : reminderReason &&
+      <div
+        className="backup-reminder"
+        role="status"
+        data-testid="backup-reminder"
+        data-reason={reminderReason}
+      >
+        <span className="demo-banner-icon">
+          <Download size={20} />
+        </span>
+        <div className="demo-banner-copy">
+          <strong>{reminderReason === 'never' ? 'Belum ada cadangan lengkap.' : 'Sudah lebih dari 7 hari sejak cadangan terakhir.'}</strong>
+          <span>{reminderReason === 'never' ? 'Catatan hanya tersimpan di browser ini. Unduh satu file cadangan supaya tidak hilang bila data situs terhapus.' : 'Catatan sudah berubah sejak itu. Unduh cadangan lengkap yang baru.'}</span>
+        </div>
+        <button
+          className="button ghost small"
+          onClick={() => void backupAll()}
+        >Cadangkan sekarang</button>
+        <button
+          className="button ghost small"
+          onClick={closeReminder}
+        >Nanti saja</button>
+      </div>}
       {staleWallets.length > 0 && (
         <div className="backup-reminder statement-reminder" role="status" data-testid="statement-reminder" data-wallets={staleWallets.length}>
           <span className="demo-banner-icon"><History size={20} /></span>
@@ -896,8 +938,96 @@ export default function App() {
   </div>;
   return <CategorySettingsContext.Provider value={categoryPreferences.settings}><ModalOpenedContext.Provider value={dismissPreviousSuccess}><div className="app-shell">
     <AppSidebar initial={avatarInitial} page={page} pendingCount={pendingCount} lastBackupText={lastBackupText} onNavigate={navigate} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} />
-    <main className="main-content"><header className="topbar"><div className="breadcrumb"><span className="breadcrumb-root">Ruang pribadi</span><ChevronRight className="breadcrumb-separator" size={13} aria-hidden="true" /><strong>{NAVIGATION.find(n => n.page === page)?.label}</strong></div><div className="topbar-tools"><ThemePicker onNotice={notify} />{ledger.dirty || storageError || blocked ? <span className="save-pill problem" title={ledger.label} aria-hidden="true"><span className="status-dot" /><span className="save-pill-text">{ledger.label}</span></span> : <span className={`save-pill${sampleOnly ? ' demo' : ''}`} title={sampleOnly ? 'Data contoh: belum ada catatanmu sendiri yang disimpan' : ledger.label} role="status" data-testid="save-status"><span className="status-dot" /><span className="save-pill-text">{sampleOnly ? 'Data contoh' : ledger.label}</span></span>}<button type="button" className="local-indicator" title="Privasi dan cadangan" onClick={() => setPrivacyOpen(true)}><span className="status-dot" /> Lokal & pribadi</button><AccountMenu nickname={nickname} initial={avatarInitial} onNicknameChange={changeNickname} lastBackupText={lastBackupText} onBackupAll={() => void backupAll()} onBackupCurrent={() => backupCurrent()} onRestore={() => restoreRef.current?.click()} onPrivacy={() => setPrivacyOpen(true)} /></div></header>
-      <div className="page-content">{page === 'overview' && categoryPreferences.newerVersion && <p className="notice warning" role="alert">{categoryPreferences.error}</p>}<div className="page-header"><div>{page === 'overview' && <div className="eyebrow">SEDIKIT DICATAT, BANYAK TERBANTU</div>}<h1 className="page-title">{titles[page][0]} {page === 'overview' && <span className="greeting-leaf">✳</span>}</h1><p className="page-subtitle">{titles[page][1]}</p></div><div className="page-actions">{page === 'wallets' ? <button className="button primary" onClick={() => openWallet('new')}><Plus size={18} /> Tambah dompet</button> : page === 'import' ? <><button className="button ghost small import-setting" onClick={openCurrencyManager}>Kelola mata uang</button><button className="button ghost small import-setting" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={16} /> Kelola kategori</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></> : <><button className="button secondary" onClick={() => openTx('transfer')}><ArrowLeftRight size={17} /> Pindah uang</button><button className="button primary" onClick={() => openTx('expense')}><Plus size={18} /> Catat transaksi</button></>}</div></div>
+    <main className="main-content">
+      <header className="topbar">
+        <div className="breadcrumb">
+          <span className="breadcrumb-root">Ruang pribadi</span>
+          <ChevronRight
+            className="breadcrumb-separator"
+            size={13}
+            aria-hidden="true"
+          />
+          <strong>{NAVIGATION.find(n => n.page === page)?.label}</strong>
+        </div>
+        <div className="topbar-tools">
+          <ThemePicker onNotice={notify} />{ledger.dirty || storageError || blocked ? <span
+            className="save-pill problem"
+            title={ledger.label}
+            aria-hidden="true"
+          >
+            <span className="status-dot" />
+            <span className="save-pill-text">{ledger.label}</span>
+          </span> : <span
+            className={`save-pill${sampleOnly ? ' demo' : ''}`}
+            title={sampleOnly ? 'Data contoh: belum ada catatanmu sendiri yang disimpan' : ledger.label}
+            role="status"
+            data-testid="save-status"
+          >
+            <span className="status-dot" />
+            <span className="save-pill-text">{sampleOnly ? 'Data contoh' : ledger.label}</span>
+          </span>}
+          <button
+            type="button"
+            className="local-indicator"
+            title="Privasi dan cadangan"
+            onClick={() => setPrivacyOpen(true)}
+          >
+            <span className="status-dot" /> Lokal & pribadi</button>
+          <AccountMenu
+            nickname={nickname}
+            initial={avatarInitial}
+            onNicknameChange={changeNickname}
+            lastBackupText={lastBackupText}
+            onBackupAll={() => void backupAll()}
+            onBackupCurrent={() => backupCurrent()}
+            onRestore={() => restoreRef.current?.click()}
+            onPrivacy={() => setPrivacyOpen(true)}
+          />
+        </div>
+      </header>
+      <div className="page-content">{page === 'overview' && categoryPreferences.newerVersion &&
+        <p
+          className="notice warning"
+          role="alert"
+        >{categoryPreferences.error}</p>}
+        <div className="page-header">
+          <div>{page === 'overview' &&
+            <div className="eyebrow">SEDIKIT DICATAT, BANYAK TERBANTU</div>}
+            <h1 className="page-title">{titles[page][0]} {page === 'overview' &&
+              <span className="greeting-leaf">✳</span>}</h1>
+            <p className="page-subtitle">{titles[page][1]}</p>
+          </div>
+          <div className="page-actions">{page === 'wallets' ? <button
+              className="button primary"
+              onClick={() => openWallet('new')}
+            >
+              <Plus size={18} /> Tambah dompet</button> : page === 'import' ? <>
+              <button
+                className="button ghost small import-setting"
+                onClick={openCurrencyManager}
+              >Kelola mata uang</button>
+              <button
+                className="button ghost small import-setting"
+                disabled={categoryPreferences.recovering}
+                onClick={openCategoryManager}
+              >
+                <Tags size={16} /> Kelola kategori</button>
+              <button
+                className="button primary"
+                onClick={() => openTx('expense')}
+              >
+                <Plus size={18} /> Catat transaksi</button></> : <>
+              <button
+                className="button secondary"
+                onClick={() => openTx('transfer')}
+              >
+                <ArrowLeftRight size={17} /> Pindah uang</button>
+              <button
+                className="button primary"
+                onClick={() => openTx('expense')}
+              >
+                <Plus size={18} /> Catat transaksi</button></>}</div>
+        </div>
       {activeState.wallets.some(wallet => undatedWallets.has(wallet.id)) && <div className="notice warning">Ada tanggal posting yang belum diketahui. Saldo aktual dan laporan periode terkait belum dapat dianggap lengkap; nilai tersebut tetap ada pada saldo seluruh catatan.</div>}
       {!conflictInForm && saveProblem}
       {!phoneOverview && banners}
@@ -907,7 +1037,57 @@ export default function App() {
         <CashflowOverview {...cashflowResult} previous={previousFlow} startGuide={startGuide} monthControl={phoneOverview ? <>{currencyManageButton}{monthControl}</> : undefined} afterCards={phoneOverview ? banners : undefined} balanceCard={!mobileOverview && balanceCard} currency={currency} month={month} period={cashflowPeriod} walletId={cashflowScope} wallets={currencyWallets} archivedWalletIds={new Set(archivedCurrencyWallets.map(wallet => wallet.id))} onPeriodChange={setCashflowPeriod} onWalletChange={setCashflowWallet} />
         {isYearRecapVisible(clockDay) && <YearRecap data={data} currency={currency} today={clockDay} />}
         {mobileOverview && overviewRecent}
-        <div className="dashboard-columns"><section className="panel wallet-panel"><div className="panel-header"><div><h2>Dompetmu</h2><p>Uangnya ada di sini.</p></div><button className="text-link" onClick={() => navigate('wallets')}>Lihat semua <ArrowRight size={15} /></button></div><div className="wallet-list">{overviewWallets.map(w => <div className="wallet-row-wrap" key={w.id}><button className="wallet-row" aria-label={`Riwayat ${w.name}, saldo ${actualText(w.id, w.currency)}`} onClick={() => openHistory(w.id, 'all')}><WalletSymbol wallet={w} /><span className="wallet-info"><strong className="wallet-name">{w.name}</strong><span className="wallet-detail">{kindLabel(w.kind)}</span></span><strong className="wallet-amount">{actualText(w.id, w.currency)}</strong><ChevronRight size={16} /></button></div>)}{!availableCurrencyWallets.length && <div className="empty-state compact"><WalletIcon size={25} /><p>Belum ada dompet aktif {currency}.</p><button className="text-link" onClick={() => openWallet('new')}>Tambah dompet</button></div>}</div>{availableCurrencyWallets.length > overviewWallets.length && <button className="text-link wallet-panel-more" data-testid="overview-more-wallets" onClick={() => navigate('wallets')}>+{availableCurrencyWallets.length - overviewWallets.length} dompet lainnya <ArrowRight size={15} /></button>}{availableCurrencyWallets.length > 0 && <button className="wallet-panel-add" onClick={() => openWallet('new')}><Plus size={16} /> Tambah dompet</button>}</section>
+        <div className="dashboard-columns">
+          <section className="panel wallet-panel">
+            <div className="panel-header">
+              <div>
+                <h2>Dompetmu</h2>
+                <p>Uangnya ada di sini.</p>
+              </div>
+              <button
+                className="text-link"
+                onClick={() => navigate('wallets')}
+              >Lihat semua <ArrowRight size={15} />
+              </button>
+            </div>
+            <div className="wallet-list">{overviewWallets.map(w =>
+              <div
+                className="wallet-row-wrap"
+                key={w.id}
+              >
+                <button
+                  className="wallet-row"
+                  aria-label={`Riwayat ${w.name}, saldo ${actualText(w.id, w.currency)}`}
+                  onClick={() => openHistory(w.id, 'all')}
+                >
+                  <WalletSymbol wallet={w} />
+                  <span className="wallet-info">
+                    <strong className="wallet-name">{w.name}</strong>
+                    <span className="wallet-detail">{kindLabel(w.kind)}</span>
+                  </span>
+                  <strong className="wallet-amount">{actualText(w.id, w.currency)}</strong>
+                  <ChevronRight size={16} />
+                </button>
+              </div>)}{!availableCurrencyWallets.length &&
+              <div className="empty-state compact">
+                <WalletIcon size={25} />
+                <p>Belum ada dompet aktif {currency}.</p>
+                <button
+                  className="text-link"
+                  onClick={() => openWallet('new')}
+                >Tambah dompet</button>
+              </div>}</div>{availableCurrencyWallets.length > overviewWallets.length &&
+            <button
+              className="text-link wallet-panel-more"
+              data-testid="overview-more-wallets"
+              onClick={() => navigate('wallets')}
+            >+{availableCurrencyWallets.length - overviewWallets.length} dompet lainnya <ArrowRight size={15} />
+            </button>}{availableCurrencyWallets.length > 0 &&
+            <button
+              className="wallet-panel-add"
+              onClick={() => openWallet('new')}
+            >
+              <Plus size={16} /> Tambah dompet</button>}</section>
           <section className="panel category-panel"><div className="category-panel-head"><FoldHeader mark="category" title="Kategori pengeluaran terkonfirmasi" description={`${cashflowPeriod === 'all' ? 'Seluruh catatan hingga hari ini' : reportMonth} · cakupan rekening yang dipilih.`} summary={categoryFoldSummary(cashflowResult.report, currency)} open={categoryPanelOpen} controls="category-panel-body" onToggle={() => setCategoryPanelOpen(open => !open)} /><button type="button" className="category-heading-icon" aria-label="Kelola kategori" title="Kelola kategori dan anggaran" disabled={categoryPreferences.recovering} onClick={openCategoryManager}><Tags size={18} /></button></div><div className="fold-body" id="category-panel-body" hidden={!categoryPanelOpen}>{!cashflowResult.report
             ? <p className="field-help">Total pengeluaran belum dapat dihitung.</p>
             : categoryRows.rows.length ? <div className="category-list"><p className="category-total" data-testid="category-total" data-amount={categoryExpenseTotal}><span>Total pengeluaran · {categoryTotals.length} kategori</span><strong>{formatMoney(categoryExpenseTotal, currency)}</strong></p>{categoryRows.rows.map(row => {
@@ -930,11 +1110,101 @@ export default function App() {
         setQuery(value);
         if (value.trim() && !query.trim() && historyPeriod === 'month') { periodBeforeSearch.current = historyPeriod; setHistoryPeriod('all'); }
         else if (!value.trim() && periodBeforeSearch.current) { setHistoryPeriod(periodBeforeSearch.current); periodBeforeSearch.current = null; }
-      }} period={historyPeriod} periodMonthLabel={reportMonth} onPeriodChange={value => { periodBeforeSearch.current = null; setHistoryPeriod(value); }} sort={historySort} onSortChange={setHistorySort} category={historyCategory} categoryOptions={categoryPreferences.settings.names} onCategoryChange={setHistoryCategory} walletId={validHistoryWallet ?? 'all'} walletOptions={activeState.wallets.filter(wallet => isReviewQueue ? !isWalletArchived(data, wallet.id) : wallet.currency === currency).map(wallet => ({ id: wallet.id, name: wallet.name, archived: isWalletArchived(data, wallet.id) }))} onWalletChange={setHistoryWallet} typeFilter={filter} onTypeFilterChange={setFilter} reviewReason={reviewReason} onReviewReasonChange={setReviewReason} onReset={resetHistory} onDownloadCsv={downloadHistoryCsv} transactionCount={allTransactions.length} pendingCount={pendingCount} />{selectedEntries.length > 0 && <BulkReviewPanel entries={selectedEntries} onApply={applyBulkCategory} onClear={() => setSelectedEntryIds([])} selectableCount={selectableIds.length} onSelectAll={() => setSelectedEntryIds(selectableIds)} />}<p className="field-help history-scope" role="status" tabIndex={-1} data-testid="history-scope"><strong>{allTransactions.length} transaksi</strong> · {isReviewQueue ? 'Semua mata uang · semua periode' : `${currency === 'TRY' ? 'TL' : currency} · ${historyPeriod === 'all' ? query.trim() && periodBeforeSearch.current ? 'mencari di semua periode' : 'Semua periode' : reportMonth}`}{historyTotals && <> · <span data-testid="history-inflow" data-amount={historyTotals.inflow.toString()}>masuk {formatMoney(historyTotals.inflow, currency)}</span> · <span data-testid="history-outflow" data-amount={historyTotals.outflow.toString()}>keluar {formatMoney(historyTotals.outflow, currency)}</span></>}. Pilih catatan di halaman ini untuk kategori massal.</p><TransactionTable entries={historySlice.entries} state={state} data={data} onEdit={editEntry} onDetail={setAmountDetail} selection={selection} groupByDate={historySort === 'newest' || historySort === 'oldest'} quickCategory={isReviewQueue ? { names: categoryPreferences.settings.names, apply: (entry, category) => void applyQuickCategory(entry, category) } : undefined} empty={isReviewQueue && pendingCount === 0
+      }}
+        period={historyPeriod}
+        periodMonthLabel={reportMonth}
+        onPeriodChange={value => { periodBeforeSearch.current = null; setHistoryPeriod(value); }}
+        sort={historySort}
+        onSortChange={setHistorySort}
+        category={historyCategory}
+        categoryOptions={categoryPreferences.settings.names}
+        onCategoryChange={setHistoryCategory}
+        walletId={validHistoryWallet ?? 'all'}
+        walletOptions={activeState.wallets.filter(wallet => isReviewQueue ? !isWalletArchived(data, wallet.id) : wallet.currency === currency).map(wallet => ({ id: wallet.id, name: wallet.name, archived: isWalletArchived(data, wallet.id) }))}
+        onWalletChange={setHistoryWallet}
+        typeFilter={filter}
+        onTypeFilterChange={setFilter}
+        reviewReason={reviewReason}
+        onReviewReasonChange={setReviewReason}
+        onReset={resetHistory}
+        onDownloadCsv={downloadHistoryCsv}
+        transactionCount={allTransactions.length}
+        pendingCount={pendingCount}
+      />{selectedEntries.length > 0 &&
+      <BulkReviewPanel
+        entries={selectedEntries}
+        onApply={applyBulkCategory}
+        onClear={() => setSelectedEntryIds([])}
+        selectableCount={selectableIds.length}
+        onSelectAll={() => setSelectedEntryIds(selectableIds)}
+      />}
+      <p
+        className="field-help history-scope"
+        role="status"
+        tabIndex={-1}
+        data-testid="history-scope"
+      >
+        <strong>{allTransactions.length} transaksi</strong> · {isReviewQueue ? 'Semua mata uang · semua periode' : `${currency === 'TRY' ? 'TL' : currency} · ${historyPeriod === 'all' ? query.trim() && periodBeforeSearch.current ? 'mencari di semua periode' : 'Semua periode' : reportMonth}`}{historyTotals && <> · <span
+            data-testid="history-inflow"
+            data-amount={historyTotals.inflow.toString()}
+          >masuk {formatMoney(historyTotals.inflow, currency)}</span> · <span
+            data-testid="history-outflow"
+            data-amount={historyTotals.outflow.toString()}
+          >keluar {formatMoney(historyTotals.outflow, currency)}</span></>}. Pilih catatan di halaman ini untuk kategori massal.</p>
+      <TransactionTable
+        entries={historySlice.entries}
+        state={state}
+        data={data}
+        onEdit={editEntry}
+        onDetail={setAmountDetail}
+        selection={selection}
+        groupByDate={historySort === 'newest' || historySort === 'oldest'}
+        quickCategory={isReviewQueue ? { names: categoryPreferences.settings.names, apply: (entry, category) => void applyQuickCategory(entry, category) } : undefined}
+        empty={isReviewQueue && pendingCount === 0
         ? <div className="empty-state" data-testid="review-empty"><CheckCircle2 size={30} /><h3>Semua sudah rapi</h3><p>Tidak ada catatan yang perlu dicek atau diisi kategorinya.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Kembali ke semua transaksi</button></div></div>
         : historyFiltered
         ? <div className="empty-state" data-testid="history-empty-filtered"><Search size={30} /><h3>Tidak ada yang cocok</h3><p>Tidak ada transaksi untuk filter atau pencarian ini.</p><div className="empty-actions"><button className="button secondary small" onClick={resetHistory}>Reset filter</button>{historyPeriod === 'month' && <button className="button secondary small" onClick={() => setHistoryPeriod('all')}>Lihat semua periode</button>}</div></div>
-        : <div className="empty-state" data-testid="history-empty"><History size={30} /><h3>Belum ada transaksi di sini</h3><p>Mulai dari satu catatan kecil, atau impor mutasi rekeningmu.</p><div className="empty-actions"><button className="button primary small" onClick={() => openTx('expense')}><Plus size={15} /> Catat transaksi pertama</button><button className="button secondary small" onClick={() => navigate('import')}>Impor mutasi</button></div></div>} />{historySlice.total > 0 && <nav className="history-pagination" aria-label="Halaman riwayat"><span role="status">{historySlice.start}–{historySlice.end} dari {historySlice.total} · Halaman {historySlice.page} dari {historySlice.pageCount}</span>{historySlice.pageCount > 1 && <div><button className="button secondary small" aria-label="Halaman sebelumnya" disabled={historySlice.page <= 1} onClick={() => turnHistoryPage(historySlice.page - 1)}><ChevronLeft size={16} /> Sebelumnya</button><button className="button secondary small" aria-label="Halaman berikutnya" disabled={historySlice.page >= historySlice.pageCount} onClick={() => turnHistoryPage(historySlice.page + 1)}>Berikutnya <ChevronRight size={16} /></button></div>}</nav>}</section>}
+        : <div
+          className="empty-state"
+          data-testid="history-empty"
+        >
+          <History size={30} />
+          <h3>Belum ada transaksi di sini</h3>
+          <p>Mulai dari satu catatan kecil, atau impor mutasi rekeningmu.</p>
+          <div className="empty-actions">
+            <button
+              className="button primary small"
+              onClick={() => openTx('expense')}
+            >
+              <Plus size={15} /> Catat transaksi pertama</button>
+            <button
+              className="button secondary small"
+              onClick={() => navigate('import')}
+            >Impor mutasi</button>
+          </div>
+        </div>}
+        />{historySlice.total > 0 &&
+        <nav
+          className="history-pagination"
+          aria-label="Halaman riwayat"
+        >
+          <span role="status">{historySlice.start}–{historySlice.end} dari {historySlice.total} · Halaman {historySlice.page} dari {historySlice.pageCount}</span>{historySlice.pageCount > 1 &&
+          <div>
+            <button
+              className="button secondary small"
+              aria-label="Halaman sebelumnya"
+              disabled={historySlice.page <= 1}
+              onClick={() => turnHistoryPage(historySlice.page - 1)}
+            >
+              <ChevronLeft size={16} /> Sebelumnya</button>
+            <button
+              className="button secondary small"
+              aria-label="Halaman berikutnya"
+              disabled={historySlice.page >= historySlice.pageCount}
+              onClick={() => turnHistoryPage(historySlice.page + 1)}
+            >Berikutnya <ChevronRight size={16} />
+            </button>
+          </div>}</nav>}</section>}
       {page === 'import' && <>{categoryPreferences.error && <p className="notice warning">{categoryPreferences.error}</p>}<RecoveryImportView data={data} key={data.demo ? 'demo' : 'own'} state={state} demo={data.demo} onStart={startOwn} onImport={importState} onBackup={lastBackup?.fingerprint === currentFingerprint ? undefined : backupAll} notify={notify} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} preferredCurrency={currency} onAddWallet={(requested) => { if (requested) setCurrency(requested); openWallet('new'); }} onOpenReview={() => openHistory('all', 'all', 'pending')} onOpenHistory={walletId => { const target = state.wallets.find(item => item.id === walletId); if (target) setCurrency(target.currency); openHistory(target ? walletId : 'all', 'all'); }} /><StatementReview data={data} onCommit={saveDocument} disabled={ledger.pending || ledger.dirty || !ledger.supported || blocked} /></>}
       <MobileFooter onBackupAll={data.demo || blocked ? undefined : () => void backupAll()} />
       </div>
@@ -942,8 +1212,44 @@ export default function App() {
     <MobileNav page={page} pendingCount={pendingCount} onNavigate={navigate} onRecord={() => openTx('expense')} />
     <input ref={restoreRef} type="file" accept=".json,application/json" aria-label="File cadangan Uangku" hidden onChange={e => void restore(e.target.files?.[0])} />
     <ModalConflictContext.Provider value={conflictInForm ? saveProblem : null}>
-    {walletModal && <WalletEditor prompt={walletPrompt} key={walletModal === 'new' ? 'new' : walletModal.id} existing={walletModal === 'new' ? undefined : walletModal} defaultCurrency={visibleCurrencies.includes(currency) ? currency : visibleCurrencies[0]} currencies={visibleCurrencies} usage={walletModal === 'new' || !state.wallets.some(wallet => wallet.id === walletModal.id) ? undefined : walletUsage(data, walletModal.id)} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported || walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id))} disabledReason={ledger.dirty || blocked || !ledger.supported ? 'Penyimpanan belum siap. Selesaikan pemulihan atau konflik pada status penyimpanan dahulu; isian tetap dipertahankan.' : walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id)) ? 'Dompet berubah, dihapus, atau diarsipkan di tab lain. Tutup untuk membuka daftar terbaru.' : ''} onSave={saveWallet} onClose={() => { if (!mutationInFlight.current) setWalletModal(null); }} onArchive={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'archive', walletEditorBase.current!)} onManageCurrencies={walletModal === 'new' ? () => { if (mutationInFlight.current) return; resumeWalletForm.current = true; setWalletModal(null); openCurrencyManager(); } : undefined} onDelete={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'delete', walletEditorBase.current!)} />}
-    {txModal && <TransactionModal receipt={toast?.inTransactionForm ? notification : null} data={data} state={state} onSaveTemplate={transactionTemplates.add} onRemoveTemplate={transactionTemplates.remove} onRenameTemplate={transactionTemplates.rename} templates={transactionTemplates.templates} templatesError={transactionTemplates.error} undatedWallets={undatedWallets} initialMode={txModal.type} initialWallet={txModal.walletId} existing={txModal.existing} disabled={ledger.pending} onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined} onSave={saveEntry} onClose={() => { if (!mutationInFlight.current) setTxModal(null); }} balanceNeedsRecovery={ledger.dirty || blocked} onBalanceMatched={walletName => { if (mutationInFlight.current) return; setTxModal(null); notify(`Saldo ${walletName} cocok dengan catatan. Tidak ada yang perlu dicatat.`); }} onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined} />}
+    {walletModal &&
+    <WalletEditor
+      prompt={walletPrompt}
+      key={walletModal === 'new' ? 'new' : walletModal.id}
+      existing={walletModal === 'new' ? undefined : walletModal}
+      defaultCurrency={visibleCurrencies.includes(currency) ? currency : visibleCurrencies[0]}
+      currencies={visibleCurrencies}
+      usage={walletModal === 'new' || !state.wallets.some(wallet => wallet.id === walletModal.id) ? undefined : walletUsage(data, walletModal.id)}
+      disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported || walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id))}
+      disabledReason={ledger.dirty || blocked || !ledger.supported ? 'Penyimpanan belum siap. Selesaikan pemulihan atau konflik pada status penyimpanan dahulu; isian tetap dipertahankan.' : walletModal !== 'new' && (!state.wallets.some(wallet => wallet.id === walletModal.id) || isWalletArchived(data, walletModal.id)) ? 'Dompet berubah, dihapus, atau diarsipkan di tab lain. Tutup untuk membuka daftar terbaru.' : ''}
+      onSave={saveWallet}
+      onClose={() => { if (!mutationInFlight.current) setWalletModal(null); }}
+      onArchive={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'archive', walletEditorBase.current!)}
+      onManageCurrencies={walletModal === 'new' ? () => { if (mutationInFlight.current) return; resumeWalletForm.current = true; setWalletModal(null); openCurrencyManager(); } : undefined}
+      onDelete={walletModal === 'new' ? undefined : () => requestWalletAction(walletModal, 'delete', walletEditorBase.current!)}
+    />}
+    {txModal &&
+    <TransactionModal
+      receipt={toast?.inTransactionForm ? notification : null}
+      data={data}
+      state={state}
+      onSaveTemplate={transactionTemplates.add}
+      onRemoveTemplate={transactionTemplates.remove}
+      onRenameTemplate={transactionTemplates.rename}
+      templates={transactionTemplates.templates}
+      templatesError={transactionTemplates.error}
+      undatedWallets={undatedWallets}
+      initialMode={txModal.type}
+      initialWallet={txModal.walletId}
+      existing={txModal.existing}
+      disabled={ledger.pending}
+      onUnpair={txModal.existing?.type === 'transfer' ? () => unpairTransfer(txModal.existing!) : undefined}
+      onSave={saveEntry}
+      onClose={() => { if (!mutationInFlight.current) setTxModal(null); }}
+      balanceNeedsRecovery={ledger.dirty || blocked}
+      onBalanceMatched={walletName => { if (mutationInFlight.current) return; setTxModal(null); notify(`Saldo ${walletName} cocok dengan catatan. Tidak ada yang perlu dicatat.`); }}
+      onDelete={txModal.existing ? () => { if (mutationInFlight.current) return; const entry = txModal.existing!; const token = editorBaseToken.current; setTxModal(null); deleteEntry(entry, token); } : undefined}
+    />}
     {amountDetail && <AmountDetailModal entry={amountDetail} state={state} data={data} onClose={() => setAmountDetail(null)} onEdit={isCashLinkedEntry(state, amountDetail) || readOnlyEntryIds.has(amountDetail.id) ? undefined : () => { const entry = amountDetail; setAmountDetail(null); editEntry(entry); }} />}
     {currencyManager && <CurrencyManager data={currencyManager.data} disabled={ledger.pending || ledger.dirty || blocked || !ledger.supported} onSave={saveCurrencyList} onView={code => { resumeWalletForm.current = false; setCurrency(code); setCurrencyManager(null); navigate('overview'); }} onClose={() => { if (!mutationInFlight.current) setCurrencyManager(null); }} />}
     {categoryManager && <CategoryManager newerVersion={categoryPreferences.newerVersion} usage={categoryUsageNow} settings={categoryManager.settings} budgets={categoryManager.budgets} budgetsError={categoryManager.budgetsError} currencies={visibleCurrencies} currency={currency} notice={categoryPreferences.error || (categoryPreferences.packAdded || categoryPreferences.packUpdated ? `${categoryPreferences.packAdded} kata kunci tambahan aktif dan ${categoryPreferences.packUpdated} pemetaan bawaan disesuaikan. Kategori dan aturan pribadi dipertahankan.` : undefined)} onSave={saveCategorySettings} onClose={() => setCategoryManager(null)} />}
@@ -952,7 +1258,51 @@ export default function App() {
     {cashArchiveOpen && <CashArchive data={data} onClose={() => setCashArchiveOpen(false)} />}
     {privacyOpen && <PrivacyNotice persistence={persistence} usage={storageUsage} onClose={() => setPrivacyOpen(false)} />}
     {demoReview && <StartOwnModal data={demoReview.data} persisted={demoReview.token !== null} busy={ledger.pending} onClose={() => { if (!mutationInFlight.current) setDemoReview(null); }} onCarry={ids => void finishStartOwn(demoReview, ids)} onEmpty={walletIds => void finishStartOwn(demoReview, undefined, false, walletIds)} />}
-    {confirm && <Modal title={confirm.title} onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}><div className="modal-body"><p className="confirm-copy">{confirm.text}</p>{confirm.detail}{confirm.requireReason && <label className="field"><span className="field-label">Alasan tindakan</span><input aria-label="Alasan tindakan" className="field-input" maxLength={2000} value={confirmReason} onChange={event => setConfirmReason(event.target.value)} /></label>}{confirm.allowBankAnnotations && <label className="checkbox-row"><input type="checkbox" checked={confirmBankAnnotations} onChange={event => setConfirmBankAnnotations(event.target.checked)} />Bila anotasi lama tidak lengkap tetapi kedua data bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div><div className="modal-footer"><button className="button secondary" onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}>Batal</button>{confirm.extra && !confirm.extra.primary && <button className="button secondary" disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}<button className={`button ${confirm.danger ? 'danger' : 'primary'}`} disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()} onClick={() => void runConfirmation()}>{confirm.label}</button>{confirm.extra?.primary && <button className="button primary" data-autofocus disabled={ledger.pending} onClick={confirm.extra.run}>{confirm.extra.label}</button>}</div></Modal>}
+    {confirm &&
+    <Modal
+      title={confirm.title}
+      onClose={() => { if (!mutationInFlight.current) setConfirm(null); }}
+    >
+      <div className="modal-body">
+        <p className="confirm-copy">{confirm.text}</p>{confirm.detail}{confirm.requireReason &&
+        <label className="field">
+          <span className="field-label">Alasan tindakan</span>
+          <input
+            aria-label="Alasan tindakan"
+            className="field-input"
+            maxLength={2000}
+            value={confirmReason}
+            onChange={event => setConfirmReason(event.target.value)}
+          />
+        </label>}{confirm.allowBankAnnotations &&
+        <label className="checkbox-row">
+          <input
+            type="checkbox"
+            checked={confirmBankAnnotations}
+            onChange={event => setConfirmBankAnnotations(event.target.checked)}
+          />Bila anotasi lama tidak lengkap tetapi kedua data bank tersedia, gunakan anotasi bank sebagai catatan baru. Informasi lama yang hilang tidak dianggap pulih.</label>}</div>
+      <div className="modal-footer">
+        <button
+          className="button secondary"
+          onClick={() => { if (!mutationInFlight.current) setConfirm(null); }}
+        >Batal</button>{confirm.extra && !confirm.extra.primary &&
+        <button
+          className="button secondary"
+          disabled={ledger.pending}
+          onClick={confirm.extra.run}
+        >{confirm.extra.label}</button>}
+        <button
+          className={`button ${confirm.danger ? 'danger' : 'primary'}`}
+          disabled={ledger.pending || !!confirm.requireReason && !confirmReason.trim()}
+          onClick={() => void runConfirmation()}
+        >{confirm.label}</button>{confirm.extra?.primary &&
+        <button
+          className="button primary"
+          data-autofocus
+          disabled={ledger.pending}
+          onClick={confirm.extra.run}
+        >{confirm.extra.label}</button>}</div>
+    </Modal>}
     {!toast?.inTransactionForm && notification}
   </div></ModalOpenedContext.Provider></CategorySettingsContext.Provider>;
 }
