@@ -709,6 +709,121 @@ def source_fixture():
     return document(rows, [wallet(), wallet('digital', 'Synthetic ewallet', opening=0, kind='ewallet')], m)
 
 
+def recap_2026(case):
+    page = case.page
+    privacy = 'uangku:privacy:v1'
+    button = page.get_by_role('button', name='Rekap 2026', exact=True)
+    dialog = page.get_by_role('dialog', name='Rekap 2026', exact=True)
+    card = dialog.locator('.recap-card')
+    previous = dialog.get_by_role('button', name='Sebelumnya')
+    following = dialog.get_by_role('button', name='Berikutnya')
+
+    def set_day(day):
+        page.clock.set_system_time(day + 'T12:00:00Z')
+        page.evaluate('window.dispatchEvent(new Event("focus"))')
+
+    def swipe(direction):
+        box = card.bounding_box()
+        x, y = box['x'] + box['width'] / 2, box['y'] + 40
+        page.mouse.move(x, y)
+        page.mouse.down()
+        page.mouse.move(x + direction * 70, y + 2, steps=6)
+        page.mouse.up()
+
+    def unchanged(value):
+        case.assert_unchanged()
+        assert page.evaluate('(key) => localStorage.getItem(key)', privacy) == value
+
+    set_day('2026-11-30')
+    expect(button).to_have_count(0)
+    set_day('2026-12-01')
+    expect(button).to_be_visible()
+    # Supply an existing preference before opening the dialog. The app may only read it.
+    page.evaluate('(key) => localStorage.setItem(key, "on")', privacy)
+    # Capture even the first inserted card; checking just the settled DOM misses a flash.
+    page.evaluate("""() => {
+      window.firstRecapText = null;
+      const observer = new MutationObserver(() => {
+        const card = document.querySelector('.recap-card');
+        if (card) { window.firstRecapText = card.textContent; observer.disconnect(); }
+      });
+      observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    }""")
+    button.click()
+    expect(dialog).to_contain_text('sampai 1 Des 2026')
+    first_text = page.evaluate('window.firstRecapText')
+    assert 'TRY •••••' in first_text
+    secrets = ['12.345,67', '987,65', 'Kategori Sintetis', 'toko sintetis']
+    assert all(secret.casefold() not in first_text.casefold() for secret in secrets)
+    expect(page.locator('html')).to_have_attribute('data-theme', case.name.rsplit('-', 1)[1])
+    titles = ['Arus uangmu', 'Kategori teratas', 'Merchant teratas', 'Pengeluaran tertinggi',
+              'Hari tanpa pengeluaran tercatat', 'Umur uang']
+    expect(previous).to_be_disabled()
+    for i, title in enumerate(titles):
+        expect(card.get_by_role('heading', name=title, exact=True)).to_be_visible()
+        expect(dialog).to_contain_text(f'{i + 1} / 6')
+        if i in (0, 3):
+            expect(card.locator('dd')).to_have_text(['TRY •••••', 'TRY •••••'])
+        if i in (1, 2):
+            expect(card).to_contain_text('Rincian disamarkan.')
+        snapshot = card.aria_snapshot().casefold()
+        assert all(secret.casefold() not in snapshot for secret in secrets)
+        assert all(secret.casefold() not in card.inner_html().casefold() for secret in secrets)
+        assert card.evaluate('el => el.scrollWidth <= el.clientWidth + 1')
+        assert dialog.evaluate('el => el.scrollWidth <= el.clientWidth + 1 && el.getBoundingClientRect().right <= innerWidth + 1')
+        if i == 0:
+            dialog.screenshot(path=str(case.args.output / f'{case.name}-masked.png'))
+        if i < 5:
+            if i % 2 == 0:
+                swipe(-1)
+            else:
+                following.click()
+    expect(following).to_be_disabled()
+    unchanged('on')
+
+    # A same-origin second tab changes the setting while the recap stays open.
+    other = case.context.new_page()
+    try:
+        other.goto(case.args.url.rstrip('/') + '/favicon.svg')
+        other.evaluate('(key) => localStorage.setItem(key, "off")', privacy)
+        for _ in range(3):
+            previous.click()
+        expect(card).to_contain_text('toko sintetis')
+        expect(card).to_contain_text('987,65')
+        swipe(1)
+        expect(card).to_contain_text('Kategori Sintetis')
+        previous.click()
+        expect(card).to_contain_text('12.345,67')
+        unchanged('off')
+        other.evaluate('(key) => localStorage.setItem(key, "on")', privacy)
+        expect(card.locator('dd')).to_have_text(['TRY •••••', 'TRY •••••'])
+        expect(card).not_to_contain_text('12.345,67')
+    finally:
+        other.close()
+
+    dialog.get_by_role('button', name='Tutup', exact=True).click()
+    set_day('2027-01-31')
+    button.click()
+    expect(dialog).to_contain_text('sampai 31 Des 2026')
+    dialog.get_by_role('button', name='Tutup', exact=True).click()
+    page.get_by_role('button', name=re.compile('USD.*Dolar AS')).click()
+    button.click()
+    following.click()
+    expect(card).to_contain_text('Belum ada pengeluaran terkonfirmasi.')
+    following.click()
+    expect(card).to_contain_text('Belum ada merchant yang dikenali.')
+    following.click()
+    expect(card).to_contain_text('Belum ada pengeluaran terkonfirmasi.')
+    following.click()
+    expect(card).to_contain_text('365 hari berturut-turut')
+    following.click()
+    expect(card).to_contain_text('Belum cukup data')
+    dialog.get_by_role('button', name='Tutup', exact=True).click()
+    set_day('2027-02-01')
+    expect(button).to_have_count(0)
+    unchanged('on')
+
+
 def cases():
     # Signed pending postings cancel in the balance, but absolute flows exceed the safe integer limit.
     limit = 2**53 - 1
@@ -780,6 +895,14 @@ def cases():
         ('cash-archive-excluded-preserved', {'data': archived_cash}, cash_archive),
         ('immutable-source-backup-read-filter', {'data': source_fixture()}, source_read_and_backup),
     ]
+    recap_data = document([
+        entry('salary', 1_234_567, 'income', date='2026-01-01'),
+        entry('buy', 98_765, 'expense', date='2026-12-01', category='Kategori Sintetis', note='Toko Sintetis'),
+        entry('last', 10_000, 'expense', date='2026-12-31', note='Toko Lain'),
+    ], [wallet(), wallet('usd', 'Synthetic dollar bank', currency='USD')])
+    for width in [390, 1440]:
+        for theme in ['light', 'dark']:
+            result.append((f'recap-2026-{width}-{theme}', {'data': recap_data, 'width': width, 'theme': theme}, recap_2026))
     for width in [320, 390]:
         for theme in ['dark', 'light']:
             result.append((f'visual-{width}-{theme}', {'width': width, 'theme': theme}, visual))
