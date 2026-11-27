@@ -2807,12 +2807,18 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   transaksi terakhir dari penerima yang sama dalam ±180 hari dan memakai
   kategori yang muncul minimal 3 kali. Di Uangku hasilnya hanya **saran**,
   tidak pernah terisi sendiri, karena nama merchant saja bukan bukti.
-  - [ ] **a.** (S) `src/lib/merchantKey.ts` + tes: kunci merchant dari keterangan
+  - [x] **a.** (S) `src/lib/merchantKey.ts` + tes: kunci merchant dari keterangan
     bank (lewat `normalizeBankDescription`) tanpa bagian yang berubah tiap
     transaksi: nomor referensi (`#F-0000000001`), nomor kartu tersamar
     (`•••• 0000`), angka panjang, tanggal, dan jam. Dua transaksi sintetis dari
     merchant yang sama (Jago dan Ziraat) menghasilkan kunci yang sama;
     merchant yang berbeda tidak.
+    *Selesai:* kunci perbandingan memakai nama toko pada POS Jago atau
+    kolom İŞYERİ Ziraat. Untuk GoFood lewat GoPay, nama di rincian pembayaran
+    membedakan warung meski perantaranya sama. Keterangan bank asli tetap utuh.
+    *Tes:* modul belum tersedia pada uji awal. Sesudah implementasi 4 kasus
+    sintetis lulus, berikut 2.013 tes unit di 80 berkas dan build produksi.
+    *Belum terbukti:* pola penamaan lain dari bank dan riwayat pengguna nyata.
   - [ ] **b.** (S–M) `src/lib/categoryLearning.ts` + tes: untuk catatan belum
     dikategorikan yang tidak cocok dengan aturan, ambil paling banyak 5 catatan
     terbaru (180 hari) berkunci merchant sama, berjenis pemasukan atau
