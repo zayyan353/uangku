@@ -7,7 +7,7 @@ names, accounts and amounts are invented.
 from __future__ import annotations
 import argparse, json, os, re, time, traceback, zlib
 from pathlib import Path
-from browser_support import assert_production_url, install_playwright_path, launch_browser, new_page, stored_document
+from browser_support import assert_production_url, backup_action, semantic_document, install_playwright_path, launch_browser, new_page, stored_document
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
 from recovery_browser import saldo
@@ -156,6 +156,9 @@ def import_and_save(browser, out, mobile):
     context, page, errors = context_page(browser, mobile)
     try:
         path = out / 'jago-sintetis.pdf'; path.write_bytes(jago_statement(ROWS))
+        # An import warrants a fresh backup even when the previous backup was made today.
+        with page.expect_download():
+            backup_action(page, 'Cadangkan semuanya').click()
         open_jago(page)
         page.get_by_label('File mutasi Bank Jago', exact=True).set_input_files(path)
         expect(page.get_by_role('heading', name='Periksa sebelum disimpan')).to_be_visible()
@@ -170,6 +173,15 @@ def import_and_save(browser, out, mobile):
         expect(page.get_by_role('heading', name='Periksa sebelum disimpan')).to_have_count(0)
         expect(page.get_by_test_id('import-result')).to_contain_text(f'{len(ROWS)} transaksi tersimpan ke Jago contoh')
         saved = wait_doc(page, lambda d: len(d['state']['entries']) == len(ROWS))
+        backup = page.get_by_test_id('import-result').get_by_role('button', name='Cadangkan sekarang', exact=True)
+        expect(backup).to_be_visible()
+        with page.expect_download() as download:
+            backup.click()
+        file = out / f'jago-after-import-{mobile}.json'
+        download.value.save_as(file)
+        exported = json.loads(file.read_text(encoding='utf-8'))
+        assert exported['app'] == 'uangku-full-backup' and semantic_document(exported['ledger']) == saved
+        expect(backup).to_have_count(0)
         entries = sorted(saved['state']['entries'], key=lambda e: (e['date'], e['sourceKey']))
         types = [e['type'] for e in sorted(saved['state']['entries'], key=lambda e: next(i for i, f in enumerate(saved['metadata']['facts']) if f['fingerprint'] == e['sourceKey']))]
         assert types == EXPECTED_TYPES, types

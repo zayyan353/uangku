@@ -1222,17 +1222,20 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   dan template diperiksa persis seperti semula. Berkas yang sama berhasil
   dipulihkan sesudah ruang uji dikosongkan.
 
-- [ ] **MW-99 — Pengingat cadangan menurut jumlah perubahan** (S) *(sebagian)* — **butuh keputusan**
-  Setelah cadangan lengkap, pengingat diam 7 hari apa pun yang berubah
-  (`src/lib/backupReminder.ts:98,119-122`), termasuk setelah impor satu bulan
-  mutasi. Seberapa mungkin data terhapus browser dalam jeda itu tidak terbukti
-  (tidak ada penghapusan yang teramati).
-  *Usul:* simpan jumlah entri di samping sidik jari pada `uangku:last-backup:v1`
-  (pembaca sekarang hanya memeriksa `at` dan `fingerprint`), munculkan pengingat
-  bila bertambah N entri, dan tawarkan **Cadangkan sekarang** di pesan sukses
-  impor. Ini mengubah aturan MW-08 dan memperluas catatan MW-06, jadi dicatat
-  sebagai MW baru.
-  *Keputusan:* ambang (mis. 25 entri baru, atau setiap impor).
+- [x] **MW-99 — Pengingat cadangan setelah impor** (S)
+  *Keputusan agen:* pakai ambang setiap impor yang berhasil. Satu file dapat
+  membawa banyak perubahan sekaligus. Ringkasan hasil impor menawarkan cadangan
+  walau pengguna baru saja membuat cadangan sebelum impor. Ambang waktu untuk
+  perubahan lain tetap tujuh hari (`src/lib/backupReminder.ts:98,119–122`).
+  *Selesai:* **Cadangkan sekarang** di ringkasan impor memakai unduhan cadangan
+  lengkap. Tawaran hilang setelah sidik sesuai dengan data yang tersimpan
+  (`src/components/RecoveryImportView.tsx:318–320`). Penanda cadangan yang
+  sudah ada cukup untuk perbandingan ini.
+  *Tes:* desktop dan emulasi HP gagal pada tombol yang belum ada. Ketiga kasus
+  Chromium di `tests/jago_browser.py` lulus setelah perubahan. Dua di antaranya
+  memeriksa isi unduhan seusai impor pada hari yang sama dengan cadangan sebelumnya.
+  Lokal: 2.009 tes unit dan build produksi lulus.
+  *Belum terbukti:* penyimpanan berkas unduhan oleh pengguna pada perangkat fisik.
 
 - [ ] **MW-100 — Penyimpanan kosong menawarkan "Pulihkan cadangan"; status persisten terlihat** (S) *(sebagian)*
   Profil yang terhapus dibuka sebagai data contoh. Jawaban
@@ -2720,7 +2723,7 @@ MW-107. Tindakan pemilik lain ada di F2.
 | MW-72 | agen | Muat Inter lokal atau rapikan berat font sistem? |
 | MW-81 | pemilik | Pakai lembar bawah untuk modal HP atau pertahankan tata letak sekarang? |
 | MW-92 | pemilik | Apakah aturan 13 Nov (uang dari/ke orang lain = pemasukan/pengeluaran) berlaku umum, termasuk form manual dan Ziraat, atau hanya impor Jago? |
-| MW-99 | agen | Ambang pengingat cadangan: jumlah entri baru, atau setiap impor? |
+| MW-99 | agen | Diputuskan: tawarkan cadangan di ringkasan setiap impor yang berhasil. |
 | MW-100d | pemilik | Mau cadangan otomatis ke satu file di desktop (hanya Chromium)? |
 | MW-105b | pemilik | Perangkat dan browser mana yang dipakai, dan apakah **Cadangkan semuanya** menghasilkan file di sana? (uji oleh pemilik) |
 | MW-105d | agen | Mau "Uji file cadangan" (mengubah batasan MW-06)? |
