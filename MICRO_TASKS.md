@@ -2052,8 +2052,8 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
 - [ ] **MW-120 — Konflik dua tab saat form terbuka**
   Form yang dibuka di tab B sebelum tab A menyimpan selalu gagal disimpan; kotak
   pemulihan dulu berada di bawah latar dialog (diperbaiki pada a); setelah dialog
-  ditutup, **Coba simpan lagi** aktif tetapi tidak mengubah apa pun dan tanpa
-  pesan. Tidak ada data yang tertimpa dan unduhan pemulihan ditawarkan.
+  ditutup, tombol **Coba simpan lagi** dulu tidak menindaklanjuti konflik
+  (diperbaiki pada b). Unduhan pemulihan tersedia.
   - [x] **a.** (S) Tampilkan pemberitahuan konflik dan aksinya di dalam dialog.
     *Selesai:* panel konflik mengikuti form transaksi, dompet, mata uang atau
     pratinjau kategori yang terbuka (`src/App.tsx:864–885`). Unduh draf atau
@@ -2063,7 +2063,13 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     termasuk pemeriksaan draf unduhan dan data tab yang sudah tersimpan.
     Lokal: 2.008 tes unit dan build produksi lulus.
     *Belum terbukti:* HP fisik dan pembaca layar.
-  - [ ] **b.** (S) Pada status konflik, ganti **Coba simpan lagi** dengan penjelasan.
+  - [x] **b.** (S) Pada status konflik, ganti **Coba simpan lagi** dengan penjelasan.
+    *Selesai:* panel mengarahkan pengguna membuka kembali form dari catatan
+    terbaru (`src/App.tsx:878–887`). Gagal tulis karena kuota masih bisa dicoba ulang.
+    *Tes:* kasus konflik kategori awalnya menemukan tombol yang seharusnya
+    hilang. Kedua kasus Chromium (konflik dua tab dan coba ulang kuota) lulus
+    sesudah perubahan. Lokal: 2.008 tes unit dan build produksi lulus.
+    *Belum terbukti:* pembaca layar dan HP fisik.
   - [ ] **c.** (M) — **butuh keputusan** Untuk entri baru, terapkan ulang perintah
     tambah ke data terbaru lewat Web Lock dan validasi yang sama. Perilaku sekarang
     (berhenti dan simpan draft) mengikuti aturan token di `AGENTS.md`.
