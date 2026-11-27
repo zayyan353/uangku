@@ -3176,11 +3176,21 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   `src/components`, atau `src/hooks`. dependency-cruiser
   (`sverweij/dependency-cruiser`, MIT) memeriksa dan menggambar hubungan
   antar-file memakai aturan sendiri.
-  - [ ] **a.** (S) Pasang (devDependency) dengan `.dependency-cruiser.cjs`: tanpa
+  - [x] **a.** (S) Pasang (devDependency) dengan `.dependency-cruiser.cjs`: tanpa
     impor melingkar; `src/lib` tidak mengimpor `react`, `src/components`, atau
     `src/hooks`; kode produksi tidak mengimpor file tes. Skrip
     `npm run arsitektur`. Pelanggaran yang sudah ada dilaporkan, tidak
     diperbaiki di MW ini.
+    *Selesai:* `.dependency-cruiser.cjs` memeriksa siklus (termasuk impor tipe),
+    batas lib terhadap komponen, hook, dan React, serta impor berkas tes oleh
+    kode produksi. Jalankan `npm run arsitektur`.
+    *Tes:* perintah semula belum tersedia. Pemindaian menemukan 19 siklus yang
+    sudah ada di 218 modul / 939 dependensi, termasuk metadata/persistensi,
+    finance/transferPostings, dan impor antar-modul kategori. Enam impor
+    sintetis yang melanggar dua batas lain juga terdeteksi. 2.051 tes unit
+    di 88 file dan build produksi lulus.
+    *Belum terbukti:* pemeriksaan belum menjadi gerbang CI. Hasil perintah
+    lokal tetap merah selama ada siklus.
   - [ ] **b.** (S) Jalankan di CI sebagai pemblokir; pengecualian lama (bila ada)
     dicatat di konfigurasi beserta alasannya.
   - [ ] **c.** (S) `docs/PETA_KODE.md`: peta per folder (bukan per file) dalam
