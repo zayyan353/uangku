@@ -2016,13 +2016,21 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     Usul ini memerlukan kunci penyimpanan tambahan.
 
 - [ ] **MW-117 — Kurs: contoh mengikuti arah pasangan mata uang**
-  Untuk IDR → TRY kolomnya bertanya "1 IDR = berapa TRY?" dengan contoh statis
-  "400,5" dan "16000" (`src/components/TransactionModal.tsx:371`), yang hanya
+  Untuk IDR → TRY kolomnya dulu bertanya "1 IDR = berapa TRY?" dengan contoh statis
+  "400,5" dan "16000" (kini `src/components/TransactionModal.tsx:392–393`), yang hanya
   cocok untuk arah sebaliknya. Mengetik 400 menghasilkan "₺400.000.000
   diterima" tanpa peringatan. Tidak sepenuhnya diam-diam: pratinjau ada tepat di
   bawah kolom dan simpan terkunci sampai "Kurs ini sesuai transaksi saya"
   dicentang.
-  - [ ] **a.** (S) Contoh bergantung pasangan, atau tanpa angka statis.
+  - [x] **a.** (S) Contoh mengikuti pasangan mata uang.
+    *Selesai:* isian menunjukkan jumlah mata uang tujuan untuk satu unit mata
+    uang asal. Petunjuk angka menjelaskan cara mengetik desimal tanpa
+    menyarankan harga tukar.
+    *Tes:* sebelum perbaikan placeholder masih “Contoh: 400,5”. Sesudahnya
+    Chromium desktop dan emulasi HP memeriksa IDR → TRY dan TRY → IDR. Keempat
+    kasus FX di `tests/currency_import_browser.py`, 2.008 tes unit dan build
+    produksi lulus.
+    *Belum terbukti:* belum diperiksa pada HP fisik.
   - [ ] **b.** (M) — **butuh keputusan** Tombol "balik arah" (kurs diketik sebagai
     "1 TRY = … IDR") dan peringatan bila kurs berbeda lebih dari 100× dari kurs
     terakhir pasangan itu. Arti kurs yang tersimpan tidak berubah.
