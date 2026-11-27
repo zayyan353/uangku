@@ -125,6 +125,11 @@ export function entryPostings(entry: Entry, context?: PostingContext): EntryPost
   ];
 }
 
+/** The spending included in both the category report and the daily calendar. */
+export function isExpensePosting(entry: Entry, posting: EntryPosting): boolean {
+  return posting.signedAmount < 0 && (posting.role === 'fee' || (posting.role === 'ordinary' && entry.type === 'expense'));
+}
+
 export function postingDateForWallet(entry: Entry, walletId: string, context?: PostingContext): string | null {
   if (entry.type !== 'transfer') return entry.walletId === walletId ? entry.date : null;
   const dates = transferPostingDates(entry, context);
