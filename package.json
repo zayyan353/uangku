@@ -14,7 +14,7 @@
     "knip": "knip"
   },
   "dependencies": {
-    "fast-xml-parser": "5.11.2",
+    "fast-xml-parser": "5.12.1",
     "fflate": "0.8.3",
     "lucide-react": "1.61.0",
     "react": "19.3.1",
@@ -29,8 +29,8 @@
     "fast-check": "4.11.0",
     "knip": "6.48.0",
     "typescript": "5.9.3",
-    "vite": "8.3.5",
+    "vite": "8.4.0",
     "vite-plugin-singlefile": "2.3.4",
-    "vitest": "5.0.5"
+    "vitest": "5.1.2"
   }
 }
