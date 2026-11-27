@@ -838,7 +838,7 @@ export default function App() {
     if (page === 'transactions') { periodBeforeSearch.current = null; setHistoryPeriod(next); }
     if (value !== 'all') setMonth(value);
   }
-  const monthControl = page !== 'wallets' && page !== 'import' ? <div className="month-stepper" role="group" aria-label="Periode laporan"><button type="button" className="icon-button" aria-label="Bulan sebelumnya" disabled={periodAll} onClick={() => setMonth(priorMonth(month))}><ChevronLeft size={16} /></button><label className="date-pill"><History size={15} aria-hidden="true" /><select aria-label="Bulan laporan" value={periodAll ? 'all' : month} onChange={e => choosePeriod(e.target.value)}><option value="all">Seluruh catatan</option>{monthChoices.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button type="button" className="icon-button" aria-label="Bulan berikutnya" disabled={periodAll} onClick={() => setMonth(nextMonth(month))}><ChevronRight size={16} /></button></div> : null;
+  const monthControl = page !== 'wallets' && page !== 'import' ? <div className="month-stepper" role="group" aria-label="Periode laporan"><button type="button" className="icon-button" aria-label="Bulan sebelumnya" disabled={periodAll} onClick={() => setMonth(priorMonth(month))}><ChevronLeft size={16} /></button><label className="date-pill"><History size={15} aria-hidden="true" /><select aria-label={page === 'transactions' ? 'Periode transaksi' : 'Bulan laporan'} value={periodAll ? 'all' : month} onChange={e => choosePeriod(e.target.value)}><option value="all">Seluruh catatan</option>{monthChoices.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}</select></label><button type="button" className="icon-button" aria-label="Bulan berikutnya" disabled={periodAll} onClick={() => setMonth(nextMonth(month))}><ChevronRight size={16} /></button></div> : null;
   const banners = <>
       {storageWarning ? <div
         className="backup-reminder"
@@ -1115,9 +1115,6 @@ export default function App() {
         if (value.trim() && !query.trim() && historyPeriod === 'month') { periodBeforeSearch.current = historyPeriod; setHistoryPeriod('all'); }
         else if (!value.trim() && periodBeforeSearch.current) { setHistoryPeriod(periodBeforeSearch.current); periodBeforeSearch.current = null; }
       }}
-        period={historyPeriod}
-        periodMonthLabel={reportMonth}
-        onPeriodChange={value => { periodBeforeSearch.current = null; setHistoryPeriod(value); }}
         sort={historySort}
         onSortChange={setHistorySort}
         category={historyCategory}

@@ -472,8 +472,7 @@ def scoped_activity(case):
     expect(rows).to_have_text(['Synthetic flow digital-september'])
     p.get_by_role('button', name='Semua transaksi', exact=True).click()
     expect(p.get_by_label('Dompet riwayat', exact=True)).to_have_value('digital')
-    expect(p.get_by_label('Periode transaksi', exact=True)).to_have_value('month')
-    expect(p.get_by_label('Bulan laporan', exact=True)).to_have_value('2026-09')
+    expect(p.get_by_label('Periode transaksi', exact=True)).to_have_value('2026-09')
     expect(rows).to_have_text(['Synthetic flow digital-september'])
     nav(p, 'Ringkasan')
     case.period('all')
@@ -724,7 +723,7 @@ def spending_calendar(case):
     expect(details).to_contain_text('Biaya transfer')
     expect(details).not_to_contain_text('50,00')
     details.get_by_role('button', name='Lihat bulan ini di Transaksi').click()
-    expect(page.get_by_label('Bulan laporan', exact=True)).to_have_value('2026-09')
+    expect(page.get_by_label('Periode transaksi', exact=True)).to_have_value('2026-09')
     expect(page.get_by_test_id('history-scope')).to_contain_text('September 2026')
     case.assert_unchanged()
 
@@ -789,7 +788,7 @@ def spending_calendar_controls(case):
     panel.evaluate("el => el.scrollIntoView({ block: 'center' })")
     panel.screenshot(path=str(case.args.output / f'{case.name}.png'))
     details.get_by_role('button', name='Lihat bulan ini di Transaksi').click()
-    expect(page.get_by_label('Bulan laporan', exact=True)).to_have_value('2026-09')
+    expect(page.get_by_label('Periode transaksi', exact=True)).to_have_value('2026-09')
     expect(page.get_by_test_id('history-scope')).to_contain_text('September 2026')
     case.assert_unchanged()
 

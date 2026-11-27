@@ -215,7 +215,7 @@ def run_main(browser, args, output, mobile):
 
         # 1.7.2: a category name opens Transaksi for the same wallet and period, filtered to it.
         page.locator('.category-panel .category-open', has_text='Langganan').click()
-        in_history('all', 'month', '1.7.2 category history')
+        in_history('all', '2026-10', '1.7.2 category history')
         expect(page.get_by_label('Filter kategori', exact=True)).to_have_value('Langganan')
         expect(page.locator('.transactions-table tbody tr')).to_have_count(2)
         page.get_by_role('button', name='Reset filter', exact=True).click()

@@ -112,6 +112,14 @@ def run_case(browser, args, output, mobile):
         nav = page.locator('.mobile-nav' if mobile else '.sidebar')
         nav.get_by_role('button', name='Transaksi', exact=True).click()
         expect(page.locator('.transactions-table tbody tr')).to_have_count(50)
+        period_controls = page.get_by_role('combobox', name=re.compile(r'^(Periode transaksi|Bulan laporan)$'))
+        expect(period_controls).to_have_count(1)
+        period = page.get_by_role('combobox', name='Periode transaksi', exact=True)
+        expect(period).to_have_value('2026-10')
+        page.get_by_role('button', name='Bulan sebelumnya', exact=True).click()
+        expect(period).to_have_value('2026-09')
+        page.get_by_role('button', name='Bulan berikutnya', exact=True).click()
+        expect(period).to_have_value('2026-10')
         unchanged()
         if mobile:
             for width in (360, 390):
@@ -189,12 +197,11 @@ def run_case(browser, args, output, mobile):
         expect(page.get_by_label('Cari transaksi', exact=True)).to_have_value('')
         expect(page.get_by_label('Dompet riwayat', exact=True)).to_have_value('all')
         expect(page.get_by_label('Filter jenis transaksi', exact=True)).to_have_value('all')
-        expect(page.get_by_label('Periode transaksi', exact=True)).to_have_value('month')
+        expect(period).to_have_value('2026-10')
         expect(page.locator('.transactions-table tbody tr')).to_have_count(50)
         unchanged()
         page.get_by_label('Cari transaksi', exact=True).fill('')
-        page.get_by_label('Periode transaksi', exact=True).select_option('month')
-        page.get_by_label('Bulan laporan', exact=True).select_option('2025-01')
+        period.select_option('2025-01')
         expect(page.locator('.transactions-table tbody tr')).to_have_count(1)
         unchanged()
         nav.get_by_role('button', name='Ringkasan', exact=True).click()
@@ -207,7 +214,7 @@ def run_case(browser, args, output, mobile):
         unchanged()
         nav.get_by_role('button', name='Transaksi', exact=True).click()
         expect(page.get_by_role('button', name='IDR Rupiah', exact=True)).to_have_attribute('aria-pressed', 'true')
-        expect(page.get_by_label('Bulan laporan', exact=True)).to_have_value('2025-01')
+        expect(period).to_have_value('2025-01')
         expect(page.get_by_text('Synthetic older history', exact=True)).to_be_visible()
         page.get_by_label('Cari transaksi', exact=True).fill('Synthetic exact large amount')
         page.get_by_role('button', name='Rincian transaksi Synthetic exact large amount', exact=True).click()
@@ -228,7 +235,7 @@ def run_case(browser, args, output, mobile):
         detail.get_by_role('button', name='Tutup rincian', exact=True).click()
         page.get_by_label('Cari transaksi', exact=True).fill('')
         # Emptying the search box returns to the period that was in use before the search widened it.
-        expect(page.get_by_label('Periode transaksi', exact=True)).to_have_value('month')
+        expect(period).to_have_value('2025-01')
         page.get_by_label('Periode transaksi', exact=True).select_option('all')
         page.get_by_label('Filter jenis transaksi', exact=True).select_option('transfer')
         expect(page.locator('.transactions-table tbody tr')).to_have_count(1)
@@ -562,7 +569,7 @@ def route_case(browser, args, output, mobile):
 
         # Transaksi keeps its own month and scroll position while another page is shown. Back and Forward bring them
         # back the way the navigation buttons do.
-        month = page.get_by_label('Bulan laporan', exact=True)
+        month = page.get_by_role('group', name='Periode laporan', exact=True).get_by_role('combobox')
 
         def transaksi_as_left():
             at(page, 'Transaksi', '#/transaksi', '.transactions-table tbody tr')
@@ -1002,7 +1009,7 @@ def saved_elsewhere_case(browser, args, output, mobile):
         assert stored_dates() == {'Synthetic elsewhere same month': '2026-10-31', 'Synthetic elsewhere march': '2025-01-20',
                                   'Synthetic elsewhere from overview': '2025-02-10'}, stored_dates()
         # A same-currency transfer can leave the selected wallet's month even though its other leg stays in it.
-        page.get_by_label('Bulan laporan', exact=True).select_option('2026-10')
+        page.get_by_label('Periode transaksi', exact=True).select_option('2026-10')
         page.get_by_label('Dompet riwayat', exact=True).select_option('cash')
         page.get_by_role('button', name='Pindah uang', exact=True).first.click()
         dialog = page.get_by_role('dialog')
@@ -1065,7 +1072,7 @@ def saved_page_case(browser, args, output, mobile):
     scope = page.get_by_test_id('history-scope')
     rows = page.locator('.transactions-table tbody tr')
     paging = page.get_by_role('navigation', name='Halaman riwayat', exact=True).get_by_role('status')
-    month = page.get_by_label('Bulan laporan', exact=True)
+    month = page.get_by_role('group', name='Periode laporan', exact=True).get_by_role('combobox')
 
     def record(note, date, again=False):
         page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
