@@ -2129,15 +2129,17 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   (`tests/recovery_browser.py:629`). Unit 2.008/2.008, build lulus.
   *Belum terbukti:* Safari pada perangkat Apple dan pembaca layar belum diuji.
 
-- [ ] **MW-119 — Catatan transfer lama tidak melebarkan kolom tanggal** (S)
-  Transfer tanpa tanggal per sisi yang tersimpan (data v1 tanpa metadata
-  transfer; bukan data contoh) menempelkan kalimat catatan ke tanggal dalam satu
-  sel tanpa bungkus (`src/components/TransactionTable.tsx:53`,
-  `src/styles.css:417`). Di 1440px kolom tanggal memakan 574px; di 1100px dan
-  900px tabel selebar 936px sehingga Nominal dan tombol ubah berada di luar area
-  yang terlihat. Tidak diketahui apakah catatan pemilik masih memuat transfer
-  seperti itu. Ubah tata letaknya saja (catatan di baris sendiri yang
-  membungkus); kalimatnya ditetapkan 11 Nov dan penandanya harus tetap terlihat.
+- [x] **MW-119 — Catatan transfer lama tidak melebarkan kolom tanggal** (S)
+  *Selesai:* pada transfer v1 tanpa tanggal per sisi, kalimat tentang tanggal
+  bank muncul di baris tersendiri dan membungkus di kolom tanggal
+  (`src/components/TransactionTable.tsx:53`, `src/styles.css:413,563`).
+  Untuk tabel dengan penanda itu, ukuran minimum pada tablet mengikuti ruang
+  yang tersedia. Tanggal dan data transfer tetap seperti semula.
+  *Tes:* awalnya kalimat sejajar dengan tanggal di lebar 900 px. Sesudah
+  perubahan, penanda terletak di bawah tanggal dan tabel yang difilter ke
+  transfer sintetis muat tanpa gulir mendatar pada 900, 1100, dan 1440 px.
+  Dua kasus UX Chromium (desktop dan HP), 2.051 tes unit dan build lulus.
+  *Belum terbukti:* isi catatan pemilik dan tampilan pada tablet fisik.
 
 - [ ] **MW-120 — Konflik dua tab saat form terbuka**
   Form yang dibuka di tab B sebelum tab A menyimpan selalu gagal disimpan; kotak
