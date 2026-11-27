@@ -729,6 +729,71 @@ def spending_calendar(case):
     case.assert_unchanged()
 
 
+def spending_calendar_controls(case):
+    page = case.page
+    toggle = page.get_by_role('button', name=re.compile('^Kalender pengeluaran'))
+    expect(toggle).to_have_attribute('aria-expanded', 'false')
+    expect(page.locator('.spending-day')).to_have_count(0)
+    case.month('2026-09')
+    # The calendar still ends today while the cashflow report shows September.
+    mobile = case.width == 390
+    if mobile:
+        toggle.tap()
+    else:
+        toggle.click()
+    grid = page.get_by_role('group', name='Pengeluaran per hari')
+    cells = grid.get_by_role('button')
+    expect(cells).to_have_count(371)
+    expect(page.locator('html')).to_have_attribute('data-theme', case.name.rsplit('-', 1)[1])
+    expect(page.locator('.spending-weekdays span')).to_have_text(['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'])
+    expect(grid.locator('[tabindex="0"]')).to_have_count(1)
+    scroll = page.locator('.spending-scroll')
+    extent, position = scroll.evaluate('el => [el.scrollWidth - el.clientWidth, el.scrollLeft]')
+    assert abs(extent - position) <= 1, (extent, position)
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
+    if mobile:
+        assert extent > 0
+        box = cells.last.bounding_box()
+        assert box['width'] >= 44 and box['height'] >= 44, box
+
+    toggle.focus()
+    page.keyboard.press('Tab')
+    expect(cells.last).to_be_focused()
+    for key, date in [('ArrowLeft', '24 Okt 2026'), ('ArrowUp', '23 Okt 2026'),
+                      ('ArrowDown', '24 Okt 2026'), ('ArrowRight', '31 Okt 2026'),
+                      ('Home', '26 Okt 2025'), ('End', '31 Okt 2026')]:
+        page.keyboard.press(key)
+        focused = grid.locator(':focus')
+        expect(focused).to_have_attribute('aria-label', re.compile('^' + date))
+        expect(grid.locator('[tabindex="0"]')).to_have_count(1)
+    page.keyboard.press('Enter')
+    expect(page.get_by_role('region', name='Pengeluaran 31 Okt 2026')).to_contain_text('Tidak ada pengeluaran tercatat.')
+
+    colours = []
+    for i in range(5):
+        cell = cells.last if i == 0 else grid.get_by_role('button', name=re.compile(f'^{26 + i} Sep 2026:'))
+        expect(cell).to_have_attribute('data-level', str(i))
+        colours.append(cell.evaluate('el => getComputedStyle(el).backgroundColor'))
+    assert len(set(colours)) == 5, colours
+    day = grid.get_by_role('button', name=re.compile('^30 Sep 2026:.*4$'))
+    if mobile:
+        day.tap()
+    else:
+        day.click()
+    details = page.get_by_role('region', name='Pengeluaran 30 Sep 2026')
+    expect(details).to_contain_text('Buku terakhir')
+    expect(details).to_contain_text('Pendidikan')
+    expect(day).to_have_attribute('aria-pressed', 'true')
+    assert page.evaluate('document.documentElement.scrollWidth <= innerWidth + 1')
+    panel = page.locator('.spending-calendar')
+    panel.evaluate("el => el.scrollIntoView({ block: 'center' })")
+    panel.screenshot(path=str(case.args.output / f'{case.name}.png'))
+    details.get_by_role('button', name='Lihat bulan ini di Transaksi').click()
+    expect(page.get_by_label('Bulan laporan', exact=True)).to_have_value('2026-09')
+    expect(page.get_by_test_id('history-scope')).to_contain_text('September 2026')
+    case.assert_unchanged()
+
+
 def sankey_copy(case):
     page = case.page
     button = page.get_by_role('button', name='Salin untuk SankeyMATIC', exact=True)
@@ -975,6 +1040,12 @@ def cases():
         [wallet(), wallet('second')],
         metadata([transfer_context('transfer', source='2026-09-30', destination='2026-10-01')]))
     result.append(('spending-calendar-day-history', {'data': calendar_data}, spending_calendar))
+    level_data = document([entry(f'level-{i}', i * 100, 'expense', date=f'2026-09-{26 + i}',
+        category='Pendidikan', note='Buku terakhir' if i == 4 else f'Buku {i}') for i in range(1, 5)])
+    for width in [390, 1440]:
+        for theme in ['light', 'dark']:
+            result.append((f'spending-calendar-controls-{width}-{theme}',
+                {'width': width, 'theme': theme, 'data': level_data}, spending_calendar_controls))
     export = ordinary_fixture()
     export['state']['wallets'] += [wallet('usd', currency='USD'), wallet('second-usd', currency='USD')]
     export['state']['entries'] += [

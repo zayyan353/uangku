@@ -2903,7 +2903,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   (masuk sama dengan keluar di node tengah); pengecekan manualnya dicatat di
   laporan.
 
-- [ ] **MW-149 — Kalender pengeluaran ala grafik kontribusi GitHub**
+- [x] **MW-149 — Kalender pengeluaran ala grafik kontribusi GitHub**
   Belum ada tampilan per hari; MW-131 merencanakan tren per bulan. Kotak 7 hari
   × 53 minggu yang makin gelap saat makin boros memperlihatkan pola yang tidak
   kelihatan di total bulanan, seperti akhir pekan atau awal bulan.
@@ -2941,7 +2941,22 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     terbuka pada bulan tersebut. Dua pemeriksaan byte catatan identik.
     Seluruh 2.048 tes unit di 85 berkas dan build produksi lulus.
     *Belum terbukti:* matriks tema dan layar menyusul pada MW-149c.
-  - [ ] **c.** (S) Tes browser 1440 dan 390, terang dan gelap.
+  - [x] **c.** (S) Tes browser 1440 dan 390, terang dan gelap.
+    *Selesai:* empat kasus `spending-calendar-controls` memeriksa urutan hari,
+    lima tingkat warna, satu titik Tab, panah, Home/End, Enter, rincian
+    transaksi, dan bulan tujuan. Pada 390 piksel Playwright mengetuk panel
+    dan hari di browser sentuh emulasi. Kotak minimal 44 × 44 piksel dan
+    gulir mendatar tetap berada di dalam panel.
+    *Tes:* pada build MW-148b kasus 390 terang gagal menemukan panel. Pada
+    kandidat keempat kasus Chromium lulus tanpa galat halaman, dengan empat
+    tangkapan dan 12 pembandingan byte catatan. Seluruh 2.048 tes unit di
+    85 berkas serta build produksi lulus.
+    Pada PR #123 (Periksa 46047211400), keempat kasus Firefox gagal setelah
+    Tab dari judul panel. Wadah gulir kini memakai `tabIndex={-1}` sehingga
+    hari aktif menjadi titik Tab kalender. Uji keyboard tetap memeriksa satu
+    tekanan Tab. Sesudah perbaikan, 2.048 tes unit di 85 berkas, build produksi
+    dan lima kasus Chromium kalender lulus.
+    *Belum terbukti:* HP fisik, Firefox/WebKit lokal dan pembaca layar manual.
 
 - [ ] **MW-150 — Tes properti dengan fast-check**
   Tes unit sekarang memakai contoh yang dipilih tangan. fast-check

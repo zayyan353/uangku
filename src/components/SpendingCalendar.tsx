@@ -58,7 +58,7 @@ function CalendarBody({ data, currency, today, onOpenMonth }: Props) {
   return <>
     <div className="spending-track">
       <div className="spending-weekdays" aria-hidden="true">{days.slice(0, 7).map(day => <span key={day.date}>{weekdays.format(new Date(day.date))}</span>)}</div>
-      <div className="spending-scroll" ref={scroll}>
+      <div className="spending-scroll" ref={scroll} tabIndex={-1}>
         <div className="spending-months" aria-hidden="true">{weeks.map((day, i) =>
           <span key={day.date}>{(!i || weeks[i - 1].date.slice(0, 7) !== day.date.slice(0, 7)) && months.format(new Date(day.date))}</span>)}</div>
         <div className="spending-grid" ref={grid} role="group" aria-label="Pengeluaran per hari">
