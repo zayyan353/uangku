@@ -79,6 +79,42 @@ def settle(page):
     page.evaluate('() => new Promise(done => requestAnimationFrame(() => requestAnimationFrame(done)))')
 
 
+def run_currency_search(browser, args, output, mobile):
+    fixture = ledger([], [('idr', 'Bank IDR'), ('lira', 'Bank Lira'), ('usd', 'Bank USD')])
+    fixture['state']['wallets'][1]['currency'] = 'TRY'
+    fixture['state']['wallets'][2]['currency'] = 'USD'
+    for idx, (wallet, kind) in enumerate([('lira', 'expense'), ('usd', 'expense'),
+                                          ('lira', 'income'), ('lira', 'expense')]):
+        fixture['state']['entries'].append({
+            'id': f'row-{idx}', 'date': '2026-08-01', 'type': kind, 'walletId': wallet,
+            'amount': 100, 'category': 'Belanja', 'note': f'Synthetic match {idx}',
+        })
+    context, page, raw = open_context(browser, mobile, fixture)
+    try:
+        page.goto(args.url + '#/transaksi', wait_until='networkidle')
+        search = page.get_by_label('Cari transaksi', exact=True)
+        page.get_by_label('Dompet riwayat', exact=True).select_option('idr')
+        page.get_by_label('Filter jenis transaksi', exact=True).select_option('expense')
+        search.fill('synthetic match')
+        expect(page.get_by_role('button', name='1 hasil di USD', exact=True)).to_be_visible()
+        page.get_by_role('button', name='2 hasil di TL', exact=True).click()
+        expect(search).to_have_value('synthetic match')
+        expect(page.get_by_label('Periode transaksi', exact=True)).to_have_value('all')
+        expect(page.get_by_label('Dompet riwayat', exact=True)).to_have_value('all')
+        expect(page.get_by_label('Filter jenis transaksi', exact=True)).to_have_value('expense')
+        expect(page.get_by_role('button', name='TL Lira Turki', exact=True)).to_have_attribute('aria-pressed', 'true')
+        expect(page.locator('.transactions-table tbody tr')).to_have_count(2)
+        expect(page.get_by_role('button', name='1 hasil di USD', exact=True)).to_have_count(0)
+        search.fill('unmatched')
+        expect(page.get_by_test_id('history-empty-filtered')).to_be_visible()
+        expect(page.get_by_role('button', name=re.compile(r'^\d+ hasil di '))).to_have_count(0)
+        assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw
+        label = 'mobile' if mobile else 'desktop'
+        return {'name': f'{label}-currency-search', 'status': 'passed'}
+    finally:
+        context.close()
+
+
 def run_main(browser, args, output, mobile):
     label = 'mobile' if mobile else 'desktop'
     context, page, raw = open_context(browser, mobile, main_fixture())
@@ -289,7 +325,7 @@ def main():
         version = browser.version
         try:
             for mobile in [False, True]:
-                for case in [run_main, run_start_guide]:
+                for case in [run_main, run_start_guide, run_currency_search]:
                     began = time.monotonic()
                     name = f"{'mobile' if mobile else 'desktop'}-{case.__name__.removeprefix('run_').replace('_', '-')}"
                     try:
