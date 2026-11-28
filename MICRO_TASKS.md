@@ -412,11 +412,19 @@ perubahan tampilan yang disengaja, periksa gambar beda dan catat hasilnya.
 
 ### Fondasi (tampilan tidak berubah)
 
-- [ ] **MW-61 — Warna literal → token yang sudah ada**
+- [x] **MW-61 — Warna literal → token yang sudah ada**
   Ganti hex yang nilainya sama persis dengan token yang ada (`#52634f` →
   `var(--text-muted)`, `#fff` → `var(--surface)`, `#173b31` → `var(--forest)`,
   `#d5ee96` → `var(--lime)`, dst.). Murni cari-ganti nilai identik.
   *Selesai kalau:* nilai terhitung (computed) tidak berubah di kedua tema.
+  *Selesai:* 142 pemakaian literal di `src/styles.css` kini merujuk token
+  yang sudah ada. Nilai dengan alpha, fallback, serta warna yang harus
+  tetap sama di gelap (misalnya teks putih penghitung navigasi HP) dipertahankan.
+  *Tes:* pemeriksaan literal sasaran gagal pada basis lalu lulus. Perbandingan
+  Chromium dengan pendahulu memberi 0 piksel berbeda pada 16/16 tangkapan
+  viewport. Tema 22/22, UX 21/21, 2.051 tes unit di 88 file dan build lulus.
+  *Belum terbukti:* semua kombinasi status/halaman di luar cakupan suite,
+  serta hasil pada perangkat dan font lain.
 
 - [ ] **MW-62 — Token status untuk tema terang**
   `--success-*`, `--warning-*`, `--error-*`, `--info-*`, `--purple-*`, dan
