@@ -1,5 +1,5 @@
 import { isCurrencyCode } from './currencyCatalog';
-import { parseMoney, type Currency } from './finance';
+import { isValidDate, parseMoney, type Currency } from './finance';
 import { formatMoneyInput } from './moneyFormatting';
 import { UNCATEGORIZED } from './categorySettings';
 
@@ -163,4 +163,21 @@ export function categoryBudgetRows(totals: ReadonlyArray<readonly [string, numbe
     if (!listed.has(name)) rows.push({ name, spent: 0, limit: section[name], remaining: section[name], over: false });
   }
   return { rows, hidden };
+}
+
+/** Fractions of the monthly limit spent and of the selected calendar month elapsed, including today. */
+export function budgetProgress(spent: number, limit: number, month: string, today: string) {
+  if (!Number.isSafeInteger(spent) || spent < 0 || !Number.isSafeInteger(limit) || limit <= 0) {
+    throw new RangeError('Pengeluaran dan batas anggaran harus berupa nominal aman; batas harus positif.');
+  }
+  if (!isValidDate(month + '-01') || !isValidDate(today)) throw new RangeError('Bulan atau tanggal anggaran tidak valid.');
+  const currentMonth = today.slice(0, 7);
+  let elapsed = month < currentMonth ? 1 : 0;
+  if (month === currentMonth) {
+    const lastDay = new Date(today + 'T12:00:00Z');
+    lastDay.setUTCMonth(lastDay.getUTCMonth() + 1, 0);
+    elapsed = Number(today.slice(-2)) / lastDay.getUTCDate();
+  }
+  const status = spent > limit ? 'over' : BigInt(spent) * 5n >= BigInt(limit) * 4n ? 'near' : 'safe';
+  return { used: spent / limit, elapsed, status } as const;
 }
