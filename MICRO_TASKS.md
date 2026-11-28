@@ -2603,8 +2603,18 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     unit di 88 berkas dan build produksi lulus. Kasus meliputi tahun kabisat,
     batas 80/100%, nominal mendekati batas aman dan masukan tidak valid.
     *Belum terbukti:* tampilan peringatan diuji pada subbutir b.
-  - [ ] **b.** (S–M) Satu banner di Ringkasan bila ada anggaran hampir habis atau
-    lewat.
+  - [x] **b.** (S–M) Ringkasan menampilkan satu peringatan dari angka kategori
+    terkonfirmasi untuk semua rekening mata uang pilihan, juga saat satu dompet
+    dipilih. Lihat `budgetWarning` di `src/App.tsx`.
+    *Keputusan:* dahulukan kategori yang lewat, sebut jumlah kategori lain.
+    Pada seluruh catatan, bandingkan anggaran dengan bulan berjalan. Peringatan
+    menunggu pengingat ruang, cadangan, dan mutasi. “Nanti saja” memakai
+    penundaan pengingat hari itu yang sudah ada.
+    *Tes:* regresi Chromium gagal ketika banner belum ada. Sesudah perubahan,
+    2.056 tes unit di 88 berkas, build produksi dan enam skenario anggaran
+    Chromium lulus, termasuk batas 80/100%, satu dompet, seluruh catatan,
+    prioritas cadangan, serta desktop terang dan HP gelap.
+    *Belum terbukti:* perangkat fisik dan mesin browser selain Chromium.
   - [ ] **c.** (M) Di form pengeluaran: "Sisa anggaran Makan & minum bulan ini: Rp
     40.000".
   - [ ] **d.** (M, opsional) — **butuh keputusan** Batas bulanan keseluruhan atau
