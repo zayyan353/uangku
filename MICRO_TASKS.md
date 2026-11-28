@@ -2129,15 +2129,22 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   (`tests/recovery_browser.py:629`). Unit 2.008/2.008, build lulus.
   *Belum terbukti:* Safari pada perangkat Apple dan pembaca layar belum diuji.
 
-- [ ] **MW-119 — Catatan transfer lama tidak melebarkan kolom tanggal** (S)
-  Transfer tanpa tanggal per sisi yang tersimpan (data v1 tanpa metadata
-  transfer; bukan data contoh) menempelkan kalimat catatan ke tanggal dalam satu
-  sel tanpa bungkus (`src/components/TransactionTable.tsx:53`,
-  `src/styles.css:417`). Di 1440px kolom tanggal memakan 574px; di 1100px dan
-  900px tabel selebar 936px sehingga Nominal dan tombol ubah berada di luar area
-  yang terlihat. Tidak diketahui apakah catatan pemilik masih memuat transfer
-  seperti itu. Ubah tata letaknya saja (catatan di baris sendiri yang
-  membungkus); kalimatnya ditetapkan 11 Nov dan penandanya harus tetap terlihat.
+- [x] **MW-119 — Catatan transfer lama tidak melebarkan kolom tanggal** (S)
+  *Selesai:* pada transfer v1 tanpa tanggal per sisi, kalimat tentang tanggal
+  bank muncul di baris tersendiri dan membungkus di kolom tanggal
+  (`src/components/TransactionTable.tsx:53`, `src/styles.css:413,415,566`).
+  Saat kolom tanggal terlihat, pasangan nama dompet pada baris transfer lama
+  juga dapat membungkus sehingga nominal dan tombol Ubah tetap terjangkau.
+  *Tes:* awalnya kalimat sejajar dengan tanggal di lebar 900 px. Sesudah
+  perubahan, penanda terletak di bawah tanggal dan tabel yang difilter ke
+  transfer sintetis muat tanpa gulir mendatar pada 900, 1100, dan 1440 px.
+  Pada 900 px CI awal, tabel masih selebar 620 px di Firefox dan 621 px di
+  WebKit pada ruang 599 px. Sesudah nama dompet dapat membungkus, keenam
+  pengukuran di Chromium dan Firefox ESR lulus. Pada ESR lebar tabel di 900 px
+  turun dari 605 menjadi 587 px pada ruang 587 px. Nominal tampil utuh dan
+  tombol rincian maupun Ubah bisa difokuskan pada 390, 900, 1100 dan
+  1440 px di kedua mesin. Dua kasus UX Chromium, 2.051 tes unit dan build lulus.
+  *Belum terbukti:* isi catatan pemilik dan tampilan pada tablet fisik.
 
 - [ ] **MW-120 — Konflik dua tab saat form terbuka**
   Form yang dibuka di tab B sebelum tab A menyimpan selalu gagal disimpan; kotak

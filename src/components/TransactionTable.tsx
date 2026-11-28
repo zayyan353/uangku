@@ -50,7 +50,7 @@ export default function TransactionTable({ entries, state, data, onEdit, onDetai
     const archived = isCashLinkedEntry(state, entry) || readOnlyEntryIds.has(entry.id);
     const Icon = entry.type === 'transfer' ? ArrowLeftRight : entry.type === 'adjustment' ? SlidersHorizontal : positive ? ArrowDownLeft : CATEGORY_ICONS[entry.category] ?? ArrowUpRight;
     const sameDay = !!dates?.source && dates.source === dates.destination;
-    const legacyNote = dates?.basis === 'legacy-assumed' && !data.demo && <small className="field-help">Satu tanggal untuk kedua sisi; tanggal bank tiap sisi belum dipastikan</small>;
+    const legacyNote = dates?.basis === 'legacy-assumed' && !data.demo && <small className="field-help legacy-transfer-note">Satu tanggal untuk kedua sisi; tanggal bank tiap sisi belum dipastikan</small>;
     const received = entry.type === 'transfer' && destination && (destination.currency !== wallet.currency || (entry.toAmount ?? 0) !== Math.abs(entry.amount));
     const dateLabel = groupByDate && entry.date !== entries[position - 1]?.date ? formatDate(entry.date) : null;
     return <tr key={entry.id} data-entry-id={entry.id}>

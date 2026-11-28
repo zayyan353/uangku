@@ -106,6 +106,26 @@ def run_case(browser, args, output, mobile):
         nav.get_by_role('button', name='Transaksi', exact=True).click()
         expect(page.locator('.transactions-table tbody tr')).to_have_count(50)
         unchanged()
+        if not mobile:
+            search = page.get_by_label('Cari transaksi', exact=True)
+            search.fill('Synthetic transfer detail')
+            legacy = page.locator('tr[data-entry-id="transfer"]')
+            note = legacy.get_by_text('Satu tanggal untuk kedua sisi; tanggal bank tiap sisi belum dipastikan', exact=True)
+            for width in (900, 1100, 1440):
+                page.set_viewport_size({'width': width, 'height': 1000})
+                expect(note).to_be_visible()
+                geometry = note.evaluate("""note => {
+                    const date = document.createRange();
+                    date.selectNodeContents(note.parentNode.firstChild);
+                    const wrap = note.closest('.table-wrap');
+                    return {dateBottom: date.getBoundingClientRect().bottom,
+                            noteTop: note.getBoundingClientRect().top,
+                            scrollWidth: wrap.scrollWidth, available: wrap.clientWidth};
+                }""")
+                assert geometry['noteTop'] >= geometry['dateBottom'], (width, geometry)
+                assert geometry['scrollWidth'] <= geometry['available'] + 1, (width, geometry)
+            search.fill('')
+            unchanged()
         page.get_by_role('button', name='Halaman berikutnya', exact=True).click()
         expect(page.locator('.transactions-table tbody tr')).to_have_count(17)
         # Turning the page scrolls the list into view on the next animation frame. Let that settle first,
