@@ -501,11 +501,21 @@ perubahan tampilan yang disengaja, periksa gambar beda dan catat hasilnya.
   Dipakai 370/420/540/600/760/1000/1190/1550px. Tetapkan set resmi (usul:
   420, 600, 760, 1000, 1190), lebur 540 → 600, dan tulis di komentar atas file.
 
-- [ ] **MW-68 — Selektor rapuh → class**
+- [x] **MW-68 — Selektor rapuh → class**
   `.segmented-control[aria-label="Jenis transaksi"]` (gaya ikut teks label),
   `.pending-banner > span:nth-child(2)`, dan penyembunyian kolom tabel HP lewat
   `th/td:nth-child(2|3|4|5)`. Beri class sendiri di TSX. Menyentuh
   `TransactionModal.tsx`, `TransactionTable.tsx`, `App.tsx`.
+  *Selesai:* pilihan jenis memiliki kelas sendiri di
+  `src/components/TransactionModal.tsx:451`, teks banner di
+  `src/App.tsx:818`, serta header dan sel Dompet/Tanggal/Nominal/Aksi di
+  `src/components/TransactionTable.tsx:41` dan `:61`.
+  *Tes:* tiga percobaan Chromium gagal pada basis dan lulus pada kandidat:
+  ganti nama aksesibel pilihan jenis, sisipkan saudara sebelum isi banner,
+  pindahkan kolom dompet ke akhir. Gaya tiap sasaran bertahan. Pada 16/16
+  tangkapan viewport, selisih 0 piksel. Tema 23/23, UX 21/21,
+  2.051 tes unit di 88 file dan build lulus.
+  *Belum terbukti:* kombinasi keadaan lain di perangkat fisik.
 
 - [ ] **MW-69 — Inline style → class**
   Pada `f847251` ada 11 atribut `style` di TSX: dua di `GenericImportMapper`,
