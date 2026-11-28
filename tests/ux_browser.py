@@ -117,9 +117,25 @@ def run_case(browser, args, output, mobile):
             for width in (360, 390):
                 page.set_viewport_size({'width': width, 'height': 844})
                 check_phone_fields(page)
+                toolbar = page.locator('.category-toolbar')
+                manage = toolbar.get_by_role('button', name='Kelola kategori', exact=True).bounding_box()
+                auto = toolbar.get_by_role('button', name='Isi kategori otomatis', exact=True)
+                expect(auto).to_have_accessible_description(re.compile('semua periode'))
+                fill = auto.bounding_box()
+                assert manage['height'] >= 44 and fill['height'] >= 44
+                assert manage['x'] + manage['width'] <= fill['x']
+                assert abs(manage['y'] - fill['y']) <= abs(manage['height'] - fill['height']) + 1
+                height = toolbar.bounding_box()['height']
+                assert height <= max(manage['height'], fill['height']) + 16, (width, height, manage, fill)
                 grid = page.locator('.filter-fields')
                 assert grid.evaluate("grid => getComputedStyle(grid).gridTemplateColumns.split(' ').length") == 2
                 assert grid.evaluate('grid => grid.scrollWidth <= grid.clientWidth + 1')
+            toolbar.get_by_role('button', name='Isi kategori otomatis', exact=True).click()
+            preview = page.get_by_role('dialog', name='Isi kategori otomatis')
+            expect(preview.get_by_text(re.compile('dari semua periode'))).to_be_visible()
+            page.keyboard.press('Escape')
+            expect(preview).to_have_count(0)
+            unchanged()
         if not mobile:
             search = page.get_by_label('Cari transaksi', exact=True)
             search.fill('Synthetic transfer detail')

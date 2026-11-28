@@ -2221,8 +2221,17 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   cadangan tampil), dan periode diatur oleh dua kontrol ("Bulan laporan" dan
   "Periode transaksi"). Melipat filter di balik tombol sudah direncanakan dan
   dibatalkan di MW-44, jadi **tidak** diusulkan lagi.
-  - [ ] **a.** "Kelola kategori" dan "Isi kategori otomatis" dalam satu baris ringkas
-    atau menu.
+  - [x] **a.** *Selesai:* di HP kedua tombol berbagi satu baris dengan tinggi
+    sentuh minimal 44 px. Cakupan semua periode disebut dalam deskripsi aksesibel
+    tombol dan judul pendamping di dialog pratinjau
+    (`src/styles.css:1555`, `src/components/CategoryAutomation.tsx:47`).
+    *Tes:* regresi awal menemukan bilah setinggi 101 px pada lebar 360 px.
+    Sesudah perbaikan tingginya 59 px pada 320, 360 dan 390 px. Pada fixture
+    yang sama di 390 px, baris transaksi pertama naik
+    dari y=1093 ke y=1068. Lulus 2.052 tes unit (88 berkas), build produksi,
+    2 kasus UX dan 5 kasus visual kategori Chromium.
+    *Belum terbukti:* ukuran aktual pada HP fisik dan pembacaan deskripsi oleh
+    pembaca layar fisik.
   - [ ] **b.** Di antrean rapikan, lencana pendek menggantikan kalimat per baris.
   - [ ] **c.** — **butuh keputusan** Hapus salah satu dari dua kontrol periode. Tes
     browser memilih kontrol lewat label "Periode transaksi".
