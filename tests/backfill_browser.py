@@ -65,7 +65,7 @@ def add_manual_extra(page):
     source.nav(page, 'Transaksi')
     page.get_by_role('button', name='Catat transaksi', exact=True).click()
     dialog = page.get_by_role('dialog')
-    dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+    dialog.get_by_label('Dompet', exact=True).select_option('bank')
     dialog.get_by_label('Nominal', exact=True).fill('0,73')
     dialog.locator('input[type=date]').fill('2026-10-02')
     dialog.get_by_label(re.compile('^Keterangan')).fill('Separate manual flow retained through backfill')

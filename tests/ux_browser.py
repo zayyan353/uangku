@@ -59,6 +59,22 @@ CONTRAST_JS = r'''() => {
 }'''
 
 
+def check_transaction_types(dialog):
+    choices = dialog.get_by_role('group', name='Jenis transaksi', exact=True)
+    expect(choices.get_by_role('button')).to_have_count(5)
+    expect(choices.get_by_role('button', name='Transfer', pressed=True, exact=True)).to_be_visible()
+    for mode in ('Pengeluaran', 'Pemasukan', 'Perpindahan dana', 'Cek saldo', 'Transfer'):
+        choices.get_by_role('button', name=mode, exact=True).click()
+        expect(choices.get_by_role('button', pressed=False)).to_have_count(4)
+        expect(choices.get_by_role('button', name=mode, pressed=True, exact=True)).to_be_visible()
+        wallet = 'Dari dompet' if mode == 'Transfer' else 'Dompet'
+        amount = {'Cek saldo': 'Saldo yang benar sekarang', 'Transfer': 'Nominal yang keluar'}.get(mode, 'Nominal')
+        expect(dialog.get_by_role('combobox', name=wallet, exact=True)).to_be_visible()
+        expect(dialog.get_by_role('textbox', name=amount, exact=True)).to_be_visible()
+        expect(dialog.get_by_label('Tanggal', exact=True)).to_be_visible()
+    expect(dialog.get_by_role('combobox', name='Ke dompet', exact=True)).to_be_visible()
+
+
 def run_case(browser, args, output, mobile):
     label = 'mobile' if mobile else 'desktop'
     context = browser.new_context(viewport={'width': 390, 'height': 844} if mobile else {'width': 1440, 'height': 1000},
@@ -177,18 +193,26 @@ def run_case(browser, args, output, mobile):
         page.screenshot(path=str(output / f'{label}.png'), full_page=True)
         page.get_by_role('button', name='Pindah uang', exact=True).first.click()
         dlg = page.get_by_role('dialog')
-        rate = dlg.get_by_label('Kurs transaksi', exact=True)
-        for source, target, units in [('bank', 'try-bank', 'Jumlah TRY untuk 1 IDR'),
-                                      ('try-bank', 'bank', 'Jumlah IDR untuk 1 TRY')]:
-            dlg.get_by_label('Dompet asal', exact=True).select_option(source)
-            dlg.get_by_label('Dompet tujuan', exact=True).select_option(target)
-            expect(rate).to_have_attribute('placeholder', units)
+        check_transaction_types(dlg)
+        for source, target, sent, received in [('bank', 'try-bank', 'IDR', 'TRY'),
+                                               ('try-bank', 'bank', 'TRY', 'IDR')]:
+            dlg.get_by_label('Dari dompet', exact=True).select_option(source)
+            dlg.get_by_label('Ke dompet', exact=True).select_option(target)
+            rate = dlg.get_by_role('textbox', name=f'1 {sent} = berapa {received}?', exact=True)
+            expect(rate).to_have_attribute('placeholder', f'Jumlah {received} untuk 1 {sent}')
             expect(dlg.locator('#fx-input-help')).to_contain_text('tanpa pemisah ribuan')
             expect(dlg.locator('.fx-section')).not_to_contain_text('16000')
-        dlg.get_by_label('Nominal', exact=True).fill('10')
-        dlg.get_by_label('Kurs transaksi', exact=True).fill('0')
+        methods = dlg.get_by_role('group', name='Cara mengisi kurs', exact=True)
+        for active, inactive in [('Isi kurs', 'Isi jumlah diterima'), ('Isi jumlah diterima', 'Isi kurs')]:
+            expect(methods.get_by_role('button', name=active, exact=True, pressed=True)).to_be_visible()
+            methods.get_by_role('button', name=inactive, exact=True, pressed=False).click()
+            if inactive == 'Isi jumlah diterima':
+                expect(dlg.get_by_role('textbox', name='Nominal yang diterima (IDR)', exact=True)).to_be_visible()
+        expect(rate).to_be_visible()
+        dlg.get_by_label('Nominal yang keluar', exact=True).fill('10')
+        rate.fill('0')
         expect(dlg.locator('#fx-input-feedback')).to_be_visible()
-        expect(dlg.get_by_label('Kurs transaksi', exact=True)).to_have_attribute('aria-invalid', 'true')
+        expect(rate).to_have_attribute('aria-invalid', 'true')
         unchanged()
         contrast('invalid-fx')
         assert not errors, errors
@@ -258,7 +282,7 @@ def fill_storage(page, target, label):
 def record_expense(page, note):
     page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
     dialog = page.get_by_role('dialog')
-    dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+    dialog.get_by_label('Dompet', exact=True).select_option('bank')
     dialog.get_by_label('Nominal', exact=True).fill('7')
     dialog.get_by_label(re.compile('Keterangan')).fill(note)
     dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
@@ -532,7 +556,7 @@ def route_case(browser, args, output, mobile):
                 window.__release = release; held(true); })); })''', 'uangku:v1:coordinated-write')
             page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
             dialog = page.get_by_role('dialog')
-            dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+            dialog.get_by_label('Dompet', exact=True).select_option('bank')
             dialog.get_by_label('Nominal', exact=True).fill('7')
             dialog.get_by_label(re.compile('Keterangan')).fill('Synthetic saved while Back was pressed')
             dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
@@ -854,7 +878,7 @@ def saved_elsewhere_case(browser, args, output, mobile):
     def record(note, date):
         page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
         dialog = page.get_by_role('dialog')
-        dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+        dialog.get_by_label('Dompet', exact=True).select_option('bank')
         dialog.get_by_label('Nominal', exact=True).fill('7')
         dialog.get_by_label(re.compile('Keterangan')).fill(note)
         if date:
@@ -930,12 +954,12 @@ def saved_elsewhere_case(browser, args, output, mobile):
         page.get_by_label('Dompet riwayat', exact=True).select_option('cash')
         page.get_by_role('button', name='Pindah uang', exact=True).first.click()
         dialog = page.get_by_role('dialog')
-        dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
-        dialog.get_by_label('Dompet tujuan', exact=True).select_option('cash')
+        dialog.get_by_label('Dari dompet', exact=True).select_option('bank')
+        dialog.get_by_label('Ke dompet', exact=True).select_option('cash')
         dialog.get_by_role('button', name='Tanggal masuk berbeda?', exact=True).click()
         dialog.get_by_label('Tanggal debit', exact=True).fill('2026-10-31')
         dialog.get_by_label('Tanggal kredit', exact=True).fill('2026-11-01')
-        dialog.get_by_label('Nominal', exact=True).fill('7')
+        dialog.get_by_label('Nominal yang keluar', exact=True).fill('7')
         dialog.get_by_label(re.compile('Keterangan')).fill('Synthetic split transfer')
         dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
         expect(dialogs).to_have_count(0)
@@ -994,7 +1018,7 @@ def saved_page_case(browser, args, output, mobile):
     def record(note, date, again=False):
         page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
         dialog = page.get_by_role('dialog')
-        dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+        dialog.get_by_label('Dompet', exact=True).select_option('bank')
         dialog.get_by_label('Nominal', exact=True).fill('7')
         dialog.get_by_label(re.compile('Keterangan')).fill(note)
         dialog.get_by_label('Tanggal', exact=True).fill(date)
@@ -1081,12 +1105,12 @@ def saved_page_case(browser, args, output, mobile):
         page.get_by_label('Dompet riwayat', exact=True).select_option('cash')
         page.get_by_role('button', name='Pindah uang', exact=True).first.click()
         dialog = page.get_by_role('dialog')
-        dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
-        dialog.get_by_label('Dompet tujuan', exact=True).select_option('cash')
+        dialog.get_by_label('Dari dompet', exact=True).select_option('bank')
+        dialog.get_by_label('Ke dompet', exact=True).select_option('cash')
         dialog.get_by_role('button', name='Tanggal masuk berbeda?', exact=True).click()
         dialog.get_by_label('Tanggal debit', exact=True).fill('2026-09-30')
         dialog.get_by_label('Tanggal kredit', exact=True).fill('2026-10-01')
-        dialog.get_by_label('Nominal', exact=True).fill('7')
+        dialog.get_by_label('Nominal yang keluar', exact=True).fill('7')
         dialog.get_by_label(re.compile('Keterangan')).fill('Synthetic page transfer')
         dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
         expect(dialogs).to_have_count(0)
@@ -1144,7 +1168,7 @@ def repeat_entry_close_case(browser, args, output, width):
         page.get_by_label('Bulan laporan', exact=True).select_option('2025-01')
         page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
         dialog = page.get_by_role('dialog')
-        dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+        dialog.get_by_label('Dompet', exact=True).select_option('bank')
         amount = dialog.get_by_label('Nominal', exact=True)
         amount.fill('7')
         note = 'Synthetic repeat entry'

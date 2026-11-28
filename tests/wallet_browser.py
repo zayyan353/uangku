@@ -300,7 +300,7 @@ def archive_history(case):
     expect(rows.filter(has_text='Synthetic wallet record source-out').get_by_role('button',name=re.compile('^Ubah '))).to_have_count(0)
     expect(rows.filter(has_text='Synthetic wallet record paired').get_by_role('button',name=re.compile('^Hapus '))).to_have_count(0)
     p.get_by_role('button',name='Catat transaksi',exact=True).first.click()
-    dialog=p.get_by_role('dialog');values=dialog.get_by_label('Dompet asal',exact=True).locator('option').evaluate_all('(rows)=>rows.map(row=>row.value)')
+    dialog=p.get_by_role('dialog');values=dialog.get_by_label('Dompet',exact=True).locator('option').evaluate_all('(rows)=>rows.map(row=>row.value)')
     assert 'bank' not in values and 'peer' in values
     dialog.get_by_role('button',name='Batal',exact=True).click();case.unchanged(raw)
     p.reload(wait_until='networkidle');assert stored_document(p)==after;case.semantic_checks+=1
@@ -425,7 +425,7 @@ def validator_refusal_surfaces(case):
     nav(p, 'Ringkasan')
     p.get_by_role('button', name='Catat transaksi', exact=True).first.click()
     dialog = p.get_by_role('dialog')
-    dialog.get_by_label('Dompet asal', exact=True).select_option('bank')
+    dialog.get_by_label('Dompet', exact=True).select_option('bank')
     dialog.get_by_label('Nominal', exact=True).fill('25')
     dialog.get_by_label(re.compile('^Keterangan')).fill('Synthetic at the limit')
     dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
