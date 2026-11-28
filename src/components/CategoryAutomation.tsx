@@ -6,7 +6,9 @@ import HistoryRuleDialog, { type HistoryRuleSource } from './HistoryRuleDialog';
 import { CategorySettingsContext } from '../hooks/useCategorySettings';
 import { entryCategorySuggestions } from '../lib/categorySuggestions';
 import { UNCATEGORIZED, isUncategorized, type CategorySettings } from '../lib/categorySettings';
-import { formatDate, formatMoney } from '../lib/finance';
+import { formatDate } from '../lib/finance';
+import { typeLabels } from '../lib/entryTypeLabels';
+import { PrivateAmount, usePrivacyAmounts } from './PrivacyAmounts';
 import type { SourceDocument } from '../lib/sourceModel';
 import { createBankEntryPresentationLookup } from '../lib/bankEntryHints';
 
@@ -17,6 +19,7 @@ export default function CategoryAutomation({ data, settingsRaw, settingsError, o
   onSaveSettings: (settings: CategorySettings, expectedRaw: string | null) => Promise<{ raw: string; settings: CategorySettings }>;
   data: SourceDocument; onApply: (assignments: CategoryAssignment[]) => Promise<boolean>; onClose: () => void; disabled?: boolean;
 }) {
+  const { hidden } = usePrivacyAmounts();
   const settings = useContext(CategorySettingsContext);
   const [basis, setBasis] = useState(() => ({ settings, raw: settingsRaw, error: settingsError }));
   const stale = settingsRaw !== basis.raw || settingsError !== basis.error;
@@ -57,10 +60,10 @@ export default function CategoryAutomation({ data, settingsRaw, settingsError, o
         const view = presentation(row.entry);
         const merchant = row.historyMerchant;
         return <section className="category-automation-row" key={row.entry.id}>
-          <div><strong>{view.title}</strong>{view.description && view.title !== view.description && <details className="bank-wording"><summary>Keterangan bank asli</summary><p>{view.description}</p></details>}<span className="field-help">{formatDate(row.entry.date)} · {wallet?.name} · {wallet ? formatMoney(row.entry.amount, wallet.currency) : ''}</span>
+          <div><strong>{hidden ? typeLabels[row.entry.type] : view.title}</strong>{!hidden && view.description && view.title !== view.description && <details className="bank-wording"><summary>Keterangan bank asli</summary><p>{view.description}</p></details>}<span className="field-help">{formatDate(row.entry.date)} · {wallet?.name} · {wallet && <PrivateAmount value={row.entry.amount} currency={wallet.currency} />}</span>
             <span className="field-help">{row.historyMerchant
-              ? <>Saran dari riwayat: {row.match.suggestions[0].reason}</>
-              : <>{row.match.kind === 'auto' ? 'Otomatis' : 'Saran — pilih sendiri'}: {row.match.suggestions.map(suggestion => `${suggestion.category} (${suggestion.reason})`).join(' · ')}</>}</span>
+              ? <>Saran dari riwayat: {hidden ? row.match.suggestions[0].category : row.match.suggestions[0].reason}</>
+              : <>{row.match.kind === 'auto' ? 'Otomatis' : 'Saran — pilih sendiri'}: {row.match.suggestions.map(suggestion => hidden ? suggestion.category : `${suggestion.category} (${suggestion.reason})`).join(' · ')}</>}</span>
             {merchant && <button type="button" className="button secondary small" disabled={busy || disabled || !!ruleBlocked} onClick={event => {
               ruleReturnFocus.current = event.currentTarget.closest('section')?.querySelector('select') ?? null;
               setRuleNotice('');

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, Download, Pencil, Plus, Search, Trash2, Upload } from 'lucide-react';
 import Modal from './Modal';
+import { usePrivacyAmounts } from './PrivacyAmounts';
 import MoneyEcho from './MoneyEcho';
 import { makeId } from '../lib/finance';
 import { CATEGORY_SETTINGS_LIMIT, KEYWORD_PACK_VERSION, categorySettingsExport, parseCategorySettingsExport, validateCategorySettings, type CategorySettings } from '../lib/categorySettings';
@@ -48,6 +49,7 @@ export default function CategoryManager({ newerVersion = false, settings, budget
   const [renames, setRenames] = useState<CategoryRename[]>([]);
   const [renaming, setRenaming] = useState<{ from: string; to: string; updateEntries: boolean } | null>(null);
   const [newName, setNewName] = useState('');
+  const { hidden } = usePrivacyAmounts();
   const [keyword, setKeyword] = useState('');
   const [ruleCategory, setRuleCategory] = useState(settings.names.find(name => name !== UNCATEGORIZED) ?? '');
   const [ruleMode, setRuleMode] = useState<CategoryRule['mode']>('auto');
@@ -249,7 +251,7 @@ export default function CategoryManager({ newerVersion = false, settings, budget
                 <label className="field"><span className="field-label">Kata kunci {index + 1}</span><input className="field-input" aria-label={`Kata kunci aturan ${index + 1}`} maxLength={100} value={rule.keyword} onChange={event => changeRule(rule.id, { keyword: event.target.value })} /></label>
                 <label className="field"><span className="field-label">Kategori</span><select className="select-input" aria-label={`Kategori aturan ${index + 1}`} value={rule.category} onChange={event => changeRule(rule.id, { category: event.target.value })}>{inactive && <option value={rule.category}>{rule.category} (tidak aktif)</option>}{ruleNames.map(name => <option key={name}>{name}</option>)}</select></label>
                 <label className="field"><span className="field-label">Mode</span><select className="select-input" aria-label={`Mode aturan ${index + 1}`} value={rule.mode} onChange={event => changeRule(rule.id, { mode: event.target.value as CategoryRule['mode'] })}><option value="auto">Otomatis jika cocok jelas</option><option value="suggest">Saran saja</option></select></label>
-                <button type="button" className="button danger small category-rule-delete" aria-label={`Hapus aturan ${index + 1}: ${rule.keyword}`} title="Hapus aturan" onClick={() => update({ ...draft, rules: draft.rules.filter(item => item.id !== rule.id) })}><Trash2 size={15} /> <span className="category-rule-delete-text">Hapus aturan</span></button>
+                <button type="button" className="button danger small category-rule-delete" aria-label={hidden ? `Hapus aturan ${index + 1}` : `Hapus aturan ${index + 1}: ${rule.keyword}`} title="Hapus aturan" onClick={() => update({ ...draft, rules: draft.rules.filter(item => item.id !== rule.id) })}><Trash2 size={15} /> <span className="category-rule-delete-text">Hapus aturan</span></button>
                 {inactive && <p className="field-help category-rule-inactive">Kategori tidak aktif. Aturan ini diabaikan sampai kategori diaktifkan kembali atau tujuan aturan diganti.</p>}
               </li>;
             })}</ol> : <p className="field-help">Belum ada aturan. Tambahkan kata kunci dan kategori tujuan untuk mengaktifkan pencocokan.</p>}

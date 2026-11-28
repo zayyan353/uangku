@@ -4,6 +4,7 @@ import { parseGenericStatement, readGenericTables, type GenericMapping, type Gen
 import { guessCsvSeparator, guessDecimalSeparator, guessStatementOrder } from '../lib/genericImportHints';
 import type { Entry, Wallet } from '../lib/finance';
 import type { ImportPreview } from '../lib/importer';
+import { usePrivacyAmounts } from './PrivacyAmounts';
 
 interface Props {
   wallet: Wallet; entries: Entry[]; disabled?: boolean;
@@ -31,6 +32,7 @@ const SEPARATOR_NAMES = { ',': 'koma', ';': 'titik koma', '\t': 'tab' } as const
 const isCsvName = (name: string) => /\.(csv|tsv)$/i.test(name);
 
 export default function GenericImportMapper({ wallet, entries, disabled = false, hasPreview = false, onPreview, onInvalidate }: Props) {
+  const { hidden } = usePrivacyAmounts();
   const [tables, setTables] = useState<GenericTable[]>([]), [sheetId, setSheetId] = useState('');
   const [filename, setFilename] = useState(''), [separator, setSeparator] = useState<',' | ';' | '\t'>(',');
   const [mapping, setMapping] = useState(() => blank(wallet));
@@ -94,6 +96,16 @@ export default function GenericImportMapper({ wallet, entries, disabled = false,
     finally { pending.current = false; if (alive.current) setBusy(false); }
   }
   const headers = table?.values[mapping.headerRow] ?? [];
+  // A file may begin with a transaction instead of a header. Show only recognised column names in private mode.
+  const headingGuess = hidden && table ? suggested(table, mapping.headerRow, wallet) : null;
+  const recognisedHeaders = headingGuess ? [
+    headingGuess.dateColumn, headingGuess.descriptionColumn, headingGuess.balanceColumn, headingGuess.amountColumn,
+    headingGuess.debitColumn, headingGuess.creditColumn, headingGuess.referenceColumn, headingGuess.currencyColumn,
+  ] : [];
+  function heading(value: unknown, index: number) {
+    if (hidden && !recognisedHeaders.includes(index)) return `Kolom ${index + 1}`;
+    return String(value ?? '').slice(0, 80) || '(tanpa judul)';
+  }
   const dataRows = table ? table.values.slice(mapping.headerRow + 1, mapping.headerRow + 201) : [];
   const amountColumns = mapping.amountMode === 'signed' ? [mapping.amountColumn ?? -1] : [mapping.debitColumn ?? -1, mapping.creditColumn ?? -1];
   // Suggestions read the first rows only; nothing is selected until the user takes or overrides them.
@@ -108,12 +120,12 @@ export default function GenericImportMapper({ wallet, entries, disabled = false,
   const folded = hasPreview && !reopened;
   function column(label: string, key: keyof Pick<GenericMapping, 'dateColumn' | 'descriptionColumn' | 'balanceColumn' | 'amountColumn' | 'debitColumn' | 'creditColumn' | 'referenceColumn' | 'currencyColumn'>, optional = false) {
     return <label className="field" key={key}><span className="field-label">{label}{optional ? ' (opsional)' : ' *'}</span><select className="select-input" aria-label={label} disabled={controlsDisabled} value={mapping[key] ?? -1} onChange={event => change({ [key]: Number(event.target.value) < 0 && optional ? undefined : Number(event.target.value) })}>
-      <option value={-1}>{optional ? 'Tidak digunakan' : 'Pilih kolom'}</option>{headers.slice(0, 512).map((header, index) => <option key={index} value={index}>{index + 1} · {String(header ?? '').slice(0, 80) || '(tanpa judul)'}</option>)}
+      <option value={-1}>{optional ? 'Tidak digunakan' : 'Pilih kolom'}</option>{headers.slice(0, 512).map((header, index) => <option key={index} value={index}>{index + 1} · {heading(header, index)}</option>)}
     </select></label>;
   }
   return <section className="panel generic-import" aria-label="Pemetaan impor umum">
     <div className="panel-header"><div><h2>Impor CSV / Excel umum</h2><p>Pilih kolom file dan periksa nominal sebelum menyimpan.</p></div><FileSpreadsheet size={24} /></div>
-    {folded && <div className="notice generic-import-folded" data-testid="mapping-folded"><span><strong>{filename}</strong> sudah dibaca dengan pemetaan ini. Pratinjaunya ada di bawah.</span><button type="button" className="button secondary small" disabled={controlsDisabled} onClick={() => setReopened(true)}>Ubah pemetaan</button></div>}
+    {folded && <div className="notice generic-import-folded" data-testid="mapping-folded"><span><strong>{hidden ? 'File mutasi' : filename}</strong> sudah dibaca dengan pemetaan ini. Pratinjaunya ada di bawah.</span><button type="button" className="button secondary small" disabled={controlsDisabled} onClick={() => setReopened(true)}>Ubah pemetaan</button></div>}
     <div hidden={folded}>
     <p className="field-help generic-import-intro">File harus berisi satu rekening dan satu mata uang, dengan <strong>saldo setelah setiap transaksi</strong>. Saldo yang tidak tersedia tidak akan dibuat-buat. File dibaca di browser dan tidak dikirim ke server.</p>
     <div className={`generic-import-file${dragging ? ' dragging' : ''}`} onDragOver={event => { event.preventDefault(); if (!controlsDisabled) setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={event => { event.preventDefault(); setDragging(false); if (!controlsDisabled) void load(event.dataTransfer.files[0]); }}>
@@ -122,12 +134,12 @@ export default function GenericImportMapper({ wallet, entries, disabled = false,
     </div>
     {csvChosen && <label className="field generic-import-separator"><span className="field-label">Pemisah CSV</span><select className="select-input" aria-label="Pemisah CSV" value={separator === '\t' ? 'tab' : separator} disabled={controlsDisabled} onChange={event => changeSeparator(event.target.value === 'tab' ? '\t' : event.target.value as ',' | ';')}><option value=",">Koma (,)</option><option value=";">Titik koma (;)</option><option value="tab">Tab</option></select>{separatorGuessed && <span className="field-help" data-testid="separator-guess">Ditebak dari isi file: {SEPARATOR_NAMES[separator]}. Ubah bila tabel contoh di bawah tampak salah.</span>}</label>}
     {table && <>
-      <p className="field-help generic-import-loaded">{filename} · {Math.max(0, table.values.length - mapping.headerRow - 1)} baris setelah judul. Pilihan kolom awal hanya bantuan; periksa semuanya.</p>
+      <p className="field-help generic-import-loaded">{hidden ? 'File mutasi' : filename} · {Math.max(0, table.values.length - mapping.headerRow - 1)} baris setelah judul. Pilihan kolom awal hanya bantuan; periksa semuanya.</p>
       <div className="form-grid">
-        {tables.length > 1 && <label className="field"><span className="field-label">Worksheet</span><select className="select-input" aria-label="Worksheet" value={sheetId} disabled={controlsDisabled} onChange={event => { onInvalidate?.(); const next = tables.find(item => item.id === event.target.value)!; setSheetId(next.id); setMapping(suggested(next, 0, wallet)); setConfirmed(false); }} >{tables.map(item => <option value={item.id} key={item.id}>{item.name}</option>)}</select></label>}
+        {tables.length > 1 && <label className="field"><span className="field-label">Worksheet</span><select className="select-input" aria-label="Worksheet" value={sheetId} disabled={controlsDisabled} onChange={event => { onInvalidate?.(); const next = tables.find(item => item.id === event.target.value)!; setSheetId(next.id); setMapping(suggested(next, 0, wallet)); setConfirmed(false); }} >{tables.map((item, index) => <option value={item.id} key={item.id}>{hidden ? `Worksheet ${index + 1}` : item.name}</option>)}</select></label>}
         <label className="field"><span className="field-label">Baris judul kolom</span><input className="field-input" aria-label="Baris judul kolom" type="number" min={1} max={Math.min(101, table.values.length)} disabled={controlsDisabled} value={mapping.headerRow + 1} onChange={event => { onInvalidate?.(); const header = Number(event.target.value) - 1; setMapping(suggested(table, header, wallet)); setConfirmed(false); }} /></label>
       </div>
-      <div className="table-wrap generic-sample-wrap"><table className="generic-sample-table"><caption className="field-help">Contoh nilai asli: judul dan tiga baris berikutnya, maksimal delapan kolom ditampilkan.</caption><tbody>{table.values.slice(mapping.headerRow, mapping.headerRow + 4).map((row, index) => <tr key={index}>{row.slice(0, 8).map((value, column) => <td key={column} style={{ maxWidth: 180, overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{String(value ?? '').slice(0, 180)}</td>)}</tr>)}</tbody></table></div>
+      <div className="table-wrap generic-sample-wrap"><table className="generic-sample-table"><caption className="field-help">{hidden ? 'Nilai contoh disamarkan. Pilih kolom sesuai urutan pada file.' : 'Contoh nilai asli: judul dan tiga baris berikutnya, maksimal delapan kolom ditampilkan.'}</caption><tbody>{table.values.slice(mapping.headerRow, mapping.headerRow + 4).map((row, index) => <tr key={index}>{row.slice(0, 8).map((value, column) => <td key={column} style={{ maxWidth: 180, overflowWrap: 'anywhere', whiteSpace: 'pre-wrap' }}>{hidden ? (index === 0 ? heading(value, column) : '•••••') : String(value ?? '').slice(0, 180)}</td>)}</tr>)}</tbody></table></div>
       <div className="form-grid">
         {column('Kolom tanggal', 'dateColumn')}{column('Kolom keterangan', 'descriptionColumn')}{column('Kolom saldo', 'balanceColumn')}
         <label className="field"><span className="field-label">Mode nominal</span><select className="select-input" aria-label="Mode nominal" value={mapping.amountMode} disabled={controlsDisabled} onChange={event => change({ amountMode: event.target.value as GenericMapping['amountMode'] })}><option value="signed">Satu kolom bertanda +/−</option><option value="debit-credit">Kolom debit dan kredit terpisah</option></select></label>

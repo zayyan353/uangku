@@ -35,8 +35,8 @@ export function categoryColorIndex(name: string, names: readonly string[], palet
  * The line under the folded category panel's title. Without a report the spending has no total;
  * that is said as it is, because it is not the same as a period with no spending.
  */
-export function categoryFoldSummary(report: Pick<CashflowReport, 'categoryTotals' | 'categoryExpenseTotal'> | undefined, currency: Currency): string {
+export function categoryFoldSummary(report: Pick<CashflowReport, 'categoryTotals' | 'categoryExpenseTotal'> | undefined, currency: Currency, displayMoney = formatMoney): string {
   if (!report) return 'Total pengeluaran belum dapat dihitung · ketuk untuk melihat';
   const count = report.categoryTotals.length;
-  return count ? `${count} kategori · ${formatMoney(report.categoryExpenseTotal, currency)} · ketuk untuk melihat` : 'Belum ada pengeluaran terkonfirmasi · ketuk untuk melihat';
+  return count ? `${count} kategori · ${displayMoney(report.categoryExpenseTotal, currency)} · ketuk untuk melihat` : 'Belum ada pengeluaran terkonfirmasi · ketuk untuk melihat';
 }

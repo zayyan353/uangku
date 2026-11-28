@@ -60,6 +60,20 @@ button:active:not(:disabled) { transform: translateY(1px); }
 .breadcrumb { color: var(--text-muted); font-size: 13px; letter-spacing: 1.25px; text-transform: uppercase; font-weight: 600; display: flex; align-items: center; gap: 10px; }
 .breadcrumb svg { width: 15px; height: 15px; }
 .topbar-tools { display: flex; align-items: center; gap: 12px; }
+.topbar .privacy-toggle.icon-button { display: inline-flex; min-height: 44px; min-width: 44px; }
+.privacy-amount {
+  display: inline;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: .18em;
+}
+.privacy-amount:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .date-pill { display: flex; align-items: center; gap: 8px; border: 1px solid #e2e7dd; background: var(--surface); padding: 9px 12px; border-radius: 10px; font-size: 13px; color: #667264; }
 .date-pill svg { width: 15px; height: 15px; }
 .date-pill input { background: transparent; border: 0; color: #596954; max-width: 132px; font-size: 13px; }

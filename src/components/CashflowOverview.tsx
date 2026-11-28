@@ -3,6 +3,7 @@ import { useId, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { formatDate, formatMoney, type Currency, type Wallet } from '../lib/finance';
 import { monthLabel } from '../lib/historyView';
 import type { CashflowReport } from '../lib/cashflowReport';
+import { maskedMoney, PrivateAmount, usePrivacyAmounts } from './PrivacyAmounts';
 import SankeyExport from './SankeyExport';
 
 interface Props {
@@ -56,6 +57,7 @@ function periodCaption(report: CashflowReport | undefined, month: string, period
 export function CashflowBalance({ report, currency, month, period, scope, mobile, demo }: Pick<Props, 'report' | 'currency' | 'month' | 'period'> & {
   scope: string; mobile: boolean; demo: boolean;
 }) {
+  const { hidden } = usePrivacyAmounts();
   const closing = report?.closingBalance;
   return <section className={`balance-card${mobile ? ' balance-card-compact' : ''}`}>
     <div className="balance-card-top">
@@ -63,19 +65,21 @@ export function CashflowBalance({ report, currency, month, period, scope, mobile
       {mobile && demo && <span className="balance-demo">Data contoh</span>}
       {!mobile && <span className="balance-currency">{currency === 'TRY' ? 'TL' : currency}</span>}
     </div>
-    <div className="balance-number"><span data-testid="cashflow-closing" data-amount={closing ?? undefined}>{closing == null ? mobile ? 'Belum tersedia' : '—' : formatMoney(closing, currency)}</span></div>
+    <div className="balance-number"><span data-testid="cashflow-closing" data-amount={hidden ? undefined : closing ?? undefined}>{closing == null ? mobile ? 'Belum tersedia' : '—' : <PrivateAmount value={closing} currency={currency} />}</span></div>
     <div className="balance-meta"><WalletIcon size={15} /><span>{scope}</span></div>
     {mobile && <p className="balance-period">{periodCaption(report, month, period)}</p>}
     <span className="balance-orbit orbit-one" /><span className="balance-orbit orbit-two" />
-    {report && report.allRecordsBalance !== closing && <div className="balance-bottom"><span>Seluruh catatan: {formatMoney(report.allRecordsBalance, currency)} · termasuk tanggal masa depan</span></div>}
+    {report && report.allRecordsBalance !== closing && <div className="balance-bottom"><span>Seluruh catatan: {<PrivateAmount value={report.allRecordsBalance} currency={currency} />} · termasuk tanggal masa depan</span></div>}
   </section>;
 }
 
 export default function CashflowOverview({ report, error, currency, month, period, walletId, wallets, archivedWalletIds, onPeriodChange, onWalletChange, balanceCard, startGuide, monthControl, afterCards, previous }: Props) {
+  const { hidden } = usePrivacyAmounts();
+  const displayMoney = (value: number) => hidden ? maskedMoney(currency) : formatMoney(value, currency);
   const warning = error || report?.balanceWarning || (report?.notStarted ? 'Periode belum dimulai. Transaksi bertanggal masa depan tidak masuk arus rekening aktual.' : '');
-  const amount = (value: number | null | undefined, id?: string) => <span data-testid={id ? `cashflow-${id}` : undefined} data-amount={value ?? undefined}>{value === null || value === undefined ? '—' : formatMoney(value, currency)}</span>;
+  const amount = (value: number | null | undefined, id?: string) => <span data-testid={id ? `cashflow-${id}` : undefined} data-amount={hidden ? undefined : value ?? undefined}>{value == null ? '—' : <PrivateAmount value={value} currency={currency} />}</span>;
   /** A breakdown cell; an empty side reads as a dash so the filled amounts stand out. */
-  const flow = (value: number) => value === 0 ? <span className="cashflow-none" data-amount={0}><span aria-hidden="true">—</span><span className="screen-reader-only">{formatMoney(0, currency)}</span></span> : amount(value);
+  const flow = (value: number) => !hidden && value === 0 ? <span className="cashflow-none" data-amount={0}><span aria-hidden="true">—</span><span className="screen-reader-only">{formatMoney(0, currency)}</span></span> : amount(value);
   const caption = periodCaption(report, month, period);
   // The note follows the chosen scope: one active wallet's report holds no archived wallet.
   const archivedCount = archivedWalletIds?.size ?? 0;
@@ -91,13 +95,13 @@ export default function CashflowOverview({ report, error, currency, month, perio
   const breakdownCount = report?.breakdown.length ?? 0;
   // By purpose, not by account flow: confirmed income against confirmed spending (transfer fees included).
   const purposeNet = report ? report.incomeTotal - report.categoryExpenseTotal : 0;
-  const signed = (value: number) => `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatMoney(Math.abs(value), currency)}`;
+  const signed = (value: number) => hidden ? maskedMoney(currency) : `${value > 0 ? '+' : value < 0 ? '−' : ''}${formatMoney(Math.abs(value), currency)}`;
   // When the sum does not close, name the cause instead of a general "not certain".
   const verdict = matched ? 'Perhitungan saldo periode cocok. Ini mencocokkan catatan aplikasi, belum membuktikan mutasi bank sudah lengkap.'
     : !report ? 'Laporan belum dapat dihitung, jadi saldo periode belum tersedia.'
     : report.notStarted ? 'Periode belum dimulai, jadi belum ada saldo periode yang dihitung.'
     : report.unknownDatePostings ? `Saldo periode belum dapat dipastikan: ${report.unknownDatePostings} posting belum memiliki tanggal. Angka arus hanya mencakup posting dengan tanggal yang diketahui.`
-    : report.difference ? `Perhitungan belum cocok: selisih ${formatMoney(report.difference, currency)} antara saldo akhir dan hasil hitungan.`
+    : report.difference ? `Perhitungan belum cocok: selisih ${displayMoney(report.difference)} antara saldo akhir dan hasil hitungan.`
     : 'Saldo periode belum dapat dipastikan. Angka arus hanya mencakup posting dengan tanggal yang diketahui.';
   return <div className="cashflow-overview">
     <div className="cashflow-controls">
@@ -109,15 +113,15 @@ export default function CashflowOverview({ report, error, currency, month, perio
     {warning && <div className="notice warning" data-testid="cashflow-warning" role="status">{warning}</div>}
     <div className="overview-grid">
       {balanceCard}
-      <div className="stats-stack"><section className="stat-card"><span className="stat-icon income"><ArrowDownLeft size={22} /></span><div><span className="stat-label">Uang masuk rekening</span><strong className="stat-value">{amount(report?.inflow, 'inflow')}</strong><span className="stat-foot">Termasuk transfer masuk dan catatan belum dikategorikan</span>{previous && <span className="stat-compare" data-testid="cashflow-previous-inflow" data-amount={previous.inflow}>{previous.label}: {formatMoney(previous.inflow, currency)}</span>}</div></section><section className="stat-card"><span className="stat-icon expense"><ArrowUpRight size={22} /></span><div><span className="stat-label">Uang keluar rekening</span><strong className="stat-value">{amount(report?.outflow, 'outflow')}</strong><span className="stat-foot">Termasuk transfer keluar, tarik tunai, dan biaya</span>{previous && <span className="stat-compare" data-testid="cashflow-previous-outflow" data-amount={previous.outflow}>{previous.label}: {formatMoney(previous.outflow, currency)}</span>}</div></section></div>
+      <div className="stats-stack"><section className="stat-card"><span className="stat-icon income"><ArrowDownLeft size={22} /></span><div><span className="stat-label">Uang masuk rekening</span><strong className="stat-value">{amount(report?.inflow, 'inflow')}</strong><span className="stat-foot">Termasuk transfer masuk dan catatan belum dikategorikan</span>{previous && <span className="stat-compare" data-testid="cashflow-previous-inflow" data-amount={hidden ? undefined : previous.inflow}>{previous.label}: {displayMoney(previous.inflow)}</span>}</div></section><section className="stat-card"><span className="stat-icon expense"><ArrowUpRight size={22} /></span><div><span className="stat-label">Uang keluar rekening</span><strong className="stat-value">{amount(report?.outflow, 'outflow')}</strong><span className="stat-foot">Termasuk transfer keluar, tarik tunai, dan biaya</span>{previous && <span className="stat-compare" data-testid="cashflow-previous-outflow" data-amount={hidden ? undefined : previous.outflow}>{previous.label}: {displayMoney(previous.outflow)}</span>}</div></section></div>
     </div>
     {report && !startGuide && <div className="purpose-summary" data-testid="purpose-summary" role="group" aria-label="Pemasukan dan pengeluaran terkonfirmasi">
       <span>Pemasukan <strong>{amount(report.incomeTotal, 'income-total')}</strong></span>
       <span>Pengeluaran <strong>{amount(report.categoryExpenseTotal, 'expense-total')}</strong></span>
-      <span>Selisih <strong data-testid="cashflow-purpose-net" data-amount={purposeNet}>{signed(purposeNet)}</strong></span>
+      <span>Selisih <strong data-testid="cashflow-purpose-net" data-amount={hidden ? undefined : purposeNet}>{signed(purposeNet)}</strong></span>
       {previous && (previous.income !== 0 || previous.expense !== 0) && (
-        <span className="purpose-previous" data-testid="purpose-previous" data-income={previous.income} data-expense={previous.expense}>
-          {previous.label}, sebulan penuh: pemasukan {formatMoney(previous.income, currency)} · pengeluaran {formatMoney(previous.expense, currency)} · selisih {signed(previous.income - previous.expense)}
+        <span className="purpose-previous" data-testid="purpose-previous" data-income={hidden ? undefined : previous.income} data-expense={hidden ? undefined : previous.expense}>
+          {previous.label}, sebulan penuh: pemasukan {displayMoney(previous.income)} · pengeluaran {displayMoney(previous.expense)} · selisih {signed(previous.income - previous.expense)}
         </span>
       )}
       <span className="purpose-note">Hanya yang terkonfirmasi, tanpa pindah uang antar dompetmu. Catatan “Perlu dicek” belum ikut sampai ditinjau.</span>
@@ -127,7 +131,7 @@ export default function CashflowOverview({ report, error, currency, month, perio
     <section className="panel cashflow-reconciliation" data-testid="cashflow-reconciliation" data-complete={report?.isComplete ? 'true' : 'false'} aria-label="Perhitungan saldo periode">
       <FoldHeader title="Perhitungan saldo periode" description={period === 'all' ? 'Saldo awal catatan, bukan bukti kelengkapan seluruh histori bank.' : 'Saldo awal sebelum periode dipilih, hingga batas tanggal laporan.'} summary={matched ? 'Cocok · ketuk untuk melihat hitungan' : 'Belum dapat dipastikan · ketuk untuk detail'} open={reconciliationOpen} controls={reconciliationId} onToggle={() => setFolds(f => ({ ...f, reconciliation: !reconciliationOpen }))} />
       <div className="fold-body" id={reconciliationId} hidden={!reconciliationOpen}>
-      <dl className="cashflow-equation"><div><dt>Saldo awal{period === 'all' ? ' catatan' : ' periode'}</dt><dd>{amount(report?.openingBalance, 'opening')}</dd></div><div><dt>+ Uang masuk</dt><dd>{amount(report?.inflow)}</dd></div><div><dt>− Uang keluar</dt><dd>{amount(report?.outflow)}</dd></div><div className={report?.internalNet === 0 ? 'equation-zero' : undefined}><dt>± Transfer antardompet</dt><dd>{amount(report?.internalNet, 'internal-net')}</dd></div><div className={report?.adjustment === 0 ? 'equation-zero' : undefined}><dt>± Penyesuaian saldo</dt><dd>{amount(report?.adjustment, 'adjustment')}</dd></div><div className="equation-result"><dt>= Saldo akhir</dt><dd>{amount(report?.closingBalance)}</dd></div></dl>
+      <dl className="cashflow-equation"><div><dt>Saldo awal{period === 'all' ? ' catatan' : ' periode'}</dt><dd>{amount(report?.openingBalance, 'opening')}</dd></div><div><dt>+ Uang masuk</dt><dd>{amount(report?.inflow)}</dd></div><div><dt>− Uang keluar</dt><dd>{amount(report?.outflow)}</dd></div><div className={!hidden && report?.internalNet === 0 ? 'equation-zero' : undefined}><dt>± Transfer antardompet</dt><dd>{amount(report?.internalNet, 'internal-net')}</dd></div><div className={!hidden && report?.adjustment === 0 ? 'equation-zero' : undefined}><dt>± Penyesuaian saldo</dt><dd>{amount(report?.adjustment, 'adjustment')}</dd></div><div className="equation-result"><dt>= Saldo akhir</dt><dd>{amount(report?.closingBalance)}</dd></div></dl>
       <p className="cashflow-explanation" data-testid="cashflow-verdict">{verdict}</p>
       <details className="cashflow-notes"><summary>Cara membaca angka ini</summary>
         <ul>
