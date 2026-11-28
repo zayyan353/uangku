@@ -1294,6 +1294,7 @@ html[data-theme="dark"] .mobile-nav button.active { color: var(--lime); backgrou
 .bank-wording summary { cursor: pointer; line-height: 1.7; width: fit-content; border-radius: 4px; }
 .bank-wording summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
 .bank-wording p { margin: 7px 0 0; line-height: 1.8; overflow-wrap: anywhere; white-space: pre-wrap; }
+.review-badges { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
 .review-reason { display: block; white-space: normal; line-height: 1.7; }
 .transactions-table:not(.import-table) .transaction-title { white-space: normal; line-height: 1.65; overflow-wrap: anywhere; }
 @media (max-width: 760px) {

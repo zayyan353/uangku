@@ -2232,7 +2232,17 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     2 kasus UX dan 5 kasus visual kategori Chromium.
     *Belum terbukti:* ukuran aktual pada HP fisik dan pembacaan deskripsi oleh
     pembaca layar fisik.
-  - [ ] **b.** Di antrean rapikan, lencana pendek menggantikan kalimat per baris.
+  - [x] **b.** *Selesai:* baris antrean menampilkan lencana “Cek jenis”,
+    “Isi kategori”, atau keduanya. Baris tetap menyebut kategori atau jenis yang
+    sudah diketahui. Lencana memakai alasan dari `entryReviewStatus`
+    (`src/components/TransactionTable.tsx:52,70`, `src/styles.css:1294`).
+    *Tes:* sebelum perbaikan, tes Chromium gagal karena ketiga kombinasi tidak
+    menampilkan lencana. Sesudahnya lulus 2.052 tes unit (88 berkas), build
+    produksi, dan 12/12 kasus Chromium (`tests/bank_review_browser.py:317,388`),
+    termasuk antrean di desktop dan HP 320 px, nominal serta rincian bank asli.
+    Pada 390 px, baris yang hanya perlu kategori turun dari 246 ke 160 px;
+    untuk dua alasan, dari 137 ke 129 px.
+    *Belum terbukti:* ukuran pada HP fisik, Safari dan Firefox.
   - [ ] **c.** — **butuh keputusan** Hapus salah satu dari dua kontrol periode. Tes
     browser memilih kontrol lewat label "Periode transaksi".
 

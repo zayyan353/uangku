@@ -315,9 +315,25 @@ def deleted_rule(case):
 
 
 def queue_subsets(case):
-    p=case.page;case.queue();case.count('review',3,2,2)
+    p=case.page
     table=p.locator('.transactions-table tbody tr')
+    expect(table.locator('.review-badges')).to_have_count(0)
+    expect(table.locator('.badge.unreviewed')).to_have_count(2)
+    case.queue();case.count('review',3,2,2)
     expect(table).to_have_count(3)
+    labels = {'both': ['Cek jenis', 'Isi kategori'], 'type-only': ['Cek jenis'], 'category-only': ['Isi kategori']}
+    visible_labels = {id_: table.filter(has_text='SYNTHETIC '+id_).locator('.review-badges .badge').all_text_contents()
+                      for id_ in labels}
+    assert visible_labels == labels, visible_labels
+    for id_, expected in labels.items():
+        row = table.filter(has_text='SYNTHETIC '+id_)
+        for label in expected:
+            expect(row.get_by_text(label, exact=True)).to_be_visible()
+        expect(row.locator('.amount-detail-button strong')).to_be_visible()
+    expect(table.locator('.review-reason')).to_have_count(0)
+    expect(table.get_by_text('Perlu dicek', exact=True)).to_have_count(0)
+    expect(table.filter(has_text='SYNTHETIC type-only').locator('.transaction-cell .transaction-note')).to_have_text('Pendidikan')
+    expect(table.filter(has_text='SYNTHETIC category-only').locator('.transaction-cell .transaction-note')).to_have_text('Pengeluaran')
     reason=p.get_by_label('Alasan perlu dirapikan',exact=True)
     for value,ids in [('type',['both','type-only']),('category',['both','category-only']),('all',['both','type-only','category-only'])]:
         reason.select_option(value);expect(table).to_have_count(len(ids))
@@ -382,6 +398,11 @@ def presentation(case):
     expect(dialog).to_contain_text('Pembayaran kartu')
     case.unchanged();case.screenshot('source-details')
     dialog.get_by_role('button',name='Tutup rincian',exact=True).click()
+    case.queue()
+    expect(row.locator('.review-badges .badge')).to_have_text('Isi kategori')
+    expect(row.locator('[data-bank-operation="card-purchase"]')).to_contain_text('Pembayaran kartu')
+    row.get_by_text('Keterangan bank asli', exact=True).click()
+    expect(row.locator('.bank-wording p')).to_have_text(CARD)
     case.unchanged()
 
 
