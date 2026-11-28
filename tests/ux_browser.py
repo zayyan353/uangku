@@ -317,6 +317,80 @@ def storage_page(browser, mobile, stored):
     return context, page, errors
 
 
+def privacy_mode_case(browser, args, output, mobile):
+    """MW-153c: the privacy toggle survives reload and only changes presentation."""
+    label = 'privacy-mode-mobile' if mobile else 'privacy-mode-desktop'
+    data = fixture()
+    state = data['state']
+    state['wallets'] = [dict(state['wallets'][0], openingBalance=12_345_678)]
+    state['entries'] = [dict(state['entries'][0], id='privacy-expense', amount=234_567)]
+    raw = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+    address = urlsplit(args.url)
+    origin = f'{address.scheme}://{address.netloc}'
+    # Seed once. A rewrite or deletion by the app must stay observable across reload.
+    context = browser.new_context(viewport={'width': 390, 'height': 844} if mobile else {'width': 1440, 'height': 1000},
+                                  is_mobile=mobile, has_touch=mobile, timezone_id='Europe/Istanbul',
+                                  storage_state={'cookies': [], 'origins': [{'origin': origin, 'localStorage': [
+                                      {'name': KEY, 'value': raw}]}]})
+    page = new_page(context)
+    errors = []
+    page.on('pageerror', lambda error: errors.append(str(error)))
+    nav = page.locator('.mobile-nav' if mobile else '.sidebar')
+    toggle = page.get_by_role('button', name='Mode privasi', exact=True)
+    main = page.get_by_role('main')
+    views = [
+        ('Ringkasan', page.get_by_test_id('cashflow-closing'), '121.111,11'),
+        ('Transaksi', page.locator('tr[data-entry-id="privacy-expense"] .amount-cell'), '2.345,67'),
+        ('Dompet', page.locator('[data-wallet-id="bank"] .wallet-card-balance'), '121.111,11'),
+    ]
+    # Keep dates and counts readable. This fixture has one currency and distinctive amounts.
+    exposed = re.compile(r'(?:Rp\.?|\bIDR)[ \u00a0\u202f]*[+−-]?[ \u00a0\u202f]*\d|121\.111,11|2\.345,67', re.IGNORECASE)
+    checked_bytes = 0
+    try:
+        page.goto(args.url, wait_until='networkidle')
+        expect(views[0][1]).to_contain_text('121.111,11')
+        expect(toggle).to_have_attribute('aria-pressed', 'false')
+        toggle.click()
+        expect(toggle).to_have_attribute('aria-pressed', 'true')
+        expect(views[0][1]).to_contain_text('IDR •••••')
+
+        # Record the first committed balance, before Playwright waits for a stable page.
+        context.add_init_script("""new MutationObserver((records, observer) => {
+          const amount = document.querySelector('[data-testid="cashflow-closing"]');
+          if (!amount?.textContent.trim()) return;
+          window.firstPrivacyBalance = amount.textContent;
+          observer.disconnect();
+        }).observe(document, {childList: true, subtree: true, characterData: true});""")
+        page.reload(wait_until='networkidle')
+        expect(toggle).to_have_attribute('aria-pressed', 'true')
+        assert page.evaluate('window.firstPrivacyBalance') == 'IDR •••••'
+        for hidden in (True, False):
+            if not hidden:
+                toggle.click()
+                expect(toggle).to_have_attribute('aria-pressed', 'false')
+            for view, amount, original in views:
+                nav.get_by_role('button', name=view, exact=True).click()
+                if hidden:
+                    expect(amount).to_contain_text('IDR •••••')
+                    assert 'IDR •••••' in amount.aria_snapshot()
+                    titles = main.locator('[title]').evaluate_all('elements => elements.map(el => el.title)')
+                    for text in [main.inner_text(), main.aria_snapshot(), *titles]:
+                        match = exposed.search(text)
+                        assert match is None, (view, match.group())
+                else:
+                    expect(amount).to_contain_text(original)
+                assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw
+                checked_bytes += 1
+        assert not errors, errors
+        return {'name': label, 'status': 'passed', 'first_render_masked': True,
+                'views_checked_per_mode': len(views), 'exact_financial_byte_comparisons': checked_bytes}
+    except Exception:
+        page.screenshot(path=str(output / f'{label}-failure.png'), full_page=True)
+        raise
+    finally:
+        context.close()
+
+
 def open_privacy(page):
     privacy = page.get_by_role('button', name='Lokal & pribadi', exact=True)
     (privacy if privacy.is_visible() else backup_action(page, 'Privasi')).click()
@@ -1678,6 +1752,8 @@ def main():
         try:
             for name, case, mobile in [('desktop', run_case, False), ('mobile', run_case, True),
                                        ('storage-desktop', storage_case, False), ('storage-mobile', storage_case, True),
+                                       ('privacy-mode-desktop', privacy_mode_case, False),
+                                       ('privacy-mode-mobile', privacy_mode_case, True),
                                        ('storage-gating', storage_gating_case, False),
                                        ('build-update-desktop', build_update_case, False), ('build-update-mobile', build_update_case, True),
                                        ('routes-desktop', route_case, False), ('routes-mobile', route_case, True),
