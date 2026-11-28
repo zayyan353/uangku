@@ -3297,9 +3297,9 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     (`AGENTS.md`: penghapusan file menunggu pemilik); daftarnya dilaporkan dulu.
   - [ ] **c.** (S) `npm run knip` di CI sebagai pemblokir sesudah bersih.
 
-- [ ] **MW-153 — Mode privasi (tombol mata)**
-  Nominal selalu terlihat, termasuk saat aplikasi dibuka di tempat umum atau
-  layarnya dibagikan. Actual punya filter privasi yang hanya mengubah tampilan
+- [x] **MW-153 — Mode privasi (tombol mata)**
+  Sebelum MW-153, nominal selalu terlihat, termasuk saat aplikasi dibuka di
+  tempat umum atau layarnya dibagikan. Actual punya filter privasi yang hanya mengubah tampilan
   (data dan ekspor tetap); sejak 2024 mereka memakai font yang tidak terbaca,
   bukan blur. Di Uangku hampir semua nominal tampil lewat `formatMoney`
   (`src/lib/finance.ts:165`, 51 pemanggilan di `src/components` dan 12 di
@@ -3319,8 +3319,8 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     Pada lebar 390 dan 1.440 px, 4 unduhan CSV dan 4 cadangan JSON sama persis
     per jenis berkas ketika pilihan aktif dan nonaktif. Enam belas perbandingan
     byte ledger lulus. Pada profil kosong, ledger tetap absen sesudah clear.
-    *Belum terbukti.* Tombol mata dan penyamaran di seluruh halaman dijadwalkan
-    pada MW-153b. Perangkat fisik belum diuji.
+    *Belum terbukti.* Pengujian perangkat fisik. Tombol mata dan cakupan
+    penyamaran halaman tercatat pada MW-153b.
   - [x] **b.** (S–M) Tombol mata dan penyamaran nominal.
     *Selesai.* Tombol Mode privasi berada di sebelah tema (`src/App.tsx:1005`).
     Sejak render pertama, nominal ditampilkan sebagai kode mata uang dan
@@ -3348,8 +3348,22 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     dan juga menghormati perlindungan sementara tab saat penyimpanan ditolak.
     Sebanyak 2.072 tes unit pada 89 berkas dan build lulus.
     *Belum terbukti.* Pembaca layar manual dan sentuhan pada perangkat fisik.
-  - [ ] **c.** (S) Tes browser: aktifkan, muat ulang, pastikan Ringkasan,
-    Transaksi, dan Dompet tidak menampilkan digit nominal; lalu matikan lagi.
+  - [x] **c.** (S) Uji mode privasi sesudah muat ulang.
+    *Selesai.* Dua kasus di `tests/ux_browser.py:320` memakai tombol mata
+    pada lebar 390 dan 1.440 px. Pengamat DOM mencatat saldo pertama setelah
+    muat ulang. Tes memeriksa teks layar, nama aksesibel, dan tooltip pada
+    Ringkasan, Transaksi, serta Dompet. Setelah mode dimatikan, ketiga halaman
+    kembali menunjukkan nominal sintetis semula.
+    *Tes.* Kedua kasus gagal pada build MW-153a saat tombol belum tersedia.
+    Kebocoran yang disimulasikan hanya pada tooltip saldo Dompet juga membuat
+    kedua kasus gagal. Pada build MW-153b keduanya lulus, termasuk 12
+    perbandingan byte ledger. Fixture disiapkan satu kali per profil.
+    *Belum terbukti.* Pembacaan dengan pembaca layar manual dan tampilan pada
+    telepon fisik. Pengamat DOM mengukur saat muat ulang halaman. Untuk tombol
+    Kembali, pemeriksaan terpisah pada Chromium menemukan DOM lama dapat
+    memuat nominal ketika halaman dipulihkan dari cache browser. Nominal
+    sudah tersamar pada callback animasi pertama yang terukur. Paparan pada
+    layar atau pembaca layar saat pemulihan itu belum terbukti.
 
 - [x] **MW-154 — Umur uang (Age of Money)**
   Ukuran dari YNAB: rata-rata berapa hari antara uang masuk dan uang itu
