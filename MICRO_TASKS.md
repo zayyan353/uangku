@@ -1368,18 +1368,38 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   `src/components/CategoryManager.tsx:195`, `src/lib/fullBackup.ts:47`,
   `src/App.tsx:692`, `src/lib/fullBackup.test.ts`, `tests/full_backup_browser.py`.
 
-- [ ] **MW-103 — Pemberitahuan "versi baru tersedia"** (S)
-  Aplikasi tidak pernah memeriksa versi baru; `BUILD_INFO.json` yang ditulis
-  `pages.yml` tidak dibaca. Saat jendela mendapat fokus, ambil `BUILD_INFO.json`
-  tanpa cache dan bandingkan dengan commit build; bila berbeda tampilkan "Versi
-  baru tersedia · Muat ulang". Aplikasi menyimpan hash pendek sedangkan
-  `BUILD_INFO.json` memuat 40 karakter, jadi bandingkan awalannya. File itu
-  hanya dibuat di `pages.yml`: di `npm run preview` dan tes browser
-  permintaannya gagal dan harus diabaikan tanpa pesan. Tidak pernah memuat
-  ulang sendiri saat form
-  terbuka atau ada perubahan belum tersimpan. Ini menjadi permintaan jaringan
-  pertama selain halaman, jadi sebutkan di Privasi; bila MW-107 dipakai,
-  `connect-src` menjadi `'self'`.
+- [x] **MW-103 — Pemberitahuan "versi baru tersedia"** (S)
+  **Selesai.** Saat jendela kembali fokus, `src/hooks/useBuildUpdate.ts`
+  mengambil `BUILD_INFO.json` dari direktori aplikasi dengan GET tanpa cache,
+  cookie, referrer, data catatan, atau pengalihan. SHA publik 40 karakter
+  dibandingkan dengan awalan commit build. Offline, preview tanpa manifest,
+  berkas tidak valid, dan build lokal tanpa SHA diabaikan.
+  **Keputusan.** Pengguna memilih “Muat ulang”. Aksi menunggu pemulihan atau
+  penyimpanan, serta ditunda di halaman Impor agar pratinjau aman. Peringatan
+  versi menunggu ruang/cadangan/mutasi dan mendahului anggaran. Di data contoh,
+  aksi menyatu dengan kotak contoh. Privasi menjelaskan permintaan satu origin.
+  **Tes.** Dua regresi Chromium gagal sebelum ada permintaan saat fokus.
+  Setelah perubahan, 2.059 tes unit di 88 berkas dan build produksi lulus.
+  Chromium desktop dan HP memeriksa manifest sintetis, awalan SHA, redirect,
+  kegagalan, mode offline, urutan pengingat, dan isian yang masih terbuka.
+  Seluruh 23 skenario UX lulus. Pada alamat berawalan `/uangku/`, dua kasus
+  tambahan juga lulus dengan nol permintaan lintas origin. Isi ledger tetap
+  sama setelah periksa versi maupun muat ulang.
+  Pada PR #161, dua kasus WebKit gagal karena Playwright WebKit menolak
+  respons 302 buatan. Tes kini menyajikan HTML produksi yang sama di server
+  loopback. Server mengirim 302 sungguhan untuk dua tujuan, satu pada origin
+  aplikasi dan satu pada port berbeda. Pada Chromium desktop dan HP di
+  `/uangku/`, masing-masing delapan GET mencapai manifest. Kedua tujuan
+  pengalihan menerima nol permintaan. Header GET bebas cookie dan referrer.
+  Pada `540eb5b`, Chromium dan Firefox lulus. Di WebKit, kedua kasus
+  melaporkan dua diagnostik jaringan lewat `pageerror` sesudah pengalihan
+  ditolak. Untuk setiap respons 302, tes memeriksa bahwa `fetch` ditolak.
+  Selama permintaan itu, tes menerima paling banyak satu diagnostik WebKit
+  dengan nama dan URL manifest yang cocok persis. Galat JavaScript dan penolakan
+  promise yang tidak ditangani dicatat tersendiri sampai sesudah muat ulang.
+  **Belum terbukti.** Tab lama pada perangkat fisik saat publikasi berganti.
+  *File:* `src/App.tsx` (`versionNotice`), `src/components/PrivacyNotice.tsx`,
+  `tests/ux_browser.py:334,359` (`loopback_origin`, `build_update_case`).
 
 - [ ] **MW-104 — Jurnal pemulihan yang tidak terbaca disisihkan, bukan mengunci aplikasi** (S)
   Bila `uangku:full-restore:v1` tidak bisa dibaca, aplikasi tetap di "Data lama

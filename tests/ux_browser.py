@@ -2,12 +2,16 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import ExitStack, contextmanager
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
 import re
+from threading import Thread
 import time
 import traceback
+from urllib.parse import urlsplit
 
 from browser_support import (FIXED_TIME, assert_production_url, backup_action, browser_name,
                              install_playwright_path, launch_browser, new_page, stored_document)
@@ -309,7 +313,7 @@ def storage_page(browser, mobile, stored):
     page = new_page(context)
     page.set_default_timeout(15_000)
     errors = []
-    page.on('pageerror', lambda err: errors.append(str(err)))
+    page.on('pageerror', lambda err: errors.append(err))
     return context, page, errors
 
 
@@ -324,6 +328,187 @@ def open_privacy(page):
 def close_privacy(page, dialog):
     dialog.get_by_role('button', name='Tutup penjelasan privasi', exact=True).click()
     expect(page.get_by_role('dialog')).to_have_count(0)
+
+
+@contextmanager
+def loopback_origin(reply):
+    """Serve real HTTP responses on a private port allocated for this case."""
+    class Handler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            status, headers, body = reply(self)
+            self.send_response(status)
+            for name, value in headers.items():
+                self.send_header(name, value)
+            self.send_header('Content-Length', str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, *args):
+            pass
+
+    with ThreadingHTTPServer(('127.0.0.1', 0), Handler) as server:
+        thread = Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            yield f'http://127.0.0.1:{server.server_port}'
+        finally:
+            server.shutdown()
+            thread.join()
+
+
+def build_update_case(browser, args, output, mobile):
+    """MW-103: only a verified same-origin release can offer a deliberate reload."""
+    raw = json.dumps(fixture(), ensure_ascii=False, separators=(',', ':'))
+    requested = []
+    same_origin_hits = []
+    redirect_hits = []
+    blocked = []
+    redirect_diagnostics = []
+    script_errors = []
+    app_path = urlsplit(args.url).path.rstrip('/') + '/'
+    manifest_path = app_path + 'BUILD_INFO.json'
+    assert_production_url(args.url)
+    html = (Path(__file__).resolve().parents[1] / 'dist' / 'index.html').read_bytes()
+    response = (404, {}, b'')
+
+    def application(request):
+        if request.path == manifest_path:
+            requested.append((response[0], request.headers))
+            return response
+        if request.path == app_path + 'redirected-release':
+            same_origin_hits.append(request.path)
+        if urlsplit(request.path).path == app_path:
+            return 200, {'Content-Type': 'text/html; charset=utf-8'}, html
+        return 404, {}, b''
+
+    def destination(request):
+        redirect_hits.append(request.path)
+        return 200, {}, b''
+
+    def block_external(route):
+        blocked.append(route.request.url)
+        route.abort()
+
+    def focus():
+        seen = len(requested)
+        before = page.evaluate('window.releaseChecks.length')
+        assert not errors, errors
+        with page.expect_request(target, timeout=5000):
+            page.evaluate('window.dispatchEvent(new Event("focus"))')
+        page.wait_for_function('n => window.releaseChecks.length > n', arg=before)
+        assert len(requested) > seen and requested[-1][0] == response[0]
+        check = page.evaluate('window.releaseChecks.at(-1)')
+        assert check['rejected'] == (response[0] == 302), check
+        if errors:
+            # Playwright WebKit reports a rejected redirect as a network diagnostic on pageerror.
+            assert browser_name() == 'webkit' and response[0] == 302, errors
+            assert len(errors) == 1 and errors[0].name == 'Fetch API cannot load http', errors
+            assert errors[0].message == f'/{urlsplit(target).netloc}{manifest_path} due to access control checks.', errors
+            redirect_diagnostics.append(errors.pop().message)
+        assert not script_errors, script_errors
+
+    with ExitStack() as servers:
+        origin = servers.enter_context(loopback_origin(application))
+        foreign = servers.enter_context(loopback_origin(destination))
+        context, page, errors = storage_page(browser, mobile, raw)
+        servers.callback(context.close)
+        page.expose_function('recordBuildCheckError', lambda kind, message: script_errors.append((kind, message)))
+        context.add_init_script("localStorage.setItem('uangku:budgets:v1', JSON.stringify({IDR:{Belanja:1000}}))")
+        context.add_init_script('''(() => {
+          window.addEventListener('error', event => window.recordBuildCheckError('error', event.message));
+          window.addEventListener('unhandledrejection', event => window.recordBuildCheckError('unhandledrejection', String(event.reason)));
+          window.releaseChecks = [];
+          const original = window.fetch.bind(window);
+          window.fetch = async (...args) => {
+            const request = new Request(...args);
+            let rejected = false;
+            try { return await original(...args); }
+            catch (error) { rejected = true; throw error; }
+            finally {
+              if (new URL(request.url).pathname.endsWith('/BUILD_INFO.json')) {
+                const options = [request.cache, request.credentials, request.redirect, request.mode, request.referrerPolicy];
+                window.releaseChecks.push({options, rejected});
+              }
+            }
+          };
+        })()''')
+        local_hosts = {urlsplit(origin).netloc, urlsplit(foreign).netloc}
+        context.route(lambda url: urlsplit(url).scheme in ('http', 'https') and urlsplit(url).netloc not in local_hosts, block_external)
+        target = origin + manifest_path
+        context.add_cookies([{'name': 'synthetic', 'value': 'private', 'url': origin}])
+        loaded = page.goto(origin + app_path + '?private=synthetic', wait_until='networkidle')
+        assert loaded.status == 200 and loaded.body() == html
+        assert 'synthetic=private' in page.evaluate('document.cookie').split('; ')
+        build = page.get_by_test_id('build-version').inner_text().split()[-1]
+        assert re.fullmatch('[a-f0-9]{7,40}', build), build
+        warning = page.get_by_test_id('build-update')
+        backup = page.get_by_test_id('backup-reminder')
+        expect(backup).to_be_visible()
+        # A real check needs no referrer, cookies, financial bytes or query string.
+        focus()
+        expect(warning).to_have_count(0)
+        json_headers = {'Content-Type': 'application/json'}
+        newer = (200, json_headers, json.dumps({'commit': ('a' if build[0] != 'a' else 'b') * 40}).encode())
+        response = newer
+        focus()
+        expect(backup).to_be_visible()
+        expect(warning).to_have_count(0)
+        with page.expect_download():
+            backup.get_by_role('button', name='Cadangkan sekarang').click()
+        expect(backup).to_have_count(0)
+        expect(warning).to_be_visible()
+        expect(page.get_by_test_id('budget-warning')).to_have_count(0)
+        for reply in [
+            (200, json_headers, json.dumps({'commit': build.ljust(40, '0')}).encode()),
+            (200, {'Content-Type': 'text/html'}, b'<html>Preview fallback</html>'),
+            (200, json_headers, b'{"commit":"invalid"}'),
+            (302, {'Location': origin + app_path + 'redirected-release'}, b''),
+            (302, {'Location': foreign + '/foreign-release'}, b''),
+        ]:
+            response = reply
+            focus()
+            expect(warning).to_have_count(0)
+        expect(page.get_by_test_id('budget-warning')).to_be_visible()
+        assert not same_origin_hits and not redirect_hits, (same_origin_hits, redirect_hits)
+        before_offline = page.evaluate('window.releaseChecks.length')
+        context.set_offline(True)
+        page.wait_for_function('!navigator.onLine')
+        page.evaluate('window.dispatchEvent(new Event("focus"))')
+        expect(warning).to_have_count(0)
+        assert page.evaluate('window.releaseChecks.length') == before_offline
+        context.set_offline(False)
+        page.wait_for_function('navigator.onLine')
+        page.get_by_role('button', name='Catat transaksi', exact=True).first.click()
+        dialog = page.get_by_role('dialog')
+        note = dialog.get_by_label(re.compile('Keterangan'))
+        note.fill('Synthetic draft for a version check')
+        response = newer
+        focus()
+        expect(note).to_have_value('Synthetic draft for a version check')
+        assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw
+        dialog.get_by_role('button', name='Tutup', exact=True).click()
+        page.get_by_role('button', name='Buang isian', exact=True).click()
+        expect(warning).to_be_visible()
+        expect(warning).to_contain_text('Versi baru tersedia')
+        for _, headers in requested:
+            assert 'Referer' not in headers and 'Cookie' not in headers
+            assert headers.get('Content-Length', '0') == '0' and 'Transfer-Encoding' not in headers
+        checks = page.evaluate('window.releaseChecks')
+        assert all(check['options'] == ['no-store', 'omit', 'error', 'same-origin', 'no-referrer'] for check in checks), checks
+        privacy = open_privacy(page)
+        expect(privacy).to_contain_text('memeriksa versi terbaru di alamat situs yang sama')
+        close_privacy(page, privacy)
+        assert not script_errors, script_errors
+        with page.expect_navigation(wait_until='networkidle'):
+            warning.get_by_role('button', name='Muat ulang', exact=True).click()
+        assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw
+        assert not same_origin_hits and not redirect_hits and not blocked, (same_origin_hits, redirect_hits, blocked)
+        assert not errors, errors
+        assert not script_errors, script_errors
+        return {'name': 'build-update-mobile' if mobile else 'build-update-desktop', 'status': 'passed',
+                'manifest_checks': len(requested), 'same_origin_redirect_requests': len(same_origin_hits),
+                'cross_origin_requests': len(redirect_hits), 'webkit_redirect_diagnostics': len(redirect_diagnostics),
+                'uncaught_script_errors': len(script_errors)}
 
 
 def fill_storage(page, target, label):
@@ -1494,6 +1679,7 @@ def main():
             for name, case, mobile in [('desktop', run_case, False), ('mobile', run_case, True),
                                        ('storage-desktop', storage_case, False), ('storage-mobile', storage_case, True),
                                        ('storage-gating', storage_gating_case, False),
+                                       ('build-update-desktop', build_update_case, False), ('build-update-mobile', build_update_case, True),
                                        ('routes-desktop', route_case, False), ('routes-mobile', route_case, True),
                                        ('dialog-back-desktop', dialog_back_case, False),
                                        ('dialog-back-mobile', dialog_back_case, True),
