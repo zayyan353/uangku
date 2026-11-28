@@ -791,9 +791,6 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 input::placeholder, textarea::placeholder, .search-input input::placeholder { color: #52634f; opacity: 1; }
 .amount-positive { color: var(--readable-positive) !important; }
 .amount-negative { color: var(--readable-negative) !important; }
-.history-period { display: flex; align-items: center; gap: 8px; }
-.history-period .field-label { margin: 0; white-space: nowrap; }
-.history-period .select-input { min-width: 170px; }
 .history-scope { margin-bottom: 12px; }
 .history-pagination { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 14px; border-top: 1px solid var(--line); padding-top: 16px; margin-top: 12px; color: var(--text-muted); font-size: 13px; }
 .history-pagination > div { display: flex; gap: 8px; }
@@ -820,12 +817,9 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
   #root :where(input:not(.amount-input, [type="checkbox"], [type="radio"]), select, textarea) { font-size: 16px; }
   .filter-fields { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); align-items: stretch; gap: 8px; }
   .filter-fields > .search-input, .filter-fields > :nth-child(even):last-child { grid-column: 1 / -1; }
-  .filter-fields > .search-input, .filter-fields > .select-input, .filter-fields > .history-period { width: 100%; min-width: 0; }
+  .filter-fields > .search-input, .filter-fields > .select-input { width: 100%; min-width: 0; }
   .filter-bar .select-input { min-width: 0; min-height: 44px; width: 100%; font-size: 13px; padding-left: 10px; padding-right: 28px; background-position: right 8px center; text-overflow: ellipsis; }
   .filter-bar .search-input input { min-height: 44px; }
-  .history-period { display: block; min-width: 0; }
-  .history-period .select-input { min-width: 0; }
-  .history-period .field-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .filter-bar { gap: 10px; }
   .filter-summary { gap: 8px; }
   .filter-actions { margin-left: auto; gap: 8px; }
@@ -1573,7 +1567,6 @@ button.transaction-open:focus-visible { outline: 2px solid var(--focus); outline
 }
 .filter-fields > .search-input { flex: 2 1 220px; }
 .filter-fields > .select-input { flex: 1 1 118px; }
-.history-period .select-input { min-width: 150px; }
 
 /* 3.5–3.6: kategori massal dan antrean rapikan. */
 .bulk-review-links { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px 16px; }

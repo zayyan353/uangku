@@ -2216,15 +2216,15 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Chromium lulus, termasuk fokus setelah struk hilang dan aksi **Lihat**.
   *Belum terbukti:* jangkauan tombol di HP fisik dan peramban selain Chromium.
 
-- [ ] **MW-124 — Halaman Transaksi di HP: baris pertama lebih dekat ke atas** (M)
-  Di 390×844 baris transaksi pertama berada di y=1112 (dengan pengingat
-  cadangan tampil), dan periode diatur oleh dua kontrol ("Bulan laporan" dan
+- [x] **MW-124 — Halaman Transaksi di HP: baris pertama lebih dekat ke atas** (M)
+  Sebelum rangkaian ini, pengukuran awal pada 390×844 menempatkan baris
+  pertama di y=1112 dengan pengingat cadangan dan dua kontrol periode ("Bulan laporan" dan
   "Periode transaksi"). Melipat filter di balik tombol sudah direncanakan dan
   dibatalkan di MW-44, jadi **tidak** diusulkan lagi.
   - [x] **a.** *Selesai:* di HP kedua tombol berbagi satu baris dengan tinggi
     sentuh minimal 44 px. Cakupan semua periode disebut dalam deskripsi aksesibel
     tombol dan judul pendamping di dialog pratinjau
-    (`src/styles.css:1555`, `src/components/CategoryAutomation.tsx:47`).
+    (`src/styles.css:1550`, `src/components/CategoryAutomation.tsx:47`).
     *Tes:* regresi awal menemukan bilah setinggi 101 px pada lebar 360 px.
     Sesudah perbaikan tingginya 59 px pada 320, 360 dan 390 px. Pada fixture
     yang sama di 390 px, baris transaksi pertama naik
@@ -2235,7 +2235,7 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   - [x] **b.** *Selesai:* baris antrean menampilkan lencana “Cek jenis”,
     “Isi kategori”, atau keduanya. Baris tetap menyebut kategori atau jenis yang
     sudah diketahui. Lencana memakai alasan dari `entryReviewStatus`
-    (`src/components/TransactionTable.tsx:52,70`, `src/styles.css:1294`).
+    (`src/components/TransactionTable.tsx:52,70`, `src/styles.css:1288`).
     *Tes:* sebelum perbaikan, tes Chromium gagal karena ketiga kombinasi tidak
     menampilkan lencana. Sesudahnya lulus 2.052 tes unit (88 berkas), build
     produksi, dan 12/12 kasus Chromium (`tests/bank_review_browser.py:317,388`),
@@ -2243,8 +2243,16 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
     Pada 390 px, baris yang hanya perlu kategori turun dari 246 ke 160 px;
     untuk dua alasan, dari 137 ke 129 px.
     *Belum terbukti:* ukuran pada HP fisik, Safari dan Firefox.
-  - [ ] **c.** — **butuh keputusan** Hapus salah satu dari dua kontrol periode. Tes
-    browser memilih kontrol lewat label "Periode transaksi".
+  - [x] **c.** *Keputusan agen dan hasil:* Transaksi memakai satu pemilih berlabel
+    “Periode transaksi” di sebelah mata uang. Kontrol ini dapat berpindah bulan
+    dengan panah, memilih bulan tertentu dan menampilkan seluruh catatan
+    (`src/App.tsx:835–841`). Pemilih kedua di bilah filter dihapus.
+    *Tes:* regresi awal menghitung dua pemilih pada halaman Transaksi. Pada
+    390×844 di fixture kerangka, baris pertama kini di y=1016 (124a: y=1068).
+    Lulus 2.052 tes unit (88 berkas), build produksi, serta 64 kasus Chromium
+    (21 UX, 6 kerangka dan 37 arus rekening), termasuk pilihan semua periode,
+    perpindahan bulan, pencarian, kalender dan navigasi kembali.
+    *Belum terbukti:* posisi baris di HP fisik serta pengalaman pembaca layar.
 
 - [x] **MW-125 — Kontrol form 16px di HP** (S)
   *Selesai:* pada lebar ≤760 px kolom teks, pemilih dan textarea memakai
@@ -2875,7 +2883,7 @@ MW-107. Tindakan pemilik lain ada di F2.
 | MW-116b | pemilik | Boleh menambah kunci untuk tanggal "terakhir dicek" per dompet? |
 | MW-117b | agen | Mau tombol "balik arah" kurs dan peringatan bila kurs berbeda lebih dari 100×? |
 | MW-120c | pemilik | Boleh menerapkan ulang entri baru otomatis saat konflik dua tab? |
-| MW-124c | agen | Kontrol periode mana yang dipertahankan di Transaksi? |
+| MW-124c | agen | Diputuskan: pemilih bulan berpanah dipertahankan dengan label “Periode transaksi”. Pilihan bulan tertentu dan seluruh catatan ada di satu tempat. |
 | MW-130d | pemilik | Batas bulanan keseluruhan atau sisa anggaran dibawa? |
 | MW-132b | pemilik | Boleh ada perkiraan total lintas mata uang dengan kurs acuan? |
 | MW-133 | pemilik | Mau rutin bulanan dengan kelemahan yang disebut? |
