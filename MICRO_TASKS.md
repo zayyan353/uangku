@@ -2185,13 +2185,18 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Sebanyak 2.051 tes unit dalam 88 berkas dan build produksi lulus.
   *Belum terbukti:* ucapan pembaca layar dan interaksi di perangkat fisik.
 
-- [ ] **MW-122 — Di antrean "Perlu dirapikan", filter jenis tidak keluar diam-diam** (S)
-  Memilih jenis lain di dalam antrean menghapus judul antrean dan menampilkan
-  riwayat biasa tanpa pemberitahuan. Ini perubahan desain, bukan regresi:
-  `KERANGKA_HALAMAN.md` 3.6.1 mencatat dropdown Jenis sebagai salah satu jalan
-  keluar dari antrean. Usul: jenis yang dipilih berlaku di dalam antrean; keluar
-  lewat "Semua transaksi" dan "Reset filter". Tes yang keluar lewat dropdown
-  perlu diperbarui.
+- [x] **MW-122 — Di antrean "Perlu dirapikan", filter jenis berlaku di dalam antrean** (S)
+  *Selesai:* pilihan jenis disaring bersama alasan rapikan di
+  `src/lib/historyView.ts:94–95`. Status antrean tersendiri di
+  `src/App.tsx:121,356` mempertahankan cakupan semua mata uang dan periode.
+  Keluar lewat **Semua transaksi** atau **Reset filter**. Ini memperbarui
+  perilaku dropdown yang dicatat di `KERANGKA_HALAMAN.md` 3.3.4 dan 3.6.1.
+  *Tes:* sebelum perubahan, satu tes unit menampilkan pengeluaran yang sudah rapi
+  dan tes Chromium kehilangan judul antrean saat memilih Pengeluaran. Setelah
+  perbaikan, 2.051 tes unit dalam 88 berkas dan build produksi lulus. Chromium
+  lulus tiga kasus antrean (desktop serta lebar 320 terang dan gelap) dan
+  kelima kasus mutasi sumber, termasuk keluar sesudah mencocokkan transfer.
+  *Belum terbukti:* interaksi pada HP fisik dan pembaca layar manual.
 
 - [x] **MW-123 — Toast lama tidak menutupi dialog berikutnya** (S)
   Hanya terjadi bila dialognya tinggi: di 1440×900 pada dialog Pindah uang

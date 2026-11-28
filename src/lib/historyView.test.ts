@@ -45,6 +45,8 @@ describe('read-only transaction history', () => {
     const before = JSON.stringify(state), index = createHistoryIndex(state);
     const selected = (reviewReason: 'all' | 'type' | 'category') => queryHistory(index, query({ type: 'pending', reviewQueue: true, reviewReason })).map(row => row.id);
     expect(new Set(selected('all'))).toEqual(new Set(['type-only', 'category-only', 'both']));
+    expect(queryHistory(index, query({ type: 'expense', reviewQueue: true })).map(row => row.id)).toEqual(['category-only']);
+    expect(queryHistory(index, query({ type: 'expense', reviewQueue: true, reviewReason: 'type' }))).toEqual([]);
     expect(new Set(selected('type'))).toEqual(new Set(['type-only', 'both']));
     expect(new Set(selected('category'))).toEqual(new Set(['category-only', 'both']));
     expect(JSON.stringify(state)).toBe(before);

@@ -91,7 +91,8 @@ export function queryHistory(index: HistoryIndex, options: HistoryQuery): Entry[
     if (needle && !row.text.includes(needle) && !(amountNeedle && row.amounts.some(amount => amount.startsWith(amountNeedle)))
       && !options.shownText?.(row.entry).toLocaleLowerCase('id-ID').includes(needle)) return false;
     if (options.category && (row.entry.type === 'transfer' || row.entry.type === 'adjustment' || (row.entry.category.trim() || 'Belum dikategorikan') !== options.category)) return false;
-    return options.type === 'all' || (options.type === 'pending' ? needsEntryReview(row.entry, options.reviewReason) : row.entry.type === options.type);
+    if ((options.reviewQueue || options.type === 'pending') && !needsEntryReview(row.entry, options.reviewReason)) return false;
+    return options.type === 'all' || options.type === 'pending' || row.entry.type === options.type;
   });
   if (options.walletId) found.sort((a, b) => (b.walletDates[options.walletId!]?.at(-1) ?? '').localeCompare(a.walletDates[options.walletId!]?.at(-1) ?? '') || b.ordinal - a.ordinal);
   return found.map(row => row.entry);
