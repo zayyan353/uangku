@@ -5,6 +5,7 @@ import type { CategorySettings } from '../lib/categorySettings';
 import { makeId } from '../lib/finance';
 import { FailureText } from './FailureText';
 import Modal from './Modal';
+import { usePrivacyAmounts } from './PrivacyAmounts';
 
 export interface HistoryRuleSource { merchant: string; description: string; category: string }
 
@@ -19,6 +20,7 @@ export default function HistoryRuleDialog({ source, settings, blocked, onSave, o
   source: HistoryRuleSource; settings: CategorySettings; blocked: string;
   onSave: (rule: CategoryRule) => Promise<void>; onClose: () => void;
 }) {
+  const { hidden } = usePrivacyAmounts();
   const [keyword, setKeyword] = useState(() => initialKeyword(source));
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -46,7 +48,7 @@ export default function HistoryRuleDialog({ source, settings, blocked, onSave, o
     <form onSubmit={event => { event.preventDefault(); void save(); }}>
       <div className="modal-body">
         <p>Gunakan kata kunci ini untuk menyarankan kategori <strong>{source.category}</strong>.</p>
-        <p className="field-help">{source.description}</p>
+        <p className="field-help">{hidden ? 'Keterangan transaksi disamarkan.' : source.description}</p>
         <label className="field"><span className="field-label">Kata kunci</span>
           <input className="field-input" required minLength={3} maxLength={100} value={keyword}
             disabled={busy} onChange={event => { setKeyword(event.target.value); setError(''); }} />

@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { formatDate, formatMoney, type Currency } from '../lib/finance';
 import { monthLabel } from '../lib/historyView';
-import { readPrivacyMode, subscribePrivacyMode } from '../lib/privacyMode';
+import { maskedMoney, usePrivacyAmounts } from './PrivacyAmounts';
 import type { SourceDocument } from '../lib/sourceModel';
 import { buildYearRecap, type YearRecap as Recap } from '../lib/yearRecap';
 import Modal from './Modal';
@@ -14,7 +14,7 @@ function RecapDialog({ data, currency, today, onClose }: Props & { onClose: () =
     try { return { recap: buildYearRecap(data, currency, today) }; }
     catch (error) { return { error: error instanceof Error ? error.message : 'Rekap belum dapat dihitung.' }; }
   }, [data, currency, today]);
-  const hidden = useSyncExternalStore(subscribePrivacyMode, readPrivacyMode);
+  const { hidden } = usePrivacyAmounts();
   const [index, setIndex] = useState(0);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const recap = result.recap;
@@ -22,7 +22,7 @@ function RecapDialog({ data, currency, today, onClose }: Props & { onClose: () =
     <p className="notice warning" role="alert">{result.error}</p>
   </div></Modal>;
 
-  const money = (value: number) => hidden ? `${currency} •••••` : formatMoney(value, currency);
+  const money = (value: number) => hidden ? maskedMoney(currency) : formatMoney(value, currency);
   function ranked(rows: Recap['topCategories'], empty: string) {
     if (!rows.length) return <p>{empty}</p>;
     if (hidden) return <p>Rincian disamarkan.</p>;

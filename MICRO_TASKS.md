@@ -3321,11 +3321,29 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     byte ledger lulus. Pada profil kosong, ledger tetap absen sesudah clear.
     *Belum terbukti.* Tombol mata dan penyamaran di seluruh halaman dijadwalkan
     pada MW-153b. Perangkat fisik belum diuji.
-  - [ ] **b.** (S–M) Saat aktif, nominal tampil "•••••" dengan simbol atau kode
-    mata uang tetap, termasuk teks untuk pembaca layar. Isian form
-    (`formatMoneyInput`), unduhan CSV, dan cadangan tidak berubah. Tombol mata
-    di `topbar-tools` sebelah `ThemePicker` (`src/App.tsx`); tap atau tahan
-    satu nominal untuk mengintip.
+  - [x] **b.** (S–M) Tombol mata dan penyamaran nominal.
+    *Selesai.* Tombol Mode privasi berada di sebelah tema (`src/App.tsx:1005`).
+    Sejak render pertama, nominal ditampilkan sebagai kode mata uang dan
+    `•••••`, juga pada label aksesibel dan tooltip. Ketuk satu nominal untuk
+    mengintip hingga 3,5 detik, atau tahan hingga dilepas. Enter dan Spasi
+    juga dapat mengintip. Membuka nominal lain menutup intipan sebelumnya
+    (`src/components/PrivacyAmounts.tsx:78`). Jika penyimpanan menolak pilihan,
+    nominal tetap disamarkan pada tab itu dan pengguna diberi tahu.
+    *Keputusan agen.* Samarkan nominal, biaya, kurs hasil hitungan, narasi
+    transaksi baca-saja, dan rincian bank pada dialog transaksi, kategori,
+    arsip serta impor. Sampel file impor, keterangan galat yang mengutip isi
+    file, dan pratinjau teks Sankey juga dapat memuat nominal. Pratinjau
+    Sankey untuk salin manual hanya terbuka atas tindakan pengguna. Tanggal,
+    jumlah transaksi, nama dompet dan kategori tetap memberi konteks.
+    Isian yang sedang diedit tetap memperlihatkan nilai supaya pengguna dapat
+    memeriksanya. CSV, cadangan dan salinan Sankey memakai data asli.
+    *Tes.* Pada build awal dengan preferensi aktif, pengamat DOM menangkap
+    saldo sintetis pada render pertama dan tombol mata belum ada. Uji sentuh
+    juga menemukan tombol terhalang CSS HP dan intipan kedua gagal pada saldo
+    yang membungkus. Pengujian mencakup kedua tema pada 390 dan 1.440 px,
+    perubahan lintas tab, penolakan penyimpanan, draf, serta identitas byte
+    unduhan dan ledger. Sebanyak 2.072 tes unit pada 89 berkas dan build lulus.
+    *Belum terbukti.* Pembaca layar manual dan sentuhan pada perangkat fisik.
   - [ ] **c.** (S) Tes browser: aktifkan, muat ulang, pastikan Ringkasan,
     Transaksi, dan Dompet tidak menampilkan digit nominal; lalu matikan lagi.
 
@@ -3565,7 +3583,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     tab lain. Kunci absen, `off`, `false` atau `0` berarti tampil. Nilai lain
     atau akses ditolak berarti samarkan nominal serta nama kategori/merchant,
     termasuk untuk pembaca layar. Mata uang, tanggal dan jumlah hari tetap
-    terbaca. Rekap tidak menulis preferensi. Sakelar global (MW-153) menunggu.
+    terbaca. Sakelar global yang memakai pilihan ini tercatat pada MW-153b.
     *Tes:* pada 1 Desember tombol gagal ditemukan sebelum perbaikan. Sesudah
     perbaikan satu alur Chromium memeriksa nominal, navigasi, Esc dan buka
     ulang dengan preferensi privasi. 2.039 tes unit di 84 berkas dan build lulus.

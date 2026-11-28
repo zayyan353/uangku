@@ -1,4 +1,5 @@
 import { formatMoney, parseMoney, type Currency } from '../lib/finance';
+import { maskedMoney, usePrivacyAmounts } from './PrivacyAmounts';
 
 /**
  * Reads back what was typed in an amount field with thousands separators
@@ -7,8 +8,9 @@ import { formatMoney, parseMoney, type Currency } from '../lib/finance';
  * Nothing is shown for an empty, invalid or short (under 1.000) amount.
  */
 export default function MoneyEcho({ text, currency }: { text: string; currency?: Currency }) {
+  const { hidden } = usePrivacyAmounts();
   if (!currency || !text.trim()) return null;
   const minor = parseMoney(text, currency);
   if (minor === null || !Number.isSafeInteger(minor) || text.replace(/[^\d]/g, '').length < 4) return null;
-  return <span className="field-help money-echo" data-testid="money-echo">Terbaca: {formatMoney(minor, currency)}</span>;
+  return <span className="field-help money-echo" data-testid="money-echo">Terbaca: {hidden ? maskedMoney(currency) : formatMoney(minor, currency)}</span>;
 }

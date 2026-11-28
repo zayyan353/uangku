@@ -1,5 +1,6 @@
 import { ArrowRight, CircleHelp, History, Landmark, Plus, Settings2, Wallet as WalletIcon } from 'lucide-react';
 import { formatDate, type Currency, type Wallet } from '../lib/finance';
+import { PrivateAmount, usePrivacyAmounts } from './PrivacyAmounts';
 import type { WalletFreshness } from '../lib/walletFreshness';
 
 export const kindLabel = (kind: Wallet['kind']) => kind === 'cash' ? 'Uang tunai' : kind === 'ewallet' ? 'E-wallet' : 'Rekening bank';
@@ -11,8 +12,10 @@ export function WalletSymbol({ wallet, small = false }: { wallet: Wallet; small?
 }
 
 /** A balance, or the sentence that explains why there is none; the sentence is set as plain text. */
-function WalletBalance({ text }: { text: string }) {
-  return <strong className={`wallet-card-balance${/\d/.test(text) ? '' : ' wallet-card-balance-note'}`}>{text}</strong>;
+function WalletBalance({ balance, currency }: { balance: number | string; currency: Currency }) {
+  return typeof balance === 'number'
+    ? <strong className="wallet-card-balance"><PrivateAmount value={balance} currency={currency} /></strong>
+    : <strong className="wallet-card-balance wallet-card-balance-note">{balance}</strong>;
 }
 
 const shortDay = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -35,7 +38,7 @@ export function freshnessText(freshness: WalletFreshness | undefined, today: str
 /** Wallets page: active/archive tabs, total, and the grid of wallet cards. */
 export default function WalletsPage({
   hasCashArchive, onOpenCashArchive, walletView, onWalletViewChange, activeCount, archivedCount,
-  currency, currencyName, clockDay, total, wallets, actualText, freshness,
+  currency, currencyName, clockDay, total, wallets, actualBalance, freshness,
   onOpenWallet, onRecord, onCheckBalance, onShowHistory, onRestore,
 }: {
   hasCashArchive: boolean;
@@ -47,10 +50,10 @@ export default function WalletsPage({
   currency: Currency;
   currencyName: string;
   clockDay: string;
-  total: { value: number | null; text: string };
+  total: number | string;
   /** Wallets shown in the current tab. */
   wallets: Wallet[];
-  actualText: (walletId: string, currency: Currency) => string;
+  actualBalance: (walletId: string) => number | string;
   /** Per wallet: its latest record and how far its stored bank statements reach. */
   freshness: ReadonlyMap<string, WalletFreshness> | null;
   onOpenWallet: (wallet: Wallet | 'new') => void;
@@ -59,14 +62,15 @@ export default function WalletsPage({
   onShowHistory: (wallet: Wallet) => void;
   onRestore: (wallet: Wallet) => void;
 }) {
+  const { hidden } = usePrivacyAmounts();
   return <>
         {hasCashArchive && <div className="notice"><span>Histori cash lama disimpan sebagai arsip baca saja dan tidak masuk total aktif.</span><button className="button secondary small" onClick={onOpenCashArchive}>Lihat arsip cash lama</button></div>}
         <div className="wallet-view-tabs tab-group" role="group" aria-label="Status dompet"><button className={walletView === 'active' ? 'active' : ''} data-testid="wallet-active-tab" aria-pressed={walletView === 'active'} onClick={() => onWalletViewChange('active')}>Aktif ({activeCount})</button><button className={walletView === 'archive' ? 'active' : ''} data-testid="wallet-archive-tab" aria-pressed={walletView === 'archive'} onClick={() => onWalletViewChange('archive')}>Arsip ({archivedCount})</button></div>
-        <div className="section-heading"><div><h2 className="section-title">Dompet {currencyName} · {walletView === 'archive' ? 'Arsip' : 'Aktif'}</h2><p className="section-description">{wallets.length} dompet</p></div>{(walletView === 'active' || wallets.length > 0) && <p className="wallet-total"><span>Saldo aktual {formatDate(clockDay)}</span><strong className={/\d/.test(total.text) ? undefined : 'wallet-total-note'} data-testid="wallet-current-total" data-amount={total.value ?? undefined}>{total.text}</strong></p>}</div>
+        <div className="section-heading"><div><h2 className="section-title">Dompet {currencyName} · {walletView === 'archive' ? 'Arsip' : 'Aktif'}</h2><p className="section-description">{wallets.length} dompet</p></div>{(walletView === 'active' || wallets.length > 0) && <p className="wallet-total"><span>Saldo aktual {formatDate(clockDay)}</span><strong className={typeof total === 'number' ? undefined : 'wallet-total-note'} data-testid="wallet-current-total" data-amount={typeof total === 'number' && !hidden ? total : undefined}>{typeof total === 'number' ? <PrivateAmount value={total} currency={currency} /> : total}</strong></p>}</div>
         {walletView === 'archive' && wallets.length > 0 && <div className="notice">Dompet arsip tetap masuk saldo dan laporan. Histori dapat dibaca; pulihkan dompet untuk mencatat, mengimpor, atau mengubah transaksi.</div>}
         <div className="wallet-grid">{wallets.map(w => {
           const row = freshness?.get(w.id);
-          return <section key={w.id} className="wallet-card" data-wallet-id={w.id}><div className="wallet-card-top"><WalletSymbol wallet={w} /><span className="wallet-info"><strong>{w.name}</strong><span>{kindLabel(w.kind)}{walletView === 'archive' ? ' · Arsip' : ''}</span></span>{walletView === 'active' && <button className="text-link wallet-edit" aria-label={`Atur dompet ${w.name}`} onClick={() => onOpenWallet(w)}><Settings2 size={14} /> Atur</button>}</div><span className="wallet-card-label">Saldo aktual {formatDate(clockDay)}</span><WalletBalance text={actualText(w.id, w.currency)} />
+          return <section key={w.id} className="wallet-card" data-wallet-id={w.id}><div className="wallet-card-top"><WalletSymbol wallet={w} /><span className="wallet-info"><strong>{w.name}</strong><span>{kindLabel(w.kind)}{walletView === 'archive' ? ' · Arsip' : ''}</span></span>{walletView === 'active' && <button className="text-link wallet-edit" aria-label={`Atur dompet ${w.name}`} onClick={() => onOpenWallet(w)}><Settings2 size={14} /> Atur</button>}</div><span className="wallet-card-label">Saldo aktual {formatDate(clockDay)}</span><WalletBalance balance={actualBalance(w.id)} currency={w.currency} />
             <p className="wallet-card-fresh" data-testid="wallet-freshness" data-last-record={row?.lastRecordOn ?? ''} data-statement-through={row?.statementThrough ?? ''}>
               {freshness ? freshnessText(row, clockDay) : 'Tanggal catatan dan mutasi belum dapat dipastikan.'}
             </p>

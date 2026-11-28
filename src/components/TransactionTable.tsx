@@ -9,6 +9,7 @@ import { isCashLinkedEntry } from '../lib/cashScope';
 import { createBankEntryPresentationLookup } from '../lib/bankEntryHints';
 import { entryReviewStatus } from '../lib/reviewStatus';
 import { typeLabels } from '../lib/entryTypeLabels';
+import { PrivateAmount, PrivateValue, usePrivacyAmounts } from './PrivacyAmounts';
 
 /** Icons for the built-in expense categories; a renamed or personal category keeps the plain arrow. */
 const CATEGORY_ICONS: Record<string, LucideIcon> = {
@@ -30,6 +31,7 @@ export default function TransactionTable({ entries, state, data, onEdit, onDetai
   /** Review queue: rows still without a category get a category picker of their own. */
   quickCategory?: { names: readonly string[]; apply: (entry: Entry, category: string) => void };
 }) {
+  const { hidden } = usePrivacyAmounts();
   const readOnlyEntryIds = useMemo(() => archivedReadOnlyEntryIds(data), [data]);
   const bankPresentation = useMemo(() => createBankEntryPresentationLookup(data), [data.metadata]);
   if (!entries.length) return empty ?? <div className="empty-state"><History size={30} /><h3>Belum ada transaksi di sini</h3><p>Mulai dari satu catatan kecil, atau impor mutasi rekeningmu.</p></div>;
@@ -46,6 +48,8 @@ export default function TransactionTable({ entries, state, data, onEdit, onDetai
     const dates = entry.type === 'transfer' ? transferPostingDates(entry, data.metadata) : null;
     const presentation = bankPresentation(entry);
     const bank = presentation.bank;
+    const privateTitle = bank.kind === 'none' ? typeLabels[entry.type] : bank.label;
+    const rowLabel = hidden ? `${privateTitle} · ${wallet.name} · ${formatDate(entry.date)}` : entry.note || typeLabels[entry.type];
     const review = entryReviewStatus(entry);
     const knownCategory = review.category ? '' : entry.category;
     let subtitle = entry.category || typeLabels[entry.type];
@@ -58,20 +62,30 @@ export default function TransactionTable({ entries, state, data, onEdit, onDetai
     const legacyNote = dates?.basis === 'legacy-assumed' && !data.demo && <small className="field-help legacy-transfer-note">Satu tanggal untuk kedua sisi; tanggal bank tiap sisi belum dipastikan</small>;
     const received = entry.type === 'transfer' && destination && (destination.currency !== wallet.currency || (entry.toAmount ?? 0) !== Math.abs(entry.amount));
     const dateLabel = groupByDate && entry.date !== entries[position - 1]?.date ? formatDate(entry.date) : null;
+    const sign = entry.type === 'transfer' ? '' : positive ? '+' : '−';
+    const amounts = <>
+      <strong className={entry.type === 'transfer' ? '' : positive ? 'amount-positive' : 'amount-negative'}>
+        <PrivateValue text={sign + formatMoney(Math.abs(entry.amount), wallet.currency)} currency={wallet.currency} />
+      </strong>
+      {received && <span className="transaction-note">→ <PrivateAmount value={entry.toAmount ?? 0} currency={destination.currency} /></span>}
+      {entry.fee ? <span className="transaction-note">Biaya <PrivateAmount value={entry.fee} currency={wallet.currency} /></span> : null}
+    </>;
     return <tr key={entry.id} data-entry-id={entry.id}>
       <td>{dateLabel && <div className="date-group-label">{dateLabel}</div>}<div className={`transaction-cell ${selection ? 'selectable' : ''}`}>
-        {selection && <label className="selection-hit"><input className="selection-checkbox" type="checkbox" aria-label={`Pilih ${entry.note || typeLabels[entry.type]} untuk kategori`} title={canCategorize(entry) ? 'Pilih untuk kategori massal' : 'Transfer dan penyesuaian tidak memakai kategori belanja'} disabled={!canCategorize(entry) || archived} checked={canCategorize(entry) && !archived && selection.ids.has(entry.id)} onChange={() => selection.toggle(entry.id)} /></label>}
-        <span className={`transaction-icon ${entry.type}`}><Icon size={18} /></span><div><button type="button" className="transaction-title transaction-open" title="Lihat rincian" onClick={() => onDetail(entry)}>{presentation.title}</button>
+        {selection && <label className="selection-hit"><input className="selection-checkbox" type="checkbox" aria-label={`Pilih ${rowLabel} untuk kategori`} title={canCategorize(entry) ? 'Pilih untuk kategori massal' : 'Transfer dan penyesuaian tidak memakai kategori belanja'} disabled={!canCategorize(entry) || archived} checked={canCategorize(entry) && !archived && selection.ids.has(entry.id)} onChange={() => selection.toggle(entry.id)} /></label>}
+        <span className={`transaction-icon ${entry.type}`}><Icon size={18} /></span><div><button type="button" className="transaction-title transaction-open" title="Lihat rincian" onClick={() => onDetail(entry)}>{hidden ? privateTitle : presentation.title}</button>
           {subtitle && <span className="transaction-note">{subtitle}</span>}
           {!quickCategory && review.category && !review.type && <span className="field-help review-reason">Kategori belum diisi; jenis pengeluaran/pemasukan sudah diketahui.</span>}
-          {bank.kind !== "none" && <span className="field-help bank-operation-hint" data-bank-operation={bank.kind}>{bank.label}{bank.kind === 'card-purchase' && (review.category || entry.category === 'Belanja') ? ' · tujuan belanja belum spesifik' : ''}</span>}{presentation.description && presentation.title !== presentation.description && <details className="bank-wording"><summary>Keterangan bank asli</summary><p>{presentation.description}</p></details>}{quickCategory && review.category && !archived && canCategorize(entry) && <select className="select-input quick-category" aria-label={`Kategori untuk ${entry.note || typeLabels[entry.type]}`} value="" onChange={event => { if (event.target.value) quickCategory.apply(entry, event.target.value); }}><option value="" disabled>Pilih kategori…</option>{quickCategory.names.filter(name => name !== 'Belum dikategorikan').map(name => <option key={name}>{name}</option>)}</select>}<span className="transaction-mobile-meta">{wallet.name} · {formatDate(entry.date)}</span></div>
+          {bank.kind !== "none" && <span className="field-help bank-operation-hint" data-bank-operation={bank.kind}>{bank.label}{bank.kind === 'card-purchase' && (review.category || entry.category === 'Belanja') ? ' · tujuan belanja belum spesifik' : ''}</span>}{!hidden && presentation.description && presentation.title !== presentation.description && <details className="bank-wording"><summary>Keterangan bank asli</summary><p>{presentation.description}</p></details>}{quickCategory && review.category && !archived && canCategorize(entry) && <select className="select-input quick-category" aria-label={`Kategori untuk ${rowLabel}`} value="" onChange={event => { if (event.target.value) quickCategory.apply(entry, event.target.value); }}><option value="" disabled>Pilih kategori…</option>{quickCategory.names.filter(name => name !== 'Belum dikategorikan').map(name => <option key={name}>{name}</option>)}</select>}<span className="transaction-mobile-meta">{wallet.name} · {formatDate(entry.date)}</span></div>
       </div></td>
       <td className="wallet-column"><span className="wallet-table-name">{wallet.name}</span>{mixedCurrencies && <span className="transaction-note">{wallet.currency}</span>}</td><td className="date-cell date-column">{dates ? sameDay ? <>{formatDate(dates.source!)}{legacyNote}</> : <><span>Debit: {dates.source ? formatDate(dates.source) : 'Belum diketahui'}</span><span className="transaction-note">Kredit: {dates.destination ? formatDate(dates.destination) : 'Belum diketahui'}</span>{legacyNote}</> : formatDate(entry.date)}</td>
-      <td className="amount-cell amount-column"><button type="button" className="amount-detail-button" aria-label={`Rincian transaksi ${entry.note || typeLabels[entry.type]}`} onClick={() => onDetail(entry)}><strong className={entry.type === 'transfer' ? '' : positive ? 'amount-positive' : 'amount-negative'}>{entry.type === 'transfer' ? '' : positive ? '+' : '−'}{formatMoney(Math.abs(entry.amount), wallet.currency)}</strong>{received && <span className="transaction-note">→ {formatMoney(entry.toAmount ?? 0, destination.currency)}</span>}{entry.fee ? <span className="transaction-note">Biaya {formatMoney(entry.fee, wallet.currency)}</span> : null}<span className="amount-detail-hint">Rincian transaksi</span></button>{quickCategory ? <div className="review-badges">
+      <td className="amount-cell amount-column">{hidden ? <div>{amounts}</div> : <button type="button" className="amount-detail-button" aria-label={`Rincian transaksi ${rowLabel}`} onClick={() => onDetail(entry)}>
+        {amounts}<span className="amount-detail-hint">Rincian transaksi</span>
+      </button>}{quickCategory ? <div className="review-badges">
         {review.type && <span className="badge unreviewed">Cek jenis</span>}
         {review.category && <span className="badge unreviewed">Isi kategori</span>}
       </div> : review.type && <span className="badge unreviewed">Perlu dicek</span>}</td>
-      <td className="actions-column">{archived ? <span className="field-help">Arsip · baca saja</span> : <div className="row-actions"><button className={entry.type === 'unreviewed' ? 'button secondary small' : 'icon-button'} aria-label={`${entry.type === 'unreviewed' ? 'Cek' : 'Ubah'} ${entry.note || 'transaksi'}`} onClick={() => onEdit(entry)}>{entry.type === 'unreviewed' ? 'Cek' : <Pencil size={16} />}</button></div>}</td>
+      <td className="actions-column">{archived ? <span className="field-help">Arsip · baca saja</span> : <div className="row-actions"><button className={entry.type === 'unreviewed' ? 'button secondary small' : 'icon-button'} aria-label={`${entry.type === 'unreviewed' ? 'Cek' : 'Ubah'} ${hidden ? rowLabel : entry.note || 'transaksi'}`} onClick={() => onEdit(entry)}>{entry.type === 'unreviewed' ? 'Cek' : <Pencil size={16} />}</button></div>}</td>
     </tr>;
   })}</tbody></table></div>;
 }

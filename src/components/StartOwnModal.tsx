@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import Modal from './Modal';
+import { maskedMoney, usePrivacyAmounts } from './PrivacyAmounts';
 import { formatDate, formatMoney } from '../lib/finance';
 import { reviewDemo } from '../lib/demoTransition';
 import { createEmptyState, type StoredData } from '../lib/storage';
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export default function StartOwnModal({ data, persisted, busy, onClose, onCarry, onEmpty }: Props) {
+  const { hidden } = usePrivacyAmounts();
   const { samples, additional } = useMemo(() => reviewDemo(data), [data]);
   const [included, setIncluded] = useState(() => new Set(samples.filter(row => row.selected).map(row => row.entry.id)));
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -49,7 +51,7 @@ export default function StartOwnModal({ data, persisted, busy, onClose, onCarry,
           const wallet = data.state.wallets.find(item => item.id === entry.walletId)!;
           return <label key={entry.id} className="checkbox-row">
             <input type="checkbox" disabled={required || busy} checked={included.has(entry.id)} onChange={event => toggle(entry.id, event.target.checked)} />
-            <span>{entry.note || entry.category || 'Transaksi'} · {wallet.name} · {formatDate(entry.date)} · {formatMoney(entry.amount, wallet.currency)}{required && ' · riwayat terkait'}</span>
+            <span>{hidden ? entry.category || 'Transaksi' : entry.note || entry.category || 'Transaksi'} · {wallet.name} · {formatDate(entry.date)} · {hidden ? maskedMoney(wallet.currency) : formatMoney(entry.amount, wallet.currency)}{required && ' · riwayat terkait'}</span>
           </label>;
         })}
       </details>}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { FailureText } from './FailureText';
+import { maskedMoney, PrivateAmount, usePrivacyAmounts } from './PrivacyAmounts';
 import { formatDate, formatMoney } from '../lib/finance';
 import { inspectStoredStatement, prepareStatementCompletion } from '../lib/reconciliation';
 import { executeTransferCommand } from '../lib/transferCommands';
@@ -9,6 +10,7 @@ import { isWalletArchived, archivedReadOnlyEntryIds } from '../lib/walletLifecyc
 
 type Commit = (next: StoredData) => Promise<boolean>;
 function StatementCard({ data, statement, commit, disabled, order }: { data: StoredData; statement: SourceStatement; commit: Commit; disabled: boolean; order: number }) {
+  const { hidden } = usePrivacyAmounts();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState('');
   const [rebase, setRebase] = useState(false);
@@ -44,20 +46,20 @@ function StatementCard({ data, statement, commit, disabled, order }: { data: Sto
     finally { setSaving(false); }
   }
   const status = !inspection ? null : matched ? { tone: 'positive', text: 'Cocok' }
-    : inspection.difference !== null && inspection.difference !== 0 ? { tone: 'warning', text: `Selisih ${formatMoney(Math.abs(inspection.difference), wallet.currency)}` }
+    : inspection.difference !== null && inspection.difference !== 0 ? { tone: 'warning', text: `Selisih ${hidden ? maskedMoney(wallet.currency) : formatMoney(Math.abs(inspection.difference), wallet.currency)}` }
     : inspection.quality.status === 'incomplete' ? { tone: 'warning', text: 'Belum lengkap' } : { tone: 'neutral', text: 'Belum terverifikasi' };
   return <details onToggle={event => setOpen(event.currentTarget.open)} className="panel statement-card">
     <summary><span className="statement-card-title">{wallet.name}{isWalletArchived(data, wallet.id) ? ' · Arsip (baca saja)' : ''} · {formatDate(statement.periodStart)} – {formatDate(statement.periodEnd)} · {statement.rowIds.length} mutasi sumber</span>{status && <span className={`badge ${status.tone}`} data-testid="statement-status">{status.text}</span>}</summary>
     {open && inspection && <div className="statement-card-body">
-      <p>Saldo penutupan file: <strong>{formatMoney(statement.closingBalance, wallet.currency)}</strong> · saldo catatan pada penutupan: <strong>{inspection.projectedBalance === null ? 'Belum dapat dipastikan' : formatMoney(inspection.projectedBalance, wallet.currency)}</strong>.</p>
+      <p>Saldo penutupan file: <strong><PrivateAmount value={statement.closingBalance} currency={wallet.currency} /></strong> · saldo catatan pada penutupan: <strong>{inspection.projectedBalance === null ? 'Belum dapat dipastikan' : <PrivateAmount value={inspection.projectedBalance} currency={wallet.currency} />}</strong>.</p>
       <p className="field-help">Titik awal saldo: {inspection.baseline.status === 'approved' ? 'disetujui' : 'belum terverifikasi'} · kelengkapan terhadap file tersimpan: {inspection.quality.status === 'complete' ? 'lengkap' : inspection.quality.status === 'incomplete' ? 'belum lengkap' : 'belum terverifikasi'}. Ini bukan klaim seluruh histori rekening sudah tersedia.</p>
       {inspection.quality.reasons.map(text => <p key={text} className="notice warning">{text}</p>)}
       {matched ? <p className="notice success" data-testid="statement-complete">Catatan sudah lengkap dan saldonya cocok dengan file ini. Tidak ada yang perlu dilengkapi.</p> : <fieldset disabled={disabled || saving} style={{ border: 0, padding: 0, margin: 0 }}>
-        <label className="field"><span className="field-label">Alasan pelengkapan</span><input aria-label={`Alasan pelengkapan ${statement.id}`} className="field-input" maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} /></label>
+        <label className="field"><span className="field-label">Alasan pelengkapan</span><input aria-label={`Alasan pelengkapan ${hidden ? order + 1 : statement.id}`} className="field-input" maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} /></label>
         <label className="checkbox-row"><input type="checkbox" checked={rebase} onChange={event => setRebase(event.target.checked)} />Saya menyetujui titik awal saldo dari file ini bila diperlukan. Saldo awal dapat berubah; kesinambungan sumber tetap diperiksa.</label>
         <label className="checkbox-row"><input type="checkbox" checked={includeExcluded} onChange={event => setIncludeExcluded(event.target.checked)} />Sertakan mutasi yang sebelumnya saya tandai dilewati. Mutasi yang dihapus tetap memerlukan pemulihan tersendiri.</label>
         <button className="button secondary small" onClick={preview}>Pratinjau pelengkapan</button>
-        {after && proposal && <div className={`notice completion-preview ${after.difference === 0 ? 'success' : 'warning'}`} role="status"><strong>Hasil pratinjau, belum disimpan</strong><p>{proposal.next.state.entries.length - data.state.entries.length} transaksi akan ditambahkan. Saldo penutupan usulan: <strong>{after.projectedBalance === null ? 'Belum dapat dipastikan' : formatMoney(after.projectedBalance, wallet.currency)}</strong> · selisih dengan file: {after.difference === null ? 'belum dapat dipastikan' : formatMoney(after.difference, wallet.currency)}.</p><p className="field-help">Periksa sebelum menyimpan. Data bank dan koreksi pengguna tetap disimpan terpisah.</p><button className="button primary small" onClick={() => void save()}>{saving ? 'Menyimpan…' : 'Lengkapi dan simpan'}</button></div>}
+        {after && proposal && <div className={`notice completion-preview ${after.difference === 0 ? 'success' : 'warning'}`} role="status"><strong>Hasil pratinjau, belum disimpan</strong><p>{proposal.next.state.entries.length - data.state.entries.length} transaksi akan ditambahkan. Saldo penutupan usulan: <strong>{after.projectedBalance === null ? 'Belum dapat dipastikan' : <PrivateAmount value={after.projectedBalance} currency={wallet.currency} />}</strong> · selisih dengan file: {after.difference === null ? 'belum dapat dipastikan' : <PrivateAmount value={after.difference} currency={wallet.currency} />}.</p><p className="field-help">Periksa sebelum menyimpan. Data bank dan koreksi pengguna tetap disimpan terpisah.</p><button className="button primary small" onClick={() => void save()}>{saving ? 'Menyimpan…' : 'Lengkapi dan simpan'}</button></div>}
       </fieldset>}
       {error && <div className="notice error statement-card-error" role="alert"><FailureText text={error} /></div>}
     </div>}
@@ -65,6 +67,7 @@ function StatementCard({ data, statement, commit, disabled, order }: { data: Sto
 }
 
 export default function StatementReview({ data, onCommit, disabled }: { data: StoredData; onCommit: Commit; disabled: boolean }) {
+  const { hidden } = usePrivacyAmounts();
   const [limit, setLimit] = useState(10);
   const readOnlyEntryIds = useMemo(() => archivedReadOnlyEntryIds(data), [data]);
   const [reason, setReason] = useState('');
@@ -87,7 +90,7 @@ export default function StatementReview({ data, onCommit, disabled }: { data: St
     {statements.length > limit && <button className="button secondary small" onClick={() => setLimit(value => value + 10)}>Tampilkan file sumber sebelumnya</button>}
     {deleted.length > 0 && <div className="deleted-transfers"><h3>Transfer dari mutasi bank yang dihapus</h3><p className="field-help">Data banknya masih tersimpan. Memulihkan mengembalikan seluruh transfer: kedua sisi, kedua tanggal, biaya, dan koreksinya.</p><label className="field"><span className="field-label">Alasan pemulihan transfer</span><input className="field-input" aria-label="Alasan pemulihan transfer" maxLength={2000} value={reason} disabled={disabled} onChange={event => setReason(event.target.value)} /><span className="field-help">Isi alasan dulu; tombol Pulihkan aktif setelah itu.</span></label><ul className="deleted-transfer-list">{deleted.slice(0, 20).map(item => {
       const from = data.state.wallets.find(wallet => wallet.id === item.entry.walletId), to = data.state.wallets.find(wallet => wallet.id === item.entry.toWalletId);
-      return <li key={item.entry.id}><span className="deleted-transfer-copy"><strong>{item.entry.note || 'Transfer'}</strong><span>{formatDate(item.entry.date)}{from ? ` · ${formatMoney(item.entry.amount, from.currency)} · ${from.name}${to ? ` → ${to.name}` : ''}` : ''}</span><span>Alasan dihapus: {item.reason}</span></span><button className="button secondary small" disabled={disabled || !reason.trim() || readOnlyEntryIds.has(item.entry.id) || isWalletArchived(data, item.entry.walletId) || !!item.entry.toWalletId && isWalletArchived(data, item.entry.toWalletId)} onClick={() => void restore(item.entry.id)}>Pulihkan seluruh transfer</button></li>;
+      return <li key={item.entry.id}><span className="deleted-transfer-copy"><strong>{hidden ? 'Transfer' : item.entry.note || 'Transfer'}</strong><span>{formatDate(item.entry.date)}{from && <> · <PrivateAmount value={item.entry.amount} currency={from.currency} /> · {from.name}{to && ` → ${to.name}`}</>}</span><span>Alasan dihapus: {hidden ? 'Disamarkan' : item.reason}</span></span><button className="button secondary small" disabled={disabled || !reason.trim() || readOnlyEntryIds.has(item.entry.id) || isWalletArchived(data, item.entry.walletId) || !!item.entry.toWalletId && isWalletArchived(data, item.entry.toWalletId)} onClick={() => void restore(item.entry.id)}>Pulihkan seluruh transfer</button></li>;
     })}</ul>{deleted.length > 20 && <p className="field-help">{deleted.length - 20} transfer lain belum ditampilkan; pulihkan yang di atas dulu.</p>}</div>}
     {error && <div className="notice error" role="alert"><FailureText text={error} /></div>}
   </section>;
