@@ -351,6 +351,44 @@ def fx_usd_jpy(case):
     assert len(data['state']['entries'])==1;case.semantic_checks+=3
 
 
+def fx_reverse_quote(case):
+    dialog = case.tx('usd', 'jpy')
+    dialog.get_by_label('Nominal yang keluar', exact=True).fill('100')
+    direct = dialog.get_by_label('1 USD = berapa JPY?', exact=True)
+    inverse = dialog.get_by_label('1 JPY = berapa USD?', exact=True)
+    flip = dialog.get_by_role('button', name='Balik arah kurs', exact=True)
+    warning = dialog.get_by_test_id('fx-rate-warning')
+    confirm = dialog.get_by_label('Kurs ini sesuai transaksi saya', exact=False)
+    expect(flip).to_be_visible(timeout=2000)
+    direct.fill('150')
+    confirm.check()
+    flip.click()
+    expect(confirm).not_to_be_checked()
+    expect(dialog.locator('.rate-preview strong')).to_contain_text('15.000')
+    flip.click()
+    expect(direct).to_have_value('150')
+
+    # Latest matching transfer is JPY → USD, with a reciprocal rate of 100 JPY/USD.
+    for rate, unusual in [('10000', False), ('10001', True), ('1', False), ('0,9', True)]:
+        direct.fill(rate)
+        expect(warning).to_have_count(int(unusual))
+    flip.click()
+    inverse.fill('2')
+    expect(dialog.locator('.rate-preview strong')).to_contain_text('50')
+    expect(warning).to_contain_text('100 JPY')
+    case.unchanged()
+    confirm.check()
+    dialog.get_by_role('button', name='Simpan transaksi', exact=True).click()
+    expect(dialog).to_have_count(0)
+    saved = case.saved()
+    previous_ids = {row['id'] for row in case.data['state']['entries']}
+    new = [row for row in saved['state']['entries'] if row['id'] not in previous_ids]
+    assert len(new) == 1
+    assert (new[0]['walletId'], new[0]['toWalletId'], new[0]['amount'], new[0]['toAmount'], new[0]['rate']) == ('usd', 'jpy', 10000, 50, 0.5)
+    assert [e for e in saved['state']['entries'] if e['id'] in previous_ids] == case.data['state']['entries']
+    case.semantic_checks += 3
+
+
 def fx_jpy_kwd(case):
     dialog=case.tx('jpy','kwd');dialog.get_by_label('Nominal yang keluar',exact=True).fill('15000')
     dialog.get_by_role('button',name='Isi jumlah diterima',exact=True).click()
@@ -378,6 +416,9 @@ def legacy_fx_note_preserves_money(case):
     p.get_by_role('button',name='Ubah '+original['note'],exact=True).click()
     dialog=p.get_by_role('dialog',name='Ubah transaksi',exact=True)
     expect(dialog.locator('.rate-preview strong')).not_to_contain_text('—')
+    dialog.get_by_role('button',name='Balik arah kurs',exact=True).click()
+    expect(dialog.locator('.rate-preview strong')).not_to_contain_text('—')
+    expect(dialog.get_by_test_id('fx-rate-warning')).to_have_count(0)
     dialog.get_by_label(re.compile('^Keterangan')).fill('SYNTHETIC legacy note revised')
     dialog.get_by_label('Kurs ini sesuai transaksi saya',exact=False).check()
     dialog.get_by_role('button',name='Simpan transaksi',exact=True).click();expect(dialog).to_have_count(0)
@@ -694,6 +735,11 @@ def cases():
     used=document(extended=True,entries=[entry('yen-spend','jpy',1000)])
     archived=document(extended=True,entries=[entry('yen-spend','jpy',1000)],archives=['jpy'])
     manual=document(extended=True,entries=[entry('manual','eur',2525,date='2026-10-29',note='Synthetic manual euro')])
+    rate_history = document(extended=True, entries=[
+        entry('reverse', 'jpy', 100, type_='transfer', toWalletId='usd', toAmount=100, rate=0.01, category='', date='2026-10-25'),
+        entry('older', 'usd', 100, type_='transfer', toWalletId='jpy', toAmount=50, rate=50, category='', date='2026-10-20'),
+        entry('other-pair', 'usd', 100, type_='transfer', toWalletId='try', toAmount=4500, rate=45, category='', date='2026-10-29'),
+    ])
     legacy_boundary=document(entries=[entry('legacy-boundary','try',8_575_606_148_499_318,
         type_='transfer',toWalletId='usd',toAmount=9_007_199_254_740_991,rate=1.050328,fee=0,
         category='',note='SYNTHETIC legacy boundary transfer')])
@@ -706,6 +752,7 @@ def cases():
         ('v6-currency-archive-backup-restore',{'data':archived},backup_archive),
         ('JPY-zero-digit-input',{'data':extended},precision_jpy),
         ('KWD-and-CLF-exact-minor-input',{'data':extended},precision_kwd_clf),
+        ('FX-reverse-quote-and-history-warning', {'data': rate_history, 'width': 390}, fx_reverse_quote),
         ('FX-USD-to-JPY-major-rate',{'data':extended},fx_usd_jpy),
         ('FX-JPY-to-KWD-explicit-received',{'data':extended},fx_jpy_kwd),
         ('FX-conversion-overflow-no-write',{'data':extended},fx_overflow),
