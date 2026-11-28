@@ -1,8 +1,9 @@
-import { useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { formatDate, formatMoney, type Currency } from '../lib/finance';
 import { monthLabel } from '../lib/historyView';
 import { maskedMoney, usePrivacyAmounts } from './PrivacyAmounts';
+import { subscribePrivacyMode } from '../lib/privacyMode';
 import type { SourceDocument } from '../lib/sourceModel';
 import { buildYearRecap, type YearRecap as Recap } from '../lib/yearRecap';
 import Modal from './Modal';
@@ -14,7 +15,9 @@ function RecapDialog({ data, currency, today, onClose }: Props & { onClose: () =
     try { return { recap: buildYearRecap(data, currency, today) }; }
     catch (error) { return { error: error instanceof Error ? error.message : 'Rekap belum dapat dihitung.' }; }
   }, [data, currency, today]);
-  const { hidden } = usePrivacyAmounts();
+  // A preference can already exist when this dialog opens, even if no event reached the app shell.
+  const { readHidden } = usePrivacyAmounts();
+  const hidden = useSyncExternalStore(subscribePrivacyMode, readHidden);
   const [index, setIndex] = useState(0);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const recap = result.recap;

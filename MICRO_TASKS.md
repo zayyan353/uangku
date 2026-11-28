@@ -3327,7 +3327,7 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     `•••••`, juga pada label aksesibel dan tooltip. Ketuk satu nominal untuk
     mengintip hingga 3,5 detik, atau tahan hingga dilepas. Enter dan Spasi
     juga dapat mengintip. Membuka nominal lain menutup intipan sebelumnya
-    (`src/components/PrivacyAmounts.tsx:78`). Jika penyimpanan menolak pilihan,
+    (`src/components/PrivacyAmounts.tsx:79`). Jika penyimpanan menolak pilihan,
     nominal tetap disamarkan pada tab itu dan pengguna diberi tahu.
     *Keputusan agen.* Samarkan nominal, biaya, kurs hasil hitungan, narasi
     transaksi baca-saja, dan rincian bank pada dialog transaksi, kategori,
@@ -3342,7 +3342,11 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
     juga menemukan tombol terhalang CSS HP dan intipan kedua gagal pada saldo
     yang membungkus. Pengujian mencakup kedua tema pada 390 dan 1.440 px,
     perubahan lintas tab, penolakan penyimpanan, draf, serta identitas byte
-    unduhan dan ledger. Sebanyak 2.072 tes unit pada 89 berkas dan build lulus.
+    unduhan dan ledger. Pada CI pertama, empat kasus Rekap gagal di ketiga
+    mesin saat pilihan sudah tersimpan sebelum dialog dibuka tanpa peristiwa
+    perubahan di tab yang sama. Rekap kini membaca pilihan lagi ketika dibuka
+    dan juga menghormati perlindungan sementara tab saat penyimpanan ditolak.
+    Sebanyak 2.072 tes unit pada 89 berkas dan build lulus.
     *Belum terbukti.* Pembaca layar manual dan sentuhan pada perangkat fisik.
   - [ ] **c.** (S) Tes browser: aktifkan, muat ulang, pastikan Ringkasan,
     Transaksi, dan Dompet tidak menampilkan digit nominal; lalu matikan lagi.

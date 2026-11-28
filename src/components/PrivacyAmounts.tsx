@@ -1,20 +1,20 @@
 import { Eye, EyeOff } from 'lucide-react';
 import {
-  createContext, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore,
+  createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore,
   type Dispatch, type ReactNode, type SetStateAction,
 } from 'react';
 import { formatMoney, type Currency } from '../lib/finance';
 import { readPrivacyMode, subscribePrivacyMode, writePrivacyMode } from '../lib/privacyMode';
 
 type Peek = { id: string; text: string } | null;
-const PrivacyContext = createContext<{ hidden: boolean; toggle: () => boolean } | null>(null);
+const PrivacyContext = createContext<{ hidden: boolean; readHidden: () => boolean; toggle: () => boolean } | null>(null);
 const PeekContext = createContext<{ peek: Peek; setPeek: Dispatch<SetStateAction<Peek>> } | null>(null);
 
 export function PrivacyAmountsProvider({ children }: { children: ReactNode }) {
-  const stored = useSyncExternalStore(subscribePrivacyMode, readPrivacyMode);
   const [protectTab, setProtectTab] = useState(false);
+  const readHidden = useCallback(() => protectTab || readPrivacyMode(), [protectTab]);
+  const hidden = useSyncExternalStore(subscribePrivacyMode, readHidden);
   const [peek, setPeek] = useState<Peek>(null);
-  const hidden = stored || protectTab;
   useEffect(() => {
     if (!peek) return;
     const conceal = () => setPeek(null);
@@ -42,6 +42,7 @@ export function PrivacyAmountsProvider({ children }: { children: ReactNode }) {
 
   const preference = useMemo(() => ({
     hidden,
+    readHidden,
     toggle() {
       setPeek(null);
       const saved = writePrivacyMode(!hidden);
@@ -49,7 +50,7 @@ export function PrivacyAmountsProvider({ children }: { children: ReactNode }) {
       setProtectTab(!saved);
       return saved;
     },
-  }), [hidden]);
+  }), [hidden, readHidden]);
   return <PrivacyContext.Provider value={preference}>
     <PeekContext.Provider value={{ peek, setPeek }}>{children}</PeekContext.Provider>
   </PrivacyContext.Provider>;
