@@ -411,6 +411,9 @@ button.category-heading-icon:focus-visible { outline: 2px solid var(--focus); ou
 .wallet-table-name, .date-cell { font-size: 13px; color: var(--text-muted); }
 .date-cell { white-space: nowrap; }
 .date-cell .legacy-transfer-note { display: block; max-width: 18ch; white-space: normal; }
+@media (min-width: 761px) {
+  tr:has(.legacy-transfer-note) .transaction-cell .transaction-note { white-space: normal; overflow-wrap: anywhere; }
+}
 .transactions-table td { padding-top: 15px; padding-bottom: 15px; }
 .transaction-title { font-size: 14px; font-weight: 550; }
 .transaction-note { font-size: 12px; max-width: 245px; }
