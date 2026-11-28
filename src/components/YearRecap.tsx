@@ -2,26 +2,10 @@ import { useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { CalendarDays } from 'lucide-react';
 import { formatDate, formatMoney, type Currency } from '../lib/finance';
 import { monthLabel } from '../lib/historyView';
+import { readPrivacyMode, subscribePrivacyMode } from '../lib/privacyMode';
 import type { SourceDocument } from '../lib/sourceModel';
 import { buildYearRecap, type YearRecap as Recap } from '../lib/yearRecap';
 import Modal from './Modal';
-
-const PRIVACY_KEY = 'uangku:privacy:v1';
-
-// This view only reads the optional display preference. Unknown values keep amounts hidden.
-function privateAmounts() {
-  try {
-    const value = localStorage.getItem(PRIVACY_KEY);
-    return value !== null && !['off', 'false', '0'].includes(value);
-  } catch { return true; }
-}
-function subscribePrivacy(refresh: () => void) {
-  const update = (event: StorageEvent) => {
-    if (event.key === null || event.key === PRIVACY_KEY) refresh();
-  };
-  window.addEventListener('storage', update);
-  return () => window.removeEventListener('storage', update);
-}
 
 interface Props { data: SourceDocument; currency: Currency; today: string }
 
@@ -30,7 +14,7 @@ function RecapDialog({ data, currency, today, onClose }: Props & { onClose: () =
     try { return { recap: buildYearRecap(data, currency, today) }; }
     catch (error) { return { error: error instanceof Error ? error.message : 'Rekap belum dapat dihitung.' }; }
   }, [data, currency, today]);
-  const hidden = useSyncExternalStore(subscribePrivacy, privateAmounts);
+  const hidden = useSyncExternalStore(subscribePrivacyMode, readPrivacyMode);
   const [index, setIndex] = useState(0);
   const drag = useRef<{ x: number; y: number } | null>(null);
   const recap = result.recap;

@@ -3302,11 +3302,25 @@ catatan, atau mengubah data tanpa pilihan pengguna. Tes memakai data sintetis.
   layarnya dibagikan. Actual punya filter privasi yang hanya mengubah tampilan
   (data dan ekspor tetap); sejak 2024 mereka memakai font yang tidak terbaca,
   bukan blur. Di Uangku hampir semua nominal tampil lewat `formatMoney`
-  (`src/lib/finance.ts`, 56 pemanggilan di komponen), jadi penyamaran cukup di
-  satu jalur.
-  - [ ] **a.** (S) `src/lib/privacyMode.ts` + tes: kunci `uangku:privacy:v1` per
-    browser dengan pola `src/lib/theme.ts` dan `src/lib/nickname.ts`; tidak
-    masuk ledger maupun cadangan, jadi bukan perubahan format data.
+  (`src/lib/finance.ts:165`, 51 pemanggilan di `src/components` dan 12 di
+  `src/App.tsx` pada awal MW-153). Penyamaran berlaku pada tampilan.
+  - [x] **a.** (S) Preferensi privasi per browser.
+    *Selesai.* Pemilik menyetujui kunci `uangku:privacy:v1` pada 28 November
+    2026. `src/lib/privacyMode.ts` membaca pilihan secara sinkron dan menyimpan
+    `on` atau `off` pada kunci itu. Rekap membaca nilai sejak render pertama.
+    Nominal tampil jika kunci belum ada atau bernilai `off`, `false`, atau `0`. Nilai lain dan kegagalan membaca penyimpanan menyamarkannya.
+    Pembacaan ulang mengikuti perubahan di tab sendiri dan tab lain, termasuk
+    penghapusan kunci. Penulisan yang ditolak mengembalikan status gagal.
+    *Tes.* Sebelum notifikasi tab sendiri terpasang, Rekap yang terbuka masih
+    menyamarkan nominal sesudah pilihan berubah menjadi `off`. Tes pustaka
+    untuk pemberitahuan itu juga gagal. Sesudah perbaikan, 2.072 tes unit
+    termasuk 13 tes pustaka dan build produksi lulus. Di Chromium, 3 skenario
+    memastikan penyamaran sejak tampilan pertama serta penyegaran lintas tab.
+    Pada lebar 390 dan 1.440 px, 4 unduhan CSV dan 4 cadangan JSON sama persis
+    per jenis berkas ketika pilihan aktif dan nonaktif. Enam belas perbandingan
+    byte ledger lulus. Pada profil kosong, ledger tetap absen sesudah clear.
+    *Belum terbukti.* Tombol mata dan penyamaran di seluruh halaman dijadwalkan
+    pada MW-153b. Perangkat fisik belum diuji.
   - [ ] **b.** (S–M) Saat aktif, nominal tampil "•••••" dengan simbol atau kode
     mata uang tetap, termasuk teks untuk pembaca layar. Isian form
     (`formatMoneyInput`), unduhan CSV, dan cadangan tidak berubah. Tombol mata
@@ -3598,8 +3612,7 @@ atau kebijakan pembukuan.
    kunci nomor PR. Verifikasi pemanggilan CI oleh Publikasikan setelah merge.
    Untuk MW-101 hitung sidik dari teks yang benar-benar tersimpan.
 2. **Fitur pilihan pemilik.** MW-147a → 147b → 147c (jenis `suggestions`) →
-   153a → 153b → 153c (baca preferensi sinkron saat render pertama dan catat
-   cakupan penyamaran dialog) → 149a → 154a → 161a → 161b → 161c →
+   149a → 154a → 161a → 161b → 161c →
    154b → 148a → 148b → 149b → 149c → 147d. Rekap 2026 ditargetkan terbit
    sebelum 31 Desember. Uji jendela 1 Desember–31 Januari dengan jam uji
    tersendiri (jam tetap tes lain 31 Oktober, tes performa memakai jam asli).
@@ -3611,6 +3624,10 @@ atau kebijakan pembukuan.
    117b. Kecepatan: MW-112c → 112a → 112b, ukur ulang garis dasar sesudah
    MW-162, lalu MW-111a. Fitur: MW-130a → 130b → 132a → 103 (permintaan
    hanya ke origin sendiri dan perbarui kalimat Privasi).
+5. **Mode privasi sesudah MW-103 terbit.** Pada 28 November pemilik memberi
+   pengecualian untuk kunci tampilan per browser `uangku:privacy:v1` dan
+   menjadwalkan MW-153a → 153b → 153c di akhir antrean. Baca nilai secara
+   sinkron saat render pertama dan catat cakupan penyamaran dialog di MW-153b.
 
 **Menunggu pemilik atau bahan:** MW-19, 20, 70, 81, 92, 105b, 108, 109,
 120c, 130d, 132b, 133, 134, 135, 139, 152b, 159b, 159c. MW-100d, 102a,
