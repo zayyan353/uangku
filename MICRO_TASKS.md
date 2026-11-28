@@ -1728,15 +1728,23 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   perlambatan dan median 160 ms (maks 448) pada CPU 4×. Median pada CPU 4× sama
   pada 1.000 dan 5.000 baris (maksimum 208 ms lawan 448 ms): biayanya render
   ulang penuh `App` dua kali per ketikan
-  (`src/App.tsx:107`, `:161`), bukan jumlah baris. Besar perbaikannya belum
+  (state pencarian dan efek seleksi kini di `src/App.tsx:119,186`), bukan jumlah baris. Besar perbaikannya belum
   diukur.
-  - [ ] **a.** Pembaruan di `src/App.tsx:161` tidak membuat array baru bila sudah
+  - [ ] **a.** Pembaruan di `src/App.tsx:186` tidak membuat array baru bila sudah
     kosong. Memindahkan state pencarian keluar dari `App` bukan bagian butir
     ini; itu dikerjakan sebagai MW-144a–b. Kerjakan butir c lebih dulu supaya
     hasil a dan b terukur.
   - [ ] **b.** Simpan judul huruf kecil di dalam indeks, bukan dihitung per baris per
     ketikan (`src/lib/historyView.ts:91-92`).
-  - [ ] **c.** Sampel ketikan (median dan maksimum) di `tests/performance_browser.py`.
+  - [x] **c.** Sampel ketikan di `tests/performance_browser.py:92,178,339–344`.
+    *Selesai:* pada profil sintetis yang sudah menyelesaikan uji simpan, ketik
+    delapan karakter satu per satu. Ukur dari peristiwa input sampai callback
+    frame kedua, periksa hasil pencarian dan bandingkan byte ledger.
+    *Tes:* pemeriksaan laporan gagal di induk karena sampel ketikan belum ada.
+    Pada build produksi Chromium, 5 sampel × 8 ketikan pada 10.000 baris memberi
+    median 34,25 ms dan maksimum 93,4 ms. Kelima batch edit dan satu impor v2
+    lulus; 2.052 tes unit di 88 berkas dan build produksi lulus.
+    *Belum terbukti:* kecepatan pada HP fisik. Metrik ketikan hanya dilaporkan.
 
 ### F4. Pemakaian di HP dan alur
 
