@@ -852,6 +852,20 @@ input::placeholder, textarea::placeholder, .search-input input::placeholder { co
   --text-muted: #52634f;
   --control-border: #7a886e;
   --focus: #46712f;
+  --surface-hover: #fafbf7;
+  --success-text: var(--text-muted);
+  --success-surface: #edf3e5;
+  --success-border: #dce9c9;
+  --warning-text: var(--text-muted);
+  --warning-surface: #fcf8e8;
+  --warning-border: #ece2be;
+  --error-text: #a24c35;
+  --error-surface: #fff3ee;
+  --error-border: #f0d4c9;
+  --info-text: var(--text-muted);
+  --info-surface: #ebf0f5;
+  --purple-text: var(--text-muted);
+  --purple-surface: #f0edf6;
 }
 html[data-theme="dark"] {
   color-scheme: dark;
@@ -1581,7 +1595,7 @@ button.transaction-open:focus-visible { outline: 2px solid var(--focus); outline
 .type-hint { margin: -4px 0 14px; line-height: 1.5; }
 .date-shortcuts { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; margin-top: 6px; }
 .date-shortcuts .text-link[aria-pressed="true"] { text-decoration: underline; text-underline-offset: 3px; color: var(--text); }
-:is(.field-input, .select-input)[aria-invalid="true"] { border-color: var(--error-text, #a24c35); box-shadow: 0 0 0 1px var(--error-text, #a24c35); }
+:is(.field-input, .select-input)[aria-invalid="true"] { border-color: var(--error-text); box-shadow: 0 0 0 1px var(--error-text); }
 
 /* Kerangka 3.7.3 / 3.7.6: kelola template dan saran kategori di form transaksi */
 .template-quick-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -1644,7 +1658,7 @@ html[data-theme="dark"] .checkbox-row.invalid { color: #f0a394; }
 .statement-card > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; cursor: pointer; font-size: 14px; }
 .statement-card-title { flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
 .statement-card-body { padding-top: 12px; }
-.badge.positive { background: var(--success-surface, #edf3e5); color: var(--readable-positive); }
+.badge.positive { background: var(--success-surface); color: var(--readable-positive); }
 .badge.warning { background: #fcf1d9; color: #6b4a12; }
 html[data-theme="dark"] .badge.positive { background: var(--success-surface); color: var(--success-text); }
 html[data-theme="dark"] .badge.warning { background: #4a3a17; color: #f3d99a; }
