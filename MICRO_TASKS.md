@@ -1385,9 +1385,15 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   Seluruh 23 skenario UX lulus. Pada alamat berawalan `/uangku/`, dua kasus
   tambahan juga lulus dengan nol permintaan lintas origin. Isi ledger tetap
   sama setelah periksa versi maupun muat ulang.
+  Pada PR #161, dua kasus WebKit gagal karena Playwright WebKit menolak
+  respons 302 buatan. Tes kini menyajikan HTML produksi yang sama di server
+  loopback. Server mengirim 302 sungguhan untuk dua tujuan, satu pada origin
+  aplikasi dan satu pada port berbeda. Pada Chromium desktop dan HP di
+  `/uangku/`, masing-masing delapan GET mencapai manifest. Kedua tujuan
+  pengalihan menerima nol permintaan. Header GET bebas cookie dan referrer.
   **Belum terbukti.** Tab lama pada perangkat fisik saat publikasi berganti.
   *File:* `src/App.tsx` (`versionNotice`), `src/components/PrivacyNotice.tsx`,
-  `tests/ux_browser.py` (`build_update_case`).
+  `tests/ux_browser.py:334,359` (`loopback_origin`, `build_update_case`).
 
 - [ ] **MW-104 — Jurnal pemulihan yang tidak terbaca disisihkan, bukan mengunci aplikasi** (S)
   Bila `uangku:full-restore:v1` tidak bisa dibaca, aplikasi tetap di "Data lama
