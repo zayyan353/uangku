@@ -285,6 +285,36 @@ function walletBalanceThrough(state: State, walletId: string, cutoffISO?: string
   return checkedSum(amounts());
 }
 
+/** Current account holdings, one exact sum per currency. A missing posting date
+ * or an unrepresentable balance affects only its own currency. */
+export function currentCurrencyBalances(state: State, through: string, context?: PostingContext): Map<Currency, number | null> {
+  const index = createPostingDateIndex(context);
+  const accounts = state.wallets.filter(wallet => wallet.kind !== 'cash');
+  const balances = new Map<string, bigint | null>();
+  for (const wallet of accounts) {
+    const unknown = actualBalanceProblem(index, wallet.id, through);
+    balances.set(wallet.id, unknown ? null : BigInt(wallet.openingBalance));
+  }
+  for (const entry of state.entries) {
+    for (const posting of entryPostings(entry, index)) {
+      const balance = balances.get(posting.walletId);
+      if (balance == null) continue;
+      if (posting.date === null) balances.set(posting.walletId, null);
+      else if (posting.date <= through) balances.set(posting.walletId, balance + BigInt(posting.signedAmount));
+    }
+  }
+  const totals = new Map<Currency, bigint | null>();
+  for (const wallet of accounts) {
+    const balance = balances.get(wallet.id)!;
+    const sum = totals.get(wallet.currency);
+    totals.set(wallet.currency, sum === null || balance === null || !Number.isSafeInteger(Number(balance))
+      ? null : (sum ?? 0n) + balance);
+  }
+  return new Map(Array.from(totals, ([code, total]) => [
+    code, total !== null && Number.isSafeInteger(Number(total)) ? Number(total) : null,
+  ]));
+}
+
 export function summaryForCurrency(state: State, currency: Currency, month: string, cutoffISO?: string, context?: PostingContext): {
   balance: number; income: number; expense: number; uncategorized: number;
 } {

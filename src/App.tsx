@@ -40,6 +40,7 @@ import AgeOfMoneyCard from './components/AgeOfMoneyCard';
 import SpendingCalendar from './components/SpendingCalendar';
 import { isYearRecapVisible } from './lib/yearRecap';
 import { buildCashflowReport, type CashflowReport } from './lib/cashflowReport';
+import CurrencyBalances from './components/CurrencyBalances';
 import CashflowOverview, { CashflowBalance, FoldHeader, useMobileOverview } from './components/CashflowOverview';
 import WalletEditor from './components/WalletEditor';
 import CurrencyManager from './components/CurrencyManager';
@@ -335,6 +336,7 @@ export default function App() {
     return walletFreshness(data, clockDay);
   }, [page, ledger.dirty, blocked, data, clockDay]);
   const mobileOverview = useMobileOverview();
+  const currencyBalances = <CurrencyBalances state={state} day={clockDay} postings={postingContext} />;
   const balanceCard = page === 'overview' && <CashflowBalance report={cashflowResult.report} currency={currency} month={month} period={cashflowPeriod}
     scope={dashboardWallet?.name ?? `Semua dompet ${currency}`} mobile={mobileOverview} demo={data.demo} />;
   const walletPageTotal = useMemo<{ value: number | null; text: string }>(() => {
@@ -1067,7 +1069,7 @@ export default function App() {
       {page !== 'import' && !isReviewQueue && <div className="currency-toolbar"><div className="currency-tabs tab-group" role="group" aria-label="Mata uang">{shownCurrencyTabs.map(c => <button key={c.code} className={`currency-tab ${currency === c.code ? 'active' : ''}`} onClick={() => setCurrency(c.code)} aria-label={`${c.code === 'TRY' ? 'TL' : c.code} ${c.label}`} aria-pressed={currency === c.code}>{currencyFlag(c.code) && <span className="currency-flag" aria-hidden="true">{currencyFlag(c.code)}</span>}<span className="currency-code">{c.code === 'TRY' ? 'TL' : c.code}</span><span className="currency-label">{c.label}{!visibleCurrencies.includes(c.code) ? ' · riwayat' : ''}</span></button>)}</div>{!phoneOverview && currencyManageButton}{!phoneOverview && monthControl}</div>}
       {phoneOverview && balanceCard}
       {page === 'overview' && <>
-        <CashflowOverview {...cashflowResult} previous={previousFlow} startGuide={startGuide} monthControl={phoneOverview ? <>{currencyManageButton}{monthControl}</> : undefined} afterCards={phoneOverview ? banners : undefined} balanceCard={!mobileOverview && balanceCard} currency={currency} month={month} period={cashflowPeriod} walletId={cashflowScope} wallets={currencyWallets} archivedWalletIds={new Set(archivedCurrencyWallets.map(wallet => wallet.id))} onPeriodChange={setCashflowPeriod} onWalletChange={setCashflowWallet} />
+        <CashflowOverview {...cashflowResult} previous={previousFlow} startGuide={startGuide} monthControl={phoneOverview ? <>{currencyManageButton}{monthControl}</> : undefined} afterCards={<>{phoneOverview && banners}{currencyBalances}</>} balanceCard={!mobileOverview && balanceCard} currency={currency} month={month} period={cashflowPeriod} walletId={cashflowScope} wallets={currencyWallets} archivedWalletIds={new Set(archivedCurrencyWallets.map(wallet => wallet.id))} onPeriodChange={setCashflowPeriod} onWalletChange={setCashflowWallet} />
         {isYearRecapVisible(clockDay) && <YearRecap data={data} currency={currency} today={clockDay} />}
         {mobileOverview && overviewRecent}
         <div className="dashboard-columns">
@@ -1138,6 +1140,7 @@ export default function App() {
         }} />
         <AgeOfMoneyCard data={data} currency={currency} today={clockDay} />
       </>}
+      {page === 'wallets' && currencyBalances}
       {page === 'wallets' && <WalletsPage hasCashArchive={cashWallets.length > 0} onOpenCashArchive={() => setCashArchiveOpen(true)} walletView={walletView} onWalletViewChange={setWalletView} activeCount={availableCurrencyWallets.length} archivedCount={archivedCurrencyWallets.length} currency={currency} currencyName={currencyLabel(currency)} clockDay={clockDay} total={walletPageTotal} wallets={displayedWallets} actualText={actualText} freshness={walletFreshnessRows} onOpenWallet={openWallet} onRecord={walletId => openTx('expense', walletId)} onCheckBalance={walletId => openTx('adjustment', walletId)} onShowHistory={w => { setCurrency(w.currency); openHistory(w.id, 'all'); }} onRestore={w => requestWalletAction(w, 'restore')} />}
       {page === 'transactions' && <section className="panel transactions-panel">{categoryTools}{isReviewQueue && <div className="review-scope"><CircleHelp size={19} /><div><strong>Perlu dirapikan · <span data-testid="review-total" data-count={pendingCount}>{pendingCount}</span> catatan</strong><p>Semua mata uang dan semua periode. <span hidden={!pendingReview.type}><span data-testid="review-types" data-count={pendingReview.type}>{pendingReview.type}</span> jenis perlu dicek{pendingReview.category > 0 ? ' · ' : '. '}</span><span hidden={!pendingReview.category}><span data-testid="review-categories" data-count={pendingReview.category}>{pendingReview.category}</span> kategori belum diisi. </span>Saldo sudah tercatat.</p></div><button className="button secondary small review-back" onClick={resetHistory}><ChevronLeft size={15} /> Semua transaksi</button></div>}<HistoryFilters isReviewQueue={isReviewQueue} query={query} onQueryChange={value => {
         setQuery(value);

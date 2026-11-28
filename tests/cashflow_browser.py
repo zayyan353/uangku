@@ -24,6 +24,7 @@ from browser_support import (backup_action, assert_production_url, install_playw
 install_playwright_path()
 from playwright.sync_api import sync_playwright, expect
 from category_browser import compact, nav
+from currency_import_browser import encode_fixture
 from theme_browser import TEXT_CONTRAST_JS, CONTROL_CONTRAST_JS
 
 FINANCE = 'uangku:v1'
@@ -114,6 +115,8 @@ class Case:
         if any(row['type'] == 'movement' for row in wire['state']['entries']):
             assert not wire.get('metadata'), 'Use compatible source entries in logical metadata fixtures'
             wire['version'] = 3
+        if wire.get('metadata', {}).get('walletArchives'):
+            wire = encode_fixture(wire)
         self.raw = compact(wire)
         parts = urlsplit(args.url)
         self.context = browser.new_context(
@@ -589,6 +592,42 @@ def cash_archive(case):
     case.assert_unchanged()
 
 
+def all_currency_balances(case):
+    page = case.page
+    region = page.get_by_role('region', name='Semua mata uang', exact=True)
+    balances = {'TRY': (12_871, '₺128,71'), 'USD': (2_125, '$21,25'), 'IDR': (93_400, 'Rp934')}
+
+    def assert_balances():
+        expect(region).to_be_visible()
+        expect(region).to_contain_text('Saldo aktual')
+        expect(region).to_contain_text('31 Okt 2026')
+        expect(region.locator('dd')).to_have_count(len(balances))
+        assert sorted(region.locator('dt').all_text_contents()) == sorted(balances)
+        for selector in ['dt', 'dd']:
+            nodes = region.locator(selector)
+            first, second = (nodes.nth(i).bounding_box() for i in (0, 1))
+            assert abs(first['y'] - second['y']) < 1, (selector, first, second)
+            assert first['x'] + first['width'] <= second['x'], (selector, first, second)
+        for code, (minor, formatted) in balances.items():
+            term = region.get_by_role('term').filter(has_text=re.compile(f'^{code}$'))
+            value = term.locator('xpath=following-sibling::dd[1]')
+            expect(value).to_be_visible()
+            expect(value).to_have_attribute('data-amount', str(minor))
+            assert ''.join(value.inner_text().split()) == formatted
+        assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth')
+        case.assert_unchanged()
+
+    assert_balances()
+    case.month('2026-09')
+    assert_balances()
+    nav(page, 'Dompet')
+    assert_balances()
+    for label in ['Transaksi', 'Impor mutasi']:
+        nav(page, label)
+        expect(region).to_have_count(0)
+    case.assert_unchanged()
+
+
 def source_read_and_backup(case):
     before = stored_document(case.page)
     assert before['metadata']['facts'] == case.data['metadata']['facts']
@@ -1012,6 +1051,17 @@ def cases():
         entry('archived-in', 100, 'income', wallet_id='archived-cash'),
         entry('archived-out', 300, 'expense', wallet_id='archived-cash')],
         [wallet(), wallet('archived-cash', 'Synthetic archived cash', opening=5_000, kind='cash')])
+    multi_currency = document([
+        entry('september', 1_200, 'income', date='2026-09-30'),
+        entry('today', 329, 'expense', date='2026-10-31', wallet_id='digital'),
+        entry('old-usd', 2_025, 'income', wallet_id='archived-usd'),
+        entry('future', 999_999, 'income', date='2026-11-01', wallet_id='archived-usd'),
+        entry('cash-used', 100, 'expense', wallet_id='legacy-cash')], [
+        wallet(), wallet('digital', 'Synthetic e-wallet', opening=2_000, kind='ewallet'),
+        wallet('archived-usd', 'Synthetic archived bank', currency='USD', opening=100),
+        wallet('rupiah', 'Synthetic rupiah', currency='IDR', opening=93_400),
+        wallet('legacy-cash', 'Synthetic cash', opening=80_000, kind='cash')],
+        {**metadata(), 'walletArchives': [{'walletId': 'archived-usd', 'at': AT}]})
     result = [
         ('aggregate-generated-reference', {'data': reference_fixture()}, reference),
         ('pending-and-adjustment-separate', {}, pending_and_adjustment),
@@ -1031,6 +1081,8 @@ def cases():
         ('unknown-posting-date-incomplete', {'data': unknown}, unknown_dates),
         ('future-month-not-started', {'data': future}, future_month),
         ('cash-archive-excluded-preserved', {'data': archived_cash}, cash_archive),
+        ('all-currency-balances-desktop', {'data': multi_currency}, all_currency_balances),
+        ('all-currency-balances-mobile', {'data': multi_currency, 'width': 390}, all_currency_balances),
         ('immutable-source-backup-read-filter', {'data': source_fixture()}, source_read_and_backup),
     ]
     calendar_data = document([
