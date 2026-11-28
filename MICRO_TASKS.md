@@ -472,16 +472,23 @@ perubahan tampilan yang disengaja, periksa gambar beda dan catat hasilnya.
   satu definisi akhir per selektor dan satu blok per breakpoint. Pecah per area
   (topbar, ringkasan, tabel, impor) bila diff terlalu besar.
 
-- [ ] **MW-65 — Buang CSS mati**
+- [x] **MW-65 — Buang CSS mati**
   Kandidat yang hanya ditemukan di CSS pada `f847251`; periksa lagi
   pemakaian class dinamis sebelum menghapus:
   `.balance-separator`, `.description-cell`, `.fee-row`, `.nav-icon`,
   `.toast-icon`, `.selected-row`, `.quick-wallet-action`,
   `.wallet-icon.blue/.green/.orange`, `.form-grid .full-width`. Dua token yang
   hanya ditemukan di deklarasi ialah `--forest-light` dan `--readable-muted`.
-  Pertahankan `.wallet-row-wrap` pada Ringkasan (`src/App.tsx:871`), serta
+  Pertahankan `.wallet-row-wrap` pada Ringkasan (`src/App.tsx:1055`), serta
   `--readable-negative` dan `--readable-positive` yang dipakai di
-  `src/styles.css:1603` dan `src/styles.css:1606`.
+  `src/styles.css:1605` dan `src/styles.css:1608`.
+  *Selesai:* pencarian di TSX dan pemeriksaan `WalletKind` memastikan nama
+  kandidat tidak dibentuk saat render. Dihapus 12 aturan penuh, anggota
+  dari 7 kelompok selektor, dan 3 deklarasi untuk 2 token tak terpakai.
+  *Tes:* pemeriksaan nama usang gagal pada basis lalu lulus. Pada Chromium
+  16/16 tangkapan viewport cocok (0 piksel); tes tema 23/23, UX 21/21,
+  2.051 tes unit di 88 file dan build lulus.
+  *Belum terbukti:* seluruh kombinasi keadaan halaman pada perangkat asli.
 
 - [ ] **MW-66 — Skala radius, ukuran teks, dan z-index**
   18 nilai radius (3–23px), ukuran teks 11–35px tersebar, z-index 30/40/60/100/150
