@@ -1391,6 +1391,12 @@ lebih dari satu berlaku, hanya satu yang tampil dan sisanya menunggu.
   aplikasi dan satu pada port berbeda. Pada Chromium desktop dan HP di
   `/uangku/`, masing-masing delapan GET mencapai manifest. Kedua tujuan
   pengalihan menerima nol permintaan. Header GET bebas cookie dan referrer.
+  Pada `540eb5b`, Chromium dan Firefox lulus. Di WebKit, kedua kasus
+  melaporkan dua diagnostik jaringan lewat `pageerror` sesudah pengalihan
+  ditolak. Untuk setiap respons 302, tes memeriksa bahwa `fetch` ditolak.
+  Selama permintaan itu, tes menerima paling banyak satu diagnostik WebKit
+  dengan nama dan URL manifest yang cocok persis. Galat JavaScript dan penolakan
+  promise yang tidak ditangani dicatat tersendiri sampai sesudah muat ulang.
   **Belum terbukti.** Tab lama pada perangkat fisik saat publikasi berganti.
   *File:* `src/App.tsx` (`versionNotice`), `src/components/PrivacyNotice.tsx`,
   `tests/ux_browser.py:334,359` (`loopback_origin`, `build_update_case`).

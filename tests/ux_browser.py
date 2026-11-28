@@ -313,7 +313,7 @@ def storage_page(browser, mobile, stored):
     page = new_page(context)
     page.set_default_timeout(15_000)
     errors = []
-    page.on('pageerror', lambda err: errors.append(str(err)))
+    page.on('pageerror', lambda err: errors.append(err))
     return context, page, errors
 
 
@@ -363,6 +363,8 @@ def build_update_case(browser, args, output, mobile):
     same_origin_hits = []
     redirect_hits = []
     blocked = []
+    redirect_diagnostics = []
+    script_errors = []
     app_path = urlsplit(args.url).path.rstrip('/') + '/'
     manifest_path = app_path + 'BUILD_INFO.json'
     assert_production_url(args.url)
@@ -390,26 +392,42 @@ def build_update_case(browser, args, output, mobile):
     def focus():
         seen = len(requested)
         before = page.evaluate('window.releaseChecks.length')
+        assert not errors, errors
         with page.expect_request(target, timeout=5000):
             page.evaluate('window.dispatchEvent(new Event("focus"))')
         page.wait_for_function('n => window.releaseChecks.length > n', arg=before)
         assert len(requested) > seen and requested[-1][0] == response[0]
+        check = page.evaluate('window.releaseChecks.at(-1)')
+        assert check['rejected'] == (response[0] == 302), check
+        if errors:
+            # Playwright WebKit reports a rejected redirect as a network diagnostic on pageerror.
+            assert browser_name() == 'webkit' and response[0] == 302, errors
+            assert len(errors) == 1 and errors[0].name == 'Fetch API cannot load http', errors
+            assert errors[0].message == f'/{urlsplit(target).netloc}{manifest_path} due to access control checks.', errors
+            redirect_diagnostics.append(errors.pop().message)
+        assert not script_errors, script_errors
 
     with ExitStack() as servers:
         origin = servers.enter_context(loopback_origin(application))
         foreign = servers.enter_context(loopback_origin(destination))
         context, page, errors = storage_page(browser, mobile, raw)
         servers.callback(context.close)
+        page.expose_function('recordBuildCheckError', lambda kind, message: script_errors.append((kind, message)))
         context.add_init_script("localStorage.setItem('uangku:budgets:v1', JSON.stringify({IDR:{Belanja:1000}}))")
         context.add_init_script('''(() => {
+          window.addEventListener('error', event => window.recordBuildCheckError('error', event.message));
+          window.addEventListener('unhandledrejection', event => window.recordBuildCheckError('unhandledrejection', String(event.reason)));
           window.releaseChecks = [];
           const original = window.fetch.bind(window);
           window.fetch = async (...args) => {
             const request = new Request(...args);
+            let rejected = false;
             try { return await original(...args); }
+            catch (error) { rejected = true; throw error; }
             finally {
               if (new URL(request.url).pathname.endsWith('/BUILD_INFO.json')) {
-                window.releaseChecks.push([request.cache, request.credentials, request.redirect, request.mode, request.referrerPolicy]);
+                const options = [request.cache, request.credentials, request.redirect, request.mode, request.referrerPolicy];
+                window.releaseChecks.push({options, rejected});
               }
             }
           };
@@ -476,18 +494,21 @@ def build_update_case(browser, args, output, mobile):
             assert 'Referer' not in headers and 'Cookie' not in headers
             assert headers.get('Content-Length', '0') == '0' and 'Transfer-Encoding' not in headers
         checks = page.evaluate('window.releaseChecks')
-        assert all(options == ['no-store', 'omit', 'error', 'same-origin', 'no-referrer'] for options in checks), checks
+        assert all(check['options'] == ['no-store', 'omit', 'error', 'same-origin', 'no-referrer'] for check in checks), checks
         privacy = open_privacy(page)
         expect(privacy).to_contain_text('memeriksa versi terbaru di alamat situs yang sama')
         close_privacy(page, privacy)
+        assert not script_errors, script_errors
         with page.expect_navigation(wait_until='networkidle'):
             warning.get_by_role('button', name='Muat ulang', exact=True).click()
         assert page.evaluate('(key) => localStorage.getItem(key)', KEY) == raw
         assert not same_origin_hits and not redirect_hits and not blocked, (same_origin_hits, redirect_hits, blocked)
         assert not errors, errors
+        assert not script_errors, script_errors
         return {'name': 'build-update-mobile' if mobile else 'build-update-desktop', 'status': 'passed',
                 'manifest_checks': len(requested), 'same_origin_redirect_requests': len(same_origin_hits),
-                'cross_origin_requests': len(redirect_hits)}
+                'cross_origin_requests': len(redirect_hits), 'webkit_redirect_diagnostics': len(redirect_diagnostics),
+                'uncaught_script_errors': len(script_errors)}
 
 
 def fill_storage(page, target, label):
